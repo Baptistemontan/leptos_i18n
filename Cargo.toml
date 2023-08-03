@@ -13,6 +13,7 @@ leptos_actix = { version = "0.4", optional = true }
 leptos_router = { version = "0.4", features = ["nightly"] }
 serde = { version = "1", features = ["rc"] }
 serde_json = { version = "1", optional = true }
+lazy_static = { version = "1", optional = true }
 
 [features]
 default = ["ssr", "hydrate"]
@@ -21,6 +22,7 @@ ssr = [
     "dep:actix-web",
     "dep:leptos_actix",
     "dep:serde_json",
+    "dep:lazy_static",
     "leptos/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr",

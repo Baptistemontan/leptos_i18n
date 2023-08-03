@@ -72,6 +72,7 @@ async fn set_locale_api(
     params: actix_web::web::Query<SetLocaleParams>,
 ) -> impl actix_web::Responder {
     use actix_web::{cookie::*, http::header};
+
     let params = params.into_inner();
     let cookie = CookieBuilder::new(COOKIE_PREFERED_LANG, params.lang)
         .secure(true)
@@ -91,5 +92,9 @@ async fn set_locale_api(
 }
 
 pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
-    cfg.app_data(load_i18n_config()).service(set_locale_api);
+    lazy_static::lazy_static! {
+        static ref CONFIG: actix_web::web::Data<I18nConfig> = load_i18n_config();
+    }
+
+    cfg.app_data(CONFIG.clone()).service(set_locale_api);
 }
