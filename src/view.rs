@@ -89,7 +89,8 @@ pub fn get_context(cx: Scope) -> I18nContext {
         .expect("I18nContext is missing, is the application wrapped in a I18nContextProvider ?")
 }
 
-pub fn set_locale(cx: Scope, lang: String) {
+pub fn set_locale<T: Into<String>>(cx: Scope, lang: T) {
+    let lang = lang.into();
     let context = get_context(cx);
 
     #[cfg(feature = "hydrate")]
