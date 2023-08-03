@@ -5,10 +5,10 @@ use leptos_meta::*;
 
 use crate::Locale;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct I18nContext {
     selected_lang: RwSignal<Option<String>>,
-    locale: Locale,
+    locale: Resource<Option<String>, Locale>,
 }
 
 #[server(GetLocales, "/api")]
@@ -33,33 +33,36 @@ async fn fetch_locales(cx: Scope, selected_lang: Option<String>) -> Result<Local
 pub fn I18nContextProvider(cx: Scope, children: ChildrenFn) -> impl IntoView {
     let selected_lang = create_rw_signal(cx, None);
 
-    let locales = create_blocking_resource(
+    let locale = create_blocking_resource(
         cx,
         move || selected_lang.get(),
-        move |selected_lang| async move { fetch_locales(cx, selected_lang).await.unwrap() },
+        move |sl| async move { fetch_locales(cx, sl).await.unwrap() },
     );
 
-    let children = store_value(cx, Rc::new(children));
+    provide_context(
+        cx,
+        I18nContext {
+            locale,
+            selected_lang,
+        },
+    );
 
-    let render = move || {
-        locales.read(cx).map(move |locale| {
-            let lang = locale.lang.clone();
-            provide_context(
-                cx,
-                I18nContext {
-                    locale,
-                    selected_lang,
-                },
-            );
+    let lang = move || {
+        locale.with(cx, |l| {
+            let lang = l.lang.clone();
             view! { cx,
                 <Html lang=lang />
-                {children.get_value()(cx)}
             }
         })
     };
 
+    let children = store_value(cx, Rc::new(children));
+
+    let render = move || children.get_value()(cx);
+
     view! { cx,
-        <Suspense fallback=move || view! { cx, "" }>
+        <Suspense fallback=render >
+            {lang}
             {render}
         </Suspense>
     }
@@ -73,15 +76,18 @@ fn no_key_present(key: &str) -> ! {
 pub fn translate(cx: Scope, key: &str, default: Option<&str>) -> String {
     let context = get_context(cx);
 
+    let locale = context.locale.read(cx);
+
     let value = match default {
-        Some(default) => context.locale.get_by_key_with_default(key, default),
-        None => context
-            .locale
-            .get_by_key(key)
-            .unwrap_or_else(|| no_key_present(key)),
+        Some(default) => locale
+            .as_ref()
+            .map(|l| l.get_by_key_with_default(key, default)),
+        None => locale
+            .as_ref()
+            .map(|l| l.get_by_key(key).unwrap_or_else(|| no_key_present(key))),
     };
 
-    value.to_string()
+    value.unwrap_or(key).into()
 }
 
 pub fn get_context(cx: Scope) -> I18nContext {
@@ -108,8 +114,8 @@ pub fn set_locale<T: Into<String>>(cx: Scope, lang: T) {
     }
 }
 
-pub fn get_locale(cx: Scope) -> String {
+pub fn get_locale(cx: Scope) -> Option<String> {
     let context = get_context(cx);
 
-    context.locale.lang.clone()
+    context.locale.with(cx, |l| l.lang.clone())
 }
