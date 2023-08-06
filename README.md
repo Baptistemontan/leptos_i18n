@@ -1,6 +1,6 @@
 # Leptos i18n
 
-This crate is made to simplify internalisation in a Leptos application.
+This crate is made to simplify internalisation in a Leptos application, that load locales at **_compile time_** and provide compile time check for keys and selected locale.
 
 ## How to use
 
