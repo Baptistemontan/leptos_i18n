@@ -18,6 +18,6 @@ macro_rules! t {
     };
     ($cx: ident, $locales: path) => {{
         let _context = ::leptos_i18n::get_context::<$locales>($cx);
-        _context.get_locale($cx)
+        _context.get_locale()
     }};
 }

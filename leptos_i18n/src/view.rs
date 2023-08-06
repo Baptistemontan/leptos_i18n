@@ -1,69 +1,56 @@
-use std::future::Future;
 use std::rc::Rc;
 
 use leptos::*;
 use leptos_meta::*;
 
-use crate::locale_traits::*;
+use crate::{fetch_locale, locale_traits::*};
 
 #[derive(Debug, Clone, Copy)]
-pub struct I18nContext<T: Locales> {
-    locale: Resource<(), T::Variants>,
-}
+pub struct I18nContext<T: Locales>(RwSignal<T::Variants>);
 
 impl<T: Locales> I18nContext<T> {
-    pub fn get_variant(self, cx: Scope) -> T::Variants {
-        self.locale.with(cx, |l| *l).unwrap_or_default()
+    pub fn get_variant(self) -> T::Variants {
+        self.0.get()
     }
 
-    pub fn get_locale(self, cx: Scope) -> T::LocaleKeys {
-        let variant = self.get_variant(cx);
+    pub fn get_locale(self) -> T::LocaleKeys {
+        let variant = self.get_variant();
         LocaleKeys::from_variant(variant)
     }
 
     pub fn set_locale(self, lang: T::Variants) {
-        self.locale.set(lang);
+        self.0.set(lang)
     }
 }
 
 #[component]
-pub fn I18nContextProvider<T, F>(
+pub fn I18nContextProvider<T: Locales>(
     cx: Scope,
     locales: T,
-    fetch_locale: fn(Scope) -> F,
     children: ChildrenFn,
-) -> impl IntoView
-where
-    T: Locales,
-    F: Future<Output = Result<T::Variants, ServerFnError>> + 'static,
-{
+) -> impl IntoView {
     let _ = locales;
-    let locale = create_blocking_resource(
-        cx,
-        || (),
-        move |()| async move { fetch_locale(cx).await.unwrap() },
-    );
 
-    provide_context(cx, I18nContext::<T> { locale });
+    let locale = fetch_locale::fetch_locale::<T>(cx);
+
+    let locale = create_rw_signal(cx, locale);
+
+    provide_context(cx, I18nContext::<T>(locale));
 
     let lang = move || {
-        locale.with(cx, |lang| {
-            let lang = LocaleVariant::as_str(lang);
-            view! { cx,
-                <Html lang=lang />
-            }
-        })
+        let lang = locale.get();
+        let lang = lang.as_str();
+        view! { cx,
+            <Html lang=lang />
+        }
     };
-
     let children = store_value(cx, Rc::new(children));
 
-    let render = move || children.get_value()(cx);
+    let render_children = move || children.get_value()(cx);
 
     view! { cx,
-        <Suspense fallback=render >
-            {lang}
-            {render}
-        </Suspense>
+        {lang}
+        {render_children}
     }
 }
 
@@ -95,14 +82,14 @@ pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'stati
     move |lang| context.set_locale(lang)
 }
 
-pub fn get_variant<T: Locales>(cx: Scope) -> impl Fn(Scope) -> T::Variants + Copy + 'static {
+pub fn get_variant<T: Locales>(cx: Scope) -> impl Fn() -> T::Variants + Copy + 'static {
     let context = get_context::<T>(cx);
 
-    move |cx| context.get_variant(cx)
+    move || context.get_variant()
 }
 
-pub fn get_locale<T: Locales>(cx: Scope) -> impl Fn(Scope) -> T::LocaleKeys + Copy + 'static {
+pub fn get_locale<T: Locales>(cx: Scope) -> impl Fn() -> T::LocaleKeys + Copy + 'static {
     let context = get_context::<T>(cx);
 
-    move |cx: Scope| context.get_locale(cx)
+    move || context.get_locale()
 }
