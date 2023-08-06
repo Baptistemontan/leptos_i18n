@@ -102,6 +102,9 @@ pub fn App(cx: Scope) -> impl IntoView {
 
 You must provide you `Locales` type to the context provider so it can infer the needed related types, this type being an empty struct it can be created for 0 cost.
 
+In the server side, when a client make a request it include in the request headers a weighted list of accepted languages,
+this crate parse this header and try to match those languages against the defined locales to find the one that suits the client the best.
+
 If examples works better for you, you can look at the different examples available on the Github.
 
 ## Features
