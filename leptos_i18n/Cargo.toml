@@ -1,0 +1,20 @@
+[package]
+name = "leptos_i18n"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+leptos = { version = "0.4" }
+leptos_meta = { version = "0.4" }
+actix-web = { version = "4", optional = true, features = ["macros"] }
+leptos_actix = { version = "0.4", optional = true }
+serde = { version = "1", features = ["derive"] }
+leptos_i18n_macro.path = "../leptos_i18n_macro"
+
+[features]
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate"]
+ssr = ["leptos/ssr", "leptos_meta/ssr"]
+actix = ["ssr", "dep:actix-web", "dep:leptos_actix"]
+axum = ["ssr"]
