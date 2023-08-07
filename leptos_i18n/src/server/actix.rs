@@ -1,5 +1,4 @@
 use crate::locale_traits::*;
-use crate::server::COOKIE_PREFERED_LANG;
 use actix_web::{http::header, FromRequest, ResponseError};
 use leptos::*;
 use std::{
