@@ -1,4 +1,3 @@
-pub const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 use crate::locale_traits::*;
 use actix_web::{http::header, FromRequest, ResponseError};
 use leptos::*;
@@ -7,34 +6,7 @@ use std::{
     future::{ready, Ready},
 };
 
-// #[derive(serde::Deserialize)]
-// pub struct SetLocaleCookieParams {
-//     lang: String,
-//     origin: String,
-// }
-
-// pub async fn set_locale_cookie(
-//     params: actix_web::web::Query<SetLocaleCookieParams>,
-// ) -> impl actix_web::Responder {
-//     use actix_web::cookie::*;
-
-//     let params = params.into_inner();
-//     let cookie = CookieBuilder::new(COOKIE_PREFERED_LANG, params.lang)
-//         .secure(true)
-//         .http_only(true)
-//         .same_site(SameSite::Lax)
-//         .max_age(actix_web::cookie::time::Duration::MAX)
-//         .path("/")
-//         .finish()
-//         .encoded()
-//         .to_string();
-
-//     let mut res = actix_web::HttpResponse::Found();
-//     res.append_header((header::SET_COOKIE, cookie));
-//     res.append_header((header::LOCATION, params.origin));
-
-//     res.finish()
-// }
+use crate::COOKIE_PREFERED_LANG;
 
 pub fn fetch_locale_server<T: Locales>(cx: Scope) -> T::Variants {
     // when leptos_router inspect the routes it execute the code once but don't set an HttpRequest in the context,
