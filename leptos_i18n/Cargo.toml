@@ -10,6 +10,8 @@ leptos = { version = "0.4" }
 leptos_meta = { version = "0.4" }
 actix-web = { version = "4", optional = true }
 leptos_actix = { version = "0.4", optional = true }
+axum = { version = "0.6", optional = true }
+leptos_axum = { version = "0.4", optional = true }
 serde = { version = "1", features = ["derive"] }
 leptos_i18n_macro.path = "../leptos_i18n_macro"
 web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
@@ -24,4 +26,4 @@ hydrate = [
 ]
 ssr = ["leptos/ssr", "leptos_meta/ssr"]
 actix = ["ssr", "dep:actix-web", "dep:leptos_actix"]
-axum = ["ssr"]
+axum = ["ssr", "dep:axum", "dep:leptos_axum"]

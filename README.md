@@ -109,7 +109,7 @@ If examples works better for you, you can look at the different examples availab
 
 ## Features
 
-You must enable the `hydrate` feature when building the client, and when building the server you must enable either the `actix` or `axum` feature (axum is not available for now, but will be).
+You must enable the `hydrate` feature when building the client, and when building the server you must enable either the `actix` or `axum` feature.
 
 ## What's to come ?
 
