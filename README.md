@@ -79,15 +79,19 @@ First line is the macro that load and parse the locales and then create the type
 the crate export a macro named `t!()` that help with extracting the local from the context, but it needs the `Locales` type,
 so to avoid retyping it every time we can redefine the macro to already contain the path to the `Locales` type.
 
-The first macro version return the entire locale struct, and you can access every key, the second one is when you just want to put the string in the html:
-
 ```rust
 view! { cx,
     <p>{t!(cx, hello_world)}</p>
 }
 ```
 
-by wrapping it in a function it allows it to be reactive and if the selected locale change it will display the correct one.
+The `t!(cx)` macro return the current locale, so you can do `t!(cx).key`, the second one, `t!(cx, key)`, wraps it in a closure, it basically expand to `move || t!(cx).key`, but with an optimization to load the context only once:
+
+```rust
+let context = get_context(cx);
+
+move || context.get_locale().key
+```
 
 ### Context Provider
 
@@ -165,14 +169,6 @@ view! { cx,
     <h1>{move || get_locale().hello_world}</h1>
 }
 
-```
-
-But this is basically using the `t!()` macro like this:
-
-```rust
-view! { cx,
-   <h1>{move || t!(cx).hello_world}</h1>
-}
 ```
 
 If examples works better for you, you can look at the different examples available on the Github.
