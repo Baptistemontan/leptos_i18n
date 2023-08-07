@@ -1,5 +1,3 @@
-#[cfg(feature = "ssr")]
-mod accepted_lang;
 mod fetch_locale;
 mod locale_traits;
 #[cfg(feature = "ssr")]

@@ -23,7 +23,7 @@ fn from_req<T: LocaleVariant>(req: &leptos_axum::RequestParts) -> T {
         return Default::default();
     };
 
-    let langs = crate::accepted_lang::parse_header(header);
+    let langs = super::parse_header(header);
 
     T::find_locale(&langs)
 }

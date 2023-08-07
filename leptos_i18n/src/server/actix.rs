@@ -29,7 +29,7 @@ fn from_req<T: LocaleVariant>(req: &actix_web::HttpRequest) -> T {
         return Default::default();
     };
 
-    let langs = crate::accepted_lang::parse_header(header);
+    let langs = super::parse_header(header);
 
     LocaleVariant::find_locale(&langs)
 }
