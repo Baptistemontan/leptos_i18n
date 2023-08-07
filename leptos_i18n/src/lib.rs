@@ -12,6 +12,6 @@ pub(crate) const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
 pub use locale_traits::*;
 
-pub use view::{get_context, get_locale, get_variant, set_locale, I18nContextProvider};
+pub use view::{get_context, get_locale, get_variant, provide_i18n_context, set_locale};
 
 pub use leptos_i18n_macro::*;

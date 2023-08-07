@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use leptos::*;
 use leptos_meta::*;
 
@@ -23,40 +21,37 @@ impl<T: Locales> I18nContext<T> {
     }
 }
 
-#[component]
-pub fn I18nContextProvider<T: Locales>(
-    cx: Scope,
-    locales: T,
-    children: ChildrenFn,
-) -> impl IntoView {
-    let _ = locales;
+fn set_html_lang_attr(cx: Scope, lang: &'static str) {
+    let lang = || lang.to_string();
+    Html(
+        cx,
+        HtmlProps {
+            lang: Some(lang.into()),
+            dir: None,
+            class: None,
+            attributes: None,
+        },
+    );
+}
+
+pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
+    provide_meta_context(cx);
 
     let locale = fetch_locale::fetch_locale::<T>(cx);
 
-    let locale = create_rw_signal(cx, locale);
+    set_html_lang_attr(cx, locale.as_str());
 
-    provide_context(cx, I18nContext::<T>(locale));
+    let locale_sig = create_rw_signal(cx, locale);
 
-    let lang = move || {
-        let lang = locale.get();
-        let lang = lang.as_str();
-        view! { cx,
-            <Html lang=lang />
-        }
-    };
-    let children = store_value(cx, Rc::new(children));
+    let context = I18nContext::<T>(locale_sig);
 
-    let render_children = move || children.get_value()(cx);
+    provide_context(cx, context);
 
-    view! { cx,
-        {lang}
-        {render_children}
-    }
+    context
 }
 
 pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
-    use_context(cx)
-        .expect("I18nContext is missing, is the application wrapped in a I18nContextProvider ?")
+    use_context(cx).expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
 pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'static {
@@ -65,6 +60,7 @@ pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'stati
     move |lang| {
         context.set_locale(lang);
         set_lang_cookie::<T>(lang);
+        set_html_lang_attr(cx, lang.as_str())
     }
 }
 

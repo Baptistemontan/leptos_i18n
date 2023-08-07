@@ -7,24 +7,15 @@ use leptos_i18n::I18nContextProvider;
 pub fn App(cx: Scope) -> impl IntoView {
     leptos_meta::provide_meta_context(cx);
 
-    view! { cx,
-        <I18nContextProvider locales=Locales>
-            <Inner />
-        </I18nContextProvider>
-    }
-}
+    leptos_i18n::provide_i18n_context::<Locales>(cx);
 
-#[component]
-fn Inner(cx: Scope) -> impl IntoView {
     let get_variant = leptos_i18n::get_variant::<Locales>(cx);
     let set_locale = leptos_i18n::set_locale::<Locales>(cx);
     let on_click = move |_| {
-        let locale = get_variant();
-        let new_lang = match locale {
+        let new_lang = match get_variant() {
             LocaleEnum::en => LocaleEnum::fr,
             LocaleEnum::fr => LocaleEnum::en,
         };
-
         set_locale(new_lang);
     };
 

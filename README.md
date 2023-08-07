@@ -85,37 +85,24 @@ view! { cx,
 }
 ```
 
-The `t!(cx)` macro return the current locale, so you can do `t!(cx).key`, the second one, `t!(cx, key)`, wraps it in a closure, it basically expand to `move || t!(cx).key`, but with an optimization to load the context only once:
-
-```rust
-let context = get_context(cx);
-
-move || context.get_locale().key
-```
+The `t!(cx)` macro return the current locale, so you can do `t!(cx).key`, the second one, `t!(cx, key)`, wraps it in a closure, it basically expand to `move || t!(cx).key`, but with some optimizations
 
 ### Context Provider
 
-To make all of that work, it needs to have the `I18nContext` available, for that wrap your application in the `I18nContextProvider`:
+To make all of that work, it needs to have the `I18nContext` available, for that call the `provide_i18n_context()` function at the highest possible level:
 
 ```rust
-use leptos_i18n::I18nContextProvider;
-
+// root of the application
 #[component]
 pub fn App(cx: Scope) -> impl IntoView {
-    leptos_meta::provide_meta_context(cx);
+
+    leptos_i18n::provide_i18n_context::<Locales>(cx);
 
     view! { cx,
-        <I18nContextProvider locales=Locales>
-            {/* ... */}
-        </I18nContextProvider>
+        {/* ... */}
     }
 }
 ```
-
-You must provide you `Locales` type to the context provider so it can infer the needed related types, this type being an empty struct it can be created for 0 cost.
-
-In the server side, when a client make a request it include in the request headers a weighted list of accepted languages,
-this crate parse this header and try to match those languages against the defined locales to find the one that suits the client the best.
 
 ### Setting the locale
 
