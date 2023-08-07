@@ -1,23 +1,13 @@
-// #[macro_export]
-// macro_rules! t {
-//     ($cx: ident, $key: expr) => {
-//         move || ::leptos_i18n::translate($cx, $key, None)
-//     };
-//     ($cx: ident, $key: expr, $default:expr) => {
-//         move || ::leptos_i18n::translate($cx, $key, Some($default))
-//     };
-// }
-
 #[macro_export]
 macro_rules! t {
-    ($cx: ident, $locales: path, $key: ident) => {
+    ($cx: ident, $locales:ident$(::$path:ident)*, $key: ident) => {{
+        let _context = ::leptos_i18n::get_context::<$locales$(::$path)*>($cx);
         move || {
-            let _keys = t!($cx, $locales);
+            let _keys = _context.get_locale();
             _keys.$key
         }
-    };
-    ($cx: ident, $locales: path) => {{
-        let _context = ::leptos_i18n::get_context::<$locales>($cx);
-        _context.get_locale()
+    }};
+    ($cx: ident, $locales:ident$(::$path:ident)*) => {{
+        ::leptos_i18n::get_context::<$locales$(::$path)*>($cx).get_locale()
     }};
 }

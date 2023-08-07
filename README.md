@@ -68,9 +68,9 @@ macro_rules! t {
     ($cx: ident) => {
         ::leptos_i18n::t!($cx, $crate::i18n::Locales)
     };
-    ($cx: ident, $key: ident) => {
-        move || t!($cx).$key
-    };
+    ($cx: ident, $key: ident) => {{
+        ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key)
+    }};
 }
 ```
 
@@ -165,6 +165,14 @@ view! { cx,
     <h1>{move || get_locale().hello_world}</h1>
 }
 
+```
+
+But this is basically using the `t!()` macro like this:
+
+```rust
+view! { cx,
+   <h1>{move || t!(cx).hello_world}</h1>
+}
 ```
 
 If examples works better for you, you can look at the different examples available on the Github.
