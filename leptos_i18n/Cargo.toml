@@ -9,7 +9,6 @@ edition = "2021"
 leptos = { version = "0.4" }
 leptos_meta = { version = "0.4" }
 actix-web = { version = "4", optional = true }
-leptos_actix = { version = "0.4", optional = true }
 axum = { version = "0.6", optional = true }
 leptos_axum = { version = "0.4", optional = true }
 serde = { version = "1", features = ["derive"] }
@@ -25,5 +24,5 @@ hydrate = [
     "dep:wasm-bindgen",
 ]
 ssr = ["leptos/ssr", "leptos_meta/ssr"]
-actix = ["ssr", "dep:actix-web", "dep:leptos_actix"]
+actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum"]
