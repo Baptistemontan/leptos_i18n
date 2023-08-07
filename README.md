@@ -133,6 +133,40 @@ The `t!()` macro suscribe to locale change so every translation will switch to t
 
 When a new locale is set, a cookie is set on the client side to remember the prefered locale. If you are using Chromium on localhost it may not work, as it blocks cookie set on the client side, try with another browser like Firefox.
 
+### Get the current locale
+
+You can use the `get_variant` function to get the current locale enum, this function return a function, this is to allow to subscribe to the locale update:
+
+```rust
+let get_variant = leptos_i18n::get_variant::<Locales>(cx);
+let set_locale = leptos_i18n::set_locale::<Locales>(cx);
+let on_click = move |_| {
+    let locale = get_variant();
+    let new_lang = match locale {
+        LocaleEnum::en => LocaleEnum::fr,
+        LocaleEnum::fr => LocaleEnum::en,
+    };
+
+    set_locale(new_lang);
+};
+
+view! { cx,
+    <h1>{t!(cx, hello_world)}</h1>
+    <button on:click=on_click >{t!(cx, switch_locale)}</button>
+}
+```
+
+if you need access to the actual locale type, you can use the `get_locale` function, which also return a function for reactiveness:
+
+```rust
+let get_locale = leptos_i18n::get_locale::<Locales>(cx);
+
+view! { cx,
+    <h1>{move || get_locale().hello_world}</h1>
+}
+
+```
+
 If examples works better for you, you can look at the different examples available on the Github.
 
 ## Features
