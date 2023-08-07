@@ -54,23 +54,6 @@ pub fn I18nContextProvider<T: Locales>(
     }
 }
 
-// pub fn translate(cx: Scope, key: &str, default: Option<&str>) -> String {
-//     let context = get_context(cx);
-
-//     let locale = context.locale.read(cx);
-
-//     let value = match default {
-//         Some(default) => locale
-//             .as_ref()
-//             .map(|l| l.get_by_key_with_default(key, default)),
-//         None => locale
-//             .as_ref()
-//             .map(|l| l.get_by_key(key).unwrap_or_else(|| no_key_present(key))),
-//     };
-
-//     value.unwrap_or(key).into()
-// }
-
 pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     use_context(cx)
         .expect("I18nContext is missing, is the application wrapped in a I18nContextProvider ?")
@@ -79,7 +62,10 @@ pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'static {
     let context = get_context::<T>(cx);
 
-    move |lang| context.set_locale(lang)
+    move |lang| {
+        context.set_locale(lang);
+        set_lang_cookie::<T>(lang);
+    }
 }
 
 pub fn get_variant<T: Locales>(cx: Scope) -> impl Fn() -> T::Variants + Copy + 'static {
@@ -92,4 +78,23 @@ pub fn get_locale<T: Locales>(cx: Scope) -> impl Fn() -> T::LocaleKeys + Copy + 
     let context = get_context::<T>(cx);
 
     move || context.get_locale()
+}
+
+#[cfg(feature = "hydrate")]
+fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
+    use crate::COOKIE_PREFERED_LANG;
+    use wasm_bindgen::JsCast;
+    let document = document().dyn_into::<web_sys::HtmlDocument>().ok()?;
+    let cookie = format!(
+        "{}={}; SameSite=Lax; Secure; Path=/",
+        COOKIE_PREFERED_LANG,
+        lang.as_str()
+    );
+    document.set_cookie(&cookie).ok()
+}
+
+#[cfg(not(feature = "hydrate"))]
+fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
+    let _ = lang;
+    Some(())
 }
