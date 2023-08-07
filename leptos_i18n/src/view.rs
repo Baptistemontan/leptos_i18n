@@ -86,7 +86,7 @@ fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
     use wasm_bindgen::JsCast;
     let document = document().dyn_into::<web_sys::HtmlDocument>().ok()?;
     let cookie = format!(
-        "{}={}; SameSite=Lax; Secure; Path=/",
+        "{}={}; SameSite=Lax; Secure; Path=/; Max-Age=31536000",
         COOKIE_PREFERED_LANG,
         lang.as_str()
     );
