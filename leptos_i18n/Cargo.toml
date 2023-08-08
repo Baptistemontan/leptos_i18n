@@ -17,6 +17,8 @@ web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 
 [features]
+default = ["cookie"]
+cookie = []
 hydrate = [
     "leptos/hydrate",
     "leptos_meta/hydrate",

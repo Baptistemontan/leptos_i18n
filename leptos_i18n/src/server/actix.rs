@@ -13,11 +13,11 @@ pub fn fetch_locale_server<T: Locales>(cx: Scope) -> T::Variants {
 }
 
 fn from_req<T: LocaleVariant>(req: &actix_web::HttpRequest) -> T {
-    let prefered_lang = req
-        .cookie(COOKIE_PREFERED_LANG)
-        .and_then(|ck| T::from_str(ck.value()));
-
-    if let Some(pref) = prefered_lang {
+    #[cfg(feature = "cookie")]
+    if let Some(pref) = req
+        .cookie(crate::COOKIE_PREFERED_LANG)
+        .and_then(|ck| T::from_str(ck.value()))
+    {
         return pref;
     }
 

@@ -42,7 +42,10 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     let locale = create_rw_signal(cx, locale);
 
     create_isomorphic_effect(cx, move |_| {
-        set_html_lang_attr(cx, locale.get().as_str());
+        let new_lang = locale.get();
+        set_html_lang_attr(cx, new_lang.as_str());
+        #[cfg(feature = "cookie")]
+        set_lang_cookie::<T>(new_lang);
     });
 
     let context = I18nContext::<T>(locale);
@@ -59,10 +62,7 @@ pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'static {
     let context = get_context::<T>(cx);
 
-    move |lang| {
-        context.set_locale(lang);
-        set_lang_cookie::<T>(lang);
-    }
+    move |lang| context.set_locale(lang)
 }
 
 pub fn get_variant<T: Locales>(cx: Scope) -> impl Fn() -> T::Variants + Copy + 'static {
@@ -77,7 +77,7 @@ pub fn get_locale<T: Locales>(cx: Scope) -> impl Fn() -> T::LocaleKeys + Copy + 
     move || context.get_locale()
 }
 
-#[cfg(feature = "hydrate")]
+#[cfg(all(feature = "hydrate", feature = "cookie"))]
 fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
     use crate::COOKIE_PREFERED_LANG;
     use wasm_bindgen::JsCast;
@@ -90,7 +90,7 @@ fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
     document.set_cookie(&cookie).ok()
 }
 
-#[cfg(not(feature = "hydrate"))]
+#[cfg(all(not(feature = "hydrate"), feature = "cookie"))]
 fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
     let _ = lang;
     Some(())

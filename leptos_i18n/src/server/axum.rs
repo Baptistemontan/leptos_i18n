@@ -1,4 +1,4 @@
-use crate::{locale_traits::*, COOKIE_PREFERED_LANG};
+use crate::locale_traits::*;
 use axum::http::{header, HeaderValue};
 use leptos::*;
 
@@ -11,6 +11,7 @@ pub fn fetch_locale_server<T: Locales>(cx: Scope) -> T::Variants {
 }
 
 fn from_req<T: LocaleVariant>(req: &leptos_axum::RequestParts) -> T {
+    #[cfg(feature = "cookie")]
     if let Some(pref_lang_cookie) = get_prefered_lang_cookie::<T>(req) {
         return pref_lang_cookie;
     }
@@ -28,6 +29,7 @@ fn from_req<T: LocaleVariant>(req: &leptos_axum::RequestParts) -> T {
     T::find_locale(&langs)
 }
 
+#[cfg(feature = "cookie")]
 fn get_prefered_lang_cookie<T: LocaleVariant>(req: &leptos_axum::RequestParts) -> Option<T> {
     req.headers
         .get_all(header::COOKIE)
@@ -37,12 +39,13 @@ fn get_prefered_lang_cookie<T: LocaleVariant>(req: &leptos_axum::RequestParts) -
         .next()
 }
 
+#[cfg(feature = "cookie")]
 fn parse_cookie(cookie: &HeaderValue) -> Option<&str> {
     std::str::from_utf8(cookie.as_bytes())
         .ok()?
         .split(';')
         .map(|s| s.trim())
         .filter_map(|s| s.split_once('='))
-        .find(|(name, _)| name == &COOKIE_PREFERED_LANG)
+        .find(|(name, _)| name == &crate::COOKIE_PREFERED_LANG)
         .map(|(_, value)| value)
 }

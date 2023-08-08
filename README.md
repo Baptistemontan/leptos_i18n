@@ -164,6 +164,8 @@ If examples works better for you, you can look at the different examples availab
 
 You must enable the `hydrate` feature when building the client, and when building the server you must enable either the `actix` or `axum` feature.
 
+The `cookie` feature enable to set a cookie when a locale is chosen by the user, this feature is enabled by default.
+
 ## What's to come ?
 
 The main focus now is to be able to interpolate values in the translation, so you could have
