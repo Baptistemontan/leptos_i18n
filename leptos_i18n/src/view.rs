@@ -39,11 +39,13 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 
     let locale = fetch_locale::fetch_locale::<T>(cx);
 
-    set_html_lang_attr(cx, locale.as_str());
+    let locale = create_rw_signal(cx, locale);
 
-    let locale_sig = create_rw_signal(cx, locale);
+    create_isomorphic_effect(cx, move |_| {
+        set_html_lang_attr(cx, locale.get().as_str());
+    });
 
-    let context = I18nContext::<T>(locale_sig);
+    let context = I18nContext::<T>(locale);
 
     provide_context(cx, context);
 
@@ -60,7 +62,6 @@ pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'stati
     move |lang| {
         context.set_locale(lang);
         set_lang_cookie::<T>(lang);
-        set_html_lang_attr(cx, lang.as_str())
     }
 }
 
