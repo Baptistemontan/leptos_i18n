@@ -62,12 +62,18 @@ impl ToString for Error {
             Error::InvalidKey(key) => {
                 format!("key {:?} is invalid to be used as field name.", key)
             }
-            Error::InterpolateVariableNotMatching(err) => todo!(),
+            Error::InterpolateVariableNotMatching(err) => {
+                let _ = err;
+                todo!()
+            }
             Error::MismatchLocaleKeyKind {
                 key,
                 locale_str,
                 locale_inter,
-            } => todo!(),
+            } => {
+                let _ = (key, locale_inter, locale_str);
+                todo!()
+            }
         }
     }
 }

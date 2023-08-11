@@ -1,8 +1,7 @@
 use std::collections::HashSet;
 
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::{quote, ToTokens};
 
-use crate::error::{Error, Result};
 use crate::key::Key;
 
 pub enum ValueKind<'a> {

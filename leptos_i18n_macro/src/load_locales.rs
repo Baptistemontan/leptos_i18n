@@ -1,17 +1,11 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    ops::Not,
-    path::Path,
-};
+use std::{collections::HashMap, ops::Not, path::Path};
 
 use crate::{
     cfg_file::{ConfigFile, RawConfigFile},
-    error::{Error, InterpolateVariableNotMatching, Result},
+    error::Result,
     interpolate::{create_empty_type, Interpolation},
     key::Key,
     locale::{Locale, LocaleValue, RawLocale},
-    value_kind::ValueKind,
 };
 use proc_macro2::TokenStream;
 use quote::quote;

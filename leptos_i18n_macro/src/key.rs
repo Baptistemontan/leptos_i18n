@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use crate::error::Result;
 use std::hash::Hash;
 
 pub struct Key<'a> {
@@ -22,17 +22,7 @@ impl<'a> Eq for Key<'a> {}
 
 pub enum KeyKind<'a> {
     LocaleName,
-    LocaleKey {
-        locale_name: &'a str,
-    },
-    InterVariable {
-        locale_name: &'a str,
-        locale_key: &'a str,
-    },
-    InterComp {
-        locale_name: &'a str,
-        locale_key: &'a str,
-    },
+    LocaleKey { locale_name: &'a str },
 }
 
 impl<'a> Key<'a> {
@@ -41,15 +31,10 @@ impl<'a> Key<'a> {
         let Ok(ident) = syn::parse_str::<syn::Ident>(name) else {
             match kind {
                 KeyKind::LocaleName => todo!(),
-                KeyKind::LocaleKey { locale_name } => todo!(),
-                KeyKind::InterVariable {
-                    locale_name,
-                    locale_key,
-                } => todo!(),
-                KeyKind::InterComp {
-                    locale_name,
-                    locale_key,
-                } => todo!(),
+                KeyKind::LocaleKey { locale_name } => {
+                    let _ = locale_name;
+                    todo!()
+                }
             }
         };
         Ok(Key { name, ident })
