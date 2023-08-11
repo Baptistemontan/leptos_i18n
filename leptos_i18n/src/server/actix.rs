@@ -2,8 +2,6 @@ use crate::locale_traits::*;
 use actix_web::http::header;
 use leptos::*;
 
-use crate::COOKIE_PREFERED_LANG;
-
 pub fn fetch_locale_server<T: Locales>(cx: Scope) -> T::Variants {
     // when leptos_router inspect the routes it execute the code once but don't set an HttpRequest in the context,
     // so we can't expect it to be present.
