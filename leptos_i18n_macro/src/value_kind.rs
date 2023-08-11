@@ -152,7 +152,9 @@ impl<'a> ToTokens for ValueKind<'a> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             ValueKind::String(s) => {
-                quote!(__leptos__::IntoView::into_view(#s, cx),).to_tokens(tokens)
+                if !s.is_empty() {
+                    quote!(__leptos__::IntoView::into_view(#s, cx),).to_tokens(tokens)
+                }
             }
             ValueKind::Variable(key) => {
                 quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key), cx),)
