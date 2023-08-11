@@ -71,6 +71,9 @@ macro_rules! t {
     ($cx: ident, $key: ident) => {
         ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key)
     };
+    ($cx: ident, $key: ident, $($variable:ident = $value:expr,)*) => {
+        ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key, $($variable = $value,)*)
+    };
 }
 ```
 
@@ -85,7 +88,60 @@ view! { cx,
 }
 ```
 
-The `t!(cx)` macro return the current locale, so you can do `t!(cx).key`, the second one, `t!(cx, key)`, wraps it in a closure, it basically expand to `move || t!(cx).key`, but with some optimizations
+The `t!(cx)` macro return the current locale, so you can do `t!(cx).key`, the second one, `t!(cx, key)`, wraps it in a closure, it basically expand to `move || t!(cx).key`, but with some optimizations.
+The third macro is when interpolation is need.
+
+### Interpolation
+
+You can add variables by wrapping it in `{{  }}` in the locale key definition:
+
+```json
+{
+  "click_to_inc": "Click to increment",
+  "click_count": "You have clicked {{ count }} times"
+}
+```
+
+You can then do
+
+```rust
+let (counter, set_counter) = create_signal(cx, 0);
+let inc = move |_| set_counter.update(|count| *count += 1);
+
+view! { cx,
+    <p>{t!{ cx, click_count,
+        count = move || counter.get()
+    }}</p>
+    <button on:click=inc>{t!(cx, click_to_inc)}</button>
+}
+
+```
+
+You can pass anything that implement `leptos::IntoView` as your variable, it must also be `Clone + 'static`. If a key is not supplied it will not compile, same for an unknown key.
+
+You may also need to interpolate components, you can define them with html tags:
+
+```json
+{
+  "important_text": "this text is <b>very</b> important"
+}
+```
+
+You can supply them the same way as variables, but the supplied value must be a `Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView`, and also must be `Clone + 'static`.
+
+```rust
+view! { cx,
+    <p>
+        {t!{ cx,
+            important_text,
+            b = |cx, children| view!{ cx, <b>{children(cx)}</b> },
+        }}
+    </p>
+}
+
+```
+
+You can not define a variable with the same name of a component, you can name them how you want but it has to be a legal rust identifier. You can define variables inside components like `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><b>VERY IMPORTANT</b></b></b>`.
 
 ### Context Provider
 
@@ -158,6 +214,18 @@ view! { cx,
 
 ```
 
+For keys with interpolation, it implement a builder pattern, so if you have a variable named `count` you can use it like this:
+
+```rust
+let get_locale = leptos_i18n::get_locale::<Locales>(cx);
+
+let count = ...;
+
+view! { cx,
+    <h1>{move || get_locale().click_count.count(count)}</h1>
+}
+```
+
 If examples works better for you, you can look at the different examples available on the Github.
 
 ## Features
@@ -166,22 +234,6 @@ You must enable the `hydrate` feature when building the client, and when buildin
 
 The `cookie` feature enable to set a cookie when a locale is chosen by the user, this feature is enabled by default.
 
-## What's to come ?
-
-The main focus now is to be able to interpolate values in the translation, so you could have
-
-```json
-{
-  "bananas": "Henry as {{ banana_count }} bananas"
-}
 ```
 
-and being able to do something like this:
-
-```rust
-let count = ...;
-
-view! { cx,
-    <p>{t!(cx, hello_world, banana_count = count)}</p>
-}
 ```
