@@ -1,15 +1,31 @@
-use std::collections::HashSet;
-
 use crate::cfg_file::RawConfigFile;
 use quote::quote;
 
 #[derive(Debug)]
-pub struct InterpolateVariableNotMatching {
+pub struct InterpolateKeysNotMatching {
     pub key: String,
     pub locale1: String,
     pub locale2: String,
-    pub keys1: HashSet<String>,
-    pub keys2: HashSet<String>,
+    pub comp_keys1: Vec<String>,
+    pub var_keys1: Vec<String>,
+    pub comp_keys2: Vec<String>,
+    pub var_keys2: Vec<String>,
+}
+
+impl ToString for InterpolateKeysNotMatching {
+    fn to_string(&self) -> String {
+        format!("for key {:?} locales {:?} and {:?} don't have the same keys, locale {:?} has {:?} for variable keys and {:?} for component keys, but locale {:?} has {:?} for variable keys and {:?} for component keys",
+        self.key,
+        self.locale1,
+        self.locale2,
+        self.locale1,
+        self.var_keys1,
+        self.comp_keys1,
+        self.locale2,
+        self.var_keys2,
+        self.var_keys2
+    )
+    }
 }
 
 #[derive(Debug)]
@@ -23,13 +39,17 @@ pub enum Error {
         keys: Vec<String>,
         locale: String,
     },
-    InterpolateVariableNotMatching(Box<InterpolateVariableNotMatching>),
+    InterpolateVariableNotMatching(Box<InterpolateKeysNotMatching>),
     MismatchLocaleKeyKind {
         key: String,
         locale_str: String,
         locale_inter: String,
     },
-    InvalidKey(String),
+    InvalidLocaleName(String),
+    InvalidLocaleKey {
+        key: String,
+        locale: String,
+    },
 }
 
 impl ToString for Error {
@@ -59,20 +79,28 @@ impl ToString for Error {
                 "Some keys are different beetween locale files, \"{}.json\" is missing keys: {:?}",
                 locale, keys
             ),
-            Error::InvalidKey(key) => {
-                format!("key {:?} is invalid to be used as field name.", key)
-            }
-            Error::InterpolateVariableNotMatching(err) => {
-                let _ = err;
-                todo!()
-            }
+            Error::InterpolateVariableNotMatching(err) => err.to_string(),
             Error::MismatchLocaleKeyKind {
                 key,
                 locale_str,
                 locale_inter,
             } => {
-                let _ = (key, locale_inter, locale_str);
-                todo!()
+                format!(
+                    "for key {:?} locale {:?} is a plain string but locale {:?} need interpolation",
+                    key, locale_str, locale_inter
+                )
+            }
+            Error::InvalidLocaleName(name) => {
+                format!(
+                    "locale name {:?} could not be turned into an identifier",
+                    name
+                )
+            }
+            Error::InvalidLocaleKey { key, locale } => {
+                format!(
+                    "In locale {:?} the key {:?} cannot be used as an identifier",
+                    locale, key
+                )
             }
         }
     }

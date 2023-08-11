@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
 use std::hash::Hash;
 
 pub struct Key<'a> {
@@ -29,13 +29,13 @@ impl<'a> Key<'a> {
     pub fn new(name: &'a str, kind: KeyKind) -> Result<Self> {
         let name = name.trim();
         let Ok(ident) = syn::parse_str::<syn::Ident>(name) else {
-            match kind {
-                KeyKind::LocaleName => todo!(),
-                KeyKind::LocaleKey { locale_name } => {
-                    let _ = locale_name;
-                    todo!()
-                }
-            }
+            return Err(match kind {
+                KeyKind::LocaleName => Error::InvalidLocaleName(name.to_string()),
+                KeyKind::LocaleKey { locale_name } => Error::InvalidLocaleKey {
+                    key: name.to_string(),
+                    locale: locale_name.to_string(),
+                },
+            });
         };
         Ok(Key { name, ident })
     }
