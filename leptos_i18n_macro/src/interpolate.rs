@@ -155,17 +155,29 @@ impl Interpolation {
 
             match field.kind {
                 InterpolateKeyKind::Variable(key) => {
-                    quote!(pub fn #key<__T: __leptos__::IntoView + core::clone::Clone + 'static>(self, #field_key: __T) -> #ident<#(#output_generics,)*> {
-                        #destructure
-                        #restructure
-                    })
+                    quote!{
+                        #[inline]
+                        pub fn #key<__T>(self, #field_key: __T) -> #ident<#(#output_generics,)*>
+                            where __T: __leptos__::IntoView + core::clone::Clone + 'static
+                        {
+                            #destructure
+                            #restructure
+                        }
+                    }
                 }
                 InterpolateKeyKind::Component(key) => {
-                    quote!(pub fn #key<__O: __leptos__::IntoView, __T: Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __O + core::clone::Clone + 'static>(self, _value_fn: __T) -> #ident<#(#output_generics,)*> {
-                        #destructure
-                        let #field_key = move |cx, children| __leptos__::IntoView::into_view(_value_fn(cx, children), cx);
-                        #restructure
-                    })
+                    quote!{
+                        #[inline]
+                        pub fn #key<__O, __T>(self, #field_key: __T) -> #ident<#(#output_generics,)*>
+                        where
+                            __O: __leptos__::IntoView,
+                            __T: Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __O + core::clone::Clone + 'static
+                        {
+                            #destructure
+                            let #field_key = move |cx, children| __leptos__::IntoView::into_view(#field_key(cx, children), cx);
+                            #restructure
+                        }
+                    }
                 }
             }
         })

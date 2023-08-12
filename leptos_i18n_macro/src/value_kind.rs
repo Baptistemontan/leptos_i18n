@@ -149,18 +149,14 @@ impl<'a, 'b> ToTokens for InterpolateKeyKind<'a, 'b> {
 }
 
 impl<'a> ToTokens for ValueKind<'a> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
         match self {
-            ValueKind::String(s) => {
-                if !s.is_empty() {
-                    quote!(__leptos__::IntoView::into_view(#s, cx),).to_tokens(tokens)
-                }
-            }
+            ValueKind::String("") => quote!(),
+            ValueKind::String(s) => quote!(__leptos__::IntoView::into_view(#s, cx),),
             ValueKind::Variable(key) => {
                 quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key), cx),)
-                    .to_tokens(tokens)
             }
-            ValueKind::Bloc(values) => quote!(#(#values)*).to_tokens(tokens),
+            ValueKind::Bloc(values) => quote!(#(#values)*),
             ValueKind::Component { key, inner } => {
                 let captured_keys = inner.get_keys().map(|keys| {
                     let keys = keys
@@ -174,8 +170,12 @@ impl<'a> ToTokens for ValueKind<'a> {
                     move |cx| Into::into(__leptos__::CollectView::collect_view([#inner], cx))
                 });
                 let boxed_fn = quote!(Box::new(#f));
-                quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key)(cx, #boxed_fn), cx),).to_tokens(tokens)
+                quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key)(cx, #boxed_fn), cx),)
             }
         }
+    }
+
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        Self::to_token_stream(self).to_tokens(tokens)
     }
 }
