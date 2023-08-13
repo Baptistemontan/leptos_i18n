@@ -7,15 +7,18 @@ use crate::{fetch_locale, locale_traits::*};
 pub struct I18nContext<T: Locales>(RwSignal<T::Variants>);
 
 impl<T: Locales> I18nContext<T> {
-    pub fn get_variant(self) -> T::Variants {
+    #[inline]
+    pub fn get_locale(self) -> T::Variants {
         self.0.get()
     }
 
-    pub fn get_locale(self) -> T::LocaleKeys {
-        let variant = self.get_variant();
+    #[inline]
+    pub fn get_keys(self) -> T::LocaleKeys {
+        let variant = self.get_locale();
         LocaleKeys::from_variant(variant)
     }
 
+    #[inline]
     pub fn set_locale(self, lang: T::Variants) {
         self.0.set(lang)
     }
@@ -57,24 +60,6 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 
 pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     use_context(cx).expect("I18nContext is missing, use provide_i18n_context() to provide it.")
-}
-
-pub fn set_locale<T: Locales>(cx: Scope) -> impl Fn(T::Variants) + Copy + 'static {
-    let context = get_context::<T>(cx);
-
-    move |lang| context.set_locale(lang)
-}
-
-pub fn get_variant<T: Locales>(cx: Scope) -> impl Fn() -> T::Variants + Copy + 'static {
-    let context = get_context::<T>(cx);
-
-    move || context.get_variant()
-}
-
-pub fn get_locale<T: Locales>(cx: Scope) -> impl Fn() -> T::LocaleKeys + Copy + 'static {
-    let context = get_context::<T>(cx);
-
-    move || context.get_locale()
 }
 
 #[cfg(all(feature = "hydrate", feature = "cookie"))]

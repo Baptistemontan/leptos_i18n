@@ -22,7 +22,8 @@ pub trait Locales: 'static + Clone + Copy {
     type Variants: LocaleVariant;
     type LocaleKeys: LocaleKeys<Locales = Self>;
 
-    fn get_locale(locale: Self::Variants) -> Self::LocaleKeys {
+    #[inline]
+    fn get_keys(locale: Self::Variants) -> Self::LocaleKeys {
         <Self::LocaleKeys as LocaleKeys>::from_variant(locale)
     }
 }

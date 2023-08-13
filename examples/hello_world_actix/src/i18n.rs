@@ -1,14 +1,5 @@
 leptos_i18n::load_locales!();
 
-#[macro_export]
-macro_rules! t {
-    ($cx: ident) => {
-        ::leptos_i18n::t!($cx, $crate::i18n::Locales)
-    };
-    ($cx: ident, $key: ident) => {
-        ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key)
-    };
-    ($cx: ident, $key: ident, $($variable:ident = $value:expr,)*) => {
-        ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key, $($variable = $value,)*)
-    };
+pub fn i18n_context(cx: leptos::Scope) -> leptos_i18n::I18nContext<Locales> {
+    leptos_i18n::get_context(cx)
 }
