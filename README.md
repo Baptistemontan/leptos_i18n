@@ -2,6 +2,25 @@
 
 This crate is made to simplify internalisation in a Leptos application, that load locales at **_compile time_** and provide compile time check for keys and selected locale.
 
+The main focus is ease of you use with leptos, a typical component using this crate will look like this:
+
+```rust
+let i18n = get_i18n_context(cx);
+
+let (counter, set_counter) = create_signal(cx, 0);
+let inc = move |_| set_counter.update(|count| *count += 1);
+
+
+view! { cx,
+    {/* click_count = "You have clicked {{ count }} times" */}
+    <p>{t!(i18n, click_count, count = move || counter.get())}</p>
+    {/* click_to_inc = "Click to increment" */}
+    <button on:click=inc>{t!(i18n, click_to_inc)}</button>
+}
+```
+
+You just need a configuration file named `i18n.json` and one file per locale name `{locale}.json` in the `/locales` folder of your application.
+
 ## How to use
 
 ### Configuration files
@@ -48,7 +67,7 @@ struct Locale {
 Two other helper types are created, one enum representing the locales:
 
 ```rust
-enum LocalesVariants {
+enum LocaleEnum {
     en,
     fr
 }
@@ -56,96 +75,9 @@ enum LocalesVariants {
 
 and an empty struct named `Locales` that serves as a link beetween the two, it is this one that is the most important, most functions of the crate need this type, not the one containing the locales nor the enum.
 
-### The `t!()` macro
+### I18nContext
 
-A typical `i18n.rs` module would look like this:
-
-```rust
-leptos_i18n::load_locales!();
-
-#[macro_export]
-macro_rules! t {
-    ($cx: ident) => {
-        ::leptos_i18n::t!($cx, $crate::i18n::Locales)
-    };
-    ($cx: ident, $key: ident) => {
-        ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key)
-    };
-    ($cx: ident, $key: ident, $($variable:ident = $value:expr,)*) => {
-        ::leptos_i18n::t!($cx, $crate::i18n::Locales, $key, $($variable = $value,)*)
-    };
-}
-```
-
-First line is the macro that load and parse the locales and then create the types.
-
-the crate export a macro named `t!()` that help with extracting the local from the context, but it needs the `Locales` type,
-so to avoid retyping it every time we can redefine the macro to already contain the path to the `Locales` type.
-
-```rust
-view! { cx,
-    <p>{t!(cx, hello_world)}</p>
-}
-```
-
-The `t!(cx)` macro return the current locale, so you can do `t!(cx).key`, the second one, `t!(cx, key)`, wraps it in a closure, it basically expand to `move || t!(cx).key`, but with some optimizations.
-The third macro is when interpolation is need.
-
-### Interpolation
-
-You can add variables by wrapping it in `{{  }}` in the locale key definition:
-
-```json
-{
-  "click_to_inc": "Click to increment",
-  "click_count": "You have clicked {{ count }} times"
-}
-```
-
-You can then do
-
-```rust
-let (counter, set_counter) = create_signal(cx, 0);
-let inc = move |_| set_counter.update(|count| *count += 1);
-
-view! { cx,
-    <p>{t!{ cx, click_count,
-        count = move || counter.get()
-    }}</p>
-    <button on:click=inc>{t!(cx, click_to_inc)}</button>
-}
-
-```
-
-You can pass anything that implement `leptos::IntoView` as your variable, it must also be `Clone + 'static`. If a key is not supplied it will not compile, same for an unknown key.
-
-You may also need to interpolate components, you can define them with html tags:
-
-```json
-{
-  "important_text": "this text is <b>very</b> important"
-}
-```
-
-You can supply them the same way as variables, but the supplied value must be a `Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView`, and also must be `Clone + 'static`.
-
-```rust
-view! { cx,
-    <p>
-        {t!{ cx,
-            important_text,
-            b = |cx, children| view!{ cx, <b>{children(cx)}</b> },
-        }}
-    </p>
-}
-
-```
-
-You can not define a variable with the same name of a component, you can name them how you want but it has to be a legal rust identifier. You can define variables inside components like `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><b>VERY IMPORTANT</b></b></b>`.
-
-### Context Provider
-
-To make all of that work, it needs to have the `I18nContext` available, for that call the `provide_i18n_context()` function at the highest possible level:
+The heart of this library is the `I18nContext`, it must be provided at the highest possible level in the application with the `provide_i18n_context` function:
 
 ```rust
 // root of the application
@@ -160,71 +92,152 @@ pub fn App(cx: Scope) -> impl IntoView {
 }
 ```
 
-### Setting the locale
-
-You can use the `set_locale` function to change the locale:
+You can then call the `get_context<T>` function to access it:
 
 ```rust
-let set_locale = leptos_i18n::set_locale::<Locales>(cx);
-let on_click = move |_| set_locale(LocaleEnum::fr);
+let i18n_context = leptos_i18n::get_context::<Locales>(cx);
+```
+
+It is advised to make your own function to suppress the need to pass the `Locales` type every time:
+
+```rust
+#[inline]
+pub fn get_i18n_context(cx: Scope) -> I18nContext<Locales> {
+    leptos_i18n::get_context(cx)
+}
+```
+
+The `provide_i18n_context` function return the context, so instead of
+
+```rust
+    leptos_i18n::provide_i18n_context::<Locales>(cx);
+
+    let i18n = get_i18n_context(cx);
+```
+
+You can write
+
+```rust
+    let i18n = leptos_i18n::provide_i18n_context::<Locales>(cx);
+```
+
+The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_locale(locale)`.
+
+### Accessing the current locale
+
+You may need to know what locale is currenly used, for that you can call `.get_locale` on the context, it will return the `LocaleEnum` defined by the `load_locales!()` macro. This function actually call `.get` on a signal, this means you should call it in a function like any signal.
+
+### Accessing the keys
+
+You can access the keys by calling `.get_keys` on the context, it will return the `I18nKeys` struct defined above, build with the current locale. This is also based on the locale signal, so call it in a function too.
+
+### Setting a locale
+
+When the user make a request for your application, the request headers contains a weighted list of accepted locales, this library take them into account and try to match it against the loaded locales, but you probably want to give your users the possibility to manually choose there prefered locale, for that you can set the current locale with the `.set_locale` function:
+
+```rust
+let i18n = get_i18n_context(cx);
+
+let on_click = move |_| {
+    let current_locale = i18n.get_locale();
+    let new_locale = match current_locale {
+        LocaleEnum::en => LocaleEnum::fr,
+        LocaleEnum::fr => LocaleEnum::en,
+    };
+    i18n.set_locale(new_locale);
+};
 
 view! { cx,
     <button on:click=on_click>
-        {t!(cx, set_locale_to_french)}
+        {move || i18n.get_keys().click_to_switch_locale}
     </button>
 }
 
 ```
 
-The `t!()` macro suscribe to locale change so every translation will switch to the new locale.
+### The `t!()` macro
 
-When a new locale is set, a cookie is set on the client side to remember the prefered locale. If you are using Chromium on localhost it may not work, as it blocks cookie set on the client side, try with another browser like Firefox.
-
-### Get the current locale
-
-You can use the `get_variant` function to get the current locale enum, this function return a function, this is to allow to subscribe to the locale update:
+As seen above, it can be pretty verbose to do `move || i18n.get_keys().$key` every time, so the crate expose a macro to help with that, the `t!()` macro.
 
 ```rust
-let get_variant = leptos_i18n::get_variant::<Locales>(cx);
-let set_locale = leptos_i18n::set_locale::<Locales>(cx);
-let on_click = move |_| {
-    let locale = get_variant();
-    let new_lang = match locale {
-        LocaleEnum::en => LocaleEnum::fr,
-        LocaleEnum::fr => LocaleEnum::en,
-    };
-
-    set_locale(new_lang);
-};
+let i18n = get_i18n_context(cx);
 
 view! { cx,
-    <h1>{t!(cx, hello_world)}</h1>
-    <button on:click=on_click >{t!(cx, switch_locale)}</button>
+    <p>{t!(i18n, hello_world)}</p>
 }
 ```
 
-if you need access to the actual locale type, you can use the `get_locale` function, which also return a function for reactiveness:
+It takes the context as the first parameter and the key in second.
+It also help with interpolation:
+
+### Interpolation
+
+You may need to interpolate values in your translation, for that you can add variables by wrapping it in `{{  }}` in the locale definition:
+
+```json
+{
+  "click_to_inc": "Click to increment",
+  "click_count": "You have clicked {{ count }} times"
+}
+```
+
+You can then do
 
 ```rust
-let get_locale = leptos_i18n::get_locale::<Locales>(cx);
+let i18n = get_i18n_context(cx);
+
+let (counter, set_counter) = create_signal(cx, 0);
+let inc = move |_| set_counter.update(|count| *count += 1);
+
 
 view! { cx,
-    <h1>{move || get_locale().hello_world}</h1>
+    <p>{t!(i18n, click_count, count = move || counter.get())}</p>
+    <button on:click=inc>{t!(i18n, click_to_inc)}</button>
 }
 
 ```
 
-For keys with interpolation, it implement a builder pattern, so if you have a variable named `count` you can use it like this:
+You can pass anything that implement `leptos::IntoView + Clone + 'static` as your variable. If a variable is not supplied it will not compile, same for an unknown variable key.
 
-```rust
-let get_locale = leptos_i18n::get_locale::<Locales>(cx);
+You may also need to interpolate components, to highlight some part of a text, you can define them with html tags:
 
-let count = ...;
-
-view! { cx,
-    <h1>{move || get_locale().click_count.count(count)}</h1>
+```json
+{
+  "important_text": "this text is <b>very</b> important"
 }
 ```
+
+You can supply them the same way as variables, but the supplied value must be a `Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView`, and also must be `Clone + 'static`.
+
+```rust
+let i18n = get_i18n_context(cx);
+
+view! { cx,
+    <p>
+        {t!(i18n, important_text, b = |cx, children| view!{ cx, <b>{children(cx)}</b> })}
+    </p>
+}
+
+```
+
+You can not define a variable with the same name of a component, you can name them how you want but it has to be a legal rust identifier. You can define variables inside components like `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><b>VERY IMPORTANT</b></b></b>`.
+
+For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern, so for the counter above but without the `t!` macro it will look like this:
+
+```rust
+let i18n = get_i18n_context(cx);
+
+let (counter, set_counter) = create_signal(cx, 0);
+let inc = move |_| set_counter.update(|count| *count += 1);
+
+
+view! { cx,
+    <p>{move || i18n.get_keys().click_count.count(move || counter.get())}</p>
+    <button on:click=inc>{t!(i18n, click_to_inc)}</button>
+}
+```
+
+### Examples
 
 If examples works better for you, you can look at the different examples available on the Github.
 
