@@ -1,34 +1,26 @@
 use std::{collections::HashMap, ops::Not, path::Path};
 
 use crate::{
-    cfg_file::{ConfigFile, RawConfigFile},
+    cfg_file::ConfigFile,
     error::Result,
     interpolate::{create_empty_type, Interpolation},
     key::Key,
-    locale::{Locale, LocaleValue, RawLocale},
+    locale::{Locale, LocaleValue},
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 
 pub fn load_locales_inner(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStream> {
-    let raw_cfg_file = RawConfigFile::new(cfg_file_path)?;
-    let cfg_file = ConfigFile::new(&raw_cfg_file)?;
+    let cfg_file = ConfigFile::new(cfg_file_path)?;
 
-    let mut raw_locales: Vec<RawLocale> = Vec::with_capacity(cfg_file.locales.len());
+    let mut locales: Vec<Locale> = Vec::with_capacity(cfg_file.locales.len());
 
     for locale in &cfg_file.locales {
         let path = format!("./locales/{}.json", locale.name);
-        raw_locales.push(RawLocale::new(path, locale.name)?);
+        locales.push(Locale::new(path, locale)?);
     }
 
-    let locales = raw_locales
-        .iter()
-        .map(Locale::new)
-        .collect::<Result<Vec<_>>>()?;
-
     let keys = Locale::check_locales(&locales)?;
-
-    // let (keys, kinds) = check_keys(&cfg_file, &raw_locales)?;
 
     let locale_type = create_locale_type(&locales, &keys);
     let locale_variants = create_locales_enum(&cfg_file);
@@ -50,13 +42,13 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
 
     let as_str_match_arms = locales
         .iter()
-        .map(|key| (&key.ident, key.name))
+        .map(|key| (&key.ident, &key.name))
         .map(|(variant, locale)| quote!(LocaleEnum::#variant => #locale))
         .collect::<Vec<_>>();
 
     let from_str_match_arms = locales
         .iter()
-        .map(|key| (&key.ident, key.name))
+        .map(|key| (&key.ident, &key.name))
         .map(|(variant, locale)| quote!(#locale => Some(LocaleEnum::#variant)))
         .collect::<Vec<_>>();
 
@@ -114,20 +106,20 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
         .map(|key| quote!(pub #key: &'static str))
         .collect::<Vec<_>>();
 
-    let interpolations = keys
+    let builders = keys
         .iter()
         .filter_map(|(key, value)| match value {
             LocaleValue::String => None,
-            LocaleValue::Interpolate(keys) => Some((*key, Interpolation::new(key, keys, locales))),
+            LocaleValue::Builder(keys) => Some((*key, Interpolation::new(key, keys, locales))),
         })
         .collect::<Vec<_>>();
 
-    let interpolation_fields = interpolations.iter().map(|(key, inter)| {
+    let builder_fields = builders.iter().map(|(key, inter)| {
         let inter_ident = &inter.default_generic_ident;
         quote!(pub #key: #inter_ident)
     });
 
-    let filled_interpolate_fields: Vec<TokenStream> = interpolations
+    let init_builder_fields: Vec<TokenStream> = builders
         .iter()
         .map(|(key, inter)| {
             let ident = &inter.ident;
@@ -145,21 +137,21 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
         quote! {
             LocaleEnum::#ident => I18nKeys {
                 #(#filled_string_fields,)*
-                #(#filled_interpolate_fields,)*
+                #(#init_builder_fields,)*
             }
         }
     });
 
-    let interpolation_impls = interpolations.iter().map(|(_, inter)| &inter.imp);
+    let builder_impls = builders.iter().map(|(_, inter)| &inter.imp);
 
-    let empty_type = interpolations.is_empty().not().then(create_empty_type);
+    let empty_type = builders.is_empty().not().then(create_empty_type);
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_snake_case)]
         pub struct I18nKeys {
             #(#string_fields,)*
-            #(#interpolation_fields,)*
+            #(#builder_fields,)*
         }
 
         impl ::leptos_i18n::LocaleKeys for I18nKeys {
@@ -176,7 +168,7 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
         #empty_type
 
         #(
-            #interpolation_impls
+            #builder_impls
         )*
     }
 }

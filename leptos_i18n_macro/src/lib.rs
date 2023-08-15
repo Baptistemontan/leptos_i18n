@@ -4,7 +4,8 @@ pub(crate) mod interpolate;
 pub(crate) mod key;
 pub(crate) mod load_locales;
 pub(crate) mod locale;
-pub(crate) mod value_kind;
+pub(crate) mod parsed_value;
+pub(crate) mod plural;
 
 #[proc_macro]
 pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {

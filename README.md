@@ -220,7 +220,7 @@ view! { cx,
 
 ```
 
-You can not define a variable with the same name of a component, you can name them how you want but it has to be a legal rust identifier. You can define variables inside components like `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><b>VERY IMPORTANT</b></b></b>`.
+You can not define a variable with the same name of a component, you can name them how you want but it has to be a legal rust identifier. You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
 
 For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern, so for the counter above but without the `t!` macro it will look like this:
 
@@ -237,6 +237,66 @@ view! { cx,
 }
 ```
 
+If a variable or a component is only needed for one local, it is totally acceptable to do
+
+```
+/locales/en.json
+
+{
+    "hello_world": "Hello World!"
+}
+
+/locales/fr.json
+
+{
+    "hello_world": "Bonjour <i>le monde!</i>"
+}
+
+```
+
+When accessing the key it will return a builder that need the total keys of variables/components of every locales, but it will fail to compile if one locale use a key for a component and another locale use the same key for a variable.
+
+### Plurals
+
+You may need to display different messages depending on a count, for exemple one when there is 0 elements, another when there is only one, and a last one when the count is anything else. For that you can do:
+
+```json
+{
+  "click_count": {
+    "0": "You have not clicked yet",
+    "1": "You clicked once",
+    "_": "You clicked {{ count }} times"
+  }
+}
+```
+
+When using plurals, the key `count` variable is reserved and takes as a value `T: Fn() -> i64 + Clone + 'static`, the resulting code looks something like this:
+
+```rust
+match count() {
+    0 => // render "You have not clicked yet",
+    1 => // render "You clicked once",
+    _ => // render "You clicked {{ count }} times"
+}
+```
+
+You can also supply a range:
+
+```json
+{
+  "click_count": {
+    "0": "You have not clicked yet",
+    "1": "You clicked once",
+    "2..=10": "You clicked {{ count }} times",
+    "11..": "You clicked <b>a lot</b>"
+  }
+}
+```
+
+But this exemple will not compile, because the resulting match statement will not cover the full `i64` range, so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`.
+
+If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> i64 + Clone + 'static`.
+
 ### Examples
 
 If examples works better for you, you can look at the different examples available on the Github.
@@ -246,3 +306,9 @@ If examples works better for you, you can look at the different examples availab
 You must enable the `hydrate` feature when building the client, and when building the server you must enable either the `actix` or `axum` feature.
 
 The `cookie` feature enable to set a cookie when a locale is chosen by the user, this feature is enabled by default.
+
+## Contributing
+
+Errors are a bit clunky or obscure for now, there is a lot of edge cases and I did not had time to track every failing scenario, feel free to open an issue on github so I can improve those.
+
+Also feel free to open PR for any improvement or new feature.

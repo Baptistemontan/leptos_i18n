@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
-use crate::{key::Key, locale::Locale, value_kind::InterpolateKeyKind};
+use crate::{key::Key, locale::Locale, parsed_value::InterpolateKey};
 
 pub struct Interpolation {
     pub ident: syn::Ident,
@@ -14,11 +14,11 @@ pub struct Interpolation {
 struct Field<'a> {
     generic: syn::Ident,
     name: String,
-    kind: &'a InterpolateKeyKind<'a, 'a>,
+    kind: &'a InterpolateKey<'a>,
 }
 
 impl Interpolation {
-    pub fn new(key: &Key, keys_set: &HashSet<InterpolateKeyKind>, locales: &[Locale]) -> Self {
+    pub fn new(key: &Key, keys_set: &HashSet<InterpolateKey>, locales: &[Locale]) -> Self {
         let ident = syn::Ident::new(&format!("__{}_builder", key.name), Span::call_site());
 
         let locale_field = Key::new("__locale", crate::key::KeyKind::LocaleName).unwrap();
@@ -27,7 +27,7 @@ impl Interpolation {
             .iter()
             .map(|kind| {
                 let key = kind.as_key();
-                let name = format!("__{}", key.name);
+                let name = format!("__{}", key.map(|key| key.name.as_str()).unwrap_or("count"));
                 let generic = syn::Ident::new(&name, Span::call_site());
                 Field {
                     generic,
@@ -132,8 +132,9 @@ impl Interpolation {
             let output_generics = fields.iter().map(|other_field| {
                 if other_field.name == field.name {
                     match field.kind {
-                        InterpolateKeyKind::Variable(_) => quote!(__T),
-                        InterpolateKeyKind::Component(_) => quote!(impl Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __leptos__::View + core::clone::Clone + 'static),
+                        InterpolateKey::Variable(_) => quote!(__T),
+                        InterpolateKey::Component(_) => quote!(impl Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __leptos__::View + core::clone::Clone + 'static),
+                        InterpolateKey::Count => quote!(impl Fn() -> i64 + core::clone::Clone + 'static)
                     }
                 } else {
                     let generic = &other_field.generic;
@@ -143,10 +144,12 @@ impl Interpolation {
             let other_fields = fields.iter().filter_map(|other_field| {
                 if other_field.name == field.name {
                     None
+                } else if let Some(key) = other_field.kind.as_key() {
+                    Some(quote!(#key))
                 } else {
-                    Some(other_field.kind.as_key())
+                    Some(quote!(count))
                 }
-            }).chain(Some(locale_field)).collect::<Vec<_>>();
+            }).chain(Some(quote!(#locale_field))).collect::<Vec<_>>();
 
             let field_key = field.kind;
 
@@ -154,7 +157,7 @@ impl Interpolation {
             let restructure = quote!(#ident { #(#other_fields,)* #field_key });
 
             match field.kind {
-                InterpolateKeyKind::Variable(key) => {
+                InterpolateKey::Variable(key) => {
                     quote!{
                         #[inline]
                         pub fn #key<__T>(self, #field_key: __T) -> #ident<#(#output_generics,)*>
@@ -165,7 +168,7 @@ impl Interpolation {
                         }
                     }
                 }
-                InterpolateKeyKind::Component(key) => {
+                InterpolateKey::Component(key) => {
                     quote!{
                         #[inline]
                         pub fn #key<__O, __T>(self, #field_key: __T) -> #ident<#(#output_generics,)*>
@@ -179,25 +182,39 @@ impl Interpolation {
                         }
                     }
                 }
+                InterpolateKey::Count => {
+                    quote! {
+                        #[inline]
+                        pub fn count<__T>(self, count: __T) -> #ident<#(#output_generics,)*> 
+                            where __T: Fn() -> i64 + core::clone::Clone + 'static
+                        {
+                            #destructure
+                            #restructure
+                        }
+                    }
+                }
             }
         })
     }
 
-    fn into_view_impl<'a>(
+    fn into_view_impl(
         key: &Key,
-        ident: &'a syn::Ident,
-        locale_field: &'a Key,
-        fields: &'a [Field],
+        ident: &syn::Ident,
+        locale_field: &Key,
+        fields: &[Field],
         locales: &[Locale],
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
             match field.kind {
-                InterpolateKeyKind::Variable(_) => {
+                InterpolateKey::Variable(_) => {
                     quote!(#ident: __leptos__::IntoView + core::clone::Clone + 'static)
                 }
-                InterpolateKeyKind::Component(_) => {
+                InterpolateKey::Component(_) => {
                     quote!(#ident: Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __leptos__::View + core::clone::Clone + 'static)
+                }
+                InterpolateKey::Count => {
+                    quote!(#ident: Fn() -> i64 + core::clone::Clone + 'static)
                 }
             }
         });
@@ -238,7 +255,7 @@ impl Interpolation {
 
             Some(quote! {
                 LocaleEnum::#locale_key => {
-                    __leptos__::CollectView::collect_view([#value], cx)
+                    #value
                 }
 
             })
