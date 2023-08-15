@@ -47,15 +47,15 @@ pub enum Error {
         key: String,
         locale: String,
     },
-    PluralMissingFallback {
-        locale_name: String,
-        locale_key: String,
-    },
     InvalidPlural {
         locale_name: String,
         locale_key: String,
         plural: String,
     },
+    KeyKindMissmatch {
+        locale_key: String,
+        key: String
+    }
 }
 
 impl Display for Error {
@@ -97,9 +97,9 @@ impl Display for Error {
                     locale, key
                 )
             }
-            Error::PluralMissingFallback { locale_name, locale_key } => write!(f, "In locale {:?} at key {:?}, the plural does not contain the fallback field (\"_\").", locale_name, locale_key),
             Error::InvalidPlural { locale_name, locale_key, plural } => write!(f, "In locale {:?} at key {:?} found invalid plural {:?}", locale_name, locale_key, plural),
             Error::DuplicateLocalesInConfig(duplicates) => write!(f, "Found duplicates locales in configuration file (i18n.json): {:?}", duplicates),
+            Error::KeyKindMissmatch { locale_key, key } => write!(f, "At locale key {:?}, use of the key {:?} for a variable and a component is not allowed", locale_key, key),
         }
     }
 }

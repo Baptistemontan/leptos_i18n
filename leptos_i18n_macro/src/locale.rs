@@ -32,162 +32,35 @@ impl Locale {
             .map_err(|err| Error::LocaleFileDeser(locale.name.clone(), err))
     }
 
-    // pub fn new(locale: &'a RawLocale) -> Result<Self> {
-    //     let RawLocale {
-    //         name: locale_name,
-    //         keys,
-    //     } = locale;
-    //     let name = Key::new(locale.name, crate::key::KeyKind::LocaleName)?;
-    //     let keys = keys
-    //         .iter()
-    //         .map(|(key, value)| -> Result<(Key, ParsedValue)> {
-    //             let key = Key::new(key, crate::key::KeyKind::LocaleKey { locale_name })?;
-    //             let value = ParsedValue::new(value);
-    //             Ok((key, value))
-    //         })
-    //         .collect::<Result<_>>()?;
-
-    //     Ok(Locale { name, keys })
-    // }
-
-    // pub fn get_keys(&self) -> HashMap<&Key, LocaleValue> {
-    //     self.keys
-    //         .iter()
-    //         .map(|(key, value)| (key, value.get_keys().into()))
-    //         .collect()
-    // }
-
-    // fn key_diff(
-    //     locale1: &Locale,
-    //     keys1: &HashMap<&Key, LocaleValue>,
-    //     locale2: &Locale,
-    //     keys2: &HashMap<&Key, LocaleValue>,
-    // ) -> Error {
-    //     // check key mismatch
-
-    //     let keys_not_in_2 = keys1
-    //         .iter()
-    //         .map(|(key, _)| key)
-    //         .filter(|key| keys2.get(*key).is_none())
-    //         .map(|key| key.name.to_string())
-    //         .collect::<Vec<_>>();
-    //     if !keys_not_in_2.is_empty() {
-    //         return Error::MissingKeysInLocale {
-    //             keys: keys_not_in_2,
-    //             locale: locale2.name.name.to_string(),
-    //         };
-    //     }
-
-    //     let keys_not_in_1 = keys2
-    //         .iter()
-    //         .map(|(key, _)| key)
-    //         .filter(|key| keys1.get(*key).is_none())
-    //         .map(|key| key.name.to_string())
-    //         .collect::<Vec<_>>();
-    //     if !keys_not_in_1.is_empty() {
-    //         return Error::MissingKeysInLocale {
-    //             keys: keys_not_in_1,
-    //             locale: locale1.name.name.to_string(),
-    //         };
-    //     }
-
-    //     // check key kind mismatch
-    //     let (key, value, other_value) = keys1
-    //         .iter()
-    //         .filter_map(|(key, value)| {
-    //             let other_value = keys2.get(*key)?;
-    //             (value != other_value).then_some((key, value, other_value))
-    //         })
-    //         .next()
-    //         .expect("error was reported but everyhting seems fine...");
-
-    //     match (value, other_value) {
-    //         (LocaleValue::String, LocaleValue::Interpolate(_)) => Error::MismatchLocaleKeyKind {
-    //             key: key.name.to_string(),
-    //             locale_str: locale1.name.name.to_string(),
-    //             locale_inter: locale2.name.name.to_string(),
-    //         },
-    //         (LocaleValue::Interpolate(_), LocaleValue::String) => Error::MismatchLocaleKeyKind {
-    //             key: key.name.to_string(),
-    //             locale_str: locale2.name.name.to_string(),
-    //             locale_inter: locale1.name.name.to_string(),
-    //         },
-    //         (LocaleValue::Interpolate(keys1), LocaleValue::Interpolate(keys2)) => {
-    //             let comp_keys1 = keys1
-    //                 .iter()
-    //                 .filter_map(|key| match key {
-    //                     InterpolateKey::Variable(_) => None,
-    //                     InterpolateKey::Component(key) => Some(key.name.to_string()),
-    //                 })
-    //                 .collect();
-
-    //             let comp_keys2 = keys2
-    //                 .iter()
-    //                 .filter_map(|key| match key {
-    //                     InterpolateKey::Variable(_) => None,
-    //                     InterpolateKey::Component(key) => Some(key.name.to_string()),
-    //                 })
-    //                 .collect();
-
-    //             let var_keys1 = keys1
-    //                 .iter()
-    //                 .filter_map(|key| match key {
-    //                     InterpolateKey::Variable(key) => Some(key.name.to_string()),
-    //                     InterpolateKey::Component(_) => None,
-    //                 })
-    //                 .collect();
-
-    //             let var_keys2 = keys2
-    //                 .iter()
-    //                 .filter_map(|key| match key {
-    //                     InterpolateKey::Variable(key) => Some(key.name.to_string()),
-    //                     InterpolateKey::Component(_) => None,
-    //                 })
-    //                 .collect();
-
-    //             Error::InterpolateVariableNotMatching(
-    //                 InterpolateKeysNotMatching {
-    //                     key: key.name.to_string(),
-    //                     locale1: locale1.name.name.to_string(),
-    //                     locale2: locale2.name.name.to_string(),
-    //                     comp_keys1,
-    //                     comp_keys2,
-    //                     var_keys1,
-    //                     var_keys2,
-    //                 }
-    //                 .into(),
-    //             )
-    //         }
-    //         (LocaleValue::String, LocaleValue::String) => unreachable!(),
-    //     }
-    // }
-
-    // pub fn check_locales<I>(locales: I) -> Result<HashMap<&'a Key<'a>, LocaleValue<'a, 'a>>>
-    // where
-    //     I: IntoIterator<Item = &'a Locale<'a>>,
-    // {
-    //     let mut iter = locales.into_iter();
-    //     let first_locale = iter.next().unwrap();
-
-    //     let first_locale_keys = first_locale.get_keys();
-
-    //     for locale in iter {
-    //         let keys = locale.get_keys();
-    //         if first_locale_keys != keys {
-    //             return Err(Self::key_diff(
-    //                 first_locale,
-    //                 &first_locale_keys,
-    //                 locale,
-    //                 &keys,
-    //             ));
-    //         }
-    //     }
-
-    //     Ok(first_locale_keys)
-    // }
-
     pub fn get_keys(&self) -> HashSet<&Key> {
         self.keys.keys().collect()
+    }
+
+    fn key_missmatch(
+        locale1: &Self,
+        keys1: &HashSet<&Key>,
+        locale2: &Self,
+        keys2: &HashSet<&Key>,
+    ) -> Error {
+        let mut locale = locale2;
+
+        let mut diff = keys1
+            .difference(keys2)
+            .map(|key| key.name.clone())
+            .collect::<Vec<_>>();
+
+        if diff.is_empty() {
+            locale = locale1;
+            diff = keys2
+                .difference(keys1)
+                .map(|key| key.name.clone())
+                .collect();
+        }
+
+        Error::MissingKeysInLocale {
+            keys: diff,
+            locale: locale.name.name.clone(),
+        }
     }
 
     pub fn check_locales<'a, I>(locales: I) -> Result<HashMap<&'a Key, LocaleValue<'a>>>
@@ -208,7 +81,12 @@ impl Locale {
         for locale in locales {
             let keys = locale.get_keys();
             if first_locale_keys != keys {
-                todo!("key mismatch beetween locales")
+                return Err(Self::key_missmatch(
+                    first_locale,
+                    &first_locale_keys,
+                    locale,
+                    &keys,
+                ));
             }
 
             for (key, key_kind) in &mut mapped_keys {
@@ -231,8 +109,10 @@ impl Locale {
 
                 for key in keys.iter() {
                     if matches!(key, InterpolateKey::Component(key) if key.name == "count") {
-                        todo!("found component with name \"count\" but key is used with plurals, count is a reserved name.")
-                        // error
+                        return Err(Error::KeyKindMissmatch {
+                            locale_key: locale_key.name.clone(),
+                            key: "count".to_string(),
+                        });
                     }
                 }
             }
@@ -254,11 +134,10 @@ impl Locale {
             let common_key = var_keys.intersection(&comp_keys).next();
 
             if let Some(common_key) = common_key {
-                todo!(
-                    "found key {:?} used for both variables and components for locale key {:?}.",
-                    common_key.name,
-                    locale_key
-                ) // error
+                return Err(Error::KeyKindMissmatch {
+                    locale_key: locale_key.name.clone(),
+                    key: common_key.name.clone(),
+                });
             }
         }
 
