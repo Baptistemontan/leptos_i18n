@@ -40,7 +40,24 @@ impl Plural {
             } else {
                 let end = parse(end)?;
                 end.checked_sub(1)
+                    .ok_or_else(|| Error::InvalidBoundEnd {
+                        locale_name: locale_name.to_string(),
+                        locale_key: locale_key.to_string(),
+                        range: s.to_string(),
+                    })
+                    .map(Some)?
             };
+
+            match start.zip(end) {
+                Some((start, end)) if end < start => {
+                    return Err(Error::ImpossibleRange {
+                        locale_name: locale_name.to_string(),
+                        locale_key: locale_key.to_string(),
+                        range: s.to_string(),
+                    })
+                }
+                _ => {}
+            }
 
             Ok(Self::Range { start, end })
         } else {

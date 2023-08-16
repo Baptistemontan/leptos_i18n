@@ -24,6 +24,16 @@ pub enum Error {
         locale_name: String,
         locale_key: String,
         plural: String,
+    },
+    InvalidBoundEnd {
+        locale_name: String,
+        locale_key: String,
+        range: String
+    },
+    ImpossibleRange {
+        locale_name: String,
+        locale_key: String,
+        range: String
     }
 }
 
@@ -66,8 +76,33 @@ impl Display for Error {
                     locale, key
                 )
             }
-            Error::InvalidPlural { locale_name, locale_key, plural } => write!(f, "In locale {:?} at key {:?} found invalid plural {:?}", locale_name, locale_key, plural),
-            Error::DuplicateLocalesInConfig(duplicates) => write!(f, "Found duplicates locales in configuration file (i18n.json): {:?}", duplicates),
+            Error::InvalidPlural { 
+                locale_name, 
+                locale_key, 
+                plural 
+            } => write!(f, 
+                "In locale {:?} at key {:?} found invalid plural {:?}", 
+                locale_name, locale_key, plural
+            ),
+            Error::DuplicateLocalesInConfig(duplicates) => write!(f, 
+                "Found duplicates locales in configuration file (i18n.json): {:?}", 
+                duplicates
+            ),
+            Error::InvalidBoundEnd { 
+                locale_name, 
+                locale_key, 
+                range 
+            } => write!(f, 
+                "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't end before i64::min", 
+                locale_name, locale_key, range
+            ),
+            Error::ImpossibleRange { 
+                locale_name, 
+                locale_key, 
+                range 
+            } => write!(f, "In locale {:?} at key {:?} the range {:?} is impossible, it end before it starts",
+                locale_name, locale_key, range
+            ),
         }
     }
 }
@@ -75,7 +110,7 @@ impl Display for Error {
 impl From<Error> for proc_macro::TokenStream {
     fn from(value: Error) -> Self {
         let error = value.to_string();
-        quote!(compile_error!(#error)).into()
+        quote!(compile_error!(#error);).into()
     }
 }
 
