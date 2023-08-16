@@ -101,12 +101,12 @@ impl Locale {
             .filter_map(|(key, value)| value.as_mut().map(|value| (key, value)));
 
         for (locale_key, keys) in iter {
-            // if the set contains InterpolateKey::Count, remove variable keys with name "count"
             if keys.contains(&InterpolateKey::Count) {
+                // if the set contains InterpolateKey::Count, remove variable keys with name "count"
                 keys.retain(
                     |key| !matches!(key, InterpolateKey::Variable(key) if key.name == "count"),
                 );
-
+                // with plurals component named count is not allowed
                 for key in keys.iter() {
                     if matches!(key, InterpolateKey::Component(key) if key.name == "count") {
                         return Err(Error::KeyKindMissmatch {

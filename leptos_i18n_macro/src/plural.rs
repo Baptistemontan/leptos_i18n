@@ -9,6 +9,8 @@ pub enum Plural {
     Exact(i64),
     Range {
         start: Option<i64>,
+        // originaly this was a Bound<i64>, but excluded ranges are unstable
+        // so always output included end bound
         end: Option<i64>,
     },
     Fallback,
@@ -130,7 +132,7 @@ mod tests {
             plural,
             Plural::Range {
                 start: Some(0),
-                end: Some(5)
+                end: Some(5) // see field comment for why it's 5
             }
         );
     }
@@ -143,6 +145,45 @@ mod tests {
             plural,
             Plural::Range {
                 start: Some(0),
+                end: None
+            }
+        );
+    }
+
+    #[test]
+    fn test_range_included_end() {
+        let plural = Plural::new("", "", "0..=6").unwrap();
+
+        assert_eq!(
+            plural,
+            Plural::Range {
+                start: Some(0),
+                end: Some(6)
+            }
+        );
+    }
+
+    #[test]
+    fn test_range_unbounded_start() {
+        let plural = Plural::new("", "", "..=6").unwrap();
+
+        assert_eq!(
+            plural,
+            Plural::Range {
+                start: None,
+                end: Some(6)
+            }
+        );
+    }
+
+    #[test]
+    fn test_range_full() {
+        let plural = Plural::new("", "", "..").unwrap();
+
+        assert_eq!(
+            plural,
+            Plural::Range {
+                start: None,
                 end: None
             }
         );

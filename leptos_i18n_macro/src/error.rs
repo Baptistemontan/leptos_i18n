@@ -3,33 +3,6 @@ use std::{fmt::Display, collections::HashSet};
 use crate::cfg_file::ConfigFile;
 use quote::quote;
 
-// #[derive(Debug)]
-// pub struct InterpolateKeysNotMatching {
-//     pub key: String,
-//     pub locale1: String,
-//     pub locale2: String,
-//     pub comp_keys1: Vec<String>,
-//     pub var_keys1: Vec<String>,
-//     pub comp_keys2: Vec<String>,
-//     pub var_keys2: Vec<String>,
-// }
-
-// impl Display for InterpolateKeysNotMatching {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         write!(f, "for key {:?} locales {:?} and {:?} don't have the same keys, locale {:?} has {:?} for variable keys and {:?} for component keys, but locale {:?} has {:?} for variable keys and {:?} for component keys",
-//         self.key,
-//         self.locale1,
-//         self.locale2,
-//         self.locale1,
-//         self.var_keys1,
-//         self.comp_keys1,
-//         self.locale2,
-//         self.var_keys2,
-//         self.var_keys2
-//     )
-//     }
-// }
-
 #[derive(Debug)]
 pub enum Error {
     ConfigFileNotFound(std::io::Error),

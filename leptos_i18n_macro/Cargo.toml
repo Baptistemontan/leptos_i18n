@@ -9,8 +9,8 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1" }
 serde_json = "1"
 proc-macro2 = "1"
 quote = "1"
-syn = "2.0.28"
+syn = "2.0"

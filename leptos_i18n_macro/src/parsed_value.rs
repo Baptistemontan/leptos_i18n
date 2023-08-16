@@ -8,6 +8,7 @@ use crate::{
     plural::{Plural, PluralSeed},
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParsedValue {
     Plural(Vec<(Plural, Self)>),
     String(String),
@@ -64,22 +65,6 @@ impl ParsedValue {
         }
     }
 
-    // pub fn new_plural(
-    //     plurals: &HashMap<String, String>,
-    //     locale_name: &str,
-    //     locale_key: &str,
-    // ) -> Result<Self> {
-    //     plurals
-    //         .iter()
-    //         .map(|(plural, value)| {
-    //             let plural = Plural::new(locale_name, locale_key, plural)?;
-    //             let value = Self::new(value);
-    //             Ok((plural, value))
-    //         })
-    //         .collect::<Result<_>>()
-    //         .map(Self::Plural)
-    // }
-
     pub fn new(value: &str) -> Self {
         // look for component
         if let Some(component) = Self::find_component(value) {
@@ -127,17 +112,25 @@ impl ParsedValue {
     fn find_closing_tag<'a>(value: &'a str, key: &Key) -> Option<(&'a str, &'a str)> {
         let mut indices = None;
         let mut depth = 0;
-        for i in value.match_indices('<').map(|x| x.0) {
-            let rest = &value[i + 1..];
-            if let Some((ident, _)) = rest.split_once('>') {
-                if let Some(closing_tag) = ident.trim_start().strip_prefix('/') {
-                    if depth == 0 && closing_tag.trim() == key.name {
-                        let end_i = i + ident.len() + 2;
-                        indices = Some((i, end_i))
-                    }
-                } else if ident.trim() == key.name {
-                    depth += 1;
+        let iter = value.match_indices('<').filter_map(|(i, _)| {
+            value[i + 1..]
+                .split_once('>')
+                .map(|(ident, _)| (i, ident.trim()))
+        });
+        for (i, ident) in iter {
+            println!("i = {}, ident = {}, depth = {}", i, ident, depth);
+            if let Some(closing_tag) = ident.strip_prefix('/').map(str::trim_start) {
+                if closing_tag != key.name {
+                    continue;
                 }
+                if depth == 0 {
+                    let end_i = i + ident.len() + 2;
+                    indices = Some((i, end_i))
+                } else {
+                    depth -= 1;
+                }
+            } else if ident == key.name {
+                depth += 1;
             }
         }
 
@@ -169,19 +162,22 @@ impl<'a> InterpolateKey<'a> {
 }
 
 impl<'a> ToTokens for InterpolateKey<'a> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_token_stream(&self) -> TokenStream {
         match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.to_tokens(tokens),
-            InterpolateKey::Count => syn::parse_str::<syn::Ident>("count")
-                .unwrap()
-                .to_tokens(tokens),
+            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => quote!(#key),
+            InterpolateKey::Count => quote!(count),
         }
+    }
+
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        self.to_token_stream().to_tokens(tokens)
     }
 }
 
 impl ToTokens for ParsedValue {
     fn to_token_stream(&self) -> TokenStream {
         match self {
+            // TODO: found way to remove code for empty strings
             ParsedValue::String(s) => quote!(__leptos__::IntoView::into_view(#s, cx)),
             ParsedValue::Variable(key) => {
                 quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key), cx))
@@ -276,9 +272,11 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         A: serde::de::MapAccess<'de>,
     {
+        // nested plurals are not allowed, the code technically supports it,
+        // but it's pointless and probably nobody will ever needs it.
         if std::mem::replace(&mut self.in_plural, true) {
             return Err(serde::de::Error::custom(format!(
-                "nested plurals in locale {:?} at key {:?}",
+                "in locale {:?} at key {:?}: nested plurals are not allowed",
                 self.locale_name, self.locale_key
             )));
         }
@@ -293,10 +291,103 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             plurals.push((plural, value));
         }
 
-        Ok(ParsedValue::Plural(plurals))
+        // easy to avoid compile warning, check if a fallback is not at the end position
+        let invalid_fallback = plurals
+            .iter()
+            .rev()
+            .skip(1)
+            .any(|(plural, _)| matches!(plural, Plural::Fallback));
+        // also check if multiple fallbacks exist
+        let fallback_count = plurals
+            .iter()
+            .filter(|(plural, _)| matches!(plural, Plural::Fallback))
+            .count();
+
+        if invalid_fallback {
+            Err(serde::de::Error::custom(format!(
+                "in locale {:?} at key {:?}: fallback is only allowed in last position",
+                self.locale_name, self.locale_key
+            )))
+        } else if fallback_count > 1 {
+            Err(serde::de::Error::custom(format!(
+                "in locale {:?} at key {:?}: multiple fallbacks are not allowed",
+                self.locale_name, self.locale_key
+            )))
+        } else {
+            Ok(ParsedValue::Plural(plurals))
+        }
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(formatter, "either a string or a map of string:string")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_normal_string() {
+        let value = ParsedValue::new("test");
+
+        assert_eq!(value, ParsedValue::String("test".to_string()));
+    }
+
+    #[test]
+    fn parse_variable() {
+        let value = ParsedValue::new("before {{ var }} after");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::String("before ".to_string()),
+                ParsedValue::Variable(Key::try_new("var").unwrap()),
+                ParsedValue::String(" after".to_string())
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_comp() {
+        let value = ParsedValue::new("before <comp>inner</comp> after");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::String("before ".to_string()),
+                ParsedValue::Component {
+                    key: Key::try_new("comp").unwrap(),
+                    inner: Box::new(ParsedValue::String("inner".to_string()))
+                },
+                ParsedValue::String(" after".to_string())
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_nested_comp() {
+        let value = ParsedValue::new(
+            "before <comp>inner before<comp>inner inner</comp>inner after</comp> after",
+        );
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::String("before ".to_string()),
+                ParsedValue::Component {
+                    key: Key::try_new("comp").unwrap(),
+                    inner: Box::new(ParsedValue::Bloc(vec![
+                        ParsedValue::String("inner before".to_string()),
+                        ParsedValue::Component {
+                            key: Key::try_new("comp").unwrap(),
+                            inner: Box::new(ParsedValue::String("inner inner".to_string()))
+                        },
+                        ParsedValue::String("inner after".to_string()),
+                    ]))
+                },
+                ParsedValue::String(" after".to_string())
+            ])
+        )
     }
 }

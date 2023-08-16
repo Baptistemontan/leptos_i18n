@@ -132,9 +132,8 @@ impl Interpolation {
             let output_generics = fields.iter().map(|other_field| {
                 if other_field.name == field.name {
                     match field.kind {
-                        InterpolateKey::Variable(_) => quote!(__T),
+                        InterpolateKey::Variable(_) | InterpolateKey::Count => quote!(__T),
                         InterpolateKey::Component(_) => quote!(impl Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __leptos__::View + core::clone::Clone + 'static),
-                        InterpolateKey::Count => quote!(impl Fn() -> i64 + core::clone::Clone + 'static)
                     }
                 } else {
                     let generic = &other_field.generic;
