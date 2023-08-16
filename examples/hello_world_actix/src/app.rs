@@ -22,13 +22,15 @@ pub fn App(cx: Scope) -> impl IntoView {
         i18n.set_locale(new_lang);
     };
 
+    let count = move || counter.get();
+
     view! { cx,
         <h1>{t!(i18n, hello_world)}</h1>
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
         <p>
             {t!{ i18n,
                 click_count,
-                count = move || counter.get(),
+                count,
                 <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> },
             }}
         </p>
