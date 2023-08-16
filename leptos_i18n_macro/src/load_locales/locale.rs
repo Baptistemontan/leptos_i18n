@@ -6,7 +6,7 @@ use std::{
 
 use serde::de::DeserializeSeed;
 
-use crate::{
+use super::{
     error::{Error, Result},
     key::{Key, KeySeed},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},

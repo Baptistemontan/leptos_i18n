@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     error::{Error, Result},
     key::{Key, KeySeed, KeyVecSeed},
 };

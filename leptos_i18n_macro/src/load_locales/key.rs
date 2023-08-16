@@ -1,4 +1,4 @@
-use crate::error::{Error, Result};
+use super::error::{Error, Result};
 use std::hash::Hash;
 
 #[derive(Debug, Clone)]

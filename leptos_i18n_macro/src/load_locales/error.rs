@@ -1,6 +1,6 @@
 use std::{fmt::Display, collections::HashSet};
 
-use crate::cfg_file::ConfigFile;
+use super::cfg_file::ConfigFile;
 use quote::quote;
 
 #[derive(Debug)]

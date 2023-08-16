@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
-use crate::{key::Key, locale::Locale, parsed_value::InterpolateKey};
+use super::{key::Key, locale::Locale, parsed_value::InterpolateKey};
 
 pub struct Interpolation {
     pub ident: syn::Ident,
@@ -21,7 +21,7 @@ impl Interpolation {
     pub fn new(key: &Key, keys_set: &HashSet<InterpolateKey>, locales: &[Locale]) -> Self {
         let ident = syn::Ident::new(&format!("__{}_builder", key.name), Span::call_site());
 
-        let locale_field = Key::new("__locale", crate::key::KeyKind::LocaleName).unwrap();
+        let locale_field = Key::new("__locale", super::key::KeyKind::LocaleName).unwrap();
 
         let fields = keys_set
             .iter()

@@ -2,7 +2,7 @@ use std::ops::Not;
 
 use quote::{quote, ToTokens};
 
-use crate::error::{Error, Result};
+use super::error::{Error, Result};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum Plural {

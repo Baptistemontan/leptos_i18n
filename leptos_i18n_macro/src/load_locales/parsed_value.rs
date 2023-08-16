@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{
+use super::{
     key::Key,
     plural::{Plural, PluralSeed},
 };
