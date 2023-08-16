@@ -199,7 +199,7 @@ view! { cx,
 
 You can pass anything that implement `leptos::IntoView + Clone + 'static` as your variable. If a variable is not supplied it will not compile, same for an unknown variable key.
 
-You may also need to interpolate components, to highlight some part of a text, you can define them with html tags:
+You may also need to interpolate components, to highlight some part of a text for exemple, you can define them with html tags:
 
 ```json
 {
@@ -207,7 +207,7 @@ You may also need to interpolate components, to highlight some part of a text, y
 }
 ```
 
-You can supply them the same way as variables, just wrapped beetween `< >`, but the supplied value must be a `T: Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
+You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
 
 ```rust
 let i18n = get_i18n_context(cx);
@@ -233,7 +233,7 @@ let inc = move |_| set_counter.update(|count| *count += 1);
 
 view! { cx,
     <p>{move || i18n.get_keys().click_count.var_count(move || counter.get())}</p>
-    <button on:click=inc>{t!(i18n, click_to_inc)}</button>
+    <button on:click=inc>{move || i18n.get_keys().click_to_inc}</button>
 }
 ```
 
@@ -254,7 +254,7 @@ If a variable or a component is only needed for one local, it is totally accepta
 
 ```
 
-When accessing the key it will return a builder that need the total keys of variables/components of every locales, but it will fail to compile if one locale use a key for a component and another locale use the same key for a variable.
+When accessing the key it will return a builder that need the total keys of variables/components of every locales.
 
 If your value as the same name as the variable/component, you can drop the assignement, this:
 
@@ -282,7 +282,7 @@ You may need to display different messages depending on a count, for exemple one
 }
 ```
 
-When using plurals, the key `count` variable is reserved and takes as a value `T: Fn() -> i64 + Clone + 'static`, the resulting code looks something like this:
+When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> i64 + Clone + 'static`, the resulting code looks something like this:
 
 ```rust
 match count() {
