@@ -1,0 +1,32 @@
+use quote::quote;
+use syn::parse_macro_input;
+
+use self::parsed_input::ParsedInput;
+
+// pub mod error;
+pub mod parsed_input;
+
+pub fn t_macro(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(tokens as ParsedInput);
+    t_macro_inner(input).into()
+}
+
+pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
+    let ParsedInput {
+        context,
+        key,
+        interpolations,
+    } = input;
+    let get_key = quote!(::leptos_i18n::I18nContext::get_keys(#context).#key);
+    if let Some(interpolations) = interpolations {
+        quote! {
+            let _key = #get_key;
+            #(
+                let _key = _key.#interpolations;
+            )*
+            _key
+        }
+    } else {
+        quote!(move || #get_key)
+    }
+}
