@@ -96,48 +96,15 @@ impl Locale {
             }
         }
 
-        let iter = mapped_keys
-            .iter_mut()
-            .filter_map(|(key, value)| value.as_mut().map(|value| (key, value)));
+        let iter = mapped_keys.values_mut().filter_map(Option::as_mut);
 
-        for (locale_key, keys) in iter {
+        for keys in iter {
             if keys.contains(&InterpolateKey::Count) {
                 // if the set contains InterpolateKey::Count, remove variable keys with name "count"
+                // ("var_count" with the rename)
                 keys.retain(
-                    |key| !matches!(key, InterpolateKey::Variable(key) if key.name == "count"),
+                    |key| !matches!(key, InterpolateKey::Variable(key) if key.name == "var_count"),
                 );
-                // with plurals component named count is not allowed
-                for key in keys.iter() {
-                    if matches!(key, InterpolateKey::Component(key) if key.name == "count") {
-                        return Err(Error::KeyKindMissmatch {
-                            locale_key: locale_key.name.clone(),
-                            key: "count".to_string(),
-                        });
-                    }
-                }
-            }
-            let var_keys = keys
-                .iter()
-                .filter_map(|key| match key {
-                    InterpolateKey::Variable(key) => Some(key),
-                    _ => None,
-                })
-                .collect::<HashSet<_>>();
-            let comp_keys = keys
-                .iter()
-                .filter_map(|key| match key {
-                    InterpolateKey::Component(key) => Some(key),
-                    _ => None,
-                })
-                .collect::<HashSet<_>>();
-
-            let common_key = var_keys.intersection(&comp_keys).next();
-
-            if let Some(common_key) = common_key {
-                return Err(Error::KeyKindMissmatch {
-                    locale_key: locale_key.name.clone(),
-                    key: common_key.name.clone(),
-                });
             }
         }
 

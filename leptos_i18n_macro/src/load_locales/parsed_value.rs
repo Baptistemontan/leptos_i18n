@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 
 use super::{
     key::Key,
@@ -83,7 +83,7 @@ impl ParsedValue {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
-        let ident = Key::try_new(ident)?;
+        let ident = Key::try_new(&format!("var_{}", ident.trim()))?;
 
         let before = Self::new(before);
         let after = Self::new(after);
@@ -95,11 +95,13 @@ impl ParsedValue {
     fn find_component(value: &str) -> Option<Self> {
         let (before, key, after) = Self::find_opening_tag(value)?;
 
-        let (beetween, after) = Self::find_closing_tag(after, &key)?;
+        let (beetween, after) = Self::find_closing_tag(after, key)?;
 
         let before = ParsedValue::new(before);
         let beetween = ParsedValue::new(beetween);
         let after = ParsedValue::new(after);
+
+        let key = Key::try_new(&format!("comp_{}", key)).unwrap();
 
         let this = ParsedValue::Component {
             key,
@@ -109,7 +111,7 @@ impl ParsedValue {
         Some(ParsedValue::Bloc(vec![before, this, after]))
     }
 
-    fn find_closing_tag<'a>(value: &'a str, key: &Key) -> Option<(&'a str, &'a str)> {
+    fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(&'a str, &'a str)> {
         let mut indices = None;
         let mut depth = 0;
         let iter = value.match_indices('<').filter_map(|(i, _)| {
@@ -119,7 +121,7 @@ impl ParsedValue {
         });
         for (i, ident) in iter {
             if let Some(closing_tag) = ident.strip_prefix('/').map(str::trim_start) {
-                if closing_tag != key.name {
+                if closing_tag != key {
                     continue;
                 }
                 if depth == 0 {
@@ -128,7 +130,7 @@ impl ParsedValue {
                 } else {
                     depth -= 1;
                 }
-            } else if ident == key.name {
+            } else if ident == key {
                 depth += 1;
             }
         }
@@ -141,17 +143,22 @@ impl ParsedValue {
         Some((before, after))
     }
 
-    fn find_opening_tag(value: &str) -> Option<(&str, Key, &str)> {
+    fn find_opening_tag(value: &str) -> Option<(&str, &str, &str)> {
         let (before, rest) = value.split_once('<')?;
         let (ident, after) = rest.split_once('>')?;
 
-        let ident = Key::try_new(ident)?;
-
-        Some((before, ident, after))
+        Some((before, ident.trim(), after))
     }
 }
 
 impl<'a> InterpolateKey<'a> {
+    pub fn as_ident(self) -> syn::Ident {
+        match self {
+            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
+            InterpolateKey::Count => format_ident!("var_count"),
+        }
+    }
+
     pub fn as_key(self) -> Option<&'a Key> {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
@@ -161,15 +168,8 @@ impl<'a> InterpolateKey<'a> {
 }
 
 impl<'a> ToTokens for InterpolateKey<'a> {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => quote!(#key),
-            InterpolateKey::Count => quote!(count),
-        }
-    }
-
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.to_token_stream().to_tokens(tokens)
+        self.as_ident().to_tokens(tokens)
     }
 }
 
@@ -341,7 +341,7 @@ mod tests {
             value,
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
-                ParsedValue::Variable(Key::try_new("var").unwrap()),
+                ParsedValue::Variable(Key::try_new("var_var").unwrap()),
                 ParsedValue::String(" after".to_string())
             ])
         )
@@ -356,7 +356,7 @@ mod tests {
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
                 ParsedValue::Component {
-                    key: Key::try_new("comp").unwrap(),
+                    key: Key::try_new("comp_comp").unwrap(),
                     inner: Box::new(ParsedValue::String("inner".to_string()))
                 },
                 ParsedValue::String(" after".to_string())
@@ -375,11 +375,11 @@ mod tests {
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
                 ParsedValue::Component {
-                    key: Key::try_new("comp").unwrap(),
+                    key: Key::try_new("comp_comp").unwrap(),
                     inner: Box::new(ParsedValue::Bloc(vec![
                         ParsedValue::String("inner before".to_string()),
                         ParsedValue::Component {
-                            key: Key::try_new("comp").unwrap(),
+                            key: Key::try_new("comp_comp").unwrap(),
                             inner: Box::new(ParsedValue::String("inner inner".to_string()))
                         },
                         ParsedValue::String("inner after".to_string()),
