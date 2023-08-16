@@ -222,7 +222,7 @@ view! { cx,
 
 The only restriction on variables/components names is that it must be a valid rust identifier. You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
 
-For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern, so for the counter above but without the `t!` macro it will look like this:
+For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern where variables are passed to functions called `.var_$name(var)` and components to `.comp_$name(comp)`, so for the counter above but without the `t!` macro it will look like this:
 
 ```rust
 let i18n = get_i18n_context(cx);
@@ -232,7 +232,7 @@ let inc = move |_| set_counter.update(|count| *count += 1);
 
 
 view! { cx,
-    <p>{move || i18n.get_keys().click_count.count(move || counter.get())}</p>
+    <p>{move || i18n.get_keys().click_count.var_count(move || counter.get())}</p>
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
 }
 ```
