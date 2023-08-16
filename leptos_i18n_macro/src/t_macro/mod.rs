@@ -21,11 +21,13 @@ pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
     let get_key = quote!(::leptos_i18n::I18nContext::get_keys(#context).#key);
     if let Some(interpolations) = interpolations {
         quote! {
-            let _key = #get_key;
-            #(
-                let _key = _key.#interpolations;
-            )*
-            _key
+            move || {
+                let _key = #get_key;
+                #(
+                    let _key = _key.#interpolations;
+                )*
+                _key
+            }
         }
     } else {
         quote!(move || #get_key)
