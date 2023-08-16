@@ -118,7 +118,6 @@ impl ParsedValue {
                 .map(|(ident, _)| (i, ident.trim()))
         });
         for (i, ident) in iter {
-            println!("i = {}, ident = {}, depth = {}", i, ident, depth);
             if let Some(closing_tag) = ident.strip_prefix('/').map(str::trim_start) {
                 if closing_tag != key.name {
                     continue;
