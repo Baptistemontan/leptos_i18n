@@ -37,7 +37,7 @@ There are files that need to exist, the first one is the `i18n.json` file that d
 The other ones are the files containing the translation, they are key-value pairs and need to be situated in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale defined in the `i18n.json` file.
 They look like this:
 
-```
+```json
 /locales/en.json
 
 {
@@ -110,15 +110,15 @@ pub fn get_i18n_context(cx: Scope) -> I18nContext<Locales> {
 The `provide_i18n_context` function return the context, so instead of
 
 ```rust
-    leptos_i18n::provide_i18n_context::<Locales>(cx);
+leptos_i18n::provide_i18n_context::<Locales>(cx);
 
-    let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context(cx);
 ```
 
 You can write
 
 ```rust
-    let i18n = leptos_i18n::provide_i18n_context::<Locales>(cx);
+let i18n = leptos_i18n::provide_i18n_context::<Locales>(cx);
 ```
 
 The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_locale(locale)`.
@@ -237,9 +237,9 @@ view! { cx,
 }
 ```
 
-If a variable or a component is only needed for one local, it is totally acceptable to do
+If a variable or a component is only needed for one local, it is totally acceptable to do:
 
-```
+```json
 /locales/en.json
 
 {
@@ -255,6 +255,18 @@ If a variable or a component is only needed for one local, it is totally accepta
 ```
 
 When accessing the key it will return a builder that need the total keys of variables/components of every locales, but it will fail to compile if one locale use a key for a component and another locale use the same key for a variable.
+
+If your value as the same name as the variable/component, you can drop the assignement, this:
+
+```rust
+t!(i18n, key, count = count)
+```
+
+can we shorten to
+
+```rust
+t!(i18n, key, count)
+```
 
 ### Plurals
 
