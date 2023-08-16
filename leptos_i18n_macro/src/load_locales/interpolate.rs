@@ -40,7 +40,9 @@ impl Interpolation {
         let type_def = Self::create_type(&ident, &fields);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl = Self::into_view_impl(key, &ident, &locale_field, &fields, locales);
-        let (new_impl, default_generic_ident) = Self::new_impl(&ident, &locale_field, &fields);
+        let new_impl = Self::new_impl(&ident, &locale_field, &fields);
+        let default_generics = fields.iter().map(|_| quote!(_builders::EmptyInterpolateValue));
+        let default_generic_ident = quote!(#ident<#(#default_generics,)*>);
 
         let imp = quote! {
             #type_def
@@ -63,7 +65,7 @@ impl Interpolation {
         ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-    ) -> (TokenStream, TokenStream) {
+    ) -> TokenStream {
         let generics = fields.iter().map(|_| quote!(EmptyInterpolateValue));
 
         let fields = fields.iter().map(|field| {
@@ -71,10 +73,8 @@ impl Interpolation {
             quote!(#field_key: EmptyInterpolateValue)
         });
 
-        let default_generic_ident = quote!(#ident<#(#generics,)*>);
-
-        let imp = quote! {
-            impl #default_generic_ident {
+        quote! {
+            impl #ident<#(#generics,)*> {
                 pub fn new(#locale_field: LocaleEnum) -> Self {
                     Self {
                         #(#fields,)*
@@ -82,9 +82,7 @@ impl Interpolation {
                     }
                 }
             }
-        };
-
-        (imp, default_generic_ident)
+        }
     }
 
     fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {

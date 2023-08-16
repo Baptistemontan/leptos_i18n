@@ -122,14 +122,14 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
 
     let builder_fields = builders.iter().map(|(key, inter)| {
         let inter_ident = &inter.default_generic_ident;
-        quote!(pub #key: #inter_ident)
+        quote!(pub #key: _builders::#inter_ident)
     });
 
     let init_builder_fields: Vec<TokenStream> = builders
         .iter()
         .map(|(key, inter)| {
             let ident = &inter.ident;
-            quote!(#key: #ident::new(_variant))
+            quote!(#key: _builders::#ident::new(_variant))
         })
         .collect();
 
@@ -150,7 +150,21 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
 
     let builder_impls = builders.iter().map(|(_, inter)| &inter.imp);
 
-    let empty_type = builders.is_empty().not().then(create_empty_type);
+    let builder_module = builders.is_empty().not().then(move || {
+        let empty_type = create_empty_type();
+        quote! {
+            #[doc(hidden)]
+            pub mod _builders {
+                use super::{LocaleEnum, __leptos__};
+
+                #empty_type
+
+                #(
+                    #builder_impls
+                )*
+            }
+        }
+    });
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -171,10 +185,6 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
             }
         }
 
-        #empty_type
-
-        #(
-            #builder_impls
-        )*
+        #builder_module
     }
 }
