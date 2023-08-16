@@ -207,20 +207,20 @@ You may also need to interpolate components, to highlight some part of a text, y
 }
 ```
 
-You can supply them the same way as variables, but the supplied value must be a `Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView`, and also must be `Clone + 'static`.
+You can supply them the same way as variables, just wrapped beetween `< >`, but the supplied value must be a `T: Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
 
 ```rust
 let i18n = get_i18n_context(cx);
 
 view! { cx,
     <p>
-        {t!(i18n, important_text, b = |cx, children| view!{ cx, <b>{children(cx)}</b> })}
+        {t!(i18n, important_text, <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> })}
     </p>
 }
 
 ```
 
-You can not define a variable with the same name of a component, you can name them how you want but it has to be a legal rust identifier. You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
+The only restriction on variables/components names is that it must be a valid rust identifier. You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
 
 For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern, so for the counter above but without the `t!` macro it will look like this:
 
@@ -259,13 +259,13 @@ When accessing the key it will return a builder that need the total keys of vari
 If your value as the same name as the variable/component, you can drop the assignement, this:
 
 ```rust
-t!(i18n, key, count = count)
+t!(i18n, key, count = count, <b> = b, other_key = ..)
 ```
 
 can we shorten to
 
 ```rust
-t!(i18n, key, count)
+t!(i18n, key, count, <b>, other_key = ..)
 ```
 
 ### Plurals
