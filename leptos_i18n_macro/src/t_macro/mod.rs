@@ -4,6 +4,7 @@ use syn::parse_macro_input;
 use self::parsed_input::ParsedInput;
 
 // pub mod error;
+pub mod interpolate;
 pub mod parsed_input;
 
 pub fn t_macro(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {

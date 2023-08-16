@@ -29,7 +29,7 @@ pub fn App(cx: Scope) -> impl IntoView {
             {t!{ i18n,
                 click_count,
                 count = move || counter.get(),
-                b = |cx, children| view!{ cx, <b>{children(cx)}</b> },
+                <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> },
             }}
         </p>
         <button on:click=inc>{t!(i18n, inc)}</button>

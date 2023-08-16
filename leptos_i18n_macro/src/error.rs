@@ -24,10 +24,6 @@ pub enum Error {
         locale_name: String,
         locale_key: String,
         plural: String,
-    },
-    KeyKindMissmatch {
-        locale_key: String,
-        key: String
     }
 }
 
@@ -72,7 +68,6 @@ impl Display for Error {
             }
             Error::InvalidPlural { locale_name, locale_key, plural } => write!(f, "In locale {:?} at key {:?} found invalid plural {:?}", locale_name, locale_key, plural),
             Error::DuplicateLocalesInConfig(duplicates) => write!(f, "Found duplicates locales in configuration file (i18n.json): {:?}", duplicates),
-            Error::KeyKindMissmatch { locale_key, key } => write!(f, "At locale key {:?}, use of the key {:?} for a variable and a component is not allowed", locale_key, key),
         }
     }
 }

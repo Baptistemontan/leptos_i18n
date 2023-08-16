@@ -150,16 +150,16 @@ impl Interpolation {
                 }
             }).chain(Some(quote!(#locale_field))).collect::<Vec<_>>();
 
-            let field_key = field.kind;
+            let kind = field.kind;
 
             let destructure = quote!(let Self { #(#other_fields,)* .. } = self;);
-            let restructure = quote!(#ident { #(#other_fields,)* #field_key });
+            let restructure = quote!(#ident { #(#other_fields,)* #kind });
 
-            match field.kind {
+            match kind {
                 InterpolateKey::Variable(key) => {
                     quote!{
                         #[inline]
-                        pub fn #key<__T>(self, #field_key: __T) -> #ident<#(#output_generics,)*>
+                        pub fn #key<__T>(self, #key: __T) -> #ident<#(#output_generics,)*>
                             where __T: __leptos__::IntoView + core::clone::Clone + 'static
                         {
                             #destructure
@@ -170,13 +170,13 @@ impl Interpolation {
                 InterpolateKey::Component(key) => {
                     quote!{
                         #[inline]
-                        pub fn #key<__O, __T>(self, #field_key: __T) -> #ident<#(#output_generics,)*>
+                        pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
                         where
                             __O: __leptos__::IntoView,
                             __T: Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __O + core::clone::Clone + 'static
                         {
                             #destructure
-                            let #field_key = move |cx, children| __leptos__::IntoView::into_view(#field_key(cx, children), cx);
+                            let #key = move |cx, children| __leptos__::IntoView::into_view(#key(cx, children), cx);
                             #restructure
                         }
                     }
@@ -184,7 +184,7 @@ impl Interpolation {
                 InterpolateKey::Count => {
                     quote! {
                         #[inline]
-                        pub fn count<__T>(self, count: __T) -> #ident<#(#output_generics,)*> 
+                        pub fn var_count<__T>(self, var_count: __T) -> #ident<#(#output_generics,)*> 
                             where __T: Fn() -> i64 + core::clone::Clone + 'static
                         {
                             #destructure
