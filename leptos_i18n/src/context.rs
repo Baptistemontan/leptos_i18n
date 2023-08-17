@@ -37,7 +37,7 @@ fn set_html_lang_attr(cx: Scope, lang: &'static str) {
     );
 }
 
-pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
+fn init_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     provide_meta_context(cx);
 
     let locale = fetch_locale::fetch_locale::<T>(cx);
@@ -56,6 +56,14 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     provide_context(cx, context);
 
     context
+}
+
+pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
+    if let Some(context) = use_context(cx) {
+        context
+    } else {
+        init_context(cx)
+    }
 }
 
 pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
