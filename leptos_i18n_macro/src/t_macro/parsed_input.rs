@@ -1,11 +1,17 @@
 use proc_macro2::Ident;
 use syn::token::Comma;
+use syn::Token;
 
 use super::interpolate::InterpolatedValue;
 
+pub enum Key {
+    Key(Ident),
+    Namespace { namespace: Ident, key: Ident },
+}
+
 pub struct ParsedInput {
     pub context: Ident,
-    pub key: Ident,
+    pub key: Key,
     pub interpolations: Option<Vec<InterpolatedValue>>,
 }
 
@@ -31,5 +37,19 @@ impl syn::parse::Parse for ParsedInput {
             key,
             interpolations,
         })
+    }
+}
+
+impl syn::parse::Parse for Key {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let key = input.parse()?;
+        if input.peek(Token![.]) {
+            input.parse::<Token![.]>()?;
+            let namespace = key;
+            let key = input.parse()?;
+            Ok(Key::Namespace { namespace, key })
+        } else {
+            Ok(Key::Key(key))
+        }
     }
 }

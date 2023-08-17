@@ -23,25 +23,27 @@ impl Eq for Key {}
 
 pub enum KeyKind<'a> {
     LocaleName,
-    LocaleKey { locale_name: &'a str },
+    LocaleKey {
+        locale: &'a str,
+        namespace: Option<&'a str>,
+    },
+    NameSpace,
 }
 
 impl Key {
     pub fn new(name: &str, kind: KeyKind) -> Result<Self> {
-        let name = name.trim();
-        let Ok(ident) = syn::parse_str::<syn::Ident>(name) else {
+        let Some(this) = Self::try_new(name) else {
             return Err(match kind {
                 KeyKind::LocaleName => Error::InvalidLocaleName(name.to_string()),
-                KeyKind::LocaleKey { locale_name } => Error::InvalidLocaleKey {
+                KeyKind::LocaleKey { locale, namespace } => Error::InvalidLocaleKey {
                     key: name.to_string(),
-                    locale: locale_name.to_string(),
+                    locale: locale.to_string(),
+                    namespace: namespace.map(str::to_string),
                 },
+                KeyKind::NameSpace => todo!(),
             });
         };
-        Ok(Key {
-            name: name.to_string(),
-            ident,
-        })
+        Ok(this)
     }
 
     pub fn try_new(name: &str) -> Option<Self> {
@@ -63,14 +65,19 @@ impl quote::ToTokens for Key {
 #[derive(Debug, Clone, Copy)]
 pub enum KeySeed<'a> {
     LocaleName,
-    LocaleKey(&'a str),
+    Namespace,
+    LocaleKey {
+        locale: &'a str,
+        namespace: Option<&'a str>,
+    },
 }
 
 impl<'a> KeySeed<'a> {
     pub fn to_key_kind(self) -> KeyKind<'a> {
         match self {
             KeySeed::LocaleName => KeyKind::LocaleName,
-            KeySeed::LocaleKey(locale_name) => KeyKind::LocaleKey { locale_name },
+            KeySeed::LocaleKey { locale, namespace } => KeyKind::LocaleKey { locale, namespace },
+            KeySeed::Namespace => KeyKind::NameSpace,
         }
     }
 }
@@ -95,10 +102,15 @@ impl<'a, 'de> serde::de::Visitor<'de> for KeySeed<'a> {
                 formatter,
                 "a string representing a locale that can be used as a valid rust identifier"
             ),
-            KeySeed::LocaleKey(_) => write!(
+            KeySeed::LocaleKey { .. } => write!(
                 formatter,
                 "a string representing a locale key that can be used as a valid rust identifier"
             ),
+            KeySeed::Namespace => {
+                write!(
+                    formatter,
+                "a string representing a namespace key that can be used as a valid rust identifier")
+            }
         }
     }
 

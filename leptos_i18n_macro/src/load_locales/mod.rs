@@ -14,17 +14,14 @@ use interpolate::{create_empty_type, Interpolation};
 use key::Key;
 use locale::{Locale, LocaleValue};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
+
+use self::locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace};
 
 pub fn load_locales(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStream> {
     let cfg_file = ConfigFile::new(cfg_file_path)?;
 
-    let mut locales: Vec<Locale> = Vec::with_capacity(cfg_file.locales.len());
-
-    for locale in &cfg_file.locales {
-        let path = format!("./locales/{}.json", locale.name);
-        locales.push(Locale::new(path, locale)?);
-    }
+    let locales = LocalesOrNamespaces::new(&cfg_file)?;
 
     let keys = Locale::check_locales(&locales)?;
 
@@ -44,7 +41,9 @@ pub fn load_locales(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStre
 }
 
 fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
-    let ConfigFile { default, locales } = cfg_file;
+    let ConfigFile {
+        default, locales, ..
+    } = cfg_file;
 
     let as_str_match_arms = locales
         .iter()
@@ -99,7 +98,11 @@ fn create_locales_type(_cfg_file: &ConfigFile) -> TokenStream {
     }
 }
 
-fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> TokenStream {
+fn create_locale_type_inner(
+    type_ident: &syn::Ident,
+    locales: &[Locale],
+    BuildersKeysInner(keys): &BuildersKeysInner,
+) -> TokenStream {
     let string_keys = keys
         .iter()
         .filter(|(_, value)| matches!(value, LocaleValue::String))
@@ -141,7 +144,7 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
 
         let ident = &locale.name.ident;
         quote! {
-            LocaleEnum::#ident => I18nKeys {
+            LocaleEnum::#ident => #type_ident {
                 #(#filled_string_fields,)*
                 #(#init_builder_fields,)*
             }
@@ -169,12 +172,12 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_snake_case)]
-        pub struct I18nKeys {
+        pub struct #type_ident {
             #(#string_fields,)*
             #(#builder_fields,)*
         }
 
-        impl ::leptos_i18n::LocaleKeys for I18nKeys {
+        impl ::leptos_i18n::LocaleKeys for #type_ident {
             type Locales = Locales;
             fn from_variant(_variant: LocaleEnum) -> Self {
                 match _variant {
@@ -186,5 +189,78 @@ fn create_locale_type(locales: &[Locale], keys: &HashMap<&Key, LocaleValue>) -> 
         }
 
         #builder_module
+    }
+}
+
+fn create_namespaces_types(
+    i18n_keys_ident: &syn::Ident,
+    namespaces: &[Namespace],
+    keys: &HashMap<&Key, BuildersKeysInner>,
+) -> TokenStream {
+    let namespaces_ts = namespaces.iter().map(|namespace| {
+        let namespace_ident = &namespace.key.ident;
+        let namespace_module_ident = format_ident!("__{}_mod", namespace_ident);
+        let builders_keys = keys.get(&namespace.key).unwrap();
+        let type_impl =
+            create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys);
+        quote! {
+            pub mod #namespace_module_ident {
+                use super::{LocaleEnum, __leptos__, Locales};
+
+                #type_impl
+            }
+        }
+    });
+
+    let namespaces_fields = namespaces.iter().map(|namespace| {
+        let key = &namespace.key;
+        let namespace_module_ident = format_ident!("__{}_mod", &key.ident);
+        quote!(pub #key: __namespaces::#namespace_module_ident::#key)
+    });
+
+    let namespaces_fields_new = namespaces.iter().map(|namespace| {
+        let key = &namespace.key;
+        quote!(#key: ::leptos_i18n::LocaleKeys::from_variant(_variant))
+    });
+
+    quote! {
+        pub mod __namespaces {
+            use super::{LocaleEnum, __leptos__, Locales};
+
+            #(
+                #namespaces_ts
+            )*
+
+        }
+
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+        #[allow(non_snake_case)]
+        pub struct #i18n_keys_ident {
+            #(#namespaces_fields,)*
+        }
+
+        impl ::leptos_i18n::LocaleKeys for #i18n_keys_ident {
+            type Locales = Locales;
+            fn from_variant(_variant: LocaleEnum) -> Self {
+                Self {
+                    #(
+                        #namespaces_fields_new,
+                    )*
+                }
+            }
+        }
+    }
+}
+
+fn create_locale_type(locales: &LocalesOrNamespaces, keys: &BuildersKeys) -> TokenStream {
+    let i18n_keys_ident = format_ident!("I18nKeys");
+    match (locales, keys) {
+        (LocalesOrNamespaces::NameSpaces(namespaces), BuildersKeys::NameSpaces(keys)) => {
+            create_namespaces_types(&i18n_keys_ident, namespaces, keys)
+        }
+        (LocalesOrNamespaces::Locales(locales), BuildersKeys::Locales(keys)) => {
+            create_locale_type_inner(&i18n_keys_ident, locales, keys)
+        }
+        _ => unreachable!(),
     }
 }

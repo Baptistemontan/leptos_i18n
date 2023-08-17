@@ -18,7 +18,12 @@ pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
         key,
         interpolations,
     } = input;
-    let get_key = quote!(::leptos_i18n::I18nContext::get_keys(#context).#key);
+    let get_key = match key {
+        parsed_input::Key::Key(key) => quote!(::leptos_i18n::I18nContext::get_keys(#context).#key),
+        parsed_input::Key::Namespace { namespace, key } => {
+            quote!(::leptos_i18n::I18nContext::get_keys(#context).#namespace.#key)
+        }
+    };
     if let Some(interpolations) = interpolations {
         quote! {
             move || {
