@@ -41,7 +41,9 @@ impl Interpolation {
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl = Self::into_view_impl(key, &ident, &locale_field, &fields, locales);
         let new_impl = Self::new_impl(&ident, &locale_field, &fields);
-        let default_generics = fields.iter().map(|_| quote!(_builders::EmptyInterpolateValue));
+        let default_generics = fields
+            .iter()
+            .map(|_| quote!(_builders::EmptyInterpolateValue));
         let default_generic_ident = quote!(#ident<#(#default_generics,)*>);
 
         let imp = quote! {
@@ -61,11 +63,7 @@ impl Interpolation {
         }
     }
 
-    fn new_impl(
-        ident: &syn::Ident,
-        locale_field: &Key,
-        fields: &[Field],
-    ) -> TokenStream {
+    fn new_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
         let generics = fields.iter().map(|_| quote!(EmptyInterpolateValue));
 
         let fields = fields.iter().map(|field| {
@@ -182,7 +180,7 @@ impl Interpolation {
                 InterpolateKey::Count => {
                     quote! {
                         #[inline]
-                        pub fn var_count<__T>(self, var_count: __T) -> #ident<#(#output_generics,)*> 
+                        pub fn var_count<__T>(self, var_count: __T) -> #ident<#(#output_generics,)*>
                             where __T: Fn() -> i64 + core::clone::Clone + 'static
                         {
                             #destructure

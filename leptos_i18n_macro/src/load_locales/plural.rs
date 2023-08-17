@@ -17,11 +17,17 @@ pub enum Plural {
 }
 
 impl Plural {
-    pub fn new(locale_name: &str, locale_key: &str, s: &str) -> Result<Self> {
+    pub fn new(
+        locale_name: &str,
+        locale_key: &str,
+        namespace: Option<&str>,
+        s: &str,
+    ) -> Result<Self> {
         let parse = |s: &str| {
             s.parse::<i64>().map_err(|_| Error::InvalidPlural {
                 locale_name: locale_name.to_string(),
                 locale_key: locale_key.to_string(),
+                namespace: namespace.map(str::to_string),
                 plural: s.to_string(),
             })
         };
@@ -43,6 +49,7 @@ impl Plural {
                     .ok_or_else(|| Error::InvalidBoundEnd {
                         locale_name: locale_name.to_string(),
                         locale_key: locale_key.to_string(),
+                        namespace: namespace.map(str::to_string),
                         range: s.to_string(),
                     })
                     .map(Some)?
@@ -53,6 +60,7 @@ impl Plural {
                     return Err(Error::ImpossibleRange {
                         locale_name: locale_name.to_string(),
                         locale_key: locale_key.to_string(),
+                        namespace: namespace.map(str::to_string),
                         range: s.to_string(),
                     })
                 }
@@ -92,6 +100,7 @@ impl ToTokens for Plural {
 pub struct PluralSeed<'a> {
     pub locale_name: &'a str,
     pub locale_key: &'a str,
+    pub namespace: Option<&'a str>,
 }
 
 impl<'de> serde::de::DeserializeSeed<'de> for PluralSeed<'_> {
@@ -119,7 +128,7 @@ impl<'de> serde::de::Visitor<'de> for PluralSeed<'_> {
         E: serde::de::Error,
     {
         // return Err(E::custom(format!("{:?}", v.as_bytes())));
-        Plural::new(self.locale_name, self.locale_key, v).map_err(E::custom)
+        Plural::new(self.locale_name, self.locale_key, self.namespace, v).map_err(E::custom)
     }
 }
 
@@ -129,21 +138,21 @@ mod tests {
 
     #[test]
     fn test_exact() {
-        let plural = Plural::new("", "", "0").unwrap();
+        let plural = Plural::new("", "", None, "0").unwrap();
 
         assert_eq!(plural, Plural::Exact(0));
     }
 
     #[test]
     fn test_fallback() {
-        let plural = Plural::new("", "", "_").unwrap();
+        let plural = Plural::new("", "", None, "_").unwrap();
 
         assert_eq!(plural, Plural::Fallback);
     }
 
     #[test]
     fn test_range() {
-        let plural = Plural::new("", "", "0..6").unwrap();
+        let plural = Plural::new("", "", None, "0..6").unwrap();
 
         assert_eq!(
             plural,
@@ -156,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_range_unbounded_end() {
-        let plural = Plural::new("", "", "0..").unwrap();
+        let plural = Plural::new("", "", None, "0..").unwrap();
 
         assert_eq!(
             plural,
@@ -169,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_range_included_end() {
-        let plural = Plural::new("", "", "0..=6").unwrap();
+        let plural = Plural::new("", "", None, "0..=6").unwrap();
 
         assert_eq!(
             plural,
@@ -182,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_range_unbounded_start() {
-        let plural = Plural::new("", "", "..=6").unwrap();
+        let plural = Plural::new("", "", None, "..=6").unwrap();
 
         assert_eq!(
             plural,
@@ -195,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_range_full() {
-        let plural = Plural::new("", "", "..").unwrap();
+        let plural = Plural::new("", "", None, "..").unwrap();
 
         assert_eq!(
             plural,

@@ -35,7 +35,16 @@ There are files that need to exist, the first one is the `i18n.json` file that d
 ```
 
 The other ones are the files containing the translation, they are key-value pairs and need to be situated in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale defined in the `i18n.json` file.
-They look like this:
+
+The file structure must look like this:
+
+```bash
+./locales
+├── en.json
+└── fr.json
+```
+
+And the files must look like this:
 
 ```json
 /locales/en.json
@@ -49,7 +58,6 @@ They look like this:
 {
     "hello_world": "Bonjour le monde!"
 }
-
 ```
 
 All locales files need to have exactly the same keys.
@@ -152,7 +160,6 @@ view! { cx,
         {move || i18n.get_keys().click_to_switch_locale}
     </button>
 }
-
 ```
 
 ### The `t!()` macro
@@ -194,7 +201,6 @@ view! { cx,
     <p>{t!(i18n, click_count, count = move || counter.get())}</p>
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
 }
-
 ```
 
 You can pass anything that implement `leptos::IntoView + Clone + 'static` as your variable. If a variable is not supplied it will not compile, same for an unknown variable key.
@@ -217,7 +223,6 @@ view! { cx,
         {t!(i18n, important_text, <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> })}
     </p>
 }
-
 ```
 
 The only restriction on variables/components names is that it must be a valid rust identifier. You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
@@ -251,7 +256,6 @@ If a variable or a component is only needed for one local, it is totally accepta
 {
     "hello_world": "Bonjour <i>le monde!</i>"
 }
-
 ```
 
 When accessing the key it will return a builder that need the total keys of variables/components of every locales.
@@ -308,6 +312,38 @@ You can also supply a range:
 But this exemple will not compile, because the resulting match statement will not cover the full `i64` range, so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`.
 
 If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> i64 + Clone + 'static`.
+
+### Namespaces
+
+Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the config file (i18n.json):
+
+```json
+{
+  "default": "en",
+  "locales": ["en", "fr"],
+  "namespaces": ["common", "home"]
+}
+```
+
+Then your file structures must look like this int the `/locales` directory:
+
+```bash
+./locales
+├── en
+│   ├── common.json
+│   └── home.json
+└── fr
+    ├── common.json
+    └── home.json
+```
+
+Accessing you values with the `t!` macro will be like this:
+
+```rust
+t!(i18n, common.$key)
+```
+
+You can have as many namespaces as you want, but the name should be a valid rust identifier.
 
 ### Examples
 

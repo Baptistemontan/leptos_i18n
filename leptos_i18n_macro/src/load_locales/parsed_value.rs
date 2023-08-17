@@ -242,8 +242,9 @@ impl ToTokens for ParsedValue {
 #[derive(Debug, Clone, Copy)]
 pub struct ParsedValueSeed<'a> {
     pub in_plural: bool,
-    pub locale_name: &'a str,
+    pub locale: &'a str,
     pub locale_key: &'a str,
+    pub namespace: Option<&'a str>,
 }
 
 impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
@@ -274,14 +275,22 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         // nested plurals are not allowed, the code technically supports it,
         // but it's pointless and probably nobody will ever needs it.
         if std::mem::replace(&mut self.in_plural, true) {
-            return Err(serde::de::Error::custom(format!(
-                "in locale {:?} at key {:?}: nested plurals are not allowed",
-                self.locale_name, self.locale_key
-            )));
+            let msg = match self.namespace {
+                Some(namespace) => format!(
+                    "in locale {:?} at namespace {:?} at key {:?}: nested plurals are not allowed",
+                    self.locale, namespace, self.locale_key
+                ),
+                None => format!(
+                    "in locale {:?} at key {:?}: nested plurals are not allowed",
+                    self.locale, self.locale_key
+                ),
+            };
+            return Err(serde::de::Error::custom(msg));
         }
         let plural_seed = PluralSeed {
-            locale_name: self.locale_name,
+            locale_name: self.locale,
             locale_key: self.locale_key,
+            namespace: self.namespace,
         };
         let mut plurals = vec![];
 
@@ -303,15 +312,29 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             .count();
 
         if invalid_fallback {
-            Err(serde::de::Error::custom(format!(
-                "in locale {:?} at key {:?}: fallback is only allowed in last position",
-                self.locale_name, self.locale_key
-            )))
+            let msg = match self.namespace {
+                Some(namespace) => format!(
+                    "in locale {:?} at namespace {:?} at key {:?}: fallback is only allowed in last position",
+                    self.locale, namespace, self.locale_key
+                ),
+                None => format!(
+                    "in locale {:?} at key {:?}: fallback is only allowed in last position",
+                    self.locale, self.locale_key
+                ),
+            };
+            Err(serde::de::Error::custom(msg))
         } else if fallback_count > 1 {
-            Err(serde::de::Error::custom(format!(
-                "in locale {:?} at key {:?}: multiple fallbacks are not allowed",
-                self.locale_name, self.locale_key
-            )))
+            let msg = match self.namespace {
+                Some(namespace) => format!(
+                    "in locale {:?} at namespace {:?} at key {:?}: multiple fallbacks are not allowed",
+                    self.locale, namespace, self.locale_key
+                ),
+                None => format!(
+                    "in locale {:?} at key {:?}: multiple fallbacks are not allowed",
+                    self.locale, self.locale_key
+                ),
+            };
+            Err(serde::de::Error::custom(msg))
         } else {
             Ok(ParsedValue::Plural(plurals))
         }

@@ -8,6 +8,7 @@ use std::{collections::HashSet, fs::File, path::Path};
 pub struct ConfigFile {
     pub default: Key,
     pub locales: Vec<Key>,
+    pub name_spaces: Option<Vec<Key>>,
 }
 
 impl ConfigFile {
@@ -42,6 +43,12 @@ impl ConfigFile {
             Err(Error::ConfigFileDefaultMissing(cfg))
         } else if let Some(duplicates) = Self::contain_duplicates(&cfg.locales) {
             Err(Error::DuplicateLocalesInConfig(duplicates))
+        } else if let Some(duplicates) = cfg
+            .name_spaces
+            .as_deref()
+            .and_then(Self::contain_duplicates)
+        {
+            Err(Error::DuplicateNamespacesInConfig(duplicates))
         } else {
             Ok(cfg)
         }
@@ -62,6 +69,7 @@ impl<'de> serde::Deserialize<'de> for ConfigFile {
 enum Field {
     Default,
     Locales,
+    Namespaces,
 }
 
 struct FieldVisitor;
@@ -92,6 +100,7 @@ impl<'de> serde::de::Visitor<'de> for FieldVisitor {
         match v {
             "default" => Ok(Field::Default),
             "locales" => Ok(Field::Locales),
+            "namespaces" => Ok(Field::Namespaces),
             _ => Err(E::unknown_field(v, &["default", "locales"])),
         }
     }
@@ -104,40 +113,50 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
-        let Some(first_field) = map.next_key::<Field>()? else {
+        let mut default = None;
+        let mut locales = None;
+        let mut name_spaces = None;
+        while let Some(field) = map.next_key::<Field>()? {
+            match field {
+                Field::Default => {
+                    if default
+                        .replace(map.next_value_seed(KeySeed::LocaleName)?)
+                        .is_some()
+                    {
+                        return Err(serde::de::Error::duplicate_field("default"));
+                    }
+                }
+                Field::Locales => {
+                    if locales
+                        .replace(map.next_value_seed(KeyVecSeed(KeySeed::LocaleName))?)
+                        .is_some()
+                    {
+                        return Err(serde::de::Error::duplicate_field("locales"));
+                    }
+                }
+                Field::Namespaces => {
+                    if name_spaces
+                        .replace(map.next_value_seed(KeyVecSeed(KeySeed::Namespace))?)
+                        .is_some()
+                    {
+                        return Err(serde::de::Error::duplicate_field("locales"));
+                    }
+                }
+            }
+        }
+        let Some(default) = default else {
             return Err(serde::de::Error::missing_field("default"));
         };
 
-        match first_field {
-            Field::Default => {
-                let default = map.next_value_seed(KeySeed::LocaleName)?;
-                match map.next_key::<Field>()? {
-                    None => return Err(serde::de::Error::missing_field("locales")),
-                    Some(Field::Default) => {
-                        return Err(serde::de::Error::duplicate_field("default"))
-                    }
-                    _ => {}
-                }
+        let Some(locales) = locales else {
+            return Err(serde::de::Error::missing_field("locales"));
+        };
 
-                let locales = map.next_value_seed(KeyVecSeed(KeySeed::LocaleName))?;
-
-                Ok(ConfigFile { default, locales })
-            }
-            Field::Locales => {
-                let locales = map.next_value_seed(KeyVecSeed(KeySeed::LocaleName))?;
-                match map.next_key::<Field>()? {
-                    None => return Err(serde::de::Error::missing_field("default")),
-                    Some(Field::Locales) => {
-                        return Err(serde::de::Error::duplicate_field("locales"))
-                    }
-                    _ => {}
-                }
-
-                let default = map.next_value_seed(KeySeed::LocaleName)?;
-
-                Ok(ConfigFile { default, locales })
-            }
-        }
+        Ok(ConfigFile {
+            default,
+            locales,
+            name_spaces,
+        })
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

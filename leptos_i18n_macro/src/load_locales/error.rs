@@ -1,4 +1,4 @@
-use std::{fmt::Display, collections::HashSet};
+use std::{collections::HashSet, fmt::Display};
 
 use super::cfg_file::ConfigFile;
 use quote::quote;
@@ -8,33 +8,48 @@ pub enum Error {
     ConfigFileNotFound(std::io::Error),
     ConfigFileDeser(serde_json::Error),
     ConfigFileDefaultMissing(ConfigFile),
-    LocaleFileNotFound(String, std::io::Error),
-    LocaleFileDeser(String, serde_json::Error),
-    DuplicateLocalesInConfig(HashSet<String>),
-    MissingKeysInLocale {
-        keys: Vec<String>,
+    LocaleFileNotFound {
         locale: String,
+        namespace: Option<String>, 
+        err: std::io::Error
+    },
+    LocaleFileDeser {
+        locale: String, 
+        namespace: Option<String>,   
+        err: serde_json::Error
+    },
+    DuplicateLocalesInConfig(HashSet<String>),
+    DuplicateNamespacesInConfig(HashSet<String>),
+    MissingKeysInLocale {
+        locale: String,
+        namespace: Option<String>,
+        keys: Vec<String>,
     },
     InvalidLocaleName(String),
+    InvalidNameSpaceName(String),
     InvalidLocaleKey {
         key: String,
         locale: String,
+        namespace: Option<String>,
     },
     InvalidPlural {
         locale_name: String,
         locale_key: String,
+        namespace: Option<String>,
         plural: String,
     },
     InvalidBoundEnd {
         locale_name: String,
         locale_key: String,
-        range: String
+        namespace: Option<String>,
+        range: String,
     },
     ImpossibleRange {
         locale_name: String,
         locale_key: String,
-        range: String
-    }
+        namespace: Option<String>,
+        range: String,
+    },
 }
 
 impl Display for Error {
@@ -46,62 +61,120 @@ impl Display for Error {
             Error::ConfigFileDeser(err) => {
                 write!(f, "Parsing of configuration file (i18n.json) failed: {}", err)
             }
-            Error::ConfigFileDefaultMissing(cfg_file) => write!(f, 
+            Error::ConfigFileDefaultMissing(cfg_file) => write!(f,
                 "{:?} is set as default locale but is not in the locales list: {:?}",
                 cfg_file.default, cfg_file.locales
             ),
-            Error::LocaleFileNotFound(locale_name, err) => {
-                write!(f, 
+            Error::LocaleFileNotFound {locale, namespace: None, err} => {
+                write!(f,
                     "Could not found locale file \"{}.json\" : {}",
-                    locale_name, err
+                    locale, err
                 )
             }
-            Error::LocaleFileDeser(locale_name, err) => write!(f, 
+            Error::LocaleFileNotFound {locale, namespace: Some(namespace), err} => {
+                write!(f,
+                    "Could not found namespace file \"{}/{}.json\" : {}",
+                    locale, namespace, err
+                )
+            }
+            Error::LocaleFileDeser {locale, namespace: None, err} => write!(f,
                 "Parsing of locale file \"{}.json\" failed: {}",
-                locale_name, err
+                locale, err
             ),
-            Error::MissingKeysInLocale { keys, locale } => write!(f, 
+            Error::LocaleFileDeser {locale, namespace: Some(namespace), err} => write!(f,
+                "Parsing of namespace file \"{}/{}.json\" failed: {}",
+                locale, namespace, err
+            ),
+            Error::MissingKeysInLocale { keys, namespace: None, locale } => write!(f,
                 "Some keys are different beetween locale files, \"{}.json\" is missing keys: {:?}",
                 locale, keys
             ),
+            Error::MissingKeysInLocale { keys, namespace: Some(namespace), locale } => write!(f,
+                "Some keys are different beetween namespaces files, \"{}/{}.json\" is missing keys: {:?}",
+                locale, namespace, keys
+            ),
             Error::InvalidLocaleName(name) => {
-                write!(f, 
+                write!(f,
                     "locale name {:?} could not be turned into an identifier",
                     name
                 )
             }
-            Error::InvalidLocaleKey { key, locale } => {
-                write!(f, 
-                    "In locale {:?} the key {:?} cannot be used as an identifier",
-                    locale, key
-                )
+            Error::InvalidLocaleKey { key, locale, namespace } => {
+                match namespace {
+                    Some(namespace) => write!(f,
+                        "In locale {:?} namespace {:?} the key {:?} cannot be used as an identifier",
+                        locale, namespace, key
+                    ),
+                    None => write!(f,
+                        "In locale {:?} the key {:?} cannot be used as an identifier",
+                        locale, key
+                    ),
+                }
+                
             }
-            Error::InvalidPlural { 
-                locale_name, 
-                locale_key, 
-                plural 
-            } => write!(f, 
+            Error::InvalidPlural {
+                locale_name,
+                locale_key,
+                namespace: None,
+                plural
+            } => write!(f,
                 "In locale {:?} at key {:?} found invalid plural {:?}", 
                 locale_name, locale_key, plural
             ),
-            Error::DuplicateLocalesInConfig(duplicates) => write!(f, 
+            Error::InvalidPlural {
+                locale_name,
+                locale_key,
+                namespace: Some(namespace),
+                plural
+            } => write!(f,
+                "In locale {:?} at namespace {:?} at key {:?} found invalid plural {:?}", 
+                locale_name, namespace, locale_key, plural
+            ),
+            Error::DuplicateLocalesInConfig(duplicates) => write!(f,
                 "Found duplicates locales in configuration file (i18n.json): {:?}", 
                 duplicates
             ),
-            Error::InvalidBoundEnd { 
-                locale_name, 
-                locale_key, 
-                range 
-            } => write!(f, 
+            Error::InvalidBoundEnd {
+                locale_name,
+                locale_key,
+                namespace: None,
+                range
+            } => write!(f,
                 "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't end before i64::min", 
                 locale_name, locale_key, range
             ),
-            Error::ImpossibleRange { 
-                locale_name, 
-                locale_key, 
-                range 
+            Error::InvalidBoundEnd {
+                locale_name,
+                locale_key,
+                namespace: Some(namespace),
+                range
+            } => write!(f,
+                "In locale {:?} at namespace {:?} at key {:?} the range {:?} end bound is invalid, you can't end before i64::min", 
+                locale_name, namespace, locale_key, range
+            ),
+            Error::ImpossibleRange {
+                locale_name,
+                locale_key,
+                namespace: None,
+                range
             } => write!(f, "In locale {:?} at key {:?} the range {:?} is impossible, it end before it starts",
                 locale_name, locale_key, range
+            ),
+            Error::ImpossibleRange {
+                locale_name,
+                locale_key,
+                namespace: Some(namespace),
+                range
+            } => write!(f, "In locale {:?} at namespace {:?} at key {:?} the range {:?} is impossible, it end before it starts",
+                locale_name, namespace, locale_key, range
+            ),
+            Error::InvalidNameSpaceName(name) => write!(f,
+                "namespace {:?} could not be turned into an identifier",
+                name
+            ),
+            Error::DuplicateNamespacesInConfig(duplicates) => write!(f,
+                "Found duplicates namespaces in configuration file (i18n.json): {:?}", 
+                duplicates
             ),
         }
     }
