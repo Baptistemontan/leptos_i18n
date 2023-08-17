@@ -46,17 +46,19 @@ The file structure must look like this:
 
 And the files must look like this:
 
+`/locales/en.json`:
+
 ```json
-/locales/en.json
-
 {
-    "hello_world": "Hello World!"
+  "hello_world": "Hello World!"
 }
+```
 
-/locales/fr.json
+`/locales/fr.json`:
 
+```json
 {
-    "hello_world": "Bonjour le monde!"
+  "hello_world": "Bonjour le monde!"
 }
 ```
 
@@ -64,10 +66,10 @@ All locales files need to have exactly the same keys.
 
 ### Loading the locales
 
-you can then use the `load_locales!()` macro in a module of the project, this will load _at compile time_ the locales, and create a struct that describe your locales:
+You can then use the `load_locales!()` macro in a module of the project, this will load _at compile time_ the locales, and create a struct that describe your locales:
 
 ```rust
-struct Locale {
+struct I18nKeys {
     pub hello_world: &'static str
 }
 ```
@@ -244,17 +246,19 @@ view! { cx,
 
 If a variable or a component is only needed for one local, it is totally acceptable to do:
 
+`/locales/en.json`:
+
 ```json
-/locales/en.json
-
 {
-    "hello_world": "Hello World!"
+  "hello_world": "Hello World!"
 }
+```
 
-/locales/fr.json
+`/locales/fr.json`:
 
+```json
 {
-    "hello_world": "Bonjour <i>le monde!</i>"
+  "hello_world": "Bonjour <i>le monde!</i>"
 }
 ```
 
@@ -313,6 +317,8 @@ But this exemple will not compile, because the resulting match statement will no
 
 If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> i64 + Clone + 'static`.
 
+You are not required to use the `count` variable in the locale, but it must be provided.
+
 ### Namespaces
 
 Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the config file (i18n.json):
@@ -337,10 +343,10 @@ Then your file structures must look like this int the `/locales` directory:
     └── home.json
 ```
 
-Accessing you values with the `t!` macro will be like this:
+Accessing your values with the `t!` macro will be like this:
 
 ```rust
-t!(i18n, common.$key)
+t!(i18n, $namespace.$key)
 ```
 
 You can have as many namespaces as you want, but the name should be a valid rust identifier.
