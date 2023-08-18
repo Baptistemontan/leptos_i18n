@@ -1,6 +1,4 @@
 {
     "hello_world": "Bonjour le monde!",
-    "click_to_change_lang": "Cliquez pour changez de langue",
-    "click_count": "Vous avez cliqué <b>{{ count }}</b> fois",
-    "inc": "Cliquez pour incrémenter le compteur"
+    "click_to_change_lang": "Cliquez pour changez de langue"
 }

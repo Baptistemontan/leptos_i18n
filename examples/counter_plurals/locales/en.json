@@ -1,0 +1,11 @@
+{
+    "click_to_change_lang": "Click to change language",
+    "click_count": {
+        "0": "You have not clicked yet",
+        "1": "You clicked once",
+        "2..20": "You clicked {{ count }} times",
+        "20..": "You clicked a lot",
+        "..0": "You clicked a negative amount ??"
+    },
+    "click_to_inc": "Click to increment the counter"
+}

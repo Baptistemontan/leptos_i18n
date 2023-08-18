@@ -10,10 +10,6 @@ pub fn App(cx: Scope) -> impl IntoView {
 
     let i18n = i18n_context(cx);
 
-    let (counter, set_counter) = create_signal(cx, 0);
-
-    let inc = move |_| set_counter.update(|count| *count += 1);
-
     let on_switch = move |_| {
         let new_lang = match i18n.get_locale() {
             LocaleEnum::en => LocaleEnum::fr,
@@ -22,18 +18,8 @@ pub fn App(cx: Scope) -> impl IntoView {
         i18n.set_locale(new_lang);
     };
 
-    let count = move || counter.get();
-
     view! { cx,
         <h1>{t!(i18n, hello_world)}</h1>
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
-        <p>
-            {t!{ i18n,
-                click_count,
-                count,
-                <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> },
-            }}
-        </p>
-        <button on:click=inc>{t!(i18n, inc)}</button>
     }
 }
