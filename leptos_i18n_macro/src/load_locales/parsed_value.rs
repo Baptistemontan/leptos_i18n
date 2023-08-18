@@ -217,7 +217,7 @@ impl ToTokens for ParsedValue {
                     quote!(#(#keys)*)
                 });
                 let match_statement = quote! {
-                    match core::clone::Clone::clone(&count)() {
+                    match core::clone::Clone::clone(&var_count)() {
                         #(
                             #match_arms,
                         )*
