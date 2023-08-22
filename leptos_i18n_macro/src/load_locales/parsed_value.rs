@@ -92,11 +92,11 @@ impl ParsedValue {
         Some(ParsedValue::Bloc(vec![before, this, after]))
     }
 
-    fn find_valid_component(value: &str) -> Option<(&str, &str, &str, &str)> {
+    fn find_valid_component(value: &str) -> Option<(Key, &str, &str, &str)> {
         let mut skip_sum = 0;
         loop {
             let (before, key, after, skip) = Self::find_opening_tag(&value[skip_sum..])?;
-            if let Some((beetween, after)) = Self::find_closing_tag(after, key) {
+            if let Some((key, beetween, after)) = Self::find_closing_tag(after, key) {
                 let before_len = skip_sum + before.len();
                 let before = &value[..before_len];
                 break Some((key, before, beetween, after));
@@ -113,8 +113,6 @@ impl ParsedValue {
         let beetween = ParsedValue::new(beetween);
         let after = ParsedValue::new(after);
 
-        let key = Key::try_new(&format!("comp_{}", key)).unwrap();
-
         let this = ParsedValue::Component {
             key,
             inner: beetween.into(),
@@ -123,7 +121,8 @@ impl ParsedValue {
         Some(ParsedValue::Bloc(vec![before, this, after]))
     }
 
-    fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(&'a str, &'a str)> {
+    fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(Key, &'a str, &'a str)> {
+        let key_ident = Key::try_new(&format!("comp_{}", key))?;
         let mut indices = None;
         let mut depth = 0;
         let iter = value.match_indices('<').filter_map(|(i, _)| {
@@ -152,7 +151,7 @@ impl ParsedValue {
         let before = &value[..start];
         let after = &value[end..];
 
-        Some((before, after))
+        Some((key_ident, before, after))
     }
 
     fn find_opening_tag(value: &str) -> Option<(&str, &str, &str, usize)> {
