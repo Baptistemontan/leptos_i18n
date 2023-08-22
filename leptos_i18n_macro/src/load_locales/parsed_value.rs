@@ -149,56 +149,11 @@ impl ParsedValue {
 
         Some((before, ident.trim(), after))
     }
-}
 
-impl<'a> InterpolateKey<'a> {
-    pub fn as_ident(self) -> syn::Ident {
+    fn flatten(&self, tokens: &mut Vec<TokenStream>) {
         match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
-            InterpolateKey::Count => format_ident!("var_count"),
-        }
-    }
-
-    pub fn as_key(self) -> Option<&'a Key> {
-        match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
-            InterpolateKey::Count => None,
-        }
-    }
-}
-
-impl<'a> ToTokens for InterpolateKey<'a> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.as_ident().to_tokens(tokens)
-    }
-}
-
-impl ToTokens for ParsedValue {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            // TODO: found way to remove code for empty strings
-            ParsedValue::String(s) => quote!(__leptos__::IntoView::into_view(#s, cx)),
-            ParsedValue::Variable(key) => {
-                quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key), cx))
-            }
-            ParsedValue::Bloc(values) => {
-                quote!(__leptos__::CollectView::collect_view([#(#values,)*], cx))
-            }
-            ParsedValue::Component { key, inner } => {
-                let captured_keys = inner.get_keys().map(|keys| {
-                    let keys = keys
-                        .into_iter()
-                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
-                    quote!(#(#keys)*)
-                });
-
-                let f = quote!({
-                    #captured_keys
-                    move |cx| Into::into(#inner)
-                });
-                let boxed_fn = quote!(Box::new(#f));
-                quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key)(cx, #boxed_fn), cx))
-            }
+            ParsedValue::String(s) if s.is_empty() => {}
+            ParsedValue::String(s) => tokens.push(quote!(__leptos__::IntoView::into_view(#s, cx))),
             ParsedValue::Plural(plurals) => {
                 let match_arms = plurals
                     .iter()
@@ -229,8 +184,66 @@ impl ToTokens for ParsedValue {
                     move || #match_statement
                 });
 
-                quote! (__leptos__::IntoView::into_view(#f, cx))
+                tokens.push(quote! (__leptos__::IntoView::into_view(#f, cx)))
             }
+            ParsedValue::Variable(key) => tokens.push(
+                quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key), cx)),
+            ),
+            ParsedValue::Component { key, inner } => {
+                let captured_keys = inner.get_keys().map(|keys| {
+                    let keys = keys
+                        .into_iter()
+                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
+                    quote!(#(#keys)*)
+                });
+
+                let f = quote!({
+                    #captured_keys
+                    move |cx| Into::into(#inner)
+                });
+                let boxed_fn = quote!(Box::new(#f));
+                tokens.push(quote!(__leptos__::IntoView::into_view(core::clone::Clone::clone(&#key)(cx, #boxed_fn), cx)))
+            }
+            ParsedValue::Bloc(values) => {
+                for value in values {
+                    value.flatten(tokens)
+                }
+            }
+        }
+    }
+}
+
+impl<'a> InterpolateKey<'a> {
+    pub fn as_ident(self) -> syn::Ident {
+        match self {
+            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
+            InterpolateKey::Count => format_ident!("var_count"),
+        }
+    }
+
+    pub fn as_key(self) -> Option<&'a Key> {
+        match self {
+            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
+            InterpolateKey::Count => None,
+        }
+    }
+}
+
+impl<'a> ToTokens for InterpolateKey<'a> {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        self.as_ident().to_tokens(tokens)
+    }
+}
+
+impl ToTokens for ParsedValue {
+    fn to_token_stream(&self) -> TokenStream {
+        let mut tokens = Vec::new();
+        self.flatten(&mut tokens);
+
+        match &tokens[..] {
+            [] => quote!(__leptos__::View::default()),
+            [value] => value.clone(),
+            values => quote!(__leptos__::CollectView::collect_view([#(#values,)*], cx)),
         }
     }
 
