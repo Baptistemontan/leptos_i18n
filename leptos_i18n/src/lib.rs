@@ -1,3 +1,6 @@
+#![cfg_attr(feature = "nightly", feature(fn_traits))]
+#![cfg_attr(feature = "nightly", feature(unboxed_closures))]
+
 mod context;
 mod fetch_locale;
 mod locale_traits;
