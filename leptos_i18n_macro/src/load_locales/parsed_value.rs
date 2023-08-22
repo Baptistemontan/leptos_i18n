@@ -17,7 +17,7 @@ pub enum ParsedValue {
     Bloc(Vec<Self>),
 }
 
-#[derive(Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum InterpolateKey<'a> {
     Count,
     Variable(&'a Key),
@@ -92,10 +92,22 @@ impl ParsedValue {
         Some(ParsedValue::Bloc(vec![before, this, after]))
     }
 
-    fn find_component(value: &str) -> Option<Self> {
-        let (before, key, after) = Self::find_opening_tag(value)?;
+    fn find_valid_component(value: &str) -> Option<(&str, &str, &str, &str)> {
+        let mut skip_sum = 0;
+        loop {
+            let (before, key, after, skip) = Self::find_opening_tag(&value[skip_sum..])?;
+            if let Some((beetween, after)) = Self::find_closing_tag(after, key) {
+                let before_len = skip_sum + before.len();
+                let before = &value[..before_len];
+                break Some((key, before, beetween, after));
+            } else {
+                skip_sum += skip;
+            }
+        }
+    }
 
-        let (beetween, after) = Self::find_closing_tag(after, key)?;
+    fn find_component(value: &str) -> Option<Self> {
+        let (key, before, beetween, after) = Self::find_valid_component(value)?;
 
         let before = ParsedValue::new(before);
         let beetween = ParsedValue::new(beetween);
@@ -143,11 +155,13 @@ impl ParsedValue {
         Some((before, after))
     }
 
-    fn find_opening_tag(value: &str) -> Option<(&str, &str, &str)> {
+    fn find_opening_tag(value: &str) -> Option<(&str, &str, &str, usize)> {
         let (before, rest) = value.split_once('<')?;
         let (ident, after) = rest.split_once('>')?;
 
-        Some((before, ident.trim(), after))
+        let skip = before.len() + ident.len() + 2;
+
+        Some((before, ident.trim(), after, skip))
     }
 }
 
@@ -409,6 +423,23 @@ mod tests {
                     ]))
                 },
                 ParsedValue::String(" after".to_string())
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_skipped_tag() {
+        let value = ParsedValue::new("<p>test<h3>this is a h3</h3>not closing p");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::String("<p>test".to_string()),
+                ParsedValue::Component {
+                    key: Key::try_new("comp_h3").unwrap(),
+                    inner: Box::new(ParsedValue::String("this is a h3".to_string()))
+                },
+                ParsedValue::String("not closing p".to_string())
             ])
         )
     }
