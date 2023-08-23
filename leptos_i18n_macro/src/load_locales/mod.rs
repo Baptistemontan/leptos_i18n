@@ -102,6 +102,7 @@ fn create_locale_type_inner(
     type_ident: &syn::Ident,
     locales: &[Locale],
     BuildersKeysInner(keys): &BuildersKeysInner,
+    is_namespace: bool,
 ) -> TokenStream {
     let string_keys = keys
         .iter()
@@ -136,7 +137,7 @@ fn create_locale_type_inner(
         })
         .collect();
 
-    let from_variant_match_arms = locales.iter().map(|locale| {
+    let new_match_arms = locales.iter().map(|locale| {
         let filled_string_fields = locale.keys.iter().filter_map(|(key, value)| {
             let str_value = value.is_string()?;
             Some(quote!(#key: #str_value))
@@ -169,24 +170,64 @@ fn create_locale_type_inner(
         }
     });
 
+    let (from_variant, const_values) = if !is_namespace {
+        let from_variant_match_arms = locales.iter().map(|locale| {
+            let ident = &locale.name.ident;
+            quote!(LocaleEnum::#ident => &Self::#ident)
+        });
+
+        let from_variant = quote! {
+            impl ::leptos_i18n::LocaleKeys for #type_ident {
+                type Locales = Locales;
+                fn from_variant(_variant: LocaleEnum) -> &'static Self {
+                    match _variant {
+                        #(
+                            #from_variant_match_arms,
+                        )*
+                    }
+                }
+            }
+        };
+
+        let const_values = locales.iter().map(|locale| {
+            let ident = &locale.name.ident;
+            quote!(pub const #ident: Self = Self::new(LocaleEnum::#ident);)
+        });
+
+        let const_values = quote! {
+            #(
+                #[allow(non_upper_case_globals)]
+                #const_values
+            )*
+        };
+
+        (Some(from_variant), Some(const_values))
+    } else {
+        (None, None)
+    };
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-        #[allow(non_snake_case)]
+        #[allow(non_camel_case_types)]
         pub struct #type_ident {
             #(#string_fields,)*
             #(#builder_fields,)*
         }
 
-        impl ::leptos_i18n::LocaleKeys for #type_ident {
-            type Locales = Locales;
-            fn from_variant(_variant: LocaleEnum) -> Self {
+        impl #type_ident {
+
+            #const_values
+
+            pub const fn new(_variant: LocaleEnum) -> Self {
                 match _variant {
                     #(
-                        #from_variant_match_arms,
+                        #new_match_arms,
                     )*
                 }
             }
         }
+
+        #from_variant
 
         #builder_module
     }
@@ -202,7 +243,7 @@ fn create_namespaces_types(
         let namespace_module_ident = format_ident!("__{}_mod", namespace_ident);
         let builders_keys = keys.get(&namespace.key).unwrap();
         let type_impl =
-            create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys);
+            create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys, true);
         quote! {
             pub mod #namespace_module_ident {
                 use super::{LocaleEnum, __leptos__, Locales};
@@ -220,7 +261,20 @@ fn create_namespaces_types(
 
     let namespaces_fields_new = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
-        quote!(#key: ::leptos_i18n::LocaleKeys::from_variant(_variant))
+        let namespace_module_ident = format_ident!("__{}_mod", &key.ident);
+        quote!(#key: __namespaces::#namespace_module_ident::#key::new(_variant))
+    });
+
+    let locales = &namespaces.iter().next().unwrap().locales;
+
+    let const_values = locales.iter().map(|locale| {
+        let locale_ident = &locale.name;
+        quote!(pub const #locale_ident: Self = Self::new(LocaleEnum::#locale_ident);)
+    });
+
+    let from_variant_match_arms = locales.iter().map(|locale| {
+        let locale_ident = &locale.name;
+        quote!(LocaleEnum::#locale_ident => &Self::#locale_ident)
     });
 
     quote! {
@@ -239,12 +293,27 @@ fn create_namespaces_types(
             #(#namespaces_fields,)*
         }
 
-        impl ::leptos_i18n::LocaleKeys for #i18n_keys_ident {
-            type Locales = Locales;
-            fn from_variant(_variant: LocaleEnum) -> Self {
+        impl #i18n_keys_ident {
+            #(
+                #[allow(non_upper_case_globals)]
+                #const_values
+            )*
+
+            pub const fn new(_variant: LocaleEnum) -> Self {
                 Self {
                     #(
                         #namespaces_fields_new,
+                    )*
+                }
+            }
+        }
+
+        impl ::leptos_i18n::LocaleKeys for #i18n_keys_ident {
+            type Locales = Locales;
+            fn from_variant(_variant: LocaleEnum) -> &'static Self {
+                match _variant {
+                    #(
+                        #from_variant_match_arms,
                     )*
                 }
             }
@@ -259,7 +328,7 @@ fn create_locale_type(locales: &LocalesOrNamespaces, keys: &BuildersKeys) -> Tok
             create_namespaces_types(&i18n_keys_ident, namespaces, keys)
         }
         (LocalesOrNamespaces::Locales(locales), BuildersKeys::Locales(keys)) => {
-            create_locale_type_inner(&i18n_keys_ident, locales, keys)
+            create_locale_type_inner(&i18n_keys_ident, locales, keys, false)
         }
         _ => unreachable!(),
     }
