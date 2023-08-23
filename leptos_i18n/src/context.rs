@@ -13,6 +13,11 @@ impl<T: Locales> I18nContext<T> {
     }
 
     #[inline]
+    pub fn get_locale_untracked(self) -> T::Variants {
+        self.0.get_untracked()
+    }
+
+    #[inline]
     pub fn get_keys(self) -> T::LocaleKeys {
         let variant = self.get_locale();
         LocaleKeys::from_variant(variant)
@@ -21,6 +26,11 @@ impl<T: Locales> I18nContext<T> {
     #[inline]
     pub fn set_locale(self, lang: T::Variants) {
         self.0.set(lang)
+    }
+
+    #[inline]
+    pub fn set_locale_untracked(self, lang: T::Variants) {
+        self.0.set_untracked(lang)
     }
 }
 
@@ -87,4 +97,56 @@ fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
 fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
     let _ = lang;
     Some(())
+}
+
+// get locale
+#[cfg(feature = "nightly")]
+impl<T: Locales> FnOnce<()> for I18nContext<T> {
+    type Output = T::Variants;
+    #[inline]
+    extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
+        self.get_locale()
+    }
+}
+
+#[cfg(feature = "nightly")]
+impl<T: Locales> FnMut<()> for I18nContext<T> {
+    #[inline]
+    extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
+        self.get_locale()
+    }
+}
+
+#[cfg(feature = "nightly")]
+impl<T: Locales> Fn<()> for I18nContext<T> {
+    #[inline]
+    extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
+        self.get_locale()
+    }
+}
+
+// set locale
+#[cfg(feature = "nightly")]
+impl<T: Locales> FnOnce<(T::Variants,)> for I18nContext<T> {
+    type Output = ();
+    #[inline]
+    extern "rust-call" fn call_once(self, (locale,): (T::Variants,)) -> Self::Output {
+        self.set_locale(locale)
+    }
+}
+
+#[cfg(feature = "nightly")]
+impl<T: Locales> FnMut<(T::Variants,)> for I18nContext<T> {
+    #[inline]
+    extern "rust-call" fn call_mut(&mut self, (locale,): (T::Variants,)) -> Self::Output {
+        self.set_locale(locale)
+    }
+}
+
+#[cfg(feature = "nightly")]
+impl<T: Locales> Fn<(T::Variants,)> for I18nContext<T> {
+    #[inline]
+    extern "rust-call" fn call(&self, (locale,): (T::Variants,)) -> Self::Output {
+        self.set_locale(locale)
+    }
 }
