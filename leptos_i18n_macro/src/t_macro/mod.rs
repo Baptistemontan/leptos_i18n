@@ -3,7 +3,6 @@ use syn::parse_macro_input;
 
 use self::parsed_input::ParsedInput;
 
-// pub mod error;
 pub mod interpolate;
 pub mod parsed_input;
 
