@@ -1,0 +1,5 @@
+{
+    "default": "en",
+    "locales": ["en", "fr"],
+    "namespaces": ["change_locale", "counter"]
+}

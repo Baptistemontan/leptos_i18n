@@ -73,7 +73,7 @@ impl Interpolation {
 
         quote! {
             impl #ident<#(#generics,)*> {
-                pub fn new(#locale_field: LocaleEnum) -> Self {
+                pub const fn new(#locale_field: LocaleEnum) -> Self {
                     Self {
                         #(#fields,)*
                         #locale_field

@@ -27,7 +27,7 @@ pub trait LocaleKeys: 'static + Clone + Copy {
     type Locales: Locales;
 
     /// Create self according to the given locale.
-    fn from_variant(variant: <Self::Locales as Locales>::Variants) -> Self;
+    fn from_variant(variant: <Self::Locales as Locales>::Variants) -> &'static Self;
 }
 
 /// This trait servers as a bridge beetween the locale enum and the keys struct
@@ -39,7 +39,7 @@ pub trait Locales: 'static + Clone + Copy {
 
     /// Create the keys according to the given locale.
     #[inline]
-    fn get_keys(locale: Self::Variants) -> Self::LocaleKeys {
+    fn get_keys(locale: Self::Variants) -> &'static Self::LocaleKeys {
         <Self::LocaleKeys as LocaleKeys>::from_variant(locale)
     }
 }
