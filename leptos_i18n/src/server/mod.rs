@@ -8,20 +8,18 @@ use leptos::*;
 
 use crate::Locales;
 
-#[cfg(all(feature = "axum", not(feature = "actix")))]
-pub fn fetch_locale_server_side<T: Locales>(cx: Scope) -> T::Variants {
-    axum::fetch_locale_server::<T>(cx)
-}
-
 #[cfg(all(feature = "actix", not(feature = "axum")))]
+use actix as backend;
+#[cfg(all(feature = "axum", not(feature = "actix")))]
+use axum as backend;
+
+#[cfg(any(feature = "actix", feature = "axum"))]
 pub fn fetch_locale_server_side<T: Locales>(cx: Scope) -> T::Variants {
-    actix::fetch_locale_server::<T>(cx)
+    backend::fetch_locale_server::<T>(cx)
 }
 
 #[cfg(all(feature = "actix", feature = "axum"))]
-pub fn fetch_locale_server_side<T: Locales>(cx: Scope) -> T::Variants {
-    compile_error!("Can't enable \"actix\" and \"axum\" features together.")
-}
+compile_error!("Can't enable \"actix\" and \"axum\" features together.");
 
 #[cfg(not(any(feature = "actix", feature = "axum")))]
 pub fn fetch_locale_server_side<T: Locales>(cx: Scope) -> T::Variants {
@@ -56,7 +54,7 @@ pub(crate) fn parse_header(header: &str) -> Vec<String> {
         .collect()
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "actix", feature = "axum")))]
 mod tests {
     use super::*;
 
