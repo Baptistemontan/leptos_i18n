@@ -23,6 +23,8 @@
 //!     counter example, showing how you can interpolate values in the translations and switch locale without full reload.
 //! - [`counter_plurals`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/counter_plurals) is like the `counter` example
 //!     but show how you can use plurals to display different texts based on a count.
+//! - [`namespaces`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/namespaces) show how to break down your translations
+//!     in multiple namespaces to avoid big files
 //!
 //!
 //! Details on how to run each example can be found in its README.
