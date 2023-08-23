@@ -3,31 +3,48 @@ use leptos_meta::*;
 
 use crate::{fetch_locale, locale_traits::*};
 
+/// This context is the heart of the i18n system:
+///
+/// It servers as a signal to the the current locale and enable reactivity to locale change.
+///
+/// You access the translations and read/update the current locale through it.
 #[derive(Debug, Clone, Copy)]
 pub struct I18nContext<T: Locales>(RwSignal<T::Variants>);
 
 impl<T: Locales> I18nContext<T> {
+    /// Return the current locale subscribing to any changes.
     #[inline]
     pub fn get_locale(self) -> T::Variants {
         self.0.get()
     }
 
+    /// Return the current locale but does not subscribe to changes
     #[inline]
     pub fn get_locale_untracked(self) -> T::Variants {
         self.0.get_untracked()
     }
 
+    /// Return the keys for the current locale subscribing to any changes
     #[inline]
     pub fn get_keys(self) -> T::LocaleKeys {
         let variant = self.get_locale();
         LocaleKeys::from_variant(variant)
     }
 
+    /// Return the keys for the current locale but does not subscribe to changes
+    #[inline]
+    pub fn get_keys_untracked(self) -> T::LocaleKeys {
+        let variant = self.get_locale();
+        LocaleKeys::from_variant(variant)
+    }
+
+    /// Set the locale and notify all subscribers
     #[inline]
     pub fn set_locale(self, lang: T::Variants) {
         self.0.set(lang)
     }
 
+    /// Set the locale but does not notify the subscribers
     #[inline]
     pub fn set_locale_untracked(self, lang: T::Variants) {
         self.0.set_untracked(lang)
@@ -68,6 +85,13 @@ fn init_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     context
 }
 
+/// Provide the `I18nContext` for the application.
+///
+/// This function must be called at the highest possible level of the application.
+///
+/// It returns the newly created context.
+///
+/// If called when a context is already present it will not overwrite it and just return the current context.
 pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     if let Some(context) = use_context(cx) {
         context
@@ -76,6 +100,11 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     }
 }
 
+/// Return the `I18nContext` previously set.
+///
+/// ## Panic
+///
+/// Panics if the context is not missing.
 pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     use_context(cx).expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
