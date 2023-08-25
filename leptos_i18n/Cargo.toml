@@ -29,3 +29,21 @@ hydrate = [
 ssr = ["leptos/ssr", "leptos_meta/ssr"]
 actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum"]
+
+
+[package.metadata.cargo-all-features]
+denylist = ["ssr", "nightly"]
+skip_feature_sets = [
+    [
+        "actix",
+        "hydrate",
+    ],
+    [
+        "axum",
+        "hydrate",
+    ],
+    [
+        "axum",
+        "actix",
+    ],
+]

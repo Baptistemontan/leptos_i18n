@@ -1,5 +1,5 @@
 use crate::locale_traits::*;
-use axum::http::{header, HeaderValue};
+use axum::http::header;
 use leptos::*;
 
 pub fn fetch_locale_server<T: Locales>(cx: Scope) -> T::Variants {
@@ -40,7 +40,7 @@ fn get_prefered_lang_cookie<T: LocaleVariant>(req: &leptos_axum::RequestParts) -
 }
 
 #[cfg(feature = "cookie")]
-fn parse_cookie(cookie: &HeaderValue) -> Option<&str> {
+fn parse_cookie(cookie: &axum::http::HeaderValue) -> Option<&str> {
     std::str::from_utf8(cookie.as_bytes())
         .ok()?
         .split(';')
