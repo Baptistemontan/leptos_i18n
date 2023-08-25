@@ -1,18 +1,23 @@
 [package]
 name = "leptos_i18n"
-version = "0.1.0"
+version = { workspace = true }
 edition = "2021"
+authors = ["Baptiste de Montangon"]
+license = "MIT"
+repository = "https://github.com/Baptistemontan/leptos_i18n"
+description = "Translations integration helper for the Leptos web framework"
+readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+leptos_i18n_macro = { workspace = true }
 leptos = { version = "0.4" }
 leptos_meta = { version = "0.4" }
 actix-web = { version = "4", optional = true }
 axum = { version = "0.6", optional = true }
 leptos_axum = { version = "0.4", optional = true }
 serde = { version = "1", features = ["derive"] }
-leptos_i18n_macro.path = "../leptos_i18n_macro"
 web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 
