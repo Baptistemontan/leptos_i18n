@@ -104,7 +104,7 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 ///
 /// ## Panic
 ///
-/// Panics if the context is not missing.
+/// Panics if the context is missing.
 pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
     use_context(cx).expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
