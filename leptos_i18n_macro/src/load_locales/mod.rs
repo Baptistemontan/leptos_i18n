@@ -138,10 +138,17 @@ fn create_locale_type_inner(
         .collect();
 
     let new_match_arms = locales.iter().map(|locale| {
-        let filled_string_fields = locale.keys.iter().filter_map(|(key, value)| {
-            let str_value = value.is_string()?;
-            Some(quote!(#key: #str_value))
-        });
+        let filled_string_fields = locale
+            .keys
+            .iter()
+            .filter(|(key, _)| {
+                keys.get(key)
+                    .is_some_and(|value| matches!(value, LocaleValue::String))
+            })
+            .filter_map(|(key, value)| {
+                let str_value = value.is_string()?;
+                Some(quote!(#key: #str_value))
+            });
 
         let ident = &locale.name.ident;
         quote! {
