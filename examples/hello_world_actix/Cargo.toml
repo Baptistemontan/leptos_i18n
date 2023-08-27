@@ -20,7 +20,6 @@ console_error_panic_hook = { version = "0.1", optional = true }
 wasm-bindgen = { version = "=0.2.87", optional = true }
 
 [features]
-default = ["ssr"]
 hydrate = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
@@ -81,3 +80,6 @@ lib-features = ["hydrate"]
 #
 # Optional. Defaults to false.
 lib-default-features = false
+
+[package.metadata.cargo-all-features]
+skip_feature_sets = [["hydrate", "ssr"]]

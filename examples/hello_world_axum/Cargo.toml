@@ -24,7 +24,6 @@ tower = { version = "0.4.13", optional = true }
 tower-http = { version = "0.4", features = ["fs"], optional = true }
 
 [features]
-default = ["ssr"]
 hydrate = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
@@ -87,3 +86,6 @@ lib-features = ["hydrate"]
 #
 # Optional. Defaults to false.
 lib-default-features = false
+
+[package.metadata.cargo-all-features]
+skip_feature_sets = [["hydrate", "ssr"]]
