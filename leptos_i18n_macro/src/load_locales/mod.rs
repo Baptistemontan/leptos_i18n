@@ -30,8 +30,6 @@ pub fn load_locales(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStre
     let locales = create_locales_type(&cfg_file);
 
     Ok(quote! {
-        use ::leptos as __leptos__;
-
         #locales
 
         #locale_variants
@@ -76,7 +74,7 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
             }
         }
 
-        impl ::leptos_i18n::LocaleVariant for LocaleEnum {
+        impl leptos_i18n::LocaleVariant for LocaleEnum {
             fn as_str(&self) -> &'static str {
                 match *self {
                     #(#as_str_match_arms,)*
@@ -97,7 +95,7 @@ fn create_locales_type(_cfg_file: &ConfigFile) -> TokenStream {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         pub struct Locales;
 
-        impl ::leptos_i18n::Locales for Locales {
+        impl leptos_i18n::Locales for Locales {
             type Variants = LocaleEnum;
             type LocaleKeys = I18nKeys;
         }
@@ -172,7 +170,7 @@ fn create_locale_type_inner(
         quote! {
             #[doc(hidden)]
             pub mod _builders {
-                use super::{LocaleEnum, __leptos__};
+                use super::{LocaleEnum, leptos};
 
                 #empty_type
 
@@ -190,7 +188,7 @@ fn create_locale_type_inner(
         });
 
         let from_variant = quote! {
-            impl ::leptos_i18n::LocaleKeys for #type_ident {
+            impl leptos_i18n::LocaleKeys for #type_ident {
                 type Locales = Locales;
                 fn from_variant(_variant: LocaleEnum) -> &'static Self {
                     match _variant {
@@ -259,7 +257,7 @@ fn create_namespaces_types(
             create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys, true);
         quote! {
             pub mod #namespace_module_ident {
-                use super::{LocaleEnum, __leptos__, Locales};
+                use super::{LocaleEnum, leptos, Locales};
 
                 #type_impl
             }
@@ -292,7 +290,7 @@ fn create_namespaces_types(
 
     quote! {
         pub mod __namespaces {
-            use super::{LocaleEnum, __leptos__, Locales};
+            use super::{LocaleEnum, leptos, Locales};
 
             #(
                 #namespaces_ts
@@ -321,7 +319,7 @@ fn create_namespaces_types(
             }
         }
 
-        impl ::leptos_i18n::LocaleKeys for #i18n_keys_ident {
+        impl leptos_i18n::LocaleKeys for #i18n_keys_ident {
             type Locales = Locales;
             fn from_variant(_variant: LocaleEnum) -> &'static Self {
                 match _variant {

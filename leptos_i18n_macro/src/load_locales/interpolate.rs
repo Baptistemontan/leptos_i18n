@@ -129,7 +129,7 @@ impl Interpolation {
                 if other_field.name == field.name {
                     match field.kind {
                         InterpolateKey::Variable(_) | InterpolateKey::Count => quote!(__T),
-                        InterpolateKey::Component(_) => quote!(impl Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __leptos__::View + core::clone::Clone + 'static),
+                        InterpolateKey::Component(_) => quote!(impl Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static),
                     }
                 } else {
                     let generic = &other_field.generic;
@@ -156,7 +156,7 @@ impl Interpolation {
                     quote!{
                         #[inline]
                         pub fn #key<__T>(self, #key: __T) -> #ident<#(#output_generics,)*>
-                            where __T: __leptos__::IntoView + core::clone::Clone + 'static
+                            where __T: leptos::IntoView + core::clone::Clone + 'static
                         {
                             #destructure
                             #restructure
@@ -168,11 +168,11 @@ impl Interpolation {
                         #[inline]
                         pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
                         where
-                            __O: __leptos__::IntoView,
-                            __T: Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __O + core::clone::Clone + 'static
+                            __O: leptos::IntoView,
+                            __T: Fn(leptos::Scope, leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
                         {
                             #destructure
-                            let #key = move |cx, children| __leptos__::IntoView::into_view(#key(cx, children), cx);
+                            let #key = move |cx, children| leptos::IntoView::into_view(#key(cx, children), cx);
                             #restructure
                         }
                     }
@@ -203,10 +203,10 @@ impl Interpolation {
             let ident = &field.generic;
             match field.kind {
                 InterpolateKey::Variable(_) => {
-                    quote!(#ident: __leptos__::IntoView + core::clone::Clone + 'static)
+                    quote!(#ident: leptos::IntoView + core::clone::Clone + 'static)
                 }
                 InterpolateKey::Component(_) => {
-                    quote!(#ident: Fn(__leptos__::Scope, __leptos__::ChildrenFn) -> __leptos__::View + core::clone::Clone + 'static)
+                    quote!(#ident: Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static)
                 }
                 InterpolateKey::Count => {
                     quote!(#ident: Fn() -> i64 + core::clone::Clone + 'static)
@@ -227,8 +227,8 @@ impl Interpolation {
 
         quote! {
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> __leptos__::IntoView for #ident<#(#right_generics,)*> {
-                fn into_view(self, cx: __leptos__::Scope) -> __leptos__::View {
+            impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
+                fn into_view(self, cx: leptos::Scope) -> leptos::View {
                     #destructure
                     match #locale_field {
                         #(
