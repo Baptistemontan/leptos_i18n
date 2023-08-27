@@ -170,7 +170,7 @@ fn create_locale_type_inner(
         quote! {
             #[doc(hidden)]
             pub mod _builders {
-                use super::{LocaleEnum, leptos};
+                use super::LocaleEnum;
 
                 #empty_type
 
@@ -257,7 +257,7 @@ fn create_namespaces_types(
             create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys, true);
         quote! {
             pub mod #namespace_module_ident {
-                use super::{LocaleEnum, leptos, Locales};
+                use super::{LocaleEnum, Locales};
 
                 #type_impl
             }
@@ -290,7 +290,7 @@ fn create_namespaces_types(
 
     quote! {
         pub mod __namespaces {
-            use super::{LocaleEnum, leptos, Locales};
+            use super::{LocaleEnum, Locales};
 
             #(
                 #namespaces_ts
