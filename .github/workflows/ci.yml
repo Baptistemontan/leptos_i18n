@@ -1,0 +1,53 @@
+name: Test
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Load cargo toolchain"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Test all features"
+        run: |
+          cargo install cargo-all-features
+          cargo test-all-features
+
+  compile_exemples:
+    name: Compile ${{ matrix.exemples }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        exemples:
+          [
+            counter,
+            counter_plurals,
+            hello_world_actix,
+            hello_world_axum,
+            interpolation,
+            namespaces,
+          ]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Install wasm32-unknown-unknown"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+          targets: "wasm32-unknown-unknown"
+
+      - name: "Build exemple ${{ matrix.exemples }}"
+        working-directory: ./exemples/${{ matrix.exemples }}
+        run: |
+          cargo install cargo-leptos
+          cargo leptos build
