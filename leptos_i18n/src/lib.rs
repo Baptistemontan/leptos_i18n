@@ -68,7 +68,7 @@
 //! ```
 //!
 //!
-//! ```rust
+//! ```rust,ignore
 //! leptos_i18n::load_locales!();
 //! use leptos::*;
 //! use leptos_i18n::t;

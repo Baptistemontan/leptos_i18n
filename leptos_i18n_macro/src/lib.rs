@@ -32,7 +32,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 ///
 /// Usage:
 ///
-/// ```rust
+/// ```rust, ignore
 /// let i18n = get_i18n_context(cx);
 ///
 /// view! { cx,
@@ -45,13 +45,13 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 ///
 /// If your variable/component value is the same as the key, you remove the assignement, such that this:
 ///
-/// ```rust
+/// ```rust, ignore
 /// t!(i18n, $key, variable = variable, <component> = component, $other_key = $other_value, ..)
 /// ```
 ///
 /// can be shortened to:
 ///
-/// ```rust
+/// ```rust, ignore
 /// t!(i18n, $key, variable, <component>, $other_key = $other_value, ..)
 /// ```
 #[proc_macro]
