@@ -125,3 +125,6 @@ pub use locale_traits::*;
 pub use context::{get_context, provide_i18n_context, I18nContext};
 
 pub use leptos_i18n_macro::{load_locales, t};
+
+#[cfg(feature = "serde")]
+pub use serde;

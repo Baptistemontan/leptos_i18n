@@ -57,8 +57,14 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
         .map(|(variant, locale)| quote!(#locale => Some(LocaleEnum::#variant)))
         .collect::<Vec<_>>();
 
+    let derives = if cfg!(feature = "serde") {
+        quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, leptos_i18n::serde::Serialize, leptos_i18n::serde::Deserialize)])
+    } else {
+        quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)])
+    };
+
     quote! {
-        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, ::serde::Serialize, ::serde::Deserialize)]
+        #derives
         #[allow(non_camel_case_types)]
         pub enum LocaleEnum {
             #(#locales,)*

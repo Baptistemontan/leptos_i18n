@@ -17,7 +17,7 @@ leptos_meta = { version = "0.4" }
 actix-web = { version = "4", optional = true }
 axum = { version = "0.6", optional = true }
 leptos_axum = { version = "0.4", optional = true }
-serde = { version = "1" }
+serde = { version = "1", optional = true, features = ["derive"] }
 web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 
@@ -34,6 +34,7 @@ hydrate = [
 ssr = ["leptos/ssr", "leptos_meta/ssr"]
 actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum"]
+serde = ["leptos_i18n_macro/serde", "dep:serde"]
 
 
 [package.metadata.cargo-all-features]

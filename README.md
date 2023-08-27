@@ -363,6 +363,8 @@ You must enable the `hydrate` feature when building the client, and when buildin
 
 The `cookie` feature enable to set a cookie when a locale is chosen by the user, this feature is enabled by default.
 
+The `serde` feature implement `serde::Serialize` and `serde::Deserialize` for the locale enum.
+
 The `nightly` feature enable to do `i18n()` to get the locale instead of `i18n.get_locale()` and `i18n(new_locale)` instead of `i18n.set_locale(new_locale)`.
 
 ## Contributing

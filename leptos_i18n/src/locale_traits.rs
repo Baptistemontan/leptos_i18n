@@ -1,9 +1,9 @@
-use serde::{de::DeserializeOwned, Serialize};
+// use serde::{de::DeserializeOwned, Serialize};
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
 /// Appart from maybe `as_str` you will probably never need to use it has it only serves the internals of the library.
-pub trait LocaleVariant: 'static + Default + Serialize + DeserializeOwned + Clone + Copy {
+pub trait LocaleVariant: 'static + Default + Clone + Copy {
     /// Try to match the given str to a locale and returns it.
     fn from_str(s: &str) -> Option<Self>;
 
