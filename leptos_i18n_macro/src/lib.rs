@@ -1,5 +1,6 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
+#![deny(warnings)]
 //! # About Leptos i18n macro
 //!
 //! This crate expose the utility macro for `leptos_i18n`

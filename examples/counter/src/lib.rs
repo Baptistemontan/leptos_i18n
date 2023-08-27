@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 pub mod app;
 pub mod i18n;
 

@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 pub mod app;
 #[cfg(feature = "ssr")]
 pub mod fileserv;

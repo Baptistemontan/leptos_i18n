@@ -2,6 +2,7 @@
 #![cfg_attr(feature = "nightly", feature(unboxed_closures))]
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
+#![deny(warnings)]
 //! # About Leptos i18n
 //!
 //! Leptos i18n is library to help with translations in a Leptos application
