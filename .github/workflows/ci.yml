@@ -47,7 +47,7 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Build exemple ${{ matrix.exemples }}"
-        working-directory: ./exemples/${{ matrix.exemples }}
+        working-directory: exemples/${{ matrix.exemples }}
         run: |
           cargo install cargo-leptos
           cargo leptos build
