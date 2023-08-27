@@ -21,13 +21,13 @@ jobs:
           cargo install cargo-all-features
           cargo test-all-features
 
-  compile_exemples:
-    name: Compile ${{ matrix.exemples }}
+  compile_examples:
+    name: Compile ${{ matrix.examples }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        exemples:
+        examples:
           [
             counter,
             counter_plurals,
@@ -46,8 +46,8 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build exemple ${{ matrix.exemples }}"
-        working-directory: examples/${{ matrix.exemples }}
+      - name: "Build exemple ${{ matrix.examples }}"
+        working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install cargo-leptos
           cargo leptos build
