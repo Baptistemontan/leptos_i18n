@@ -128,7 +128,8 @@ impl Interpolation {
             let output_generics = fields.iter().map(|other_field| {
                 if other_field.name == field.name {
                     match field.kind {
-                        InterpolateKey::Variable(_) | InterpolateKey::Count => quote!(__T),
+                        InterpolateKey::Variable(_) => quote!(__T),
+                        InterpolateKey::Count => quote!(impl Fn() -> i64 + core::clone::Clone + 'static),
                         InterpolateKey::Component(_) => quote!(impl Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static),
                     }
                 } else {
@@ -180,10 +181,12 @@ impl Interpolation {
                 InterpolateKey::Count => {
                     quote! {
                         #[inline]
-                        pub fn var_count<__T>(self, var_count: __T) -> #ident<#(#output_generics,)*>
-                            where __T: Fn() -> i64 + core::clone::Clone + 'static
+                        pub fn var_count<__T, __N>(self, var_count: __T) -> #ident<#(#output_generics,)*>
+                            where __T: Fn() -> __N + core::clone::Clone + 'static,
+                                  __N: core::convert::Into<i64>
                         {
                             #destructure
+                            let var_count = move || core::convert::Into(var_count());
                             #restructure
                         }
                     }
