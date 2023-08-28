@@ -186,7 +186,7 @@ impl Interpolation {
                                   __N: core::convert::Into<i64>
                         {
                             #destructure
-                            let var_count = move || core::convert::Into(var_count());
+                            let var_count = move || core::convert::Into::into(var_count());
                             #restructure
                         }
                     }
