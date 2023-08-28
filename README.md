@@ -14,10 +14,10 @@ let inc = move |_| set_counter.update(|count| *count += 1);
 
 
 view! { cx,
-    {/* click_count = "You have clicked {{ count }} times" */}
-    <p>{t!(i18n, click_count, count = move || counter.get())}</p>
     {/* click_to_inc = "Click to increment" */}
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
+    {/* click_count = "You have clicked {{ count }} times" */}
+    <p>{t!(i18n, click_count, count = move || counter.get())}</p>
 }
 ```
 
