@@ -292,10 +292,10 @@ You may need to display different messages depending on a count, for exemple one
 }
 ```
 
-When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> i64 + Clone + 'static`, the resulting code looks something like this:
+When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> N + Clone + 'static` with `N: Into<i64>`, the resulting code looks something like this:
 
 ```rust
-match count() {
+match i64::from(count()) {
     0 => // render "You have not clicked yet",
     1 => // render "You clicked once",
     _ => // render "You clicked {{ count }} times"
@@ -317,7 +317,7 @@ You can also supply a range:
 
 But this exemple will not compile, because the resulting match statement will not cover the full `i64` range, so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`.
 
-If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> i64 + Clone + 'static`.
+If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> Into<i64> + Clone + 'static`.
 
 You are not required to use the `count` variable in the locale, but it must be provided.
 
