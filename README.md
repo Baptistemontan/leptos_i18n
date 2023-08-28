@@ -2,7 +2,7 @@
 
 # Leptos i18n
 
-This crate is made to simplify internalisation in a Leptos application, that load locales at **_compile time_** and provide compile time check for keys and selected locale.
+This crate is made to simplify internalisation in a [Leptos](https://crates.io/crates/leptos) application, that load locales at **_compile time_** and provide compile time check for keys and selected locale.
 
 The main focus is ease of you use with leptos, a typical component using this crate will look like this:
 
