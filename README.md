@@ -315,7 +315,7 @@ You can also supply a range:
 }
 ```
 
-But this exemple will not compile, because the resulting match statement will not cover the full `i64` range, so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`.
+But this exemple will not compile, because the resulting match statement will not cover the full `i64` range (even if your count is not a `i64`, it is till converted to one and need to match the full range), so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`.
 
 If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> Into<i64> + Clone + 'static`.
 
