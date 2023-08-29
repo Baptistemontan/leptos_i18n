@@ -1,0 +1,12 @@
+{
+    "click_to_change_lang": "Click to change language",
+    "common_key": "first namespace",
+    "plural_only_en": {
+        "0": "exact",
+        "..0": "unbounded start",
+        "99..": "unbounded end",
+        "1..3": "excluded end",
+        "3..=8": "included end",
+        "_": "fallback"
+    }
+}

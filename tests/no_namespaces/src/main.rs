@@ -5,7 +5,7 @@
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
     use actix_web::*;
-    use namespaces::app::App;
+    use no_namespaces::app::App;
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
 
