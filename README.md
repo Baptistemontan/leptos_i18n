@@ -369,6 +369,19 @@ If multiple locales use plurals for the same key, the count `type` must be the s
 
 (PS: Floats are generaly not a good idea for money.)
 
+You can also have multiple conditions:
+
+```json
+{
+  "click_count": {
+    "0 | 5": "You clicked 0 or 5 times",
+    "1": "You clicked once",
+    "2..=10 | 20": "You clicked {{ count }} times",
+    "11..": "You clicked <b>a lot</b>"
+  }
+}
+```
+
 ### Namespaces
 
 Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the config file (i18n.json):

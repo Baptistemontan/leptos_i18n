@@ -47,5 +47,7 @@ fn Tests(cx: Scope) -> impl IntoView {
     view! { cx,
         <p>{t!(i18n, f32_plural, count = || 42f32)}</p>
         <p>{t!(i18n, u32_plural, count = || 42u16)}</p>// u16 to test conversion
+        <p>{t!(i18n, f32_OR_plural, count = || 42f32)}</p>
+        <p>{t!(i18n, OR_plural, count = || 42u8)}</p>
     }
 }
