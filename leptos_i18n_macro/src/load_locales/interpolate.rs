@@ -129,7 +129,7 @@ impl Interpolation {
                 if other_field.name == field.name {
                     match field.kind {
                         InterpolateKey::Variable(_) => quote!(__T),
-                        InterpolateKey::Count => quote!(impl Fn() -> i64 + core::clone::Clone + 'static),
+                        InterpolateKey::Count(plural_type) => quote!(impl Fn() -> #plural_type + core::clone::Clone + 'static),
                         InterpolateKey::Component(_) => quote!(impl Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static),
                     }
                 } else {
@@ -178,12 +178,12 @@ impl Interpolation {
                         }
                     }
                 }
-                InterpolateKey::Count => {
+                InterpolateKey::Count(plural_type) => {
                     quote! {
                         #[inline]
                         pub fn var_count<__T, __N>(self, var_count: __T) -> #ident<#(#output_generics,)*>
                             where __T: Fn() -> __N + core::clone::Clone + 'static,
-                                  __N: core::convert::Into<i64>
+                                  __N: core::convert::Into<#plural_type>
                         {
                             #destructure
                             let var_count = move || core::convert::Into::into(var_count());
@@ -211,8 +211,8 @@ impl Interpolation {
                 InterpolateKey::Component(_) => {
                     quote!(#ident: Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static)
                 }
-                InterpolateKey::Count => {
-                    quote!(#ident: Fn() -> i64 + core::clone::Clone + 'static)
+                InterpolateKey::Count(plural_type) => {
+                    quote!(#ident: Fn() -> #plural_type + core::clone::Clone + 'static)
                 }
             }
         });

@@ -1,5 +1,16 @@
 {
     "click_to_change_lang": "Click to change language",
     "click_count": "You clicked {{ count }} times",
-    "click_to_inc": "Click to increment the counter"
+    "click_to_inc": "Click to increment the counter",
+    "f32_plural": {
+        "type": "f32",
+        "0.0": "You are broke",
+        "..0.0": "You owe money",
+        "_": "You have {{ count }}€"
+    },
+    "u32_plural": {
+        "type": "u32",
+        "0": "0",
+        "1..": "1.."
+    }
 }

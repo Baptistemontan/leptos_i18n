@@ -18,7 +18,7 @@ pub fn App(cx: Scope) -> impl IntoView {
 
     view! { cx,
         <button on:click=on_switch>{t!(i18n, first_namespace.click_to_change_lang)}</button>
-        <Counter />
+        <Tests />
     }
 }
 
@@ -40,7 +40,7 @@ fn Counter(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-fn AllTranslations(cx: Scope) -> impl IntoView {
+fn Tests(cx: Scope) -> impl IntoView {
     let i18n = i18n_context(cx);
 
     view! { cx,

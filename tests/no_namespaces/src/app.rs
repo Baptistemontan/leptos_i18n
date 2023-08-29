@@ -19,6 +19,7 @@ pub fn App(cx: Scope) -> impl IntoView {
     view! { cx,
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
         <Counter />
+        <Tests />
     }
 }
 
@@ -36,5 +37,15 @@ fn Counter(cx: Scope) -> impl IntoView {
         <p>{t!(i18n, click_count, count)}</p>
         // <p>{t!(i18n, click_count, count = move || counter.get())}</p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>
+    }
+}
+
+#[component]
+fn Tests(cx: Scope) -> impl IntoView {
+    let i18n = i18n_context(cx);
+
+    view! { cx,
+        <p>{t!(i18n, f32_plural, count = || 42f32)}</p>
+        <p>{t!(i18n, u32_plural, count = || 42u16)}</p>// u16 to test conversion
     }
 }

@@ -292,15 +292,21 @@ You may need to display different messages depending on a count, for exemple one
 }
 ```
 
-When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> N + Clone + 'static` with `N: Into<i64>`, the resulting code looks something like this:
+When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> Into<N> + Clone + 'static` where `N` is the specified type.
+By default `N` is `i64` but you can change that with the key `type`:
 
-```rust
-match i64::from(count()) {
-    0 => // render "You have not clicked yet",
-    1 => // render "You clicked once",
-    _ => // render "You clicked {{ count }} times"
+```json
+{
+  "money_in_da_bank": {
+    "type": "f32",
+    "0.0": "You are broke",
+    "..0.0": "You owe money",
+    "_": "You have {{ count }}€"
+  }
 }
 ```
+
+The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64` and he `type` key must be the first.
 
 You can also supply a range:
 
@@ -315,11 +321,53 @@ You can also supply a range:
 }
 ```
 
-But this exemple will not compile, because the resulting match statement will not cover the full `i64` range (even if your count is not a `i64`, it is till converted to one and need to match the full range), so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`.
+The resulting code looks something like this:
 
-If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> Into<i64> + Clone + 'static`.
+```rust
+match N::from(count()) {
+    0 => // render "You have not clicked yet",
+    1 => // render "You clicked once",
+    _ => // render "You clicked {{ count }} times"
+}
+```
+
+But this exemple will not compile, because the resulting match statement will not cover the full `i64` range (even if your count is not a `i64`, it is till converted to one and need to match the full range), so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`, or set `type` to a unsigned like `u64`.
+
+Because floats (`f32` and `f64`) are not accepted in match statements so it can't be known if the full range is covered, therefore floats must have a fallback (`"_"`) at the end.
+
+Those plurals:
+
+```json
+{
+  "money_in_da_bank": {
+    "type": "f32",
+    "0.0": "You are broke",
+    "..0.0": "You owe money",
+    "_": "You have {{ count }}€"
+  }
+}
+```
+
+Would generate code similar to this:
+
+```rust
+let plural_count = f32::from(count());
+if plural_count == 0.0 {
+  // render "You are broke"
+} else if (..0.0).contains(&plural_count) {
+  // render "You owe money"
+} else {
+  // render "You have {{ count }}€"
+}
+```
+
+If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> Into<N> + Clone + 'static`.
 
 You are not required to use the `count` variable in the locale, but it must be provided.
+
+If multiple locales use plurals for the same key, the count `type` must be the same.
+
+(PS: Floats are generaly not a good idea for money.)
 
 ### Namespaces
 
