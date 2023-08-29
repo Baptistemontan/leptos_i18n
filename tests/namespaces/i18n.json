@@ -1,5 +1,5 @@
 {
     "default": "en",
     "locales": ["en", "fr"],
-    "namespaces": ["change_locale", "counter"]
+    "namespaces": ["first_namespace", "second_namespace"]
 }

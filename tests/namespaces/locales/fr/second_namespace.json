@@ -1,4 +1,5 @@
 {
+    "common_key": "deuxième namespace",
     "click_count": "Vous avez cliqué {{ count }} fois",
     "click_to_inc": "Cliquez pour incrémenter le compteur"
 }

@@ -17,7 +17,7 @@ pub fn App(cx: Scope) -> impl IntoView {
     };
 
     view! { cx,
-        <button on:click=on_switch>{t!(i18n, change_locale.click_to_change_lang)}</button>
+        <button on:click=on_switch>{t!(i18n, first_namespace.click_to_change_lang)}</button>
         <Counter />
     }
 }
@@ -33,8 +33,18 @@ fn Counter(cx: Scope) -> impl IntoView {
     let count = move || counter.get();
 
     view! { cx,
-        <p>{t!(i18n, counter.click_count, count)}</p>
+        <p>{t!(i18n, second_namespace.click_count, count)}</p>
         // <p>{t!(i18n, click_count, count = move || counter.get())}</p>
-        <button on:click=inc>{t!(i18n, counter.click_to_inc)}</button>
+        <button on:click=inc>{t!(i18n, second_namespace.click_to_inc)}</button>
+    }
+}
+
+#[component]
+fn AllTranslations(cx: Scope) -> impl IntoView {
+    let i18n = i18n_context(cx);
+
+    view! { cx,
+        <p>{t!(i18n, first_namespace.common_key)}</p>
+        <p>{t!(i18n, second_namespace.common_key)}</p>
     }
 }
