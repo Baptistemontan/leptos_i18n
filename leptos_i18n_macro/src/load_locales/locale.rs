@@ -159,10 +159,25 @@ impl Locale {
             }
         }
 
-        let iter = mapped_keys.values_mut().filter_map(Option::as_mut);
+        let iter = mapped_keys
+            .iter_mut()
+            .filter_map(|(locale_key, value)| Some((locale_key, value.as_mut()?)));
 
-        for keys in iter {
-            if keys.contains(&InterpolateKey::Count) {
+        for (locale_key, keys) in iter {
+            let count_type = keys.iter().find_map(|key| match key {
+                InterpolateKey::Count(plural_type) => Some(plural_type),
+                _ => None,
+            });
+            if let Some(count_type) = count_type {
+                let plural_type_mismatch = keys.iter().any(|key| matches!(key, InterpolateKey::Count(plural_type) if plural_type != count_type));
+
+                if plural_type_mismatch {
+                    return Err(Error::PluralTypeMissmatch {
+                        locale_key: locale_key.name.to_string(),
+                        namespace: namespace.map(str::to_string),
+                    });
+                }
+
                 // if the set contains InterpolateKey::Count, remove variable keys with name "count"
                 // ("var_count" with the rename)
                 keys.retain(

@@ -5,12 +5,12 @@ use quote::{format_ident, quote, ToTokens};
 
 use super::{
     key::Key,
-    plural::{Plural, PluralSeed},
+    plural::{PluralType, Plurals},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
-    Plural(Vec<(Plural, Self)>),
+    Plural(Plurals),
     String(String),
     Variable(Key),
     Component { key: Key, inner: Box<Self> },
@@ -19,7 +19,7 @@ pub enum ParsedValue {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum InterpolateKey<'a> {
-    Count,
+    Count(PluralType),
     Variable(&'a Key),
     Component(&'a Key),
 }
@@ -43,11 +43,10 @@ impl ParsedValue {
                 }
             }
             ParsedValue::Plural(plurals) => {
-                for (_, value) in plurals {
-                    value.get_keys_inner(keys);
-                }
+                plurals.get_keys_inner(keys);
+                let plural_type = plurals.get_type();
                 keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Count);
+                    .insert(InterpolateKey::Count(plural_type));
             }
         }
     }
@@ -167,38 +166,7 @@ impl ParsedValue {
         match self {
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s, cx))),
-            ParsedValue::Plural(plurals) => {
-                let match_arms = plurals
-                    .iter()
-                    .map(|(plural, value)| quote!(#plural => #value));
-
-                let mut captured_values = None;
-
-                for (_, value) in plurals {
-                    value.get_keys_inner(&mut captured_values);
-                }
-
-                let captured_values = captured_values.map(|keys| {
-                    let keys = keys
-                        .into_iter()
-                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
-                    quote!(#(#keys)*)
-                });
-                let match_statement = quote! {
-                    match core::clone::Clone::clone(&var_count)() {
-                        #(
-                            #match_arms,
-                        )*
-                    }
-                };
-
-                let f = quote!({
-                    #captured_values
-                    move || #match_statement
-                });
-
-                tokens.push(quote! (leptos::IntoView::into_view(#f, cx)))
-            }
+            ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
             ParsedValue::Variable(key) => tokens
                 .push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key), cx))),
             ParsedValue::Component { key, inner } => {
@@ -229,14 +197,14 @@ impl<'a> InterpolateKey<'a> {
     pub fn as_ident(self) -> syn::Ident {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
-            InterpolateKey::Count => format_ident!("var_count"),
+            InterpolateKey::Count(_) => format_ident!("var_count"),
         }
     }
 
     pub fn as_key(self) -> Option<&'a Key> {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
-            InterpolateKey::Count => None,
+            InterpolateKey::Count(_) => None,
         }
     }
 }
@@ -293,7 +261,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         Ok(ParsedValue::new(v))
     }
 
-    fn visit_map<A>(mut self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    fn visit_map<A>(mut self, map: A) -> std::result::Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
@@ -312,29 +280,10 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             };
             return Err(serde::de::Error::custom(msg));
         }
-        let plural_seed = PluralSeed {
-            locale_name: self.locale,
-            locale_key: self.locale_key,
-            namespace: self.namespace,
-        };
-        let mut plurals = vec![];
+        let plurals = Plurals::from_serde_map(map, self)?;
 
-        while let Some(plural) = map.next_key_seed(plural_seed)? {
-            let value = map.next_value_seed(self)?;
-            plurals.push((plural, value));
-        }
-
-        // easy to avoid compile warning, check if a fallback is not at the end position
-        let invalid_fallback = plurals
-            .iter()
-            .rev()
-            .skip(1)
-            .any(|(plural, _)| matches!(plural, Plural::Fallback));
-        // also check if multiple fallbacks exist
-        let fallback_count = plurals
-            .iter()
-            .filter(|(plural, _)| matches!(plural, Plural::Fallback))
-            .count();
+        let (invalid_fallback, fallback_count, should_have_fallback) =
+            plurals.check_deserialization();
 
         if invalid_fallback {
             let msg = match self.namespace {
@@ -357,6 +306,18 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
                 None => format!(
                     "in locale {:?} at key {:?}: multiple fallbacks are not allowed",
                     self.locale, self.locale_key
+                ),
+            };
+            Err(serde::de::Error::custom(msg))
+        } else if fallback_count == 0 && should_have_fallback {
+            let msg = match self.namespace {
+                Some(namespace) => format!(
+                    "in locale {:?} at namespace {:?} at key {:?}: for plural type {:?} a fallback is required",
+                    self.locale, namespace, self.locale_key, plurals.get_type()
+                ),
+                None => format!(
+                    "in locale {:?} at key {:?}: for plural type {:?} a fallback is required",
+                    self.locale, self.locale_key, plurals.get_type()
                 ),
             };
             Err(serde::de::Error::custom(msg))

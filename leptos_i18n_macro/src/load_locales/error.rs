@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display};
 
-use super::cfg_file::ConfigFile;
+use super::{cfg_file::ConfigFile, plural::PluralType};
 use quote::quote;
 
 #[derive(Debug)]
@@ -37,18 +37,24 @@ pub enum Error {
         locale_key: String,
         namespace: Option<String>,
         plural: String,
+        plural_type: PluralType
     },
     InvalidBoundEnd {
         locale_name: String,
         locale_key: String,
         namespace: Option<String>,
         range: String,
+        plural_type: PluralType
     },
     ImpossibleRange {
         locale_name: String,
         locale_key: String,
         namespace: Option<String>,
         range: String,
+    },
+    PluralTypeMissmatch {
+        locale_key: String,
+        namespace: Option<String>,
     },
 }
 
@@ -116,19 +122,21 @@ impl Display for Error {
                 locale_name,
                 locale_key,
                 namespace: None,
-                plural
+                plural,
+                plural_type
             } => write!(f,
-                "In locale {:?} at key {:?} found invalid plural {:?}", 
-                locale_name, locale_key, plural
+                "In locale {:?} at key {:?} found invalid plural {:?}, expected {:?}", 
+                locale_name, locale_key, plural, plural_type
             ),
             Error::InvalidPlural {
                 locale_name,
                 locale_key,
                 namespace: Some(namespace),
-                plural
+                plural,
+                plural_type
             } => write!(f,
-                "In locale {:?} at namespace {:?} at key {:?} found invalid plural {:?}", 
-                locale_name, namespace, locale_key, plural
+                "In locale {:?} at namespace {:?} at key {:?} found invalid plural {:?}, expected {:?}", 
+                locale_name, namespace, locale_key, plural, plural_type
             ),
             Error::DuplicateLocalesInConfig(duplicates) => write!(f,
                 "Found duplicates locales in configuration file (i18n.json): {:?}", 
@@ -138,19 +146,41 @@ impl Display for Error {
                 locale_name,
                 locale_key,
                 namespace: None,
-                range
+                range,
+                plural_type: plural_type @ (PluralType::F32 | PluralType::F64)
             } => write!(f,
-                "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't end before i64::min", 
-                locale_name, locale_key, range
+                "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't use exclusif range with {:?}", 
+                locale_name, locale_key, range, plural_type
+            ),
+            Error::InvalidBoundEnd {
+                locale_name,
+                locale_key,
+                namespace: None,
+                range,
+                plural_type
+            } => write!(f,
+                "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't end before {:?} MIN", 
+                locale_name, locale_key, range, plural_type
             ),
             Error::InvalidBoundEnd {
                 locale_name,
                 locale_key,
                 namespace: Some(namespace),
-                range
+                range,
+                plural_type: plural_type @ (PluralType::F32 | PluralType::F64)
             } => write!(f,
-                "In locale {:?} at namespace {:?} at key {:?} the range {:?} end bound is invalid, you can't end before i64::min", 
-                locale_name, namespace, locale_key, range
+                "In locale {:?} at namespace {:?} at key {:?} the range {:?} end bound is invalid, you can't use exclusif range with {:?}", 
+                locale_name, namespace, locale_key, range, plural_type
+            ),
+            Error::InvalidBoundEnd {
+                locale_name,
+                locale_key,
+                namespace: Some(namespace),
+                range,
+                plural_type
+            } => write!(f,
+                "In locale {:?} at namespace {:?} at key {:?} the range {:?} end bound is invalid, you can't end before {:?} MIN", 
+                locale_name, namespace, locale_key, range, plural_type
             ),
             Error::ImpossibleRange {
                 locale_name,
@@ -176,6 +206,8 @@ impl Display for Error {
                 "Found duplicates namespaces in configuration file (i18n.json): {:?}", 
                 duplicates
             ),
+            Error::PluralTypeMissmatch { locale_key, namespace: Some(namespace) } => write!(f, "In namespace {:?} at key {:?} the plurals types don't match across locales", namespace, locale_key),
+            Error::PluralTypeMissmatch { locale_key, namespace: None } => write!(f, "At key {:?} the plurals types don't match across locales", locale_key),
         }
     }
 }

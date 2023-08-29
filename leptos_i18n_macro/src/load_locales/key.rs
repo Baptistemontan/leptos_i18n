@@ -35,12 +35,12 @@ impl Key {
         let Some(this) = Self::try_new(name) else {
             return Err(match kind {
                 KeyKind::LocaleName => Error::InvalidLocaleName(name.to_string()),
+                KeyKind::NameSpace => Error::InvalidNameSpaceName(name.to_string()),
                 KeyKind::LocaleKey { locale, namespace } => Error::InvalidLocaleKey {
                     key: name.to_string(),
                     locale: locale.to_string(),
                     namespace: namespace.map(str::to_string),
                 },
-                KeyKind::NameSpace => todo!(),
             });
         };
         Ok(this)
