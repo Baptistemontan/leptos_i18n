@@ -133,17 +133,31 @@ impl Plurals {
     }
 
     fn to_tokens_floats<T: PluralFloats>(plurals: &[(Plural<T>, ParsedValue)]) -> TokenStream {
-        let mut ifs = plurals.iter().map(|(plural, value)| match plural {
-            Plural::Exact(exact) => quote!(if plural_count == #exact { #value }),
-            Plural::Range { .. } => {
-                quote!(if core::ops::RangeBounds::contains(&(#plural), &plural_count) { #value })
+        fn to_condition<T: PluralFloats>(plural: &Plural<T>) -> Option<TokenStream> {
+            match plural {
+                Plural::Exact(exact) => Some(quote!(plural_count == #exact)),
+                Plural::Range { .. } => {
+                    Some(quote!(core::ops::RangeBounds::contains(&(#plural), &plural_count)))
+                }
+                Plural::Multiple(conditions) => {
+                    let mut conditions = conditions.iter().filter_map(to_condition);
+                    let first = conditions.next();
+                    Some(quote!(#first #(|| #conditions)*))
+                }
+                Plural::Fallback => None,
             }
-            Plural::Fallback => quote!({ #value }),
-        });
+        }
+
+        let mut ifs = plurals
+            .iter()
+            .map(|(plural, value)| match to_condition(plural) {
+                None => quote!({ #value }),
+                Some(condition) => quote!(if #condition { #value }),
+            });
         let first = ifs.next();
         let ifs = quote! {
             #first
-            #( else #ifs)*
+            #(else #ifs)*
         };
 
         let mut captured_values = None;
@@ -294,7 +308,14 @@ impl Plurals {
             .iter()
             .rev()
             .skip(1)
-            .any(|(plural, _)| matches!(plural, Plural::Fallback));
+            .any(|(plural, _)| match plural {
+                Plural::Fallback => true,
+                // "n | _" is kind of pointless but still supported, but still check if a fallback is put outside the end
+                Plural::Multiple(multi) => multi
+                    .iter()
+                    .any(|plural| matches!(plural, Plural::Fallback)),
+                _ => false,
+            });
         // also check if multiple fallbacks exist
         let fallback_count = plurals
             .iter()
@@ -337,10 +358,11 @@ impl ToTokens for Plurals {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Plural<T> {
     Exact(T),
     Range { start: Option<T>, end: Bound<T> },
+    Multiple(Vec<Self>),
     Fallback,
 }
 
@@ -378,6 +400,15 @@ impl<T: PluralNumber> Plural<T> {
         if s == "_" {
             return Ok(Self::Fallback);
         };
+
+        if s.contains('|') {
+            return s
+                .split('|')
+                .map(|s| Self::new(locale_name, locale_key, namespace, s))
+                .collect::<Result<_>>()
+                .map(Self::Multiple);
+        }
+
         if let Some((start, end)) = s.split_once("..") {
             let start = start.trim();
             let start = start.is_empty().not().then(|| parse(start)).transpose()?;
@@ -452,6 +483,14 @@ impl<T: PluralNumber> ToTokens for Plural<T> {
                 quote!(#start..#end)
             }
             Plural::Fallback => quote!(_),
+            Plural::Multiple(matchs) => {
+                let mut matchs = matchs.iter().map(Self::to_token_stream);
+                if let Some(first) = matchs.next() {
+                    quote!(#first #(| #matchs)*)
+                } else {
+                    quote!()
+                }
+            }
         }
     }
 
