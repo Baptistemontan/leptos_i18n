@@ -19,7 +19,7 @@ struct Field<'a> {
 
 impl Interpolation {
     pub fn new(key: &Key, keys_set: &HashSet<InterpolateKey>, locales: &[Locale]) -> Self {
-        let ident = syn::Ident::new(&format!("__{}_builder", key.name), Span::call_site());
+        let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
 
         let locale_field = Key::new("__locale", super::key::KeyKind::LocaleName).unwrap();
 
@@ -43,7 +43,7 @@ impl Interpolation {
         let new_impl = Self::new_impl(&ident, &locale_field, &fields);
         let default_generics = fields
             .iter()
-            .map(|_| quote!(_builders::EmptyInterpolateValue));
+            .map(|_| quote!(builders::EmptyInterpolateValue));
         let default_generic_ident = quote!(#ident<#(#default_generics,)*>);
 
         let imp = quote! {

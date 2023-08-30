@@ -130,14 +130,14 @@ fn create_locale_type_inner(
 
     let builder_fields = builders.iter().map(|(key, inter)| {
         let inter_ident = &inter.default_generic_ident;
-        quote!(pub #key: _builders::#inter_ident)
+        quote!(pub #key: builders::#inter_ident)
     });
 
     let init_builder_fields: Vec<TokenStream> = builders
         .iter()
         .map(|(key, inter)| {
             let ident = &inter.ident;
-            quote!(#key: _builders::#ident::new(_variant))
+            quote!(#key: builders::#ident::new(_variant))
         })
         .collect();
 
@@ -169,7 +169,7 @@ fn create_locale_type_inner(
         let empty_type = create_empty_type();
         quote! {
             #[doc(hidden)]
-            pub mod _builders {
+            pub mod builders {
                 use super::LocaleEnum;
 
                 #empty_type
@@ -251,7 +251,7 @@ fn create_namespaces_types(
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
-        let namespace_module_ident = format_ident!("__{}_mod", namespace_ident);
+        let namespace_module_ident = format_ident!("ns_{}", namespace_ident);
         let builders_keys = keys.get(&namespace.key).unwrap();
         let type_impl =
             create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys, true);
@@ -267,13 +267,13 @@ fn create_namespaces_types(
     let namespaces_fields = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
         let namespace_module_ident = format_ident!("__{}_mod", &key.ident);
-        quote!(pub #key: __namespaces::#namespace_module_ident::#key)
+        quote!(pub #key: namespaces::#namespace_module_ident::#key)
     });
 
     let namespaces_fields_new = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
         let namespace_module_ident = format_ident!("__{}_mod", &key.ident);
-        quote!(#key: __namespaces::#namespace_module_ident::#key::new(_variant))
+        quote!(#key: namespaces::#namespace_module_ident::#key::new(_variant))
     });
 
     let locales = &namespaces.iter().next().unwrap().locales;
@@ -289,7 +289,7 @@ fn create_namespaces_types(
     });
 
     quote! {
-        pub mod __namespaces {
+        pub mod namespaces {
             use super::{LocaleEnum, Locales};
 
             #(
