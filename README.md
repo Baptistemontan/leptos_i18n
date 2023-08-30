@@ -374,6 +374,7 @@ You can also have multiple conditions:
 ```json
 {
   "click_count": {
+    "type": "u32",
     "0 | 5": "You clicked 0 or 5 times",
     "1": "You clicked once",
     "2..=10 | 20": "You clicked {{ count }} times",
