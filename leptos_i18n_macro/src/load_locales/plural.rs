@@ -670,6 +670,27 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn test_multiple() {
+        let plural = Plural::<i32>::new("", "", None, "5 | 5..8 | 70..=80 | _").unwrap();
+
+        assert_eq!(
+            plural,
+            Plural::Multiple(vec![
+                Plural::Exact(5),
+                Plural::Range {
+                    start: Some(5),
+                    end: Bound::Included(7)
+                },
+                Plural::Range {
+                    start: Some(70),
+                    end: Bound::Included(80)
+                },
+                Plural::Fallback
+            ])
+        );
+    }
 }
 
 mod plural_number_impl {
