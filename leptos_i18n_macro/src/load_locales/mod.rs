@@ -244,6 +244,10 @@ fn create_locale_type_inner(
     }
 }
 
+fn create_namespace_mod_ident(namespace_ident: &syn::Ident) -> syn::Ident {
+    format_ident!("ns_{}", namespace_ident)
+}
+
 fn create_namespaces_types(
     i18n_keys_ident: &syn::Ident,
     namespaces: &[Namespace],
@@ -251,7 +255,7 @@ fn create_namespaces_types(
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
-        let namespace_module_ident = format_ident!("ns_{}", namespace_ident);
+        let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
         let builders_keys = keys.get(&namespace.key).unwrap();
         let type_impl =
             create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys, true);
@@ -266,13 +270,13 @@ fn create_namespaces_types(
 
     let namespaces_fields = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
-        let namespace_module_ident = format_ident!("__{}_mod", &key.ident);
+        let namespace_module_ident = create_namespace_mod_ident(&key.ident);
         quote!(pub #key: namespaces::#namespace_module_ident::#key)
     });
 
     let namespaces_fields_new = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
-        let namespace_module_ident = format_ident!("__{}_mod", &key.ident);
+        let namespace_module_ident = create_namespace_mod_ident(&key.ident);
         quote!(#key: namespaces::#namespace_module_ident::#key::new(_variant))
     });
 
