@@ -48,7 +48,8 @@ impl Key {
 
     pub fn try_new(name: &str) -> Option<Self> {
         let name = name.trim();
-        let ident = syn::parse_str::<syn::Ident>(name).ok()?;
+        let ident_repr = name.replace('-', "_");
+        let ident = syn::parse_str::<syn::Ident>(&ident_repr).ok()?;
         Some(Key {
             name: name.to_string(),
             ident,
