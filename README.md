@@ -229,7 +229,7 @@ view! { cx,
 }
 ```
 
-The only restriction on variables/components names is that it must be a valid rust identifier. You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
+The only restriction on variables/components names is that it must be a valid rust identifier (`-` are allowed, but are replaced by `_` for the identifier). You can define variables inside components: `You have clicked <b>{{ count }}</b> times`, and you can nest components, even with the same identifier: `<b><b><i>VERY IMPORTANT</i></b></b>`.
 
 For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern where variables are passed to functions called `.var_$name(var)` and components to `.comp_$name(comp)`, so for the counter above but without the `t!` macro it will look like this:
 
@@ -413,7 +413,7 @@ Accessing your values with the `t!` macro will be like this:
 t!(i18n, $namespace.$key)
 ```
 
-You can have as many namespaces as you want, but the name should be a valid rust identifier.
+You can have as many namespaces as you want, but the name should be a valid rust identifier (same as component/variable names, `-` are replaced by `_`).
 
 ### Examples
 
