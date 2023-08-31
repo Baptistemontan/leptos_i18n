@@ -787,13 +787,7 @@ mod tests {
     fn test_range_full() {
         let plural = Plural::<i32>::new("", "", None, "..").unwrap();
 
-        assert_eq!(
-            plural,
-            Plural::Range {
-                start: None,
-                end: Bound::Unbounded
-            }
-        );
+        assert_eq!(plural, Plural::Fallback);
     }
 
     #[test]
