@@ -8,7 +8,7 @@ pub enum Error {
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
     ConfigFileDeser(toml::de::Error),
-    ConfigFileDefaultMissing(ConfigFile),
+    ConfigFileDefaultMissing(Box<ConfigFile>),
     LocaleFileNotFound {
         locale: String,
         namespace: Option<String>, 

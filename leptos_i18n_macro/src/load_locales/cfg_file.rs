@@ -1,16 +1,17 @@
-use serde::de::DeserializeSeed;
+use serde::{de::DeserializeSeed, Deserialize};
 
 use super::{
     error::{Error, Result},
     key::{Key, KeySeed, KeyVecSeed},
 };
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
 #[derive(Debug)]
 pub struct ConfigFile {
     pub default: Key,
     pub locales: Vec<Key>,
     pub name_spaces: Option<Vec<Key>>,
+    pub locales_dir: Cow<'static, str>,
 }
 
 impl ConfigFile {
@@ -52,7 +53,7 @@ impl ConfigFile {
             toml::de::from_str(&cfg_file_whitespaced).map_err(Error::ConfigFileDeser)?;
 
         if !cfg.locales.contains(&cfg.default) {
-            Err(Error::ConfigFileDefaultMissing(cfg))
+            Err(Error::ConfigFileDefaultMissing(Box::new(cfg)))
         } else if let Some(duplicates) = Self::contain_duplicates(&cfg.locales) {
             Err(Error::DuplicateLocalesInConfig(duplicates))
         } else if let Some(duplicates) = cfg
@@ -86,11 +87,12 @@ enum Field {
     Default,
     Locales,
     Namespaces,
+    LocalesDir,
     Unknown,
 }
 
 impl Field {
-    const FIELDS: &'static [&'static str] = &["default", "locales, namespaces"];
+    const FIELDS: &'static [&'static str] = &["default", "locales, namespaces", "locales-dir"];
 }
 
 struct FieldVisitor;
@@ -123,8 +125,21 @@ impl<'de> serde::de::Visitor<'de> for FieldVisitor {
             "default" => Ok(Field::Default),
             "locales" => Ok(Field::Locales),
             "namespaces" => Ok(Field::Namespaces),
+            "locales-dir" => Ok(Field::LocalesDir),
             _ => Ok(Field::Unknown), // skip unknown fields
         }
+    }
+}
+
+struct StringSeed;
+impl<'de> serde::de::DeserializeSeed<'de> for StringSeed {
+    type Value = String;
+
+    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer)
     }
 }
 
@@ -154,6 +169,7 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
         let mut default = None;
         let mut locales = None;
         let mut name_spaces = None;
+        let mut locales_dir = None;
         while let Some(field) = map.next_key::<Field>()? {
             match field {
                 Field::Default => {
@@ -171,6 +187,9 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
                     KeyVecSeed(KeySeed::Namespace),
                     "namespaces",
                 )?,
+                Field::LocalesDir => {
+                    deser_field(&mut locales_dir, &mut map, StringSeed, "locales-dir")?
+                }
                 Field::Unknown => continue,
             }
         }
@@ -182,10 +201,15 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
             return Err(serde::de::Error::missing_field("locales"));
         };
 
+        let locales_dir = locales_dir
+            .map(Cow::Owned)
+            .unwrap_or(Cow::Borrowed("./locales"));
+
         Ok(ConfigFile {
             default,
             locales,
             name_spaces,
+            locales_dir,
         })
     }
 

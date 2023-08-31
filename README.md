@@ -65,6 +65,15 @@ And the files must look like this:
 
 All locales files need to have exactly the same keys.
 
+If you need your locales to be in a different folders than `./locales` you can specify the path in the configuration:
+
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+locales-dir = "./path/to/locales"
+```
+
 ### Loading the locales
 
 You can then use the `load_locales!()` macro in a module of the project, this will load _at compile time_ the locales, and create a struct that describe your locales:
