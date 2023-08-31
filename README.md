@@ -284,42 +284,49 @@ You may need to display different messages depending on a count, for exemple one
 
 ```json
 {
-  "click_count": {
-    "0": "You have not clicked yet",
-    "1": "You clicked once",
-    "_": "You clicked {{ count }} times"
-  }
+  "click_count": [
+    {
+      "count": "0",
+      "value": "You have not clicked yet"
+    },
+    {
+      "count": "1",
+      "value": "You clicked once"
+    },
+    {
+      "count": "_",
+      "value": "You clicked {{ count }} times"
+    }
+  ]
 }
 ```
 
 When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> Into<N> + Clone + 'static` where `N` is the specified type.
-By default `N` is `i64` but you can change that with the key `type`:
+By default `N` is `i64` but you can change that by specifying the type as the **first** value in the sequence:
 
 ```json
 {
-  "money_in_da_bank": {
-    "type": "f32",
-    "0.0": "You are broke",
-    "..0.0": "You owe money",
-    "_": "You have {{ count }}€"
-  }
+  "money_count": [
+    "f32",
+    {
+      "count": "0.0",
+      "value": "You are broke"
+    },
+    {
+      "count": "..0.0",
+      "value": "You owe money"
+    },
+    {
+      "count": "_",
+      "value": "You have {{ count }}€"
+    }
+  ]
 }
 ```
 
-The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64` and he `type` key must be the first.
+The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`.
 
-You can also supply a range:
-
-```json
-{
-  "click_count": {
-    "0": "You have not clicked yet",
-    "1": "You clicked once",
-    "2..=10": "You clicked {{ count }} times",
-    "11..": "You clicked <b>a lot</b>"
-  }
-}
-```
+As seen above you can supply a range: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will considered fallback `_`)
 
 The resulting code looks something like this:
 
@@ -327,28 +334,16 @@ The resulting code looks something like this:
 match N::from(count()) {
     0 => // render "You have not clicked yet",
     1 => // render "You clicked once",
+    2..=20 => // render "You clicked beetween 2 and 20 times"
     _ => // render "You clicked {{ count }} times"
 }
 ```
 
-But this exemple will not compile, because the resulting match statement will not cover the full `i64` range (even if your count is not a `i64`, it is till converted to one and need to match the full range), so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`, or set `type` to a unsigned like `u64`.
+Because it expand to a match statement, a compilation error will be produced if the full range of `N` is not covered.
 
-Because floats (`f32` and `f64`) are not accepted in match statements so it can't be known if the full range is covered, therefore floats must have a fallback (`"_"`) at the end.
+But floats (`f32` and `f64`) are not accepted in match statements it expand to a `if-else` chain, therefore must and by a `else` block, so a fallback `_` or `..` is required.
 
-Those plurals:
-
-```json
-{
-  "money_in_da_bank": {
-    "type": "f32",
-    "0.0": "You are broke",
-    "..0.0": "You owe money",
-    "_": "You have {{ count }}€"
-  }
-}
-```
-
-Would generate code similar to this:
+The plural above would generate code similar to this:
 
 ```rust
 let plural_count = f32::from(count());
@@ -365,23 +360,36 @@ If one locale use plurals for a key, another locale does not need to use it, but
 
 You are not required to use the `count` variable in the locale, but it must be provided.
 
-If multiple locales use plurals for the same key, the count `type` must be the same.
+If multiple locales use plurals for the same key, the count type must be the same.
 
 (PS: Floats are generaly not a good idea for money.)
 
-You can also have multiple conditions:
+You can also have multiple conditions by either separate them by `|` or put them in a sequence:
 
 ```json
 {
-  "click_count": {
-    "type": "u32",
-    "0 | 5": "You clicked 0 or 5 times",
-    "1": "You clicked once",
-    "2..=10 | 20": "You clicked {{ count }} times",
-    "11..": "You clicked <b>a lot</b>"
-  }
+  "click_count": [
+    "u32",
+    {
+      "count": "0 | 5",
+      "value": "You clicked 0 or 5 times"
+    },
+    {
+      "count": "1",
+      "value": "You clicked once"
+    },
+    {
+      "count": ["2..=10", "20"],
+      "value": "You clicked {{ count }} times"
+    },
+    {
+      "value": "You clicked <b>a lot</b>"
+    }
+  ]
 }
 ```
+
+Fallback can omit the `count` key.
 
 ### Namespaces
 
