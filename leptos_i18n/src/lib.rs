@@ -39,13 +39,12 @@
 //!
 //! # A Simple Counter
 //!
-//! `i18n.json`:
+//! `Cargo.toml`:
 //!
-//! ```json
-//! {
-//!     "default": "en",
-//!     "locales": ["en", "fr"]
-//! }
+//! ```toml
+//! [package.metadata.leptos-i18n]
+//! default = "en"
+//! locales = ["en", "fr"]
 //! ```
 //!
 //! `./locales/en.json`:

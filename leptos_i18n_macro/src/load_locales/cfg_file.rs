@@ -1,8 +1,10 @@
+use serde::de::DeserializeSeed;
+
 use super::{
     error::{Error, Result},
     key::{Key, KeySeed, KeyVecSeed},
 };
-use std::{collections::HashSet, fs::File, path::Path};
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub struct ConfigFile {
@@ -30,14 +32,24 @@ impl ConfigFile {
         duplicates
     }
 
-    pub fn new<T: AsRef<Path>>(path: Option<T>) -> Result<ConfigFile> {
-        let path = path
-            .as_ref()
-            .map(|path| path.as_ref())
-            .unwrap_or("./i18n.json".as_ref());
-        let cfg_file = File::open(path).map_err(Error::ConfigFileNotFound)?;
+    pub fn new() -> Result<ConfigFile> {
+        let cfg_file_str =
+            std::fs::read_to_string("./Cargo.toml").map_err(Error::ManifestNotFound)?;
 
-        let cfg: ConfigFile = serde_json::from_reader(cfg_file).map_err(Error::ConfigFileDeser)?;
+        let Some((before, i18n_cfg)) = cfg_file_str.split_once("[package.metadata.leptos-i18n]")
+        else {
+            return Err(Error::ConfigNotPresent);
+        };
+
+        // this is to have the correct line number in the reported error.
+        let cfg_file_whitespaced = before
+            .chars()
+            .filter(|c| *c == '\n')
+            .chain(i18n_cfg.chars())
+            .collect::<String>();
+
+        let cfg: ConfigFile =
+            toml::de::from_str(&cfg_file_whitespaced).map_err(Error::ConfigFileDeser)?;
 
         if !cfg.locales.contains(&cfg.default) {
             Err(Error::ConfigFileDefaultMissing(cfg))
@@ -55,6 +67,10 @@ impl ConfigFile {
     }
 }
 
+/// -----------------------------------------
+/// Deserialization
+/// -----------------------------------------
+
 struct CfgFileVisitor;
 
 impl<'de> serde::Deserialize<'de> for ConfigFile {
@@ -62,7 +78,7 @@ impl<'de> serde::Deserialize<'de> for ConfigFile {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_struct("ConfigFile", &["default", "locales"], CfgFileVisitor)
+        deserializer.deserialize_struct("ConfigFile", Field::FIELDS, CfgFileVisitor)
     }
 }
 
@@ -70,6 +86,11 @@ enum Field {
     Default,
     Locales,
     Namespaces,
+    Unknown,
+}
+
+impl Field {
+    const FIELDS: &'static [&'static str] = &["default", "locales, namespaces"];
 }
 
 struct FieldVisitor;
@@ -89,7 +110,8 @@ impl<'de> serde::de::Visitor<'de> for FieldVisitor {
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             formatter,
-            "an identifier for the field \"default\" or the field \"locales\""
+            "an identifier for the fields {:?}",
+            Field::FIELDS
         )
     }
 
@@ -101,7 +123,7 @@ impl<'de> serde::de::Visitor<'de> for FieldVisitor {
             "default" => Ok(Field::Default),
             "locales" => Ok(Field::Locales),
             "namespaces" => Ok(Field::Namespaces),
-            _ => Err(E::unknown_field(v, &["default", "locales"])),
+            _ => Ok(Field::Unknown), // skip unknown fields
         }
     }
 }
@@ -113,35 +135,43 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
+        fn deser_field<'de, A, S, T>(
+            option: &mut Option<T>,
+            map: &mut A,
+            seed: S,
+            field_name: &'static str,
+        ) -> Result<(), A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+            S: DeserializeSeed<'de, Value = T>,
+        {
+            if option.replace(map.next_value_seed(seed)?).is_some() {
+                Err(serde::de::Error::duplicate_field(field_name))
+            } else {
+                Ok(())
+            }
+        }
         let mut default = None;
         let mut locales = None;
         let mut name_spaces = None;
         while let Some(field) = map.next_key::<Field>()? {
             match field {
                 Field::Default => {
-                    if default
-                        .replace(map.next_value_seed(KeySeed::LocaleName)?)
-                        .is_some()
-                    {
-                        return Err(serde::de::Error::duplicate_field("default"));
-                    }
+                    deser_field(&mut default, &mut map, KeySeed::LocaleName, "default")?
                 }
-                Field::Locales => {
-                    if locales
-                        .replace(map.next_value_seed(KeyVecSeed(KeySeed::LocaleName))?)
-                        .is_some()
-                    {
-                        return Err(serde::de::Error::duplicate_field("locales"));
-                    }
-                }
-                Field::Namespaces => {
-                    if name_spaces
-                        .replace(map.next_value_seed(KeyVecSeed(KeySeed::Namespace))?)
-                        .is_some()
-                    {
-                        return Err(serde::de::Error::duplicate_field("locales"));
-                    }
-                }
+                Field::Locales => deser_field(
+                    &mut locales,
+                    &mut map,
+                    KeyVecSeed(KeySeed::LocaleName),
+                    "locales",
+                )?,
+                Field::Namespaces => deser_field(
+                    &mut name_spaces,
+                    &mut map,
+                    KeyVecSeed(KeySeed::Namespace),
+                    "namespaces",
+                )?,
+                Field::Unknown => continue,
             }
         }
         let Some(default) = default else {

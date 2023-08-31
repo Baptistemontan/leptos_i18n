@@ -14,7 +14,7 @@ pub(crate) mod t_macro;
 // this is to use serde::de::DeserializeSeed to pass information on what locale or key we are currently at
 // and give better information on what went wrong when an error is emitted.
 
-/// Look at the `i18n.json` configuration file at the root of the project and load the given locales.
+/// Look for the configuration in the cargo manifest `Cargo.toml` at the root of the project and load the given locales.
 ///
 /// It creates multiple types allowing to easily incorporate translations in you application such as:
 ///
@@ -23,7 +23,7 @@ pub(crate) mod t_macro;
 /// - `Locales`: an empty type that serves as a bridge beetween the two types.
 #[proc_macro]
 pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match load_locales::load_locales(None::<String>) {
+    match load_locales::load_locales() {
         Ok(ts) => ts.into(),
         Err(err) => err.into(),
     }
