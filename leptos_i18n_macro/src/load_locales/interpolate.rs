@@ -15,6 +15,8 @@ struct Field<'a> {
     generic: syn::Ident,
     name: String,
     kind: &'a InterpolateKey<'a>,
+    #[cfg(feature = "debug_interpolations")]
+    real_name: &'a str,
 }
 
 impl Interpolation {
@@ -26,13 +28,20 @@ impl Interpolation {
         let fields = keys_set
             .iter()
             .map(|kind| {
-                let key = kind.as_key();
-                let name = format!("__{}", key.map(|key| key.name.as_str()).unwrap_or("count"));
+                #[cfg(feature = "debug_interpolations")]
+                let real_name = kind.get_real_name();
+                let key = kind
+                    .as_key()
+                    .map(|key| key.name.as_str())
+                    .unwrap_or("var_count");
+                let name = format!("__{}", key);
                 let generic = syn::Ident::new(&name, Span::call_site());
                 Field {
                     generic,
                     name,
                     kind,
+                    #[cfg(feature = "debug_interpolations")]
+                    real_name,
                 }
             })
             .collect::<Vec<_>>();
@@ -97,11 +106,62 @@ impl Interpolation {
             .collect()
     }
 
+    #[cfg(feature = "debug_interpolations")]
+    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+        let failing_builds = Self::generate_all_failing_build_fn(ident, fields);
+
+        let left_generics = fields.iter().map(|field| {
+            let ident = &field.generic;
+            let generic = field.kind.get_generic();
+            quote!(#ident: #generic)
+        });
+
+        let right_generics = fields.iter().map(|field| {
+            let ident = &field.generic;
+            quote!(#ident)
+        });
+
+        quote! {
+            #(#failing_builds)*
+
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                pub fn build(self) -> Self {
+                    self
+                }
+            }
+        }
+    }
+
+    #[cfg(not(feature = "debug_interpolations"))]
+    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+        let left_generics = fields.iter().map(|field| {
+            let ident = &field.generic;
+            quote!(#ident)
+        });
+
+        let right_generics = left_generics.clone();
+
+        quote! {
+
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                #[inline]
+                pub fn build(self) -> Self {
+                    self
+                }
+            }
+        }
+    }
+
     fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
         let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
 
+        let build_fns = Self::generate_build_fns(ident, fields);
+
         quote! {
             #set_fns
+            #build_fns
         }
     }
 
@@ -139,6 +199,65 @@ impl Interpolation {
             .chain(right_fields.iter().map(other_field_map_fn))
     }
 
+    #[cfg(feature = "debug_interpolations")]
+    fn generate_all_failing_build_fn<'a>(
+        ident: &'a syn::Ident,
+        fields: &'a [Field],
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        assert!(
+            fields.len() <= 64,
+            "max number of keys for debug_interpolations is 64"
+        );
+        let max = 1u64 << fields.len();
+        (0..max - 1).map(|states| {
+            let fields_iter = fields.iter().enumerate().map(|(i, field)| {
+                let state = (states >> i & 1) == 1;
+                (state, field)
+            });
+            Self::generate_failing_build_fn(ident, fields_iter)
+        })
+    }
+
+    #[cfg(feature = "debug_interpolations")]
+    fn generate_failing_build_fn<'a, I>(self_ident: &syn::Ident, fields: I) -> TokenStream
+    where
+        I: Iterator<Item = (bool, &'a Field<'a>)> + Clone,
+    {
+        use std::borrow::Cow;
+
+        let right_generics = fields.clone().map(|(set, field)| {
+            if set {
+                quote::ToTokens::to_token_stream(&field.generic)
+            } else {
+                quote!(EmptyInterpolateValue)
+            }
+        });
+        let left_generics = fields.clone().filter(|(set, _)| *set).map(|(_, field)| {
+            let ident = &field.generic;
+            let generic_bound = field.kind.get_generic();
+            quote!(#ident: #generic_bound)
+        });
+
+        let missing_fields = fields
+            .filter_map(|(set, field)| (!set).then_some(field))
+            .map(|field| match field.kind {
+                InterpolateKey::Count(_) | InterpolateKey::Variable(_) => field.real_name.into(),
+                InterpolateKey::Component(_) => format!("<{}>", field.real_name).into(),
+            })
+            .collect::<Vec<Cow<_>>>();
+
+        let error_message = format!("\nMissing interpolations keys: {:?}", missing_fields);
+
+        quote! {
+            impl<#(#left_generics,)*> #self_ident<#(#right_generics,)*> {
+                #[deprecated(note = #error_message)]
+                pub fn build(self) {
+                    { panic!(#error_message) }
+                }
+            }
+        }
+    }
+
     fn create_field_set_fn(
         ident: &syn::Ident,
         locale_field: &Key,
@@ -150,19 +269,7 @@ impl Interpolation {
             let generic = &field.generic;
             quote!(#generic)
         };
-        let output_field_generic = match field.kind {
-            InterpolateKey::Variable(_) => {
-                quote!(leptos::IntoView + core::clone::Clone + 'static)
-            }
-            InterpolateKey::Count(plural_type) => {
-                quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
-            }
-            InterpolateKey::Component(_) => quote!(
-                Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View
-                    + core::clone::Clone
-                    + 'static
-            ),
-        };
+        let output_field_generic = field.kind.get_generic();
         let output_generics = Self::generate_generics(
             left_fields,
             Some(quote!(impl #output_field_generic)),
@@ -173,7 +280,7 @@ impl Interpolation {
             if let Some(key) = field.kind.as_key() {
                 quote!(#key)
             } else {
-                quote!(count)
+                quote!(var_count)
             }
         })
         .chain(Some(quote!(#locale_field)));
@@ -294,17 +401,8 @@ impl Interpolation {
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
-            match field.kind {
-                InterpolateKey::Variable(_) => {
-                    quote!(#ident: leptos::IntoView + core::clone::Clone + 'static)
-                }
-                InterpolateKey::Component(_) => {
-                    quote!(#ident: Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static)
-                }
-                InterpolateKey::Count(plural_type) => {
-                    quote!(#ident: Fn() -> #plural_type + core::clone::Clone + 'static)
-                }
-            }
+            let generic = field.kind.get_generic();
+            quote!(#ident: #generic)
         });
 
         let right_generics = fields.iter().map(|field| {

@@ -207,6 +207,31 @@ impl<'a> InterpolateKey<'a> {
             InterpolateKey::Count(_) => None,
         }
     }
+
+    #[cfg(feature = "debug_interpolations")]
+    pub fn get_real_name(self) -> &'a str {
+        match self {
+            InterpolateKey::Count(_) => "count",
+            InterpolateKey::Variable(key) => key.name.strip_prefix("var_").unwrap(),
+            InterpolateKey::Component(key) => key.name.strip_prefix("comp_").unwrap(),
+        }
+    }
+
+    pub fn get_generic(self) -> TokenStream {
+        match self {
+            InterpolateKey::Variable(_) => {
+                quote!(leptos::IntoView + core::clone::Clone + 'static)
+            }
+            InterpolateKey::Count(plural_type) => {
+                quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
+            }
+            InterpolateKey::Component(_) => quote!(
+                Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View
+                    + core::clone::Clone
+                    + 'static
+            ),
+        }
+    }
 }
 
 impl<'a> ToTokens for InterpolateKey<'a> {
