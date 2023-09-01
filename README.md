@@ -429,7 +429,7 @@ The `serde` feature implement `serde::Serialize` and `serde::Deserialize` for th
 
 The `nightly` feature enable to do `i18n()` to get the locale instead of `i18n.get_locale()` and `i18n(new_locale)` instead of `i18n.set_locale(new_locale)`.
 
-The `debug_interpolations` feature enable the macros to generate code to emit a warning if a key is supplied twice in interpolations.
+The `debug_interpolations` feature enable the macros to generate code to emit a warning if a key is supplied twice in interpolations and a better compilation error when a key is missing.
 This is a feature as this code is not "necessary" and could slow compile times,
 advice is to enable it for debug builds but disable it for release builds.
 

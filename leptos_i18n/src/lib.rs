@@ -35,7 +35,7 @@
 //! - `hydrate`: Enable this feature when building for the client.
 //! - `actix`: Enable this feature when building for the server with actix as the backend (can't be enabled with the `axum` feature).
 //! - `axum`: Enable this feature when building for the server with axum as the backend (can't be enabled with the `axum` feature).
-//! - `debug_interpolations`: Enable the macros to generate code to emit a warning if a key is supplied twice in interpolations.
+//! - `debug_interpolations`: Enable the macros to generate code to emit a warning if a key is supplied twice in interpolations and a better compilation error when a key is missing.
 //! - `cookie` (*Default*): Enable this feature to set a cookie on the client to remember the last locale set.
 //!
 //! # A Simple Counter
