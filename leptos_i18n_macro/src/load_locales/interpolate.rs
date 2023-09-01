@@ -83,21 +83,25 @@ impl Interpolation {
         }
     }
 
-    fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
-        let impls = Self::create_key_impl(ident, locale_field, fields);
+    fn split_at<T>(slice: &[T], i: usize) -> (&[T], &T, &[T]) {
+        let (left, rest) = slice.split_at(i);
+        let (mid, right) = rest.split_first().unwrap();
+        (left, mid, right)
+    }
+    fn genenerate_set_fns(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
+        (0..fields.len())
+            .map(|i| Self::split_at(fields, i))
+            .map(|(left_fields, field, right_fields)| {
+                Self::create_field_set_fn(ident, locale_field, left_fields, right_fields, field)
+            })
+            .collect()
+    }
 
-        let generics = fields
-            .iter()
-            .map(|field| &field.generic)
-            .collect::<Vec<_>>();
+    fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
+        let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
 
         quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#generics,)*> #ident<#(#generics,)*> {
-                #(
-                    #impls
-                )*
-            }
+            #set_fns
         }
     }
 
@@ -119,80 +123,149 @@ impl Interpolation {
         }
     }
 
-    fn create_key_impl<'a>(
-        ident: &'a syn::Ident,
-        locale_field: &'a Key,
-        fields: &'a [Field],
-    ) -> impl Iterator<Item = TokenStream> + 'a {
-        fields.iter().map(move |field| {
-            let output_generics = fields.iter().map(|other_field| {
-                if other_field.name == field.name {
-                    match field.kind {
-                        InterpolateKey::Variable(_) => quote!(__T),
-                        InterpolateKey::Count(plural_type) => quote!(impl Fn() -> #plural_type + core::clone::Clone + 'static),
-                        InterpolateKey::Component(_) => quote!(impl Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static),
-                    }
-                } else {
-                    let generic = &other_field.generic;
-                    quote!(#generic)
-                }
-            });
-            let other_fields = fields.iter().filter_map(|other_field| {
-                if other_field.name == field.name {
-                    None
-                } else if let Some(key) = other_field.kind.as_key() {
-                    Some(quote!(#key))
-                } else {
-                    Some(quote!(count))
-                }
-            }).chain(Some(quote!(#locale_field))).collect::<Vec<_>>();
+    fn generate_generics<'a, F: 'a, T: Clone + 'a>(
+        left_fields: &'a [Field],
+        field_generic: Option<T>,
+        right_fields: &'a [Field],
+        other_field_map_fn: F,
+    ) -> impl Iterator<Item = T> + 'a + Clone
+    where
+        F: FnMut(&'a Field) -> T + Copy,
+    {
+        left_fields
+            .iter()
+            .map(other_field_map_fn)
+            .chain(field_generic)
+            .chain(right_fields.iter().map(other_field_map_fn))
+    }
 
-            let kind = field.kind;
+    fn create_field_set_fn(
+        ident: &syn::Ident,
+        locale_field: &Key,
+        left_fields: &[Field],
+        right_fields: &[Field],
+        field: &Field,
+    ) -> TokenStream {
+        let quoted_gen = |field: &Field| {
+            let generic = &field.generic;
+            quote!(#generic)
+        };
+        let output_field_generic = match field.kind {
+            InterpolateKey::Variable(_) => {
+                quote!(leptos::IntoView + core::clone::Clone + 'static)
+            }
+            InterpolateKey::Count(plural_type) => {
+                quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
+            }
+            InterpolateKey::Component(_) => quote!(
+                Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View
+                    + core::clone::Clone
+                    + 'static
+            ),
+        };
+        let output_generics = Self::generate_generics(
+            left_fields,
+            Some(quote!(impl #output_field_generic)),
+            right_fields,
+            quoted_gen,
+        );
+        let other_fields = Self::generate_generics(left_fields, None, right_fields, |field| {
+            if let Some(key) = field.kind.as_key() {
+                quote!(#key)
+            } else {
+                quote!(count)
+            }
+        })
+        .chain(Some(quote!(#locale_field)));
 
-            let destructure = quote!(let Self { #(#other_fields,)* .. } = self;);
-            let restructure = quote!(#ident { #(#other_fields,)* #kind });
+        let kind = field.kind;
 
-            match kind {
-                InterpolateKey::Variable(key) => {
-                    quote!{
-                        #[inline]
-                        pub fn #key<__T>(self, #key: __T) -> #ident<#(#output_generics,)*>
-                            where __T: leptos::IntoView + core::clone::Clone + 'static
-                        {
-                            #destructure
-                            #restructure
-                        }
-                    }
-                }
-                InterpolateKey::Component(key) => {
-                    quote!{
-                        #[inline]
-                        pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
-                        where
-                            __O: leptos::IntoView,
-                            __T: Fn(leptos::Scope, leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
-                        {
-                            #destructure
-                            let #key = move |cx, children| leptos::IntoView::into_view(#key(cx, children), cx);
-                            #restructure
-                        }
-                    }
-                }
-                InterpolateKey::Count(plural_type) => {
-                    quote! {
-                        #[inline]
-                        pub fn var_count<__T, __N>(self, var_count: __T) -> #ident<#(#output_generics,)*>
-                            where __T: Fn() -> __N + core::clone::Clone + 'static,
-                                  __N: core::convert::Into<#plural_type>
-                        {
-                            #destructure
-                            let var_count = move || core::convert::Into::into(var_count());
-                            #restructure
-                        }
+        let destructure = {
+            let other_fields = other_fields.clone();
+            quote!(let Self { #(#other_fields,)* .. } = self;)
+        };
+        let restructure = quote!(#ident { #(#other_fields,)* #kind });
+
+        let set_function = match kind {
+            InterpolateKey::Variable(key) => {
+                quote! {
+                    #[inline]
+                    pub fn #key<__T>(self, #key: __T) -> #ident<#(#output_generics,)*>
+                        where __T: leptos::IntoView + core::clone::Clone + 'static
+                    {
+                        #destructure
+                        #restructure
                     }
                 }
             }
-        })
+            InterpolateKey::Component(key) => {
+                quote! {
+                    #[inline]
+                    pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
+                    where
+                        __O: leptos::IntoView,
+                        __T: Fn(leptos::Scope, leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
+                    {
+                        #destructure
+                        let #key = move |cx, children| leptos::IntoView::into_view(#key(cx, children), cx);
+                        #restructure
+                    }
+                }
+            }
+            InterpolateKey::Count(plural_type) => {
+                quote! {
+                    #[inline]
+                    pub fn var_count<__T, __N>(self, var_count: __T) -> #ident<#(#output_generics,)*>
+                        where __T: Fn() -> __N + core::clone::Clone + 'static,
+                              __N: core::convert::Into<#plural_type>
+                    {
+                        #destructure
+                        let var_count = move || core::convert::Into::into(var_count());
+                        #restructure
+                    }
+                }
+            }
+        };
+
+        let left_generics_empty =
+            Self::generate_generics(left_fields, None, right_fields, |field| &field.generic);
+        let left_generics_already_set = Self::generate_generics(
+            left_fields,
+            Some({
+                let field_gen = &field.generic;
+                quote!(#field_gen: #output_field_generic)
+            }),
+            right_fields,
+            quoted_gen,
+        );
+        let right_generics_empty = Self::generate_generics(
+            left_fields,
+            Some(quote!(EmptyInterpolateValue)),
+            right_fields,
+            quoted_gen,
+        );
+        let right_generics_already_set =
+            Self::generate_generics(left_fields, Some(&field.generic), right_fields, |field| {
+                &field.generic
+            });
+
+        let compile_warning = match field.kind {
+            InterpolateKey::Count(_) => "variable `count` is already set".to_string(),
+            InterpolateKey::Variable(_) => format!("variable `{}` is already set", field.name),
+            InterpolateKey::Component(_) => format!("component `{}` is already set", field.name),
+        };
+
+        quote! {
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics_empty,)*> #ident<#(#right_generics_empty,)*> {
+                #set_function
+            }
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics_already_set,)*> #ident<#(#right_generics_already_set,)*> {
+                #[deprecated(note = #compile_warning)]
+                #set_function
+            }
+        }
     }
 
     fn into_view_impl(
