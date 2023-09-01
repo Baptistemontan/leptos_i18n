@@ -35,6 +35,7 @@ ssr = ["leptos/ssr", "leptos_meta/ssr"]
 actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum"]
 serde = ["leptos_i18n_macro/serde", "dep:serde"]
+debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 
 
 [package.metadata.cargo-all-features]

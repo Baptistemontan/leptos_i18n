@@ -227,43 +227,60 @@ impl Interpolation {
             }
         };
 
-        let left_generics_empty =
-            Self::generate_generics(left_fields, None, right_fields, |field| &field.generic);
-        let left_generics_already_set = Self::generate_generics(
-            left_fields,
-            Some({
-                let field_gen = &field.generic;
-                quote!(#field_gen: #output_field_generic)
-            }),
-            right_fields,
-            quoted_gen,
-        );
-        let right_generics_empty = Self::generate_generics(
-            left_fields,
-            Some(quote!(EmptyInterpolateValue)),
-            right_fields,
-            quoted_gen,
-        );
-        let right_generics_already_set =
-            Self::generate_generics(left_fields, Some(&field.generic), right_fields, |field| {
-                &field.generic
-            });
+        if cfg!(feature = "debug_interpolations") {
+            let left_generics_empty =
+                Self::generate_generics(left_fields, None, right_fields, |field| &field.generic);
+            let left_generics_already_set = Self::generate_generics(
+                left_fields,
+                Some({
+                    let field_gen = &field.generic;
+                    quote!(#field_gen: #output_field_generic)
+                }),
+                right_fields,
+                quoted_gen,
+            );
+            let right_generics_empty = Self::generate_generics(
+                left_fields,
+                Some(quote!(EmptyInterpolateValue)),
+                right_fields,
+                quoted_gen,
+            );
+            let right_generics_already_set =
+                Self::generate_generics(left_fields, Some(&field.generic), right_fields, |field| {
+                    &field.generic
+                });
 
-        let compile_warning = match field.kind {
-            InterpolateKey::Count(_) => "variable `count` is already set".to_string(),
-            InterpolateKey::Variable(_) => format!("variable `{}` is already set", field.name),
-            InterpolateKey::Component(_) => format!("component `{}` is already set", field.name),
-        };
+            let compile_warning = match field.kind {
+                InterpolateKey::Count(_) => "variable `count` is already set".to_string(),
+                InterpolateKey::Variable(_) => format!("variable `{}` is already set", field.name),
+                InterpolateKey::Component(_) => {
+                    format!("component `{}` is already set", field.name)
+                }
+            };
 
-        quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics_empty,)*> #ident<#(#right_generics_empty,)*> {
-                #set_function
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics_empty,)*> #ident<#(#right_generics_empty,)*> {
+                    #set_function
+                }
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics_already_set,)*> #ident<#(#right_generics_already_set,)*> {
+                    #[deprecated(note = #compile_warning)]
+                    #set_function
+                }
             }
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics_already_set,)*> #ident<#(#right_generics_already_set,)*> {
-                #[deprecated(note = #compile_warning)]
-                #set_function
+        } else {
+            let left_generics =
+                Self::generate_generics(left_fields, Some(&field.generic), right_fields, |field| {
+                    &field.generic
+                });
+            let right_generics = left_generics.clone();
+
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    #set_function
+                }
             }
         }
     }
