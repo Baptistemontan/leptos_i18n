@@ -43,3 +43,16 @@ pub trait Locales: 'static + Clone + Copy {
         <Self::LocaleKeys as LocaleKeys>::from_variant(locale)
     }
 }
+
+/// Trait used for compile time checks of interpolations, it is public to be used by the `t!` macro
+///
+/// Only time you will maybe need it is with the `debug_interpolations` feature and handwriting the interpolations builders.
+pub trait BuildString: Sized {
+    /// Just return the string itself, does nothing
+    #[inline]
+    fn build(self) -> Self {
+        self
+    }
+}
+
+impl<'a> BuildString for &'a str {}

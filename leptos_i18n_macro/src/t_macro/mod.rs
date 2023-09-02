@@ -46,6 +46,15 @@ pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
                 }
             }
         }
+    } else if cfg!(feature = "debug_interpolations") {
+        quote! {
+            move || {
+                #[allow(unused)]
+                use leptos_i18n::__private::BuildString;
+                let _key = #get_key;
+                _key.build()
+            }
+        }
     } else {
         quote!(move || #get_key)
     }

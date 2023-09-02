@@ -128,5 +128,10 @@ pub use context::{get_context, provide_i18n_context, I18nContext};
 
 pub use leptos_i18n_macro::{load_locales, t};
 
+/// Private module
+pub mod __private {
+    pub use super::locale_traits::BuildString;
+}
+
 #[cfg(feature = "serde")]
 pub use serde;
