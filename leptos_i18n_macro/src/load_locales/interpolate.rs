@@ -5,6 +5,9 @@ use quote::quote;
 
 use super::{key::Key, locale::Locale, parsed_value::InterpolateKey};
 
+#[cfg(feature = "debug_interpolations")]
+const MAX_KEY_GENERATE_BUILD_DEBUG: usize = 4;
+
 pub struct Interpolation {
     pub ident: syn::Ident,
     pub default_generic_ident: TokenStream,
@@ -107,7 +110,10 @@ impl Interpolation {
     }
 
     #[cfg(feature = "debug_interpolations")]
-    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> Option<TokenStream> {
+        if fields.len() > MAX_KEY_GENERATE_BUILD_DEBUG {
+            return None;
+        }
         let failing_builds = Self::generate_all_failing_build_fn(ident, fields);
 
         let left_generics = fields.iter().map(|field| {
@@ -121,7 +127,7 @@ impl Interpolation {
             quote!(#ident)
         });
 
-        quote! {
+        Some(quote! {
             #(#failing_builds)*
 
             #[allow(non_camel_case_types)]
@@ -130,11 +136,10 @@ impl Interpolation {
                     self
                 }
             }
-        }
+        })
     }
-
-    #[cfg(not(feature = "debug_interpolations"))]
-    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+    // #[cfg(not(feature = "debug_interpolations"))]
+    fn generate_default_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
             quote!(#ident)
@@ -157,7 +162,11 @@ impl Interpolation {
     fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
         let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
 
-        let build_fns = Self::generate_build_fns(ident, fields);
+        #[cfg(not(feature = "debug_interpolations"))]
+        let build_fns = Self::generate_default_build_fns(ident, fields);
+        #[cfg(feature = "debug_interpolations")]
+        let build_fns = Self::generate_build_fns(ident, fields)
+            .unwrap_or_else(|| Self::generate_default_build_fns(ident, fields));
 
         quote! {
             #set_fns
@@ -204,10 +213,6 @@ impl Interpolation {
         ident: &'a syn::Ident,
         fields: &'a [Field],
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        assert!(
-            fields.len() <= 64,
-            "max number of keys for debug_interpolations is 64"
-        );
         let max = 1u64 << fields.len();
         (0..max - 1).map(|states| {
             let fields_iter = fields.iter().enumerate().map(|(i, field)| {
