@@ -1,6 +1,7 @@
 use crate::Locales;
 
 #[cfg(feature = "ssr")]
+#[inline]
 pub fn fetch_locale<T: Locales>() -> T::Variants {
     crate::server::fetch_locale_server_side::<T>()
 }
@@ -16,6 +17,7 @@ pub fn fetch_locale<T: Locales>() -> T::Variants {
 }
 
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
+#[inline]
 pub fn fetch_locale<T: Locales>() -> T::Variants {
     Default::default()
 }
