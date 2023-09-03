@@ -504,13 +504,21 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<'_, T> {
     where
         A: serde::de::SeqAccess<'de>,
     {
+        let Some(first) = seq.next_element_seed(self)? else {
+            return Ok(Plural::Fallback);
+        };
         let mut plurals = vec![];
 
         while let Some(plural) = seq.next_element_seed(self)? {
             plurals.push(plural)
         }
 
-        Ok(Plural::Multiple(plurals))
+        if plurals.is_empty() {
+            Ok(first)
+        } else {
+            plurals.push(first);
+            Ok(Plural::Multiple(plurals))
+        }
     }
 
     fn visit_str<E>(self, s: &str) -> std::result::Result<Self::Value, E>
@@ -535,7 +543,7 @@ impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_map(self)
+        deserializer.deserialize_any(self)
     }
 }
 
@@ -545,7 +553,7 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             formatter,
-            "a struct representing a plural with the count and the value"
+            "either a struct representing a plural with the count and the value, or a sequence with the first element being the value and the other elements being the count"
         )
     }
 
@@ -592,6 +600,18 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
 
         let plural = plural.unwrap_or(Plural::Fallback); // if no count, fallback
         let value = unwrap_field(value, "value")?;
+
+        Ok((plural, value))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let Some(value) = seq.next_element_seed(self.0)? else {
+            return Err(serde::de::Error::invalid_length(0, &"at least 1 element"));
+        };
+        let plural = PluralSeed(self.0.base, PhantomData).visit_seq(seq)?;
 
         Ok((plural, value))
     }
@@ -710,6 +730,14 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     {
         let plural_seed = PluralStructSeed::<i64>(self.0, PhantomData);
         plural_seed.visit_map(map).map(TypeOrPlural::Plural)
+    }
+
+    fn visit_seq<A>(self, seq: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let plural_seed = PluralStructSeed::<i64>(self.0, PhantomData);
+        plural_seed.visit_seq(seq).map(TypeOrPlural::Plural)
     }
 }
 

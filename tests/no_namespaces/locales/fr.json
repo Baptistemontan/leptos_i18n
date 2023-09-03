@@ -48,10 +48,7 @@
     ],
     "f32_OR_plural": [
         "f32",
-        {
-            "count": "0 | 5",
-            "value": "0 or 5"
-        },
+        ["0 or 5", ["0", "5"]],
         {
             "count": ["1..5", "6..10"],
             "value": "1..5 | 6..10"
@@ -61,7 +58,8 @@
             "value": "10..15 | 20"
         },
         {
-            "value": "fallback sans count"
+            "count": [],
+            "value": "fallback avec tuple vide"
         }
     ]
 }

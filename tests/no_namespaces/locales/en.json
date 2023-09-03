@@ -12,10 +12,7 @@
             "count": "..0.0",
             "value": "You owe money"
         },
-        {
-            "count": "_",
-            "value": "You have {{ count }}€"
-        }
+        ["You have {{ count }}€", "_"]
     ],
     "u32_plural": [
         "u32",
@@ -30,10 +27,7 @@
     ],
     "OR_plural": [
         "u8",
-        {
-            "count": "0 | 5",
-            "value": "0 or 5"
-        },
+        ["0 or 5", "0", "5"],
         {
             "count": "1..5 | 6..10",
             "value": "1..5 | 6..10"
@@ -60,8 +54,6 @@
             "count": ["10..15 | 20"],
             "value": "10..15 | 20"
         },
-        {
-            "value": "fallback with no count"
-        }
+        ["fallback with no count"]
     ]
 }

@@ -280,7 +280,9 @@ t!(i18n, key, count, <b>, other_key = ..)
 
 ### Plurals
 
-You may need to display different messages depending on a count, for exemple one when there is 0 elements, another when there is only one, and a last one when the count is anything else. For that you can do:
+You may need to display different messages depending on a count, for exemple one when there is 0 elements, another when there is only one, and a last one when the count is anything else.
+
+You declare them in a sequence of plurals, there is 2 syntax for the plurals, first is being a map with the `count` and the `value`:
 
 ```json
 {
@@ -301,6 +303,20 @@ You may need to display different messages depending on a count, for exemple one
 }
 ```
 
+The other one is a sequence where the first element is the value and the other elements are the counts:
+
+```json
+{
+  "click_count": [
+    ["You have not clicked yet", "0"],
+    ["You clicked once", "1"],
+    ["You clicked {{ count }} times", "_"]
+  ]
+}
+```
+
+You can mix them up as you want.
+
 When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> Into<N> + Clone + 'static` where `N` is the specified type.
 By default `N` is `i64` but you can change that by specifying the type as the **first** value in the sequence:
 
@@ -312,10 +328,7 @@ By default `N` is `i64` but you can change that by specifying the type as the **
       "count": "0.0",
       "value": "You are broke"
     },
-    {
-      "count": "..0.0",
-      "value": "You owe money"
-    },
+    ["You owe money", "..0.0"],
     {
       "count": "_",
       "value": "You have {{ count }}€"
@@ -326,7 +339,7 @@ By default `N` is `i64` but you can change that by specifying the type as the **
 
 The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`.
 
-As seen above you can supply a range: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will considered fallback `_`)
+As seen above with the second plural you can supply a range: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will considered fallback `_`)
 
 The resulting code looks something like this:
 
@@ -374,14 +387,12 @@ You can also have multiple conditions by either separate them by `|` or put them
       "count": "0 | 5",
       "value": "You clicked 0 or 5 times"
     },
-    {
-      "count": "1",
-      "value": "You clicked once"
-    },
+    ["You clicked once", "1"],
     {
       "count": ["2..=10", "20"],
       "value": "You clicked {{ count }} times"
     },
+    ["You clicked 30 or 40 times", "30", "40"],
     {
       "value": "You clicked <b>a lot</b>"
     }
@@ -389,7 +400,7 @@ You can also have multiple conditions by either separate them by `|` or put them
 }
 ```
 
-Fallback can omit the `count` key.
+If a plural is a fallback it can omit the `count` key in a map or with only supply the value: `["fallback value"]`
 
 ### Namespaces
 

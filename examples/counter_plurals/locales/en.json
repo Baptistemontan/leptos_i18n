@@ -5,10 +5,7 @@
             "count": "0",
             "value": "You have not clicked yet"
         },
-        {
-            "count": "1",
-            "value": "You clicked once"
-        },
+        ["You clicked once", "1"],
         {
             "count": "2..20",
             "value": "You clicked {{ count }} times"
