@@ -34,11 +34,11 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// Usage:
 ///
 /// ```rust, ignore
-/// let i18n = get_i18n_context(cx);
+/// let i18n = get_i18n_context();
 ///
-/// view! { cx,
+/// view! {
 ///     <p>{t!(i18n, $key)}</p>
-///     <p>{t!(i18n, $key, $variable = $value, <$component> = |cx, children| view! { cx, <b>{childent(cx)}</b> })}</p>
+///     <p>{t!(i18n, $key, $variable = $value, <$component> = | children| view! {  <b>{childent()}</b> })}</p>
 /// }
 ///```
 ///

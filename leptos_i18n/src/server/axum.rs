@@ -2,10 +2,10 @@ use crate::locale_traits::*;
 use axum::http::header;
 use leptos::*;
 
-pub fn fetch_locale_server<T: Locales>(cx: Scope) -> T::Variants {
+pub fn fetch_locale_server<T: Locales>() -> T::Variants {
     // when leptos_router inspect the routes it execute the code once but don't set a RequestParts in the context,
     // so we can't expect it to be present.
-    use_context::<leptos_axum::RequestParts>(cx)
+    use_context::<leptos_axum::RequestParts>()
         .map(|req| from_req(&req))
         .unwrap_or_default()
 }

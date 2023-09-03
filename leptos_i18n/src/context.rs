@@ -51,36 +51,33 @@ impl<T: Locales> I18nContext<T> {
     }
 }
 
-fn set_html_lang_attr(cx: Scope, lang: &'static str) {
+fn set_html_lang_attr(lang: &'static str) {
     let lang = || lang.to_string();
-    Html(
-        cx,
-        HtmlProps {
-            lang: Some(lang.into()),
-            dir: None,
-            class: None,
-            attributes: None,
-        },
-    );
+    Html(HtmlProps {
+        lang: Some(lang.into()),
+        dir: None,
+        class: None,
+        attributes: None,
+    });
 }
 
-fn init_context<T: Locales>(cx: Scope) -> I18nContext<T> {
-    provide_meta_context(cx);
+fn init_context<T: Locales>() -> I18nContext<T> {
+    provide_meta_context();
 
-    let locale = fetch_locale::fetch_locale::<T>(cx);
+    let locale = fetch_locale::fetch_locale::<T>();
 
-    let locale = create_rw_signal(cx, locale);
+    let locale = create_rw_signal(locale);
 
-    create_isomorphic_effect(cx, move |_| {
+    create_isomorphic_effect(move |_| {
         let new_lang = locale.get();
-        set_html_lang_attr(cx, new_lang.as_str());
+        set_html_lang_attr(new_lang.as_str());
         #[cfg(feature = "cookie")]
         set_lang_cookie::<T>(new_lang);
     });
 
     let context = I18nContext::<T>(locale);
 
-    provide_context(cx, context);
+    provide_context(context);
 
     context
 }
@@ -92,12 +89,8 @@ fn init_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 /// It returns the newly created context.
 ///
 /// If called when a context is already present it will not overwrite it and just return the current context.
-pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
-    if let Some(context) = use_context(cx) {
-        context
-    } else {
-        init_context(cx)
-    }
+pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
+    use_context().unwrap_or_else(init_context)
 }
 
 /// Return the `I18nContext` previously set.
@@ -105,8 +98,8 @@ pub fn provide_i18n_context<T: Locales>(cx: Scope) -> I18nContext<T> {
 /// ## Panic
 ///
 /// Panics if the context is missing.
-pub fn get_context<T: Locales>(cx: Scope) -> I18nContext<T> {
-    use_context(cx).expect("I18nContext is missing, use provide_i18n_context() to provide it.")
+pub fn get_context<T: Locales>() -> I18nContext<T> {
+    use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
 #[cfg(all(feature = "hydrate", feature = "cookie"))]

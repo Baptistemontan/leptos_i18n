@@ -1,17 +1,14 @@
-use leptos::*;
-
 use crate::Locales;
 
 #[cfg(feature = "ssr")]
-pub fn fetch_locale<T: Locales>(cx: Scope) -> T::Variants {
-    crate::server::fetch_locale_server_side::<T>(cx)
+pub fn fetch_locale<T: Locales>() -> T::Variants {
+    crate::server::fetch_locale_server_side::<T>()
 }
 
 #[cfg(feature = "hydrate")]
-pub fn fetch_locale<T: Locales>(cx: Scope) -> T::Variants {
+pub fn fetch_locale<T: Locales>() -> T::Variants {
     use crate::LocaleVariant;
-    let _ = cx;
-    document()
+    leptos::document()
         .document_element()
         .and_then(|el| el.get_attribute("lang"))
         .and_then(|lang| <T::Variants as LocaleVariant>::from_str(&lang))
@@ -19,7 +16,6 @@ pub fn fetch_locale<T: Locales>(cx: Scope) -> T::Variants {
 }
 
 #[cfg(not(any(feature = "ssr", feature = "hydrate")))]
-pub fn fetch_locale<T: Locales>(cx: Scope) -> T::Variants {
-    let _ = cx;
+pub fn fetch_locale<T: Locales>() -> T::Variants {
     Default::default()
 }
