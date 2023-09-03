@@ -1,12 +1,11 @@
-use crate::i18n::{i18n_context, LocaleEnum, Locales};
+use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::t;
 
 #[component]
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
-    let i18n = leptos_i18n::provide_i18n_context::<Locales>();
+    let i18n = provide_i18n_context();
 
     let on_switch = move |_| {
         let new_lang = match i18n.get_locale() {
@@ -25,7 +24,7 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn Counter() -> impl IntoView {
-    let i18n = i18n_context();
+    let i18n = use_i18n();
 
     let (counter, set_counter) = create_signal(0);
 
@@ -42,7 +41,7 @@ fn Counter() -> impl IntoView {
 
 #[component]
 fn Tests() -> impl IntoView {
-    let i18n = i18n_context();
+    let i18n = use_i18n();
 
     view! {
         <p>{t!(i18n, f32_plural, count = || 42f32)}</p>

@@ -99,7 +99,7 @@ pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
 ///
 /// Panics if the context is missing.
 #[inline]
-pub fn get_context<T: Locales>() -> I18nContext<T> {
+pub fn use_i18n_context<T: Locales>() -> I18nContext<T> {
     #[cold]
     pub fn not_present() -> ! {
         panic!("I18nContext is missing, use provide_i18n_context() to provide it.")
