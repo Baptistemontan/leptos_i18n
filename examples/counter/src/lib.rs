@@ -1,7 +1,7 @@
 #![deny(warnings)]
 
 pub mod app;
-pub mod i18n;
+leptos_i18n::load_locales!();
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]

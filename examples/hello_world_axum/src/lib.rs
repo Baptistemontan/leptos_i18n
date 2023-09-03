@@ -3,7 +3,7 @@
 pub mod app;
 #[cfg(feature = "ssr")]
 pub mod fileserv;
-pub mod i18n;
+leptos_i18n::load_locales!();
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
