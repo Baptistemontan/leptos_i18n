@@ -11,7 +11,7 @@ pub(crate) mod load_locales;
 pub(crate) mod t_macro;
 
 // for deserializing the files custom deserialization is done,
-// this is to use serde::de::DeserializeSeed to pass information on what locale or key we are currently at
+// this is to use `serde::de::DeserializeSeed` to pass information on what locale or key we are currently at
 // and give better information on what went wrong when an error is emitted.
 
 /// Look for the configuration in the cargo manifest `Cargo.toml` at the root of the project and load the given locales.
@@ -34,11 +34,11 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// Usage:
 ///
 /// ```rust, ignore
-/// let i18n = get_i18n_context();
+/// let i18n = use_i18n();
 ///
 /// view! {
 ///     <p>{t!(i18n, $key)}</p>
-///     <p>{t!(i18n, $key, $variable = $value, <$component> = | children| view! {  <b>{childent()}</b> })}</p>
+///     <p>{t!(i18n, $key, $variable = $value, <$component> = |children| view! { <b>{children}</b> })}</p>
 /// }
 ///```
 ///
