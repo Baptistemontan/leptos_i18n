@@ -4,8 +4,6 @@ mod actix;
 #[cfg(all(feature = "axum", not(feature = "actix")))]
 mod axum;
 
-use leptos::*;
-
 use crate::Locales;
 
 #[cfg(all(feature = "actix", not(feature = "axum")))]
