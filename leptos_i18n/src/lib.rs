@@ -71,14 +71,14 @@
 //!
 //! ```rust,ignore
 //! leptos_i18n::load_locales!();
+//! use i18n::*; // `i18n` module created by the macro above
 //! use leptos::*;
-//! use leptos_i18n::t;
 //!
 //! #[component]
 //! pub fn App() -> impl IntoView {
 //!     leptos_meta::provide_meta_context();
 //!
-//!     let i18n = leptos_i18n::provide_i18n_context::<Locales>();
+//!     let i18n = provide_i18n_context();
 //!
 //!     let on_switch = move |_| {
 //!         let new_lang = match i18n.get_locale() {
@@ -96,7 +96,7 @@
 //!
 //! #[component]
 //! fn Counter() -> impl IntoView {
-//!     let i18n = i18n_context();
+//!     let i18n = use_i18n();
 //!
 //!     let (counter, set_counter) = create_signal( 0);
 //!
@@ -106,6 +106,9 @@
 //!
 //!     view! {
 //!         <p>{t!(i18n, click_count, count)}</p>
+//!         // Equivalent to:
+//!         // <p>{t!(i18n, click_count, count = count)}</p>
+//!         // Could also be wrote:
 //!         // <p>{t!(i18n, click_count, count = move || counter.get())}</p>
 //!         <button on:click=inc>{t!(i18n, click_to_inc)}</button>
 //!     }
@@ -123,7 +126,7 @@ pub(crate) const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
 pub use locale_traits::*;
 
-pub use context::{get_context, provide_i18n_context, I18nContext};
+pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
 
 pub use leptos_i18n_macro::{load_locales, t};
 

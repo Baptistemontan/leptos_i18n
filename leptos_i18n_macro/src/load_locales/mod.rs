@@ -36,11 +36,23 @@ pub fn load_locales() -> Result<TokenStream> {
     let locales = create_locales_type(&cfg_file);
 
     Ok(quote! {
-        #locales
+        pub mod i18n {
+            #locales
 
-        #locale_variants
+            #locale_variants
 
-        #locale_type
+            #locale_type
+
+            pub fn use_i18n() -> leptos_i18n::I18nContext<Locales> {
+                leptos_i18n::use_i18n_context()
+            }
+
+            pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locales> {
+                leptos_i18n::provide_i18n_context()
+            }
+
+            pub use leptos_i18n::t;
+        }
     })
 }
 

@@ -7,7 +7,10 @@ This crate is made to simplify internalisation in a [Leptos](https://crates.io/c
 The main focus is ease of you use with leptos, a typical component using this crate will look like this:
 
 ```rust
-let i18n = get_i18n_context();
+use crate::i18n::*;
+use leptos::*;
+
+let i18n = use_i18n();
 
 let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
@@ -76,7 +79,11 @@ locales-dir = "./path/to/locales"
 
 ### Loading the locales
 
-You can then use the `load_locales!()` macro in a module of the project, this will load _at compile time_ the locales, and create a struct that describe your locales:
+You can then use the `leptos_i18n::load_locales!()` macro, this will load _at compile time_ the locales, and create a module named `i18n` that expose multiple things:
+
+#### The keys
+
+The macro create a struct `I18nKeys` that represent your declared translations:
 
 ```rust
 struct I18nKeys {
@@ -84,7 +91,9 @@ struct I18nKeys {
 }
 ```
 
-Two other helper types are created, one enum representing the locales:
+#### The declared locales
+
+It also create an enum that describe the supported locales:
 
 ```rust
 enum LocaleEnum {
@@ -93,18 +102,26 @@ enum LocaleEnum {
 }
 ```
 
-and an empty struct named `Locales` that serves as a link beetween the two, it is this one that is the most important, most functions of the crate need this type, not the one containing the locales nor the enum.
+#### The glue
+
+It also declare a type `Locales` which unique pupose is to serves as a bridge beetween the two, most functions of the crate are generics over this type.
+
+#### Helper functions
+
+The `i18n` module also exposes 2 functions: `provide_i18n_context` and `use_i18n`.
 
 ### I18nContext
 
-The heart of this library is the `I18nContext`, it must be provided at the highest possible level in the application with the `provide_i18n_context` function:
+The heart of this library is the `I18nContext`, it must be provided at the highest possible level in the application with the `provide_i18n_context` function created with the `i18n` module:
 
 ```rust
+use crate::i18n::provide_i18n_context;
+
 // root of the application
 #[component]
 pub fn App() -> impl IntoView {
 
-    leptos_i18n::provide_i18n_context::<Locales>();
+    provide_i18n_context();
 
     view! {
         /* ... */
@@ -112,33 +129,27 @@ pub fn App() -> impl IntoView {
 }
 ```
 
-You can then call the `get_context<T>` function to access it:
+You can then call the `use_i18n` function in the `i18n` module to access it:
 
 ```rust
-let i18n_context = leptos_i18n::get_context::<Locales>();
-```
-
-It is advised to make your own function to suppress the need to pass the `Locales` type every time:
-
-```rust
-#[inline]
-pub fn get_i18n_context() -> I18nContext<Locales> {
-    leptos_i18n::get_context()
-}
+use crate::i18n::use_i18n;
+let i18n_context = use_i18n();
 ```
 
 The `provide_i18n_context` function return the context, so instead of
 
 ```rust
-leptos_i18n::provide_i18n_context::<Locales>();
+use crate::i18n::{use_i18n, provide_i18n_context};
+provide_i18n_context();
 
-let i18n = get_i18n_context();
+let i18n = use_i18n();
 ```
 
 You can write
 
 ```rust
-let i18n = leptos_i18n::provide_i18n_context::<Locales>();
+use crate::i18n::provide_i18n_context;
+let i18n = provide_i18n_context();
 ```
 
 The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_locale(locale)`.
@@ -156,7 +167,7 @@ You can access the keys by calling `.get_keys` on the context, it will return th
 When the user make a request for your application, the request headers contains a weighted list of accepted locales, this library take them into account and try to match it against the loaded locales, but you probably want to give your users the possibility to manually choose there prefered locale, for that you can set the current locale with the `.set_locale` function:
 
 ```rust
-let i18n = get_i18n_context();
+let i18n = use_i18n();
 
 let on_click = move |_| {
     let current_locale = i18n.get_locale();
@@ -179,7 +190,10 @@ view! {
 As seen above, it can be pretty verbose to do `move || i18n.get_keys().$key` every time, so the crate expose a macro to help with that, the `t!()` macro.
 
 ```rust
-let i18n = get_i18n_context();
+use crate::i18n::use_i18n;
+use leptos_i18n::t;
+
+let i18n = use_i18n();
 
 view! {
     <p>{t!(i18n, hello_world)}</p>
@@ -187,6 +201,9 @@ view! {
 ```
 
 It takes the context as the first parameter and the key in second.
+
+Because you often use the`t!` macro with the `i18n` module, the `i18n` module re-export it, so you can do `use crate::i18n::*` to import the `use_i18n` function and the `t!` macro together.
+
 It also help with interpolation:
 
 ### Interpolation
@@ -203,7 +220,7 @@ You may need to interpolate values in your translation, for that you can add var
 You can then do
 
 ```rust
-let i18n = get_i18n_context();
+let i18n = use_i18n();
 
 let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
@@ -228,7 +245,7 @@ You may also need to interpolate components, to highlight some part of a text fo
 You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
 
 ```rust
-let i18n = get_i18n_context();
+let i18n = use_i18n();
 
 view! {
     <p>
@@ -242,7 +259,7 @@ The only restriction on variables/components names is that it must be a valid ru
 For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern where variables are passed to functions called `.var_$name(var)` and components to `.comp_$name(comp)`, so for the counter above but without the `t!` macro it will look like this:
 
 ```rust
-let i18n = get_i18n_context();
+let i18n = use_i18n();
 
 let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
