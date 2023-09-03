@@ -71,7 +71,7 @@ fn init_context<T: Locales>() -> I18nContext<T> {
     create_isomorphic_effect(move |_| {
         let new_lang = locale.get();
         set_html_lang_attr(new_lang.as_str());
-        #[cfg(feature = "cookie")]
+        #[cfg(all(feature = "cookie", feature = "hydrate"))]
         set_lang_cookie::<T>(new_lang);
     });
 
@@ -98,8 +98,13 @@ pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
 /// ## Panic
 ///
 /// Panics if the context is missing.
+#[inline]
 pub fn use_i18n_context<T: Locales>() -> I18nContext<T> {
-    use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
+    #[cold]
+    pub fn not_present() -> ! {
+        panic!("I18nContext is missing, use provide_i18n_context() to provide it.")
+    }
+    use_context().unwrap_or_else(not_present)
 }
 
 #[cfg(all(feature = "hydrate", feature = "cookie"))]
@@ -113,12 +118,6 @@ fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
         lang.as_str()
     );
     document.set_cookie(&cookie).ok()
-}
-
-#[cfg(all(not(feature = "hydrate"), feature = "cookie"))]
-fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
-    let _ = lang;
-    Some(())
 }
 
 // get locale
