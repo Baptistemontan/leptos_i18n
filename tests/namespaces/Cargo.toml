@@ -38,6 +38,11 @@ ssr = [
     "leptos_i18n/actix",
 ]
 
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+namespaces = ["first_namespace", "second_namespace"]
+
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   
 output-name = "namespaces"

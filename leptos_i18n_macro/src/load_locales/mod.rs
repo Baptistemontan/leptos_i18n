@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Not, path::Path};
+use std::{collections::HashMap, ops::Not};
 
 pub mod cfg_file;
 pub mod error;
@@ -18,8 +18,8 @@ use quote::{format_ident, quote};
 
 use self::locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace};
 
-pub fn load_locales(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStream> {
-    let cfg_file = ConfigFile::new(cfg_file_path)?;
+pub fn load_locales() -> Result<TokenStream> {
+    let cfg_file = ConfigFile::new()?;
 
     let locales = LocalesOrNamespaces::new(&cfg_file)?;
 

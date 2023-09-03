@@ -21,22 +21,21 @@ view! {
 }
 ```
 
-You just need a configuration file named `i18n.json` and one file per locale name `{locale}.json` in the `/locales` folder of your application.
+You just need to declare the locales in you `Cargo.toml` and one file per locale named `{locale}.json` in the `/locales` folder of your application.
 
 ## How to use
 
 ### Configuration files
 
-There are files that need to exist, the first one is the `i18n.json` file that describe the default locale and supported locales, it need to be at the root of the project and look like this:
+First You need to declare your locales in your cargo manifest `Cargo.toml`:
 
-```json
-{
-  "default": "en",
-  "locales": ["en", "fr"]
-}
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
 ```
 
-The other ones are the files containing the translation, they are key-value pairs and need to be situated in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale defined in the `i18n.json` file.
+You can then put your translations files in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale declared in the configuration.
 
 The file structure must look like this:
 
@@ -65,6 +64,15 @@ And the files must look like this:
 ```
 
 All locales files need to have exactly the same keys.
+
+If you need your locales to be in a different folders than `./locales` you can specify the path in the configuration:
+
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+locales-dir = "./path/to/locales"
+```
 
 ### Loading the locales
 
@@ -385,14 +393,13 @@ You can also have multiple conditions:
 
 ### Namespaces
 
-Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the config file (i18n.json):
+Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the configuration:
 
-```json
-{
-  "default": "en",
-  "locales": ["en", "fr"],
-  "namespaces": ["common", "home"]
-}
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+namespaces = ["common", "home"]
 ```
 
 Then your file structures must look like this int the `/locales` directory:

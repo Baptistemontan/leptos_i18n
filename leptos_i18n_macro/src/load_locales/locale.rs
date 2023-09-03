@@ -31,10 +31,10 @@ pub enum BuildersKeys<'a> {
 }
 
 impl Namespace {
-    pub fn new(key: &Key, locale_keys: &[Key]) -> Result<Self> {
+    pub fn new(locales_dir: &str, key: &Key, locale_keys: &[Key]) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys {
-            let path = format!("./locales/{}/{}.json", locale.name, key.name);
+            let path = format!("{}/{}/{}.json", locales_dir, locale.name, key.name);
             locales.push(Locale::new(path, locale, Some(&key.name))?);
         }
         Ok(Namespace {
@@ -47,16 +47,17 @@ impl Namespace {
 impl LocalesOrNamespaces {
     pub fn new(cfg_file: &ConfigFile) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
+        let locales_dir = cfg_file.locales_dir.as_ref();
         if let Some(namespace_keys) = &cfg_file.name_spaces {
             let mut namespaces = Vec::with_capacity(namespace_keys.len());
             for namespace in namespace_keys {
-                namespaces.push(Namespace::new(namespace, locale_keys)?);
+                namespaces.push(Namespace::new(locales_dir, namespace, locale_keys)?);
             }
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
         } else {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys {
-                let path = format!("./locales/{}.json", locale.name);
+                let path = format!("{}/{}.json", locales_dir, locale.name);
                 locales.push(Locale::new(path, locale, None)?);
             }
             Ok(LocalesOrNamespaces::Locales(locales))
