@@ -1,6 +1,5 @@
-use crate::i18n::{provide_i18n_context, use_i18n, LocaleEnum, Locales};
+use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::t;
 
 #[component]
 pub fn App() -> impl IntoView {
