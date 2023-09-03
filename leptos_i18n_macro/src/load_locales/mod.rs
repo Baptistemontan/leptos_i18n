@@ -43,10 +43,12 @@ pub fn load_locales() -> Result<TokenStream> {
 
             #locale_type
 
+            #[inline]
             pub fn use_i18n() -> leptos_i18n::I18nContext<Locales> {
                 leptos_i18n::use_i18n_context()
             }
 
+            #[inline]
             pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locales> {
                 leptos_i18n::provide_i18n_context()
             }
