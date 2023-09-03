@@ -25,7 +25,37 @@ pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
         }
     };
     if let Some(interpolations) = interpolations {
-        quote!(move || #get_key #(.#interpolations)*)
+        if cfg!(feature = "debug_interpolations") {
+            quote! {
+                move || {
+                    let _key = #get_key;
+                    #(
+                        let _key = _key.#interpolations;
+                    )*
+                    #[deny(deprecated)]
+                    _key.build()
+                }
+            }
+        } else {
+            quote! {
+                move || {
+                    let _key = #get_key;
+                    #(
+                        let _key = _key.#interpolations;
+                    )*
+                    _key
+                }
+            }
+        }
+    } else if cfg!(feature = "debug_interpolations") {
+        quote! {
+            move || {
+                #[allow(unused)]
+                use leptos_i18n::__private::BuildString;
+                let _key = #get_key;
+                _key.build()
+            }
+        }
     } else {
         quote!(move || #get_key)
     }
