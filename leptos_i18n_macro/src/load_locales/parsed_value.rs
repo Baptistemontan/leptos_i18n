@@ -166,10 +166,11 @@ impl ParsedValue {
     fn flatten(&self, tokens: &mut Vec<TokenStream>) {
         match self {
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s, cx))),
+            ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
-            ParsedValue::Variable(key) => tokens
-                .push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key), cx))),
+            ParsedValue::Variable(key) => {
+                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key))))
+            }
             ParsedValue::Component { key, inner } => {
                 let captured_keys = inner.get_keys().map(|keys| {
                     let keys = keys
@@ -180,10 +181,10 @@ impl ParsedValue {
 
                 let f = quote!({
                     #captured_keys
-                    move |cx| Into::into(#inner)
+                    move || Into::into(#inner)
                 });
                 let boxed_fn = quote!(Box::new(#f));
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(cx, #boxed_fn), cx)))
+                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)( #boxed_fn))))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
@@ -227,7 +228,7 @@ impl<'a> InterpolateKey<'a> {
                 quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
             }
             InterpolateKey::Component(_) => quote!(
-                Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View
+                Fn(leptos::ChildrenFn) -> leptos::View
                     + core::clone::Clone
                     + 'static
             ),
@@ -249,7 +250,7 @@ impl ToTokens for ParsedValue {
         match &tokens[..] {
             [] => quote!(leptos::View::default()),
             [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*], cx)),
+            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
         }
     }
 

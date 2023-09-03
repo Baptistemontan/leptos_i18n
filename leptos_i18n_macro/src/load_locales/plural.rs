@@ -128,7 +128,7 @@ impl Plurals {
                     #captured_values
                     move || #match_statement
                 },
-                cx
+
             )
         }
     }
@@ -183,7 +183,7 @@ impl Plurals {
                         #ifs
                     }
                 },
-                cx
+
             )
         }
     }

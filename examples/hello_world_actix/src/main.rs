@@ -23,7 +23,7 @@ async fn main() -> std::io::Result<()> {
     let conf = get_configuration(None).await.unwrap();
 
     let addr = conf.leptos_options.site_addr;
-    let routes = generate_route_list(|cx| view! { cx, <App /> });
+    let routes = generate_route_list(|| view! { <App /> });
 
     HttpServer::new(move || {
         let leptos_options = &conf.leptos_options;

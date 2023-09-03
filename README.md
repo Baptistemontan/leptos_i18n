@@ -7,13 +7,13 @@ This crate is made to simplify internalisation in a [Leptos](https://crates.io/c
 The main focus is ease of you use with leptos, a typical component using this crate will look like this:
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 
-let (counter, set_counter) = create_signal(cx, 0);
+let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! { cx,
+view! {
     {/* click_to_inc = "Click to increment" */}
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
     {/* click_count = "You have clicked {{ count }} times" */}
@@ -21,22 +21,21 @@ view! { cx,
 }
 ```
 
-You just need a configuration file named `i18n.json` and one file per locale name `{locale}.json` in the `/locales` folder of your application.
+You just need to declare the locales in you `Cargo.toml` and one file per locale named `{locale}.json` in the `/locales` folder of your application.
 
 ## How to use
 
 ### Configuration files
 
-There are files that need to exist, the first one is the `i18n.json` file that describe the default locale and supported locales, it need to be at the root of the project and look like this:
+First You need to declare your locales in your cargo manifest `Cargo.toml`:
 
-```json
-{
-  "default": "en",
-  "locales": ["en", "fr"]
-}
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
 ```
 
-The other ones are the files containing the translation, they are key-value pairs and need to be situated in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale defined in the `i18n.json` file.
+You can then put your translations files in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale declared in the configuration.
 
 The file structure must look like this:
 
@@ -66,6 +65,15 @@ And the files must look like this:
 
 All locales files need to have exactly the same keys.
 
+If you need your locales to be in a different folders than `./locales` you can specify the path in the configuration:
+
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+locales-dir = "./path/to/locales"
+```
+
 ### Loading the locales
 
 You can then use the `load_locales!()` macro in a module of the project, this will load _at compile time_ the locales, and create a struct that describe your locales:
@@ -94,12 +102,12 @@ The heart of this library is the `I18nContext`, it must be provided at the highe
 ```rust
 // root of the application
 #[component]
-pub fn App(cx: Scope) -> impl IntoView {
+pub fn App() -> impl IntoView {
 
-    leptos_i18n::provide_i18n_context::<Locales>(cx);
+    leptos_i18n::provide_i18n_context::<Locales>();
 
-    view! { cx,
-        {/* ... */}
+    view! {
+        /* ... */
     }
 }
 ```
@@ -107,30 +115,30 @@ pub fn App(cx: Scope) -> impl IntoView {
 You can then call the `get_context<T>` function to access it:
 
 ```rust
-let i18n_context = leptos_i18n::get_context::<Locales>(cx);
+let i18n_context = leptos_i18n::get_context::<Locales>();
 ```
 
 It is advised to make your own function to suppress the need to pass the `Locales` type every time:
 
 ```rust
 #[inline]
-pub fn get_i18n_context(cx: Scope) -> I18nContext<Locales> {
-    leptos_i18n::get_context(cx)
+pub fn get_i18n_context() -> I18nContext<Locales> {
+    leptos_i18n::get_context()
 }
 ```
 
 The `provide_i18n_context` function return the context, so instead of
 
 ```rust
-leptos_i18n::provide_i18n_context::<Locales>(cx);
+leptos_i18n::provide_i18n_context::<Locales>();
 
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 ```
 
 You can write
 
 ```rust
-let i18n = leptos_i18n::provide_i18n_context::<Locales>(cx);
+let i18n = leptos_i18n::provide_i18n_context::<Locales>();
 ```
 
 The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_locale(locale)`.
@@ -148,7 +156,7 @@ You can access the keys by calling `.get_keys` on the context, it will return th
 When the user make a request for your application, the request headers contains a weighted list of accepted locales, this library take them into account and try to match it against the loaded locales, but you probably want to give your users the possibility to manually choose there prefered locale, for that you can set the current locale with the `.set_locale` function:
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 
 let on_click = move |_| {
     let current_locale = i18n.get_locale();
@@ -159,7 +167,7 @@ let on_click = move |_| {
     i18n.set_locale(new_locale);
 };
 
-view! { cx,
+view! {
     <button on:click=on_click>
         {move || i18n.get_keys().click_to_switch_locale}
     </button>
@@ -171,9 +179,9 @@ view! { cx,
 As seen above, it can be pretty verbose to do `move || i18n.get_keys().$key` every time, so the crate expose a macro to help with that, the `t!()` macro.
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 
-view! { cx,
+view! {
     <p>{t!(i18n, hello_world)}</p>
 }
 ```
@@ -195,13 +203,13 @@ You may need to interpolate values in your translation, for that you can add var
 You can then do
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 
-let (counter, set_counter) = create_signal(cx, 0);
+let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! { cx,
+view! {
     <p>{t!(i18n, click_count, count = move || counter.get())}</p>
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
 }
@@ -217,14 +225,14 @@ You may also need to interpolate components, to highlight some part of a text fo
 }
 ```
 
-You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
+You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 
-view! { cx,
+view! {
     <p>
-        {t!(i18n, important_text, <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> })}
+        {t!(i18n, important_text, <b> = |children| view!{ <b>{children}</b> })}
     </p>
 }
 ```
@@ -234,13 +242,13 @@ The only restriction on variables/components names is that it must be a valid ru
 For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern where variables are passed to functions called `.var_$name(var)` and components to `.comp_$name(comp)`, so for the counter above but without the `t!` macro it will look like this:
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = get_i18n_context();
 
-let (counter, set_counter) = create_signal(cx, 0);
+let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! { cx,
+view! {
     <p>{move || i18n.get_keys().click_count.var_count(move || counter.get())}</p>
     <button on:click=inc>{move || i18n.get_keys().click_to_inc}</button>
 }
@@ -404,14 +412,13 @@ If a plural is a fallback it can omit the `count` key in a map or with only supp
 
 ### Namespaces
 
-Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the config file (i18n.json):
+Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the configuration:
 
-```json
-{
-  "default": "en",
-  "locales": ["en", "fr"],
-  "namespaces": ["common", "home"]
-}
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+namespaces = ["common", "home"]
 ```
 
 Then your file structures must look like this int the `/locales` directory:
