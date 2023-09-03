@@ -319,7 +319,7 @@ impl Interpolation {
                         __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
                     {
                         #destructure
-                        let #key = move | children| leptos::IntoView::into_view(#key( children));
+                        let #key = move |children| leptos::IntoView::into_view(#key(children));
                         #restructure
                     }
                 }

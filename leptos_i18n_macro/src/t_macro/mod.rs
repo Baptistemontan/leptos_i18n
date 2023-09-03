@@ -1,7 +1,7 @@
 use quote::quote;
 use syn::parse_macro_input;
 
-use self::parsed_input::ParsedInput;
+use self::parsed_input::{Keys, ParsedInput};
 
 pub mod interpolate;
 pub mod parsed_input;
@@ -14,13 +14,14 @@ pub fn t_macro(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
     let ParsedInput {
         context,
-        key,
+        keys,
         interpolations,
     } = input;
-    let get_key = match key {
-        parsed_input::Key::Key(key) => quote!(leptos_i18n::I18nContext::get_keys(#context).#key),
-        parsed_input::Key::Namespace { namespace, key } => {
-            quote!(leptos_i18n::I18nContext::get_keys(#context).#namespace.#key)
+    let get_key = match keys {
+        Keys::SingleKey(key) => quote!(leptos_i18n::I18nContext::get_keys(#context).#key),
+        Keys::Subkeys(keys) => quote!(leptos_i18n::I18nContext::get_keys(#context)#(.#keys)*),
+        Keys::Namespace(namespace, keys) => {
+            quote!(leptos_i18n::I18nContext::get_keys(#context).#namespace #(.#keys)*)
         }
     };
     if let Some(interpolations) = interpolations {

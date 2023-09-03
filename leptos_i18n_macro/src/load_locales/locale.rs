@@ -242,18 +242,23 @@ impl<'a: 'de, 'de> serde::de::Visitor<'de> for LocaleSeed<'a> {
         A: serde::de::MapAccess<'de>,
     {
         let mut keys = HashMap::new();
-        let locale = self.locale_name.name.as_str();
+        let locale_name = self.locale_name.name.as_str();
         let namespace = self.namespace;
 
-        while let Some(key) = map.next_key_seed(KeySeed::LocaleKey { locale, namespace })? {
+        while let Some(locale_key) = map.next_key_seed(KeySeed::LocaleKey {
+            locale: locale_name,
+            namespace,
+        })? {
             let parsed_value_seed = ParsedValueSeed {
                 in_plural: false,
-                locale,
-                locale_key: &key.name,
-                namespace,
+                base: super::SeedBase {
+                    locale_name,
+                    locale_key: &locale_key.name,
+                    namespace,
+                },
             };
             let value = map.next_value_seed(parsed_value_seed)?;
-            keys.insert(key, value);
+            keys.insert(locale_key, value);
         }
 
         Ok(keys)

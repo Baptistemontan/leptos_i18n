@@ -4,14 +4,15 @@ use syn::Token;
 
 use super::interpolate::InterpolatedValue;
 
-pub enum Key {
-    Key(Ident),
-    Namespace { namespace: Ident, key: Ident },
+pub enum Keys {
+    SingleKey(Ident),
+    Subkeys(Vec<Ident>),
+    Namespace(Ident, Vec<Ident>),
 }
 
 pub struct ParsedInput {
     pub context: Ident,
-    pub key: Key,
+    pub keys: Keys,
     pub interpolations: Option<Vec<InterpolatedValue>>,
 }
 
@@ -19,7 +20,7 @@ impl syn::parse::Parse for ParsedInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let context = input.parse()?;
         input.parse::<Comma>()?;
-        let key = input.parse()?;
+        let keys = input.parse()?;
         let comma = input.parse::<Comma>();
         let interpolations = match comma {
             Ok(_) => {
@@ -34,22 +35,36 @@ impl syn::parse::Parse for ParsedInput {
         };
         Ok(ParsedInput {
             context,
-            key,
+            keys,
             interpolations,
         })
     }
 }
 
-impl syn::parse::Parse for Key {
+fn parse_subkeys(input: syn::parse::ParseStream, keys: &mut Vec<Ident>) -> syn::Result<()> {
+    keys.push(input.parse()?);
+    while input.peek(Token![.]) {
+        input.parse::<Token![.]>()?;
+        keys.push(input.parse()?);
+    }
+    Ok(())
+}
+
+impl syn::parse::Parse for Keys {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let key = input.parse()?;
-        if input.peek(Token![.]) {
+        let first_key = input.parse()?;
+        if input.peek(Token![::]) {
+            input.parse::<Token![::]>()?;
+            let mut keys = vec![];
+            parse_subkeys(input, &mut keys)?;
+            Ok(Keys::Namespace(first_key, keys))
+        } else if input.peek(Token![.]) {
             input.parse::<Token![.]>()?;
-            let namespace = key;
-            let key = input.parse()?;
-            Ok(Key::Namespace { namespace, key })
+            let mut keys = vec![first_key];
+            parse_subkeys(input, &mut keys)?;
+            Ok(Keys::Subkeys(keys))
         } else {
-            Ok(Key::Key(key))
+            Ok(Keys::SingleKey(first_key))
         }
     }
 }

@@ -6,6 +6,7 @@ use quote::{format_ident, quote, ToTokens};
 use super::{
     key::Key,
     plural::{PluralType, Plurals},
+    SeedBase,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -261,9 +262,7 @@ impl ToTokens for ParsedValue {
 #[derive(Debug, Clone, Copy)]
 pub struct ParsedValueSeed<'a> {
     pub in_plural: bool,
-    pub locale: &'a str,
-    pub locale_key: &'a str,
-    pub namespace: Option<&'a str>,
+    pub base: SeedBase<'a>,
 }
 
 impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
@@ -287,63 +286,63 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         Ok(ParsedValue::new(v))
     }
 
-    fn visit_map<A>(mut self, map: A) -> std::result::Result<Self::Value, A::Error>
+    fn visit_seq<A>(mut self, map: A) -> std::result::Result<Self::Value, A::Error>
     where
-        A: serde::de::MapAccess<'de>,
+        A: serde::de::SeqAccess<'de>,
     {
         // nested plurals are not allowed, the code technically supports it,
         // but it's pointless and probably nobody will ever needs it.
         if std::mem::replace(&mut self.in_plural, true) {
-            let msg = match self.namespace {
+            let msg = match self.base.namespace {
                 Some(namespace) => format!(
                     "in locale {:?} at namespace {:?} at key {:?}: nested plurals are not allowed",
-                    self.locale, namespace, self.locale_key
+                    self.base.locale_name, namespace, self.base.locale_key
                 ),
                 None => format!(
                     "in locale {:?} at key {:?}: nested plurals are not allowed",
-                    self.locale, self.locale_key
+                    self.base.locale_name, self.base.locale_key
                 ),
             };
             return Err(serde::de::Error::custom(msg));
         }
-        let plurals = Plurals::from_serde_map(map, self)?;
+        let plurals = Plurals::from_serde_seq(map, self)?;
 
         let (invalid_fallback, fallback_count, should_have_fallback) =
             plurals.check_deserialization();
 
         if invalid_fallback {
-            let msg = match self.namespace {
+            let msg = match self.base.namespace {
                 Some(namespace) => format!(
                     "in locale {:?} at namespace {:?} at key {:?}: fallback is only allowed in last position",
-                    self.locale, namespace, self.locale_key
+                    self.base.locale_name, namespace, self.base.locale_key
                 ),
                 None => format!(
                     "in locale {:?} at key {:?}: fallback is only allowed in last position",
-                    self.locale, self.locale_key
+                    self.base.locale_name, self.base.locale_key
                 ),
             };
             Err(serde::de::Error::custom(msg))
         } else if fallback_count > 1 {
-            let msg = match self.namespace {
+            let msg = match self.base.namespace {
                 Some(namespace) => format!(
                     "in locale {:?} at namespace {:?} at key {:?}: multiple fallbacks are not allowed",
-                    self.locale, namespace, self.locale_key
+                    self.base.locale_name, namespace, self.base.locale_key
                 ),
                 None => format!(
                     "in locale {:?} at key {:?}: multiple fallbacks are not allowed",
-                    self.locale, self.locale_key
+                    self.base.locale_name, self.base.locale_key
                 ),
             };
             Err(serde::de::Error::custom(msg))
         } else if fallback_count == 0 && should_have_fallback {
-            let msg = match self.namespace {
+            let msg = match self.base.namespace {
                 Some(namespace) => format!(
                     "in locale {:?} at namespace {:?} at key {:?}: for plural type {:?} a fallback is required",
-                    self.locale, namespace, self.locale_key, plurals.get_type()
+                    self.base.locale_name, namespace, self.base.locale_key, plurals.get_type()
                 ),
                 None => format!(
                     "in locale {:?} at key {:?}: for plural type {:?} a fallback is required",
-                    self.locale, self.locale_key, plurals.get_type()
+                    self.base.locale_name, self.base.locale_key, plurals.get_type()
                 ),
             };
             Err(serde::de::Error::custom(msg))
@@ -353,7 +352,10 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "either a string or a map of string:string")
+        write!(
+            formatter,
+            "either a string, a sequence of plurals or a map of subkeys"
+        )
     }
 }
 
