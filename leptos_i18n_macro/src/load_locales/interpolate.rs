@@ -316,7 +316,7 @@ impl Interpolation {
                     pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
                     where
                         __O: leptos::IntoView,
-                        __T: Fn(leptos::Scope, leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
+                        __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
                     {
                         #destructure
                         let #key = move | children| leptos::IntoView::into_view(#key( children));

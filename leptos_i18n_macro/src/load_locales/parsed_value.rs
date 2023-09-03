@@ -227,7 +227,7 @@ impl<'a> InterpolateKey<'a> {
                 quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
             }
             InterpolateKey::Component(_) => quote!(
-                Fn(leptos::Scope, leptos::ChildrenFn) -> leptos::View
+                Fn(leptos::ChildrenFn) -> leptos::View
                     + core::clone::Clone
                     + 'static
             ),
