@@ -306,7 +306,7 @@ By default `N` is `i64` but you can change that with the key `type`:
 }
 ```
 
-The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64` and he `type` key must be the first.
+The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`. Also note that the `type` key must be the first.
 
 You can also supply a range:
 
