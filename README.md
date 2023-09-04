@@ -26,6 +26,20 @@ view! {
 
 You just need to declare the locales in you `Cargo.toml` and one file per locale named `{locale}.json` in the `/locales` folder of your application.
 
+## Getting started
+
+You can add the crate to your project with
+
+```bash
+cargo add leptos_i18n
+```
+
+Or by adding this line to your `Cargo.toml` under `[dependencies]`:
+
+```toml
+leptos_i18n = "0.1"
+```
+
 ## How to use
 
 ### Configuration files
