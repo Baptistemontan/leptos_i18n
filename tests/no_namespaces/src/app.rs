@@ -1,12 +1,11 @@
-use crate::i18n::{i18n_context, LocaleEnum, Locales};
+use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::t;
 
 #[component]
-pub fn App(cx: Scope) -> impl IntoView {
-    leptos_meta::provide_meta_context(cx);
+pub fn App() -> impl IntoView {
+    leptos_meta::provide_meta_context();
 
-    let i18n = leptos_i18n::provide_i18n_context::<Locales>(cx);
+    let i18n = provide_i18n_context();
 
     let on_switch = move |_| {
         let new_lang = match i18n.get_locale() {
@@ -16,7 +15,7 @@ pub fn App(cx: Scope) -> impl IntoView {
         i18n.set_locale(new_lang);
     };
 
-    view! { cx,
+    view! {
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
         <Counter />
         <Tests />
@@ -24,16 +23,16 @@ pub fn App(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-fn Counter(cx: Scope) -> impl IntoView {
-    let i18n = i18n_context(cx);
+fn Counter() -> impl IntoView {
+    let i18n = use_i18n();
 
-    let (counter, set_counter) = create_signal(cx, 0);
+    let (counter, set_counter) = create_signal(0);
 
     let inc = move |_| set_counter.update(|count| *count += 1);
 
     let count = move || counter.get();
 
-    view! { cx,
+    view! {
         <p>{t!(i18n, click_count, count)}</p>
         // <p>{t!(i18n, click_count, count = move || counter.get())}</p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>
@@ -41,10 +40,10 @@ fn Counter(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-fn Tests(cx: Scope) -> impl IntoView {
-    let i18n = i18n_context(cx);
+fn Tests() -> impl IntoView {
+    let i18n = use_i18n();
 
-    view! { cx,
+    view! {
         <p>{t!(i18n, f32_plural, count = || 42f32)}</p>
         <p>{t!(i18n, u32_plural, count = || 42u16)}</p>// u16 to test conversion
         <p>{t!(i18n, f32_OR_plural, count = || 42f32)}</p>

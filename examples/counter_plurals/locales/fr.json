@@ -1,5 +1,20 @@
 {
     "click_to_change_lang": "Cliquez pour changez de langue",
-    "click_count": "Vous avez cliqué {{ count }} fois",
+    "click_count": [
+        {
+            "count": "0",
+            "value": "Vous n'avez pas cliqué"
+        },
+        ["Vous avez cliqué une fois", "1"],
+        {
+            "count": "2..20",
+            "value": "You clicked {{ count }} times"
+        },
+        {
+            "count": "20..",
+            "value": "You clicked a lot"
+        },
+        ["You clicked a negative amount ??"]
+    ],
     "click_to_inc": "Cliquez pour incrémenter le compteur"
 }

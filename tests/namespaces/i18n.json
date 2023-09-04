@@ -1,5 +1,0 @@
-{
-    "default": "en",
-    "locales": ["en", "fr"],
-    "namespaces": ["first_namespace", "second_namespace"]
-}

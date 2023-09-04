@@ -3,7 +3,7 @@
 pub mod app;
 #[cfg(feature = "ssr")]
 pub mod fileserv;
-pub mod i18n;
+leptos_i18n::load_locales!();
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
@@ -12,7 +12,7 @@ pub fn hydrate() {
     use leptos::*;
     console_error_panic_hook::set_once();
 
-    leptos::mount_to_body(move |cx| {
-        view! { cx, <App/> }
+    leptos::mount_to_body(move || {
+        view! { <App/> }
     });
 }

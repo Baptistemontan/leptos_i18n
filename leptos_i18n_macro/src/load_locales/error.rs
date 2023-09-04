@@ -5,9 +5,10 @@ use quote::quote;
 
 #[derive(Debug)]
 pub enum Error {
-    ConfigFileNotFound(std::io::Error),
-    ConfigFileDeser(serde_json::Error),
-    ConfigFileDefaultMissing(ConfigFile),
+    ManifestNotFound(std::io::Error),
+    ConfigNotPresent,
+    ConfigFileDeser(toml::de::Error),
+    ConfigFileDefaultMissing(Box<ConfigFile>),
     LocaleFileNotFound {
         locale: String,
         namespace: Option<String>, 
@@ -61,11 +62,14 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::ConfigFileNotFound(err) => {
-                write!(f, "Could not found configuration file (i18n.json) : {}", err)
+            Error::ManifestNotFound(err) => {
+                write!(f, "Error accessing cargo manifest (Cargo.toml) : {}", err)
+            },
+            Error::ConfigNotPresent => {
+                write!(f, "Could not found \"[package.metadata.leptos-i18n]\" in cargo manifest (Cargo.toml)")
             }
             Error::ConfigFileDeser(err) => {
-                write!(f, "Parsing of configuration file (i18n.json) failed: {}", err)
+                write!(f, "Parsing of cargo manifest (Cargo.toml) failed: {}", err)
             }
             Error::ConfigFileDefaultMissing(cfg_file) => write!(f,
                 "{:?} is set as default locale but is not in the locales list: {:?}",
@@ -139,7 +143,7 @@ impl Display for Error {
                 locale_name, namespace, locale_key, plural, plural_type
             ),
             Error::DuplicateLocalesInConfig(duplicates) => write!(f,
-                "Found duplicates locales in configuration file (i18n.json): {:?}", 
+                "Found duplicates locales in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
             Error::InvalidBoundEnd {
@@ -203,7 +207,7 @@ impl Display for Error {
                 name
             ),
             Error::DuplicateNamespacesInConfig(duplicates) => write!(f,
-                "Found duplicates namespaces in configuration file (i18n.json): {:?}", 
+                "Found duplicates namespaces in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
             Error::PluralTypeMissmatch { locale_key, namespace: Some(namespace) } => write!(f, "In namespace {:?} at key {:?} the plurals types don't match across locales", namespace, locale_key),

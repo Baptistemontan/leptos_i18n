@@ -7,13 +7,16 @@ This crate is made to simplify internalisation in a [Leptos](https://crates.io/c
 The main focus is ease of you use with leptos, a typical component using this crate will look like this:
 
 ```rust
-let i18n = get_i18n_context(cx);
+use crate::i18n::*;
+use leptos::*;
 
-let (counter, set_counter) = create_signal(cx, 0);
+let i18n = use_i18n();
+
+let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! { cx,
+view! {
     {/* click_to_inc = "Click to increment" */}
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
     {/* click_count = "You have clicked {{ count }} times" */}
@@ -21,7 +24,7 @@ view! { cx,
 }
 ```
 
-You just need a configuration file named `i18n.json` and one file per locale name `{locale}.json` in the `/locales` folder of your application.
+You just need to declare the locales in you `Cargo.toml` and one file per locale named `{locale}.json` in the `/locales` folder of your application.
 
 ## Getting started
 
@@ -41,16 +44,15 @@ leptos_i18n = "0.1"
 
 ### Configuration files
 
-There are files that need to exist, the first one is the `i18n.json` file that describe the default locale and supported locales, it need to be at the root of the project and look like this:
+First You need to declare your locales in your cargo manifest `Cargo.toml`:
 
-```json
-{
-  "default": "en",
-  "locales": ["en", "fr"]
-}
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
 ```
 
-The other ones are the files containing the translation, they are key-value pairs and need to be situated in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale defined in the `i18n.json` file.
+You can then put your translations files in the `/locales` directory at root of the project, they should be named `{locale}.json`, one per locale declared in the configuration.
 
 The file structure must look like this:
 
@@ -80,9 +82,22 @@ And the files must look like this:
 
 All locales files need to have exactly the same keys.
 
+If you need your locales to be in a different folders than `./locales` you can specify the path in the configuration:
+
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+locales-dir = "./path/to/locales"
+```
+
 ### Loading the locales
 
-You can then use the `load_locales!()` macro in a module of the project, this will load _at compile time_ the locales, and create a struct that describe your locales:
+You can then use the `leptos_i18n::load_locales!()` macro, this will load _at compile time_ the locales, and create a module named `i18n` that expose multiple things:
+
+#### The keys
+
+The macro create a struct `I18nKeys` that represent your declared translations:
 
 ```rust
 struct I18nKeys {
@@ -90,7 +105,9 @@ struct I18nKeys {
 }
 ```
 
-Two other helper types are created, one enum representing the locales:
+#### The declared locales
+
+It also create an enum that describe the supported locales:
 
 ```rust
 enum LocaleEnum {
@@ -99,52 +116,54 @@ enum LocaleEnum {
 }
 ```
 
-and an empty struct named `Locales` that serves as a link beetween the two, it is this one that is the most important, most functions of the crate need this type, not the one containing the locales nor the enum.
+#### The glue
+
+It also declare a type `Locales` which unique pupose is to serves as a bridge beetween the two, most functions of the crate are generics over this type.
+
+#### Helper functions
+
+The `i18n` module also exposes 2 functions: `provide_i18n_context` and `use_i18n`.
 
 ### I18nContext
 
-The heart of this library is the `I18nContext`, it must be provided at the highest possible level in the application with the `provide_i18n_context` function:
+The heart of this library is the `I18nContext`, it must be provided at the highest possible level in the application with the `provide_i18n_context` function created with the `i18n` module:
 
 ```rust
+use crate::i18n::provide_i18n_context;
+
 // root of the application
 #[component]
-pub fn App(cx: Scope) -> impl IntoView {
+pub fn App() -> impl IntoView {
 
-    leptos_i18n::provide_i18n_context::<Locales>(cx);
+    provide_i18n_context();
 
-    view! { cx,
-        {/* ... */}
+    view! {
+        /* ... */
     }
 }
 ```
 
-You can then call the `get_context<T>` function to access it:
+You can then call the `use_i18n` function in the `i18n` module to access it:
 
 ```rust
-let i18n_context = leptos_i18n::get_context::<Locales>(cx);
-```
-
-It is advised to make your own function to suppress the need to pass the `Locales` type every time:
-
-```rust
-#[inline]
-pub fn get_i18n_context(cx: Scope) -> I18nContext<Locales> {
-    leptos_i18n::get_context(cx)
-}
+use crate::i18n::use_i18n;
+let i18n_context = use_i18n();
 ```
 
 The `provide_i18n_context` function return the context, so instead of
 
 ```rust
-leptos_i18n::provide_i18n_context::<Locales>(cx);
+use crate::i18n::{use_i18n, provide_i18n_context};
+provide_i18n_context();
 
-let i18n = get_i18n_context(cx);
+let i18n = use_i18n();
 ```
 
 You can write
 
 ```rust
-let i18n = leptos_i18n::provide_i18n_context::<Locales>(cx);
+use crate::i18n::provide_i18n_context;
+let i18n = provide_i18n_context();
 ```
 
 The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_locale(locale)`.
@@ -162,7 +181,7 @@ You can access the keys by calling `.get_keys` on the context, it will return th
 When the user make a request for your application, the request headers contains a weighted list of accepted locales, this library take them into account and try to match it against the loaded locales, but you probably want to give your users the possibility to manually choose there prefered locale, for that you can set the current locale with the `.set_locale` function:
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = use_i18n();
 
 let on_click = move |_| {
     let current_locale = i18n.get_locale();
@@ -173,7 +192,7 @@ let on_click = move |_| {
     i18n.set_locale(new_locale);
 };
 
-view! { cx,
+view! {
     <button on:click=on_click>
         {move || i18n.get_keys().click_to_switch_locale}
     </button>
@@ -185,14 +204,20 @@ view! { cx,
 As seen above, it can be pretty verbose to do `move || i18n.get_keys().$key` every time, so the crate expose a macro to help with that, the `t!()` macro.
 
 ```rust
-let i18n = get_i18n_context(cx);
+use crate::i18n::use_i18n;
+use leptos_i18n::t;
 
-view! { cx,
+let i18n = use_i18n();
+
+view! {
     <p>{t!(i18n, hello_world)}</p>
 }
 ```
 
 It takes the context as the first parameter and the key in second.
+
+Because you often use the`t!` macro with the `i18n` module, the `i18n` module re-export it, so you can do `use crate::i18n::*` to import the `use_i18n` function and the `t!` macro together.
+
 It also help with interpolation:
 
 ### Interpolation
@@ -209,13 +234,13 @@ You may need to interpolate values in your translation, for that you can add var
 You can then do
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = use_i18n();
 
-let (counter, set_counter) = create_signal(cx, 0);
+let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! { cx,
+view! {
     <p>{t!(i18n, click_count, count = move || counter.get())}</p>
     <button on:click=inc>{t!(i18n, click_to_inc)}</button>
 }
@@ -231,14 +256,14 @@ You may also need to interpolate components, to highlight some part of a text fo
 }
 ```
 
-You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::Scope, leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
+You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = use_i18n();
 
-view! { cx,
+view! {
     <p>
-        {t!(i18n, important_text, <b> = |cx, children| view!{ cx, <b>{children(cx)}</b> })}
+        {t!(i18n, important_text, <b> = |children| view!{ <b>{children}</b> })}
     </p>
 }
 ```
@@ -248,13 +273,13 @@ The only restriction on variables/components names is that it must be a valid ru
 For plain strings, `.get_keys().$key` return a `&'static str`, but for interpolated keys it return a struct that implement a builder pattern where variables are passed to functions called `.var_$name(var)` and components to `.comp_$name(comp)`, so for the counter above but without the `t!` macro it will look like this:
 
 ```rust
-let i18n = get_i18n_context(cx);
+let i18n = use_i18n();
 
-let (counter, set_counter) = create_signal(cx, 0);
+let (counter, set_counter) = create_signal(0);
 let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! { cx,
+view! {
     <p>{move || i18n.get_keys().click_count.var_count(move || counter.get())}</p>
     <button on:click=inc>{move || i18n.get_keys().click_to_inc}</button>
 }
@@ -294,46 +319,66 @@ t!(i18n, key, count, <b>, other_key = ..)
 
 ### Plurals
 
-You may need to display different messages depending on a count, for exemple one when there is 0 elements, another when there is only one, and a last one when the count is anything else. For that you can do:
+You may need to display different messages depending on a count, for exemple one when there is 0 elements, another when there is only one, and a last one when the count is anything else.
+
+You declare them in a sequence of plurals, there is 2 syntax for the plurals, first is being a map with the `count` and the `value`:
 
 ```json
 {
-  "click_count": {
-    "0": "You have not clicked yet",
-    "1": "You clicked once",
-    "_": "You clicked {{ count }} times"
-  }
+  "click_count": [
+    {
+      "count": "0",
+      "value": "You have not clicked yet"
+    },
+    {
+      "count": "1",
+      "value": "You clicked once"
+    },
+    {
+      "count": "_",
+      "value": "You clicked {{ count }} times"
+    }
+  ]
 }
 ```
+
+The other one is a sequence where the first element is the value and the other elements are the counts:
+
+```json
+{
+  "click_count": [
+    ["You have not clicked yet", "0"],
+    ["You clicked once", "1"],
+    ["You clicked {{ count }} times", "_"]
+  ]
+}
+```
+
+You can mix them up as you want.
 
 When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> Into<N> + Clone + 'static` where `N` is the specified type.
-By default `N` is `i64` but you can change that with the key `type`:
+By default `N` is `i64` but you can change that by specifying the type as the **first** value in the sequence:
 
 ```json
 {
-  "money_in_da_bank": {
-    "type": "f32",
-    "0.0": "You are broke",
-    "..0.0": "You owe money",
-    "_": "You have {{ count }}€"
-  }
+  "money_count": [
+    "f32",
+    {
+      "count": "0.0",
+      "value": "You are broke"
+    },
+    ["You owe money", "..0.0"],
+    {
+      "count": "_",
+      "value": "You have {{ count }}€"
+    }
+  ]
 }
 ```
 
-The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`. Also note that the `type` key must be the first.
+The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`.
 
-You can also supply a range:
-
-```json
-{
-  "click_count": {
-    "0": "You have not clicked yet",
-    "1": "You clicked once",
-    "2..=10": "You clicked {{ count }} times",
-    "11..": "You clicked <b>a lot</b>"
-  }
-}
-```
+As seen above with the second plural you can supply a range: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will considered fallback `_`)
 
 The resulting code looks something like this:
 
@@ -341,28 +386,16 @@ The resulting code looks something like this:
 match N::from(count()) {
     0 => // render "You have not clicked yet",
     1 => // render "You clicked once",
+    2..=20 => // render "You clicked beetween 2 and 20 times"
     _ => // render "You clicked {{ count }} times"
 }
 ```
 
-But this exemple will not compile, because the resulting match statement will not cover the full `i64` range (even if your count is not a `i64`, it is till converted to one and need to match the full range), so you will either need to introduce a fallback, or the missing range: `"..0": "You clicked a negative amount ??"`, or set `type` to a unsigned like `u64`.
+Because it expand to a match statement, a compilation error will be produced if the full range of `N` is not covered.
 
-Because floats (`f32` and `f64`) are not accepted in match statements so it can't be known if the full range is covered, therefore floats must have a fallback (`"_"`) at the end.
+But floats (`f32` and `f64`) are not accepted in match statements it expand to a `if-else` chain, therefore must and by a `else` block, so a fallback `_` or `..` is required.
 
-Those plurals:
-
-```json
-{
-  "money_in_da_bank": {
-    "type": "f32",
-    "0.0": "You are broke",
-    "..0.0": "You owe money",
-    "_": "You have {{ count }}€"
-  }
-}
-```
-
-Would generate code similar to this:
+The plural above would generate code similar to this:
 
 ```rust
 let plural_count = f32::from(count());
@@ -379,34 +412,44 @@ If one locale use plurals for a key, another locale does not need to use it, but
 
 You are not required to use the `count` variable in the locale, but it must be provided.
 
-If multiple locales use plurals for the same key, the count `type` must be the same.
+If multiple locales use plurals for the same key, the count type must be the same.
 
 (PS: Floats are generaly not a good idea for money.)
 
-You can also have multiple conditions:
+You can also have multiple conditions by either separate them by `|` or put them in a sequence:
 
 ```json
 {
-  "click_count": {
-    "type": "u32",
-    "0 | 5": "You clicked 0 or 5 times",
-    "1": "You clicked once",
-    "2..=10 | 20": "You clicked {{ count }} times",
-    "11..": "You clicked <b>a lot</b>"
-  }
+  "click_count": [
+    "u32",
+    {
+      "count": "0 | 5",
+      "value": "You clicked 0 or 5 times"
+    },
+    ["You clicked once", "1"],
+    {
+      "count": ["2..=10", "20"],
+      "value": "You clicked {{ count }} times"
+    },
+    ["You clicked 30 or 40 times", "30", "40"],
+    {
+      "value": "You clicked <b>a lot</b>"
+    }
+  ]
 }
 ```
 
+If a plural is a fallback it can omit the `count` key in a map or with only supply the value: `["fallback value"]`
+
 ### Namespaces
 
-Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the config file (i18n.json):
+Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the configuration:
 
-```json
-{
-  "default": "en",
-  "locales": ["en", "fr"],
-  "namespaces": ["common", "home"]
-}
+```toml
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+namespaces = ["common", "home"]
 ```
 
 Then your file structures must look like this int the `/locales` directory:

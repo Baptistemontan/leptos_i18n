@@ -1,11 +1,23 @@
 {
     "click_to_change_lang": "Click to change language",
-    "click_count": {
-        "0": "You have not clicked yet",
-        "1": "You clicked once",
-        "2..20": "You clicked {{ count }} times",
-        "20..": "You clicked a lot",
-        "..0": "You clicked a negative amount ??"
-    },
+    "click_count": [
+        {
+            "count": "0",
+            "value": "You have not clicked yet"
+        },
+        ["You clicked once", "1"],
+        {
+            "count": "2..20",
+            "value": "You clicked {{ count }} times"
+        },
+        {
+            "count": "20..",
+            "value": "You clicked a lot"
+        },
+        {
+            "count": "..0",
+            "value": "You clicked a negative amount ??"
+        }
+    ],
     "click_to_inc": "Click to increment the counter"
 }

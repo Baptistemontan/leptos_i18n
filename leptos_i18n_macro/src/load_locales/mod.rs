@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Not, path::Path};
+use std::{collections::HashMap, ops::Not};
 
 pub mod cfg_file;
 pub mod error;
@@ -18,9 +18,15 @@ use quote::{format_ident, quote};
 
 use self::locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace};
 
-pub fn load_locales(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStream> {
-    let cfg_file = ConfigFile::new(cfg_file_path)?;
+#[derive(Debug, Clone, Copy)]
+pub struct SeedBase<'a> {
+    pub locale_name: &'a str,
+    pub locale_key: &'a str,
+    pub namespace: Option<&'a str>,
+}
 
+pub fn load_locales() -> Result<TokenStream> {
+    let cfg_file = ConfigFile::new()?;
     let locales = LocalesOrNamespaces::new(&cfg_file)?;
 
     let keys = Locale::check_locales(&locales)?;
@@ -30,11 +36,25 @@ pub fn load_locales(cfg_file_path: Option<impl AsRef<Path>>) -> Result<TokenStre
     let locales = create_locales_type(&cfg_file);
 
     Ok(quote! {
-        #locales
+        pub mod i18n {
+            #locales
 
-        #locale_variants
+            #locale_variants
 
-        #locale_type
+            #locale_type
+
+            #[inline]
+            pub fn use_i18n() -> leptos_i18n::I18nContext<Locales> {
+                leptos_i18n::use_i18n_context()
+            }
+
+            #[inline]
+            pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locales> {
+                leptos_i18n::provide_i18n_context()
+            }
+
+            pub use leptos_i18n::t;
+        }
     })
 }
 

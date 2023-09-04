@@ -316,10 +316,10 @@ impl Interpolation {
                     pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
                     where
                         __O: leptos::IntoView,
-                        __T: Fn(leptos::Scope, leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
+                        __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
                     {
                         #destructure
-                        let #key = move |cx, children| leptos::IntoView::into_view(#key(cx, children), cx);
+                        let #key = move |children| leptos::IntoView::into_view(#key(children));
                         #restructure
                     }
                 }
@@ -424,7 +424,7 @@ impl Interpolation {
         quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
-                fn into_view(self, cx: leptos::Scope) -> leptos::View {
+                fn into_view(self) -> leptos::View {
                     #destructure
                     match #locale_field {
                         #(

@@ -4,8 +4,6 @@ mod actix;
 #[cfg(all(feature = "axum", not(feature = "actix")))]
 mod axum;
 
-use leptos::*;
-
 use crate::Locales;
 
 #[cfg(all(feature = "actix", not(feature = "axum")))]
@@ -14,15 +12,15 @@ use actix as backend;
 use axum as backend;
 
 #[cfg(any(feature = "actix", feature = "axum"))]
-pub fn fetch_locale_server_side<T: Locales>(cx: Scope) -> T::Variants {
-    backend::fetch_locale_server::<T>(cx)
+pub fn fetch_locale_server_side<T: Locales>() -> T::Variants {
+    backend::fetch_locale_server::<T>()
 }
 
 #[cfg(all(feature = "actix", feature = "axum"))]
 compile_error!("Can't enable \"actix\" and \"axum\" features together.");
 
 #[cfg(not(any(feature = "actix", feature = "axum")))]
-pub fn fetch_locale_server_side<T: Locales>(cx: Scope) -> T::Variants {
+pub fn fetch_locale_server_side<T: Locales>() -> T::Variants {
     compile_error!("Need either \"actix\" or \"axum\" feature to be enabled in ssr. Don't use the \"ssr\" feature, it is directly enable by the \"actix\" or \"axum\" feature.")
 }
 

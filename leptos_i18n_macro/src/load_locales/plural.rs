@@ -11,6 +11,7 @@ use quote::{quote, ToTokens};
 use super::{
     error::{Error, Result},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
+    SeedBase,
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -127,7 +128,7 @@ impl Plurals {
                     #captured_values
                     move || #match_statement
                 },
-                cx
+
             )
         }
     }
@@ -182,27 +183,22 @@ impl Plurals {
                         #ifs
                     }
                 },
-                cx
+
             )
         }
     }
 
     fn deserialize_all_pairs<'de, A, T>(
-        mut map: A,
+        mut seq: A,
         plurals: &mut Vec<(Plural<T>, ParsedValue)>,
         parsed_value_seed: ParsedValueSeed,
     ) -> Result<(), A::Error>
     where
-        A: serde::de::MapAccess<'de>,
+        A: serde::de::SeqAccess<'de>,
         T: PluralNumber,
     {
-        let plural_seed = PluralSeed::<T> {
-            _marker: PhantomData,
-            locale_name: parsed_value_seed.locale,
-            locale_key: parsed_value_seed.locale_key,
-            namespace: parsed_value_seed.namespace,
-        };
-        while let Some(pair) = map.next_entry_seed(plural_seed, parsed_value_seed)? {
+        let plural_seed = PluralStructSeed::<T>(parsed_value_seed, PhantomData);
+        while let Some(pair) = seq.next_element_seed(plural_seed)? {
             plurals.push(pair)
         }
         Ok(())
@@ -210,23 +206,23 @@ impl Plurals {
 
     fn deserialize_inner<'de, A>(
         &mut self,
-        map: A,
+        seq: A,
         parsed_value_seed: ParsedValueSeed,
     ) -> Result<(), A::Error>
     where
-        A: serde::de::MapAccess<'de>,
+        A: serde::de::SeqAccess<'de>,
     {
         match self {
-            Plurals::I8(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::I16(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::I32(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::I64(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::U8(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::U16(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::U32(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::U64(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::F32(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
-            Plurals::F64(plurals) => Self::deserialize_all_pairs(map, plurals, parsed_value_seed),
+            Plurals::I8(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::I16(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::I32(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::I64(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::U8(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::U16(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::U32(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::U64(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::F32(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::F64(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
         }
     }
 
@@ -245,58 +241,40 @@ impl Plurals {
         }
     }
 
-    pub fn from_serde_map<'de, A>(
-        mut map: A,
+    pub fn from_serde_seq<'de, A>(
+        mut seq: A,
         parsed_value_seed: ParsedValueSeed,
     ) -> Result<Self, A::Error>
     where
-        A: serde::de::MapAccess<'de>,
+        A: serde::de::SeqAccess<'de>,
     {
-        let ParsedValueSeed {
-            locale: locale_name,
+        let SeedBase {
+            locale_name,
             locale_key,
             namespace,
-            ..
-        } = parsed_value_seed;
-        let first_key: String = map.next_key()?.ok_or_else(|| {
-            let err = match namespace {
-                Some(namespace) => format!(
+        } = parsed_value_seed.base;
+        let type_or_plural = seq
+            .next_element_seed(TypeOrPluralSeed(parsed_value_seed))?
+            .ok_or_else(|| {
+                let err = match namespace {
+                    Some(namespace) => format!(
                     "in locale {:?} at namespace {:?} at key {:?}: empty plurals are not allowed",
                     locale_name, namespace, locale_key
                 ),
-                None => format!(
-                    "in locale {:?} at key {:?}: empty plurals are not allowed",
-                    locale_name, locale_key
-                ),
-            };
-            serde::de::Error::custom(err)
-        })?;
+                    None => format!(
+                        "in locale {:?} at key {:?}: empty plurals are not allowed",
+                        locale_name, locale_key
+                    ),
+                };
+                serde::de::Error::custom(err)
+            })?;
 
-        let mut plurals = if first_key.trim() == "type" {
-            let plural_type = map.next_value_seed(PluralTypeSeed {
-                locale_key,
-                locale_name,
-                namespace,
-            })?;
-            Self::from_type(plural_type)
-        } else {
-            let plural_seed = PluralSeed::<i64> {
-                locale_key,
-                locale_name,
-                namespace,
-                _marker: PhantomData,
-            };
-            let plural = serde::de::Visitor::visit_str(plural_seed, &first_key)?;
-            let value = map.next_value_seed(ParsedValueSeed {
-                in_plural: true,
-                locale: locale_name,
-                locale_key,
-                namespace,
-            })?;
-            Plurals::I64(vec![(plural, value)])
+        let mut plurals = match type_or_plural {
+            TypeOrPlural::Type(plural_type) => Self::from_type(plural_type),
+            TypeOrPlural::Plural(plural) => Plurals::I64(vec![plural]),
         };
 
-        plurals.deserialize_inner(map, parsed_value_seed)?;
+        plurals.deserialize_inner(seq, parsed_value_seed)?;
         Ok(plurals)
     }
 
@@ -397,7 +375,7 @@ impl<T: PluralNumber> Plural<T> {
             })
         };
         let s = s.trim();
-        if s == "_" {
+        if matches!(s, "_" | "..") {
             return Ok(Self::Fallback);
         };
 
@@ -500,12 +478,7 @@ impl<T: PluralNumber> ToTokens for Plural<T> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct PluralSeed<'a, T> {
-    pub locale_name: &'a str,
-    pub locale_key: &'a str,
-    pub namespace: Option<&'a str>,
-    pub _marker: PhantomData<T>,
-}
+struct PluralSeed<'a, T>(pub SeedBase<'a>, PhantomData<T>);
 
 impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralSeed<'_, T> {
     type Value = Plural<T>;
@@ -513,7 +486,7 @@ impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralSeed<'_, T>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(self)
+        deserializer.deserialize_any(self)
     }
 }
 
@@ -523,7 +496,157 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<'_, T> {
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             formatter,
-            "a string representing either a range, an integer, or a fallback \"_\""
+            "a string representing a plural or a sequence of string representing a plural"
+        )
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let Some(first) = seq.next_element_seed(self)? else {
+            return Ok(Plural::Fallback);
+        };
+        let mut plurals = vec![];
+
+        while let Some(plural) = seq.next_element_seed(self)? {
+            plurals.push(plural)
+        }
+
+        if plurals.is_empty() {
+            Ok(first)
+        } else {
+            plurals.push(first);
+            Ok(Plural::Multiple(plurals))
+        }
+    }
+
+    fn visit_str<E>(self, s: &str) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let SeedBase {
+            locale_name,
+            locale_key,
+            namespace,
+        } = self.0;
+        Plural::new(locale_name, locale_key, namespace, s).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PluralStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
+
+impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<'_, T> {
+    type Value = (Plural<T>, ParsedValue);
+    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(self)
+    }
+}
+
+impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
+    type Value = (Plural<T>, ParsedValue);
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            formatter,
+            "either a struct representing a plural with the count and the value, or a sequence with the first element being the value and the other elements being the count"
+        )
+    }
+
+    fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        fn deser_field<'de, A, S, T>(
+            option: &mut Option<T>,
+            map: &mut A,
+            seed: S,
+            field_name: &'static str,
+        ) -> Result<(), A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+            S: serde::de::DeserializeSeed<'de, Value = T>,
+        {
+            if option.replace(map.next_value_seed(seed)?).is_some() {
+                Err(serde::de::Error::duplicate_field(field_name))
+            } else {
+                Ok(())
+            }
+        }
+        fn unwrap_field<T, E>(field: Option<T>, field_name: &'static str) -> Result<T, E>
+        where
+            E: serde::de::Error,
+        {
+            field.ok_or_else(|| serde::de::Error::missing_field(field_name))
+        }
+        let mut plural = None;
+        let mut value = None;
+        let seed_base = self.0.base;
+        while let Some(field) = map.next_key_seed(PluralFieldSeed(seed_base))? {
+            match field {
+                PluralField::Plural => deser_field(
+                    &mut plural,
+                    &mut map,
+                    PluralSeed(seed_base, PhantomData),
+                    "count",
+                )?,
+                PluralField::Value => deser_field(&mut value, &mut map, self.0, "count")?,
+            }
+        }
+
+        let plural = plural.unwrap_or(Plural::Fallback); // if no count, fallback
+        let value = unwrap_field(value, "value")?;
+
+        Ok((plural, value))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let Some(value) = seq.next_element_seed(self.0)? else {
+            return Err(serde::de::Error::invalid_length(0, &"at least 1 element"));
+        };
+        let plural = PluralSeed(self.0.base, PhantomData).visit_seq(seq)?;
+
+        Ok((plural, value))
+    }
+}
+
+enum PluralField {
+    Plural,
+    Value,
+}
+
+impl PluralField {
+    pub const FIELDS: &'static [&'static str] = &["count", "value"];
+}
+
+struct PluralFieldSeed<'a>(pub SeedBase<'a>);
+
+impl<'de> serde::de::DeserializeSeed<'de> for PluralFieldSeed<'_> {
+    type Value = PluralField;
+
+    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(self)
+    }
+}
+
+impl<'de> serde::de::Visitor<'de> for PluralFieldSeed<'_> {
+    type Value = PluralField;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            formatter,
+            "an identifier for fields {:?}",
+            PluralField::FIELDS
         )
     }
 
@@ -531,60 +654,90 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<'_, T> {
     where
         E: serde::de::Error,
     {
-        // return Err(E::custom(format!("{:?}", v.as_bytes())));
-        Plural::new(self.locale_name, self.locale_key, self.namespace, v).map_err(E::custom)
+        match v {
+            "count" => Ok(PluralField::Plural),
+            "value" => Ok(PluralField::Value),
+            _ => Err(serde::de::Error::unknown_field(v, PluralField::FIELDS)),
+        }
     }
 }
 
-struct PluralTypeSeed<'a> {
-    pub locale_name: &'a str,
-    pub locale_key: &'a str,
-    pub namespace: Option<&'a str>,
+enum TypeOrPlural {
+    Type(PluralType),
+    Plural((Plural<i64>, ParsedValue)),
 }
 
-impl<'de> serde::de::DeserializeSeed<'de> for PluralTypeSeed<'_> {
-    type Value = PluralType;
+struct TypeOrPluralSeed<'a>(pub ParsedValueSeed<'a>);
+
+impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed<'_> {
+    type Value = TypeOrPlural;
+
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(self)
+        deserializer.deserialize_any(self)
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for PluralTypeSeed<'_> {
-    type Value = PluralType;
+impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
+    type Value = TypeOrPlural;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "a string representing a number type")
+        write!(
+            formatter,
+            "either a string describing a numerical type or a plural"
+        )
     }
 
     fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
+        let SeedBase {
+            locale_name,
+            locale_key,
+            namespace,
+        } = self.0.base;
+
         match v.trim() {
-            "i8" => Ok(PluralType::I8),
-            "i16" => Ok(PluralType::I16),
-            "i32" => Ok(PluralType::I32),
-            "i64" => Ok(PluralType::I64),
-            "u8" => Ok(PluralType::U8),
-            "u16" => Ok(PluralType::U16),
-            "u32" => Ok(PluralType::U32),
-            "u64" => Ok(PluralType::U64),
-            "f32" => Ok(PluralType::F32),
-            "f64" => Ok(PluralType::F64),
-            _ => Err(serde::de::Error::custom(match self.namespace {
+            "i8" => Ok(TypeOrPlural::Type(PluralType::I8)),
+            "i16" => Ok(TypeOrPlural::Type(PluralType::I16)),
+            "i32" => Ok(TypeOrPlural::Type(PluralType::I32)),
+            "i64" => Ok(TypeOrPlural::Type(PluralType::I64)),
+            "u8" => Ok(TypeOrPlural::Type(PluralType::U8)),
+            "u16" => Ok(TypeOrPlural::Type(PluralType::U16)),
+            "u32" => Ok(TypeOrPlural::Type(PluralType::U32)),
+            "u64" => Ok(TypeOrPlural::Type(PluralType::U64)),
+            "f32" => Ok(TypeOrPlural::Type(PluralType::F32)),
+            "f64" => Ok(TypeOrPlural::Type(PluralType::F64)),
+            _ => Err(serde::de::Error::custom(match namespace {
                 Some(namespace) => format!(
                     "in locale {:?} at namespace {:?} at key {:?}: {:?} is not a valid number type",
-                    self.locale_name, namespace, self.locale_key, v
+                    locale_name, namespace, locale_key, v
                 ),
                 None => format!(
                     "in locale {:?} at key {:?}: {:?} is not a valid number type",
-                    self.locale_name, self.locale_key, v
+                    locale_name, locale_key, v
                 ),
             })),
         }
+    }
+
+    fn visit_map<A>(self, map: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let plural_seed = PluralStructSeed::<i64>(self.0, PhantomData);
+        plural_seed.visit_map(map).map(TypeOrPlural::Plural)
+    }
+
+    fn visit_seq<A>(self, seq: A) -> std::result::Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let plural_seed = PluralStructSeed::<i64>(self.0, PhantomData);
+        plural_seed.visit_seq(seq).map(TypeOrPlural::Plural)
     }
 }
 
@@ -662,13 +815,7 @@ mod tests {
     fn test_range_full() {
         let plural = Plural::<i32>::new("", "", None, "..").unwrap();
 
-        assert_eq!(
-            plural,
-            Plural::Range {
-                start: None,
-                end: Bound::Unbounded
-            }
-        );
+        assert_eq!(plural, Plural::Fallback);
     }
 
     #[test]
