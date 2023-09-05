@@ -100,11 +100,7 @@ pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
 /// Panics if the context is missing.
 #[inline]
 pub fn use_i18n_context<T: Locales>() -> I18nContext<T> {
-    #[cold]
-    pub fn not_present<T: Locales>() -> I18nContext<T> {
-        panic!("I18nContext is missing, use provide_i18n_context() to provide it.")
-    }
-    use_context().unwrap_or_else(not_present)
+    use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
 #[cfg(all(feature = "hydrate", feature = "cookie"))]
