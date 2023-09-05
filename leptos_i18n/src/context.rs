@@ -101,7 +101,7 @@ pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
 #[inline]
 pub fn use_i18n_context<T: Locales>() -> I18nContext<T> {
     #[cold]
-    pub fn not_present() -> ! {
+    pub fn not_present<T: Locales>() -> I18nContext<T> {
         panic!("I18nContext is missing, use provide_i18n_context() to provide it.")
     }
     use_context().unwrap_or_else(not_present)
