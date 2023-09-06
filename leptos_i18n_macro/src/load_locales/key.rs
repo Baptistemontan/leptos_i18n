@@ -43,46 +43,25 @@ impl quote::ToTokens for Key {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum KeySeed<'a> {
-    LocaleName,
-    Namespace,
-    LocaleKey {
-        locale: &'a str,
-        namespace: Option<&'a str>,
-    },
-}
+struct KeyVisitor;
 
-impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for KeySeed<'a> {
-    type Value = Key;
-
-    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+impl<'de> serde::de::Deserialize<'de> for Key {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(self)
+        deserializer.deserialize_str(KeyVisitor)
     }
 }
 
-impl<'a, 'de> serde::de::Visitor<'de> for KeySeed<'a> {
+impl<'de> serde::de::Visitor<'de> for KeyVisitor {
     type Value = Key;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            KeySeed::LocaleName => write!(
-                formatter,
-                "a string representing a locale that can be used as a valid rust identifier"
-            ),
-            KeySeed::LocaleKey { .. } => write!(
-                formatter,
-                "a string representing a locale key that can be used as a valid rust identifier"
-            ),
-            KeySeed::Namespace => {
-                write!(
-                    formatter,
-                "a string representing a namespace key that can be used as a valid rust identifier")
-            }
-        }
+        write!(
+            formatter,
+            "a string that can be used as a valid rust identifier"
+        )
     }
 
     fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
@@ -90,36 +69,5 @@ impl<'a, 'de> serde::de::Visitor<'de> for KeySeed<'a> {
         E: serde::de::Error,
     {
         Key::try_new(v).map_err(E::custom)
-    }
-}
-
-pub struct KeyVecSeed<'a>(pub KeySeed<'a>);
-
-impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for KeyVecSeed<'a> {
-    type Value = Vec<Key>;
-    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_seq(self)
-    }
-}
-
-impl<'a: 'de, 'de> serde::de::Visitor<'de> for KeyVecSeed<'a> {
-    type Value = Vec<Key>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "an sequence of string")
-    }
-
-    fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
-    {
-        let mut keys = Vec::new(); // json don't have size hints
-        while let Some(value) = seq.next_element_seed(self.0)? {
-            keys.push(value);
-        }
-        Ok(keys)
     }
 }

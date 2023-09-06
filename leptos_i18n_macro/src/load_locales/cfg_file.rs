@@ -1,21 +1,21 @@
-use serde::{de::DeserializeSeed, Deserialize};
+use serde::de::DeserializeOwned;
 
 use super::{
     error::{Error, Result},
-    key::{Key, KeySeed, KeyVecSeed},
+    key::Key,
 };
-use std::{borrow::Cow, collections::HashSet};
+use std::{borrow::Cow, collections::HashSet, rc::Rc};
 
 #[derive(Debug)]
 pub struct ConfigFile {
-    pub default: Key,
-    pub locales: Vec<Key>,
-    pub name_spaces: Option<Vec<Key>>,
+    pub default: Rc<Key>,
+    pub locales: Vec<Rc<Key>>,
+    pub name_spaces: Option<Vec<Rc<Key>>>,
     pub locales_dir: Cow<'static, str>,
 }
 
 impl ConfigFile {
-    fn contain_duplicates(locales: &[Key]) -> Option<HashSet<String>> {
+    fn contain_duplicates(locales: &[Rc<Key>]) -> Option<HashSet<String>> {
         // monkey time
 
         let mut marked = HashSet::with_capacity(locales.len());
@@ -131,18 +131,6 @@ impl<'de> serde::de::Visitor<'de> for FieldVisitor {
     }
 }
 
-struct StringSeed;
-impl<'de> serde::de::DeserializeSeed<'de> for StringSeed {
-    type Value = String;
-
-    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        String::deserialize(deserializer)
-    }
-}
-
 impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
     type Value = ConfigFile;
 
@@ -150,17 +138,16 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
-        fn deser_field<'de, A, S, T>(
+        fn deser_field<'de, A, T>(
             option: &mut Option<T>,
             map: &mut A,
-            seed: S,
             field_name: &'static str,
         ) -> Result<(), A::Error>
         where
             A: serde::de::MapAccess<'de>,
-            S: DeserializeSeed<'de, Value = T>,
+            T: DeserializeOwned,
         {
-            if option.replace(map.next_value_seed(seed)?).is_some() {
+            if option.replace(map.next_value()?).is_some() {
                 Err(serde::de::Error::duplicate_field(field_name))
             } else {
                 Ok(())
@@ -172,24 +159,10 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
         let mut locales_dir = None;
         while let Some(field) = map.next_key::<Field>()? {
             match field {
-                Field::Default => {
-                    deser_field(&mut default, &mut map, KeySeed::LocaleName, "default")?
-                }
-                Field::Locales => deser_field(
-                    &mut locales,
-                    &mut map,
-                    KeyVecSeed(KeySeed::LocaleName),
-                    "locales",
-                )?,
-                Field::Namespaces => deser_field(
-                    &mut name_spaces,
-                    &mut map,
-                    KeyVecSeed(KeySeed::Namespace),
-                    "namespaces",
-                )?,
-                Field::LocalesDir => {
-                    deser_field(&mut locales_dir, &mut map, StringSeed, "locales-dir")?
-                }
+                Field::Default => deser_field(&mut default, &mut map, "default")?,
+                Field::Locales => deser_field(&mut locales, &mut map, "locales")?,
+                Field::Namespaces => deser_field(&mut name_spaces, &mut map, "namespaces")?,
+                Field::LocalesDir => deser_field(&mut locales_dir, &mut map, "locales-dir")?,
                 Field::Unknown => continue,
             }
         }

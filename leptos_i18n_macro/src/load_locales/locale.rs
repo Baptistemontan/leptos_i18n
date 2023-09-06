@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
+    rc::Rc,
 };
 
 use serde::de::DeserializeSeed;
@@ -8,7 +9,7 @@ use serde::de::DeserializeSeed;
 use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
-    key::{Key, KeySeed},
+    key::Key,
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
 };
 
@@ -22,7 +23,7 @@ pub enum LocalesOrNamespaces {
     Locales(Vec<Locale>),
 }
 
-pub struct BuildersKeysInner<'a>(pub HashMap<&'a Key, LocaleValue<'a>>);
+pub struct BuildersKeysInner<'a>(pub HashMap<Rc<Key>, LocaleValue<'a>>);
 
 pub enum BuildersKeys<'a> {
     NameSpaces(HashMap<&'a Key, BuildersKeysInner<'a>>),
@@ -30,11 +31,11 @@ pub enum BuildersKeys<'a> {
 }
 
 impl Namespace {
-    pub fn new(locales_dir: &str, key: &Key, locale_keys: &[Key]) -> Result<Self> {
+    pub fn new(locales_dir: &str, key: &Key, locale_keys: &[Rc<Key>]) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
-        for locale in locale_keys {
+        for locale in locale_keys.iter().cloned() {
             let path = format!("{}/{}/{}.json", locales_dir, locale.name, key.name);
-            locales.push(Locale::new(path, locale, Some(&key.name))?);
+            locales.push(Locale::new(path, locale)?);
         }
         Ok(Namespace {
             key: key.clone(),
@@ -55,9 +56,9 @@ impl LocalesOrNamespaces {
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
         } else {
             let mut locales = Vec::with_capacity(locale_keys.len());
-            for locale in locale_keys {
+            for locale in locale_keys.iter().cloned() {
                 let path = format!("{}/{}.json", locales_dir, locale.name);
-                locales.push(Locale::new(path, locale, None)?);
+                locales.push(Locale::new(path, locale)?);
             }
             Ok(LocalesOrNamespaces::Locales(locales))
         }
@@ -65,12 +66,12 @@ impl LocalesOrNamespaces {
 }
 
 pub struct Locale {
-    pub name: Key,
-    pub keys: HashMap<Key, ParsedValue>,
+    pub name: Rc<Key>,
+    pub keys: HashMap<Rc<Key>, ParsedValue>,
 }
 
 impl Locale {
-    pub fn new(path: String, locale: &Key, namespace: Option<&str>) -> Result<Self> {
+    pub fn new(path: String, locale: Rc<Key>) -> Result<Self> {
         let locale_file = match File::open(&path) {
             Ok(file) => file,
             Err(err) => return Err(Error::LocaleFileNotFound { path, err }),
@@ -78,24 +79,20 @@ impl Locale {
 
         let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
 
-        let seed = LocaleSeed {
-            locale_name: locale,
-            namespace,
-        };
-
-        seed.deserialize(&mut deserializer)
+        LocaleSeed(locale)
+            .deserialize(&mut deserializer)
             .map_err(|err| Error::LocaleFileDeser { path, err })
     }
 
-    pub fn get_keys(&self) -> HashSet<&Key> {
-        self.keys.keys().collect()
+    pub fn get_keys(&self) -> HashSet<Rc<Key>> {
+        self.keys.keys().cloned().collect()
     }
 
     fn key_missmatch(
         locale1: &Self,
-        keys1: &HashSet<&Key>,
+        keys1: &HashSet<Rc<Key>>,
         locale2: &Self,
-        keys2: &HashSet<&Key>,
+        keys2: &HashSet<Rc<Key>>,
         namespace: Option<&str>,
     ) -> Error {
         let mut locale = locale2;
@@ -148,7 +145,7 @@ impl Locale {
             }
 
             for (key, key_kind) in &mut mapped_keys {
-                if let Some(value) = locale.keys.get(key) {
+                if let Some(value) = locale.keys.get(*key) {
                     value.get_keys_inner(key_kind)
                 }
             }
@@ -184,7 +181,7 @@ impl Locale {
         Ok(BuildersKeysInner(
             mapped_keys
                 .into_iter()
-                .map(|(key, value)| (key, LocaleValue::new(value)))
+                .map(|(key, value)| (Rc::clone(key), LocaleValue::new(value)))
                 .collect(),
         ))
     }
@@ -222,27 +219,19 @@ impl<'a> LocaleValue<'a> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct LocaleSeed<'a> {
-    locale_name: &'a Key,
-    namespace: Option<&'a str>,
-}
+#[derive(Debug, Clone)]
+struct LocaleSeed(Rc<Key>);
 
-impl<'a: 'de, 'de> serde::de::Visitor<'de> for LocaleSeed<'a> {
-    type Value = HashMap<Key, ParsedValue>;
+impl<'de> serde::de::Visitor<'de> for LocaleSeed {
+    type Value = HashMap<Rc<Key>, ParsedValue>;
 
     fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
         let mut keys = HashMap::new();
-        let locale_name = self.locale_name.name.as_str();
-        let namespace = self.namespace;
 
-        while let Some(locale_key) = map.next_key_seed(KeySeed::LocaleKey {
-            locale: locale_name,
-            namespace,
-        })? {
+        while let Some(locale_key) = map.next_key()? {
             let value = map.next_value_seed(ParsedValueSeed(false))?;
             keys.insert(locale_key, value);
         }
@@ -258,15 +247,14 @@ impl<'a: 'de, 'de> serde::de::Visitor<'de> for LocaleSeed<'a> {
     }
 }
 
-impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for LocaleSeed<'a> {
+impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
     type Value = Locale;
 
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let keys = deserializer.deserialize_map(self)?;
-        let name = self.locale_name.clone();
-        Ok(Locale { name, keys })
+        let keys = deserializer.deserialize_map(self.clone())?;
+        Ok(Locale { name: self.0, keys })
     }
 }

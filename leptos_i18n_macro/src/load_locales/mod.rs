@@ -124,12 +124,11 @@ fn create_locale_type_inner(
     let string_keys = keys
         .iter()
         .filter(|(_, value)| matches!(value, LocaleValue::String))
-        .map(|(key, _)| *key)
+        .map(|(key, _)| key)
         .collect::<Vec<_>>();
 
     let string_fields = string_keys
         .iter()
-        .copied()
         .map(|key| quote!(pub #key: &'static str))
         .collect::<Vec<_>>();
 
@@ -137,7 +136,7 @@ fn create_locale_type_inner(
         .iter()
         .filter_map(|(key, value)| match value {
             LocaleValue::String => None,
-            LocaleValue::Builder(keys) => Some((*key, Interpolation::new(key, keys, locales))),
+            LocaleValue::Builder(keys) => Some((key, Interpolation::new(key, keys, locales))),
         })
         .collect::<Vec<_>>();
 
@@ -159,7 +158,7 @@ fn create_locale_type_inner(
             .keys
             .iter()
             .filter(|(key, _)| {
-                keys.get(key)
+                keys.get(*key)
                     .is_some_and(|value| matches!(value, LocaleValue::String))
             })
             .filter_map(|(key, value)| {
