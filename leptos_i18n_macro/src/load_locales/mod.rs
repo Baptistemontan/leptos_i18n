@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Not};
+use std::{collections::HashMap, ops::Not, rc::Rc};
 
 pub mod cfg_file;
 pub mod error;
@@ -118,7 +118,7 @@ fn create_locales_type(_cfg_file: &ConfigFile) -> TokenStream {
 fn create_locale_type_inner(
     type_ident: &syn::Ident,
     locales: &[Locale],
-    BuildersKeysInner(keys): &BuildersKeysInner,
+    keys: &HashMap<Rc<Key>, LocaleValue>,
     is_namespace: bool,
 ) -> TokenStream {
     let string_keys = keys
@@ -268,9 +268,9 @@ fn create_namespaces_types(
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
         let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
-        let builders_keys = keys.get(&namespace.key).unwrap();
+        let keys = keys.get(&namespace.key).unwrap();
         let type_impl =
-            create_locale_type_inner(namespace_ident, &namespace.locales, builders_keys, true);
+            create_locale_type_inner(namespace_ident, &namespace.locales, &keys.0, true);
         quote! {
             pub mod #namespace_module_ident {
                 use super::{LocaleEnum, Locales};
@@ -354,7 +354,7 @@ fn create_locale_type(locales: &LocalesOrNamespaces, keys: &BuildersKeys) -> Tok
         (LocalesOrNamespaces::NameSpaces(namespaces), BuildersKeys::NameSpaces(keys)) => {
             create_namespaces_types(&i18n_keys_ident, namespaces, keys)
         }
-        (LocalesOrNamespaces::Locales(locales), BuildersKeys::Locales(keys)) => {
+        (LocalesOrNamespaces::Locales(locales), BuildersKeys::Locales(BuildersKeysInner(keys))) => {
             create_locale_type_inner(&i18n_keys_ident, locales, keys, false)
         }
         _ => unreachable!(),
