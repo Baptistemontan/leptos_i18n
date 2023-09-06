@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
-    path::Path,
 };
 
 use serde::de::DeserializeSeed;
@@ -71,12 +70,11 @@ pub struct Locale {
 }
 
 impl Locale {
-    pub fn new<T: AsRef<Path>>(path: T, locale: &Key, namespace: Option<&str>) -> Result<Self> {
-        let locale_file = File::open(path).map_err(|err| Error::LocaleFileNotFound {
-            locale: locale.name.clone(),
-            namespace: namespace.map(str::to_string),
-            err,
-        })?;
+    pub fn new(path: String, locale: &Key, namespace: Option<&str>) -> Result<Self> {
+        let locale_file = match File::open(&path) {
+            Ok(file) => file,
+            Err(err) => return Err(Error::LocaleFileNotFound { path, err }),
+        };
 
         let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
 
@@ -86,11 +84,7 @@ impl Locale {
         };
 
         seed.deserialize(&mut deserializer)
-            .map_err(|err| Error::LocaleFileDeser {
-                locale: locale.name.clone(),
-                namespace: namespace.map(str::to_string),
-                err,
-            })
+            .map_err(|err| Error::LocaleFileDeser { path, err })
     }
 
     pub fn get_keys(&self) -> HashSet<&Key> {

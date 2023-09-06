@@ -34,6 +34,23 @@ impl Default for PluralType {
     }
 }
 
+impl core::fmt::Display for PluralType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PluralType::I8 => f.write_str("i8"),
+            PluralType::I16 => f.write_str("i16"),
+            PluralType::I32 => f.write_str("i32"),
+            PluralType::I64 => f.write_str("i64"),
+            PluralType::U8 => f.write_str("u8"),
+            PluralType::U16 => f.write_str("u16"),
+            PluralType::U32 => f.write_str("u32"),
+            PluralType::U64 => f.write_str("u64"),
+            PluralType::F32 => f.write_str("f32"),
+            PluralType::F64 => f.write_str("f64"),
+        }
+    }
+}
+
 impl ToTokens for PluralType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let plural_type = match self {
@@ -49,6 +66,13 @@ impl ToTokens for PluralType {
             PluralType::F64 => quote!(f64),
         };
         tokens.extend(plural_type)
+    }
+}
+
+impl PluralType {
+    #[inline]
+    const fn should_have_fallback(self) -> bool {
+        matches!(self, PluralType::F64 | PluralType::F32)
     }
 }
 
@@ -300,7 +324,11 @@ impl Plurals {
             .filter(|(plural, _)| matches!(plural, Plural::Fallback))
             .count();
 
-        (invalid_fallback, fallback_count, T::should_have_fallback())
+        (
+            invalid_fallback,
+            fallback_count,
+            T::TYPE.should_have_fallback(),
+        )
     }
 
     pub fn check_deserialization(&self) -> (bool, usize, bool) {
@@ -345,13 +373,9 @@ pub enum Plural<T> {
 }
 
 pub trait PluralNumber: FromStr + ToTokens + PartialOrd + Copy {
+    const TYPE: PluralType;
+
     fn range_end_bound(self) -> Option<Bound<Self>>;
-
-    fn plural_type() -> PluralType;
-
-    fn should_have_fallback() -> bool {
-        matches!(Self::plural_type(), PluralType::F32 | PluralType::F64)
-    }
 }
 
 pub trait PluralInteger: PluralNumber {}
@@ -359,19 +383,11 @@ pub trait PluralInteger: PluralNumber {}
 pub trait PluralFloats: PluralNumber {}
 
 impl<T: PluralNumber> Plural<T> {
-    pub fn new(
-        locale_name: &str,
-        locale_key: &str,
-        namespace: Option<&str>,
-        s: &str,
-    ) -> Result<Self> {
+    pub fn new(s: &str) -> Result<Self> {
         let parse = |s: &str| {
-            s.parse::<T>().map_err(|_| Error::InvalidPlural {
-                locale_name: locale_name.to_string(),
-                locale_key: locale_key.to_string(),
-                namespace: namespace.map(str::to_string),
+            s.parse::<T>().map_err(|_| Error::PluralParse {
                 plural: s.to_string(),
-                plural_type: T::plural_type(),
+                plural_type: T::TYPE,
             })
         };
         let s = s.trim();
@@ -382,7 +398,7 @@ impl<T: PluralNumber> Plural<T> {
         if s.contains('|') {
             return s
                 .split('|')
-                .map(|s| Self::new(locale_name, locale_key, namespace, s))
+                .map(|s| Self::new(s))
                 .collect::<Result<_>>()
                 .map(Self::Multiple);
         }
@@ -400,31 +416,18 @@ impl<T: PluralNumber> Plural<T> {
 
                 end.range_end_bound()
                     .ok_or_else(|| Error::InvalidBoundEnd {
-                        locale_name: locale_name.to_string(),
-                        locale_key: locale_key.to_string(),
-                        namespace: namespace.map(str::to_string),
                         range: s.to_string(),
-                        plural_type: T::plural_type(),
+                        plural_type: T::TYPE,
                     })?
             };
 
             if let Some(start) = start {
                 match end {
                     Bound::Excluded(end) if end <= start => {
-                        return Err(Error::ImpossibleRange {
-                            locale_name: locale_name.to_string(),
-                            locale_key: locale_key.to_string(),
-                            namespace: namespace.map(str::to_string),
-                            range: s.to_string(),
-                        })
+                        return Err(Error::ImpossibleRange(s.to_string()))
                     }
                     Bound::Included(end) if end < start => {
-                        return Err(Error::ImpossibleRange {
-                            locale_name: locale_name.to_string(),
-                            locale_key: locale_key.to_string(),
-                            namespace: namespace.map(str::to_string),
-                            range: s.to_string(),
-                        })
+                        return Err(Error::ImpossibleRange(s.to_string()))
                     }
                     _ => {}
                 }
@@ -525,12 +528,7 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<'_, T> {
     where
         E: serde::de::Error,
     {
-        let SeedBase {
-            locale_name,
-            locale_key,
-            namespace,
-        } = self.0;
-        Plural::new(locale_name, locale_key, namespace, s).map_err(serde::de::Error::custom)
+        Plural::new(s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -747,21 +745,21 @@ mod tests {
 
     #[test]
     fn test_exact() {
-        let plural = Plural::new("", "", None, "0").unwrap();
+        let plural = Plural::new("0").unwrap();
 
         assert_eq!(plural, Plural::Exact(0));
     }
 
     #[test]
     fn test_fallback() {
-        let plural = Plural::<i32>::new("", "", None, "_").unwrap();
+        let plural = Plural::<i32>::new("_").unwrap();
 
         assert_eq!(plural, Plural::Fallback);
     }
 
     #[test]
     fn test_range() {
-        let plural = Plural::new("", "", None, "0..6").unwrap();
+        let plural = Plural::new("0..6").unwrap();
 
         assert_eq!(
             plural,
@@ -774,7 +772,7 @@ mod tests {
 
     #[test]
     fn test_range_unbounded_end() {
-        let plural = Plural::new("", "", None, "0..").unwrap();
+        let plural = Plural::new("0..").unwrap();
 
         assert_eq!(
             plural,
@@ -787,7 +785,7 @@ mod tests {
 
     #[test]
     fn test_range_included_end() {
-        let plural = Plural::new("", "", None, "0..=6").unwrap();
+        let plural = Plural::new("0..=6").unwrap();
 
         assert_eq!(
             plural,
@@ -800,7 +798,7 @@ mod tests {
 
     #[test]
     fn test_range_unbounded_start() {
-        let plural = Plural::new("", "", None, "..=6").unwrap();
+        let plural = Plural::new("..=6").unwrap();
 
         assert_eq!(
             plural,
@@ -813,14 +811,14 @@ mod tests {
 
     #[test]
     fn test_range_full() {
-        let plural = Plural::<i32>::new("", "", None, "..").unwrap();
+        let plural = Plural::<i32>::new("..").unwrap();
 
         assert_eq!(plural, Plural::Fallback);
     }
 
     #[test]
     fn test_multiple() {
-        let plural = Plural::<i32>::new("", "", None, "5 | 5..8 | 70..=80 | _").unwrap();
+        let plural = Plural::<i32>::new("5 | 5..8 | 70..=80 | _").unwrap();
 
         assert_eq!(
             plural,
@@ -846,12 +844,10 @@ mod plural_number_impl {
         ($(($num_type:ty, $plural_type:ident))*) => {
             $(
                 impl PluralNumber for $num_type {
+                    const TYPE: PluralType = PluralType::$plural_type;
+
                     fn range_end_bound(self) -> Option<Bound<Self>> {
                         self.checked_sub(1).map(Bound::Included)
-                    }
-
-                    fn plural_type() -> PluralType {
-                        PluralType::$plural_type
                     }
                 }
 
@@ -864,12 +860,10 @@ mod plural_number_impl {
         ($(($num_type:ty, $plural_type:ident))*) => {
             $(
                 impl PluralNumber for $num_type {
+                    const TYPE: PluralType = PluralType::$plural_type;
+
                     fn range_end_bound(self) -> Option<Bound<Self>> {
                         Some(Bound::Excluded(self))
-                    }
-
-                    fn plural_type() -> PluralType {
-                        PluralType::$plural_type
                     }
                 }
 

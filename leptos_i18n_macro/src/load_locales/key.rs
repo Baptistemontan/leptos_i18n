@@ -21,32 +21,8 @@ impl PartialEq for Key {
 
 impl Eq for Key {}
 
-pub enum KeyKind<'a> {
-    LocaleName,
-    LocaleKey {
-        locale: &'a str,
-        namespace: Option<&'a str>,
-    },
-    NameSpace,
-}
-
 impl Key {
-    pub fn new(name: &str, kind: KeyKind) -> Result<Self> {
-        let Some(this) = Self::try_new(name) else {
-            return Err(match kind {
-                KeyKind::LocaleName => Error::InvalidLocaleName(name.to_string()),
-                KeyKind::NameSpace => Error::InvalidNameSpaceName(name.to_string()),
-                KeyKind::LocaleKey { locale, namespace } => Error::InvalidLocaleKey {
-                    key: name.to_string(),
-                    locale: locale.to_string(),
-                    namespace: namespace.map(str::to_string),
-                },
-            });
-        };
-        Ok(this)
-    }
-
-    pub fn try_new(name: &str) -> Option<Self> {
+    pub fn new(name: &str) -> Option<Self> {
         let name = name.trim();
         let ident_repr = name.replace('-', "_");
         let ident = syn::parse_str::<syn::Ident>(&ident_repr).ok()?;
@@ -54,6 +30,10 @@ impl Key {
             name: name.to_string(),
             ident,
         })
+    }
+
+    pub fn try_new(name: &str) -> Result<Self> {
+        Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()))
     }
 }
 
@@ -71,16 +51,6 @@ pub enum KeySeed<'a> {
         locale: &'a str,
         namespace: Option<&'a str>,
     },
-}
-
-impl<'a> KeySeed<'a> {
-    pub fn to_key_kind(self) -> KeyKind<'a> {
-        match self {
-            KeySeed::LocaleName => KeyKind::LocaleName,
-            KeySeed::LocaleKey { locale, namespace } => KeyKind::LocaleKey { locale, namespace },
-            KeySeed::Namespace => KeyKind::NameSpace,
-        }
-    }
 }
 
 impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for KeySeed<'a> {
@@ -119,7 +89,7 @@ impl<'a, 'de> serde::de::Visitor<'de> for KeySeed<'a> {
     where
         E: serde::de::Error,
     {
-        Key::new(v, self.to_key_kind()).map_err(E::custom)
+        Key::try_new(v).map_err(E::custom)
     }
 }
 

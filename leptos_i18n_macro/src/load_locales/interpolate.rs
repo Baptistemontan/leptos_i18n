@@ -26,7 +26,7 @@ impl Interpolation {
     pub fn new(key: &Key, keys_set: &HashSet<InterpolateKey>, locales: &[Locale]) -> Self {
         let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
 
-        let locale_field = Key::new("__locale", super::key::KeyKind::LocaleName).unwrap();
+        let locale_field = Key::new("__locale").unwrap();
 
         let fields = keys_set
             .iter()

@@ -83,7 +83,7 @@ impl ParsedValue {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
-        let ident = Key::try_new(&format!("var_{}", ident.trim()))?;
+        let ident = Key::new(&format!("var_{}", ident.trim()))?;
 
         let before = Self::new(before);
         let after = Self::new(after);
@@ -122,7 +122,7 @@ impl ParsedValue {
     }
 
     fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(Key, &'a str, &'a str)> {
-        let key_ident = Key::try_new(&format!("comp_{}", key))?;
+        let key_ident = Key::new(&format!("comp_{}", key))?;
         let mut indices = None;
         let mut depth = 0;
         let iter = value.match_indices('<').filter_map(|(i, _)| {

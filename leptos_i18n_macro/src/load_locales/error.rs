@@ -10,14 +10,12 @@ pub enum Error {
     ConfigFileDeser(toml::de::Error),
     ConfigFileDefaultMissing(Box<ConfigFile>),
     LocaleFileNotFound {
-        locale: String,
-        namespace: Option<String>, 
-        err: std::io::Error
+        path: String,
+        err: std::io::Error,
     },
     LocaleFileDeser {
-        locale: String, 
-        namespace: Option<String>,   
-        err: serde_json::Error
+        path: String,
+        err: serde_json::Error,
     },
     DuplicateLocalesInConfig(HashSet<String>),
     DuplicateNamespacesInConfig(HashSet<String>),
@@ -26,37 +24,20 @@ pub enum Error {
         namespace: Option<String>,
         keys: Vec<String>,
     },
-    InvalidLocaleName(String),
-    InvalidNameSpaceName(String),
-    InvalidLocaleKey {
-        key: String,
-        locale: String,
-        namespace: Option<String>,
-    },
-    InvalidPlural {
-        locale_name: String,
-        locale_key: String,
-        namespace: Option<String>,
+    PluralParse {
         plural: String,
-        plural_type: PluralType
+        plural_type: PluralType,
     },
     InvalidBoundEnd {
-        locale_name: String,
-        locale_key: String,
-        namespace: Option<String>,
         range: String,
-        plural_type: PluralType
+        plural_type: PluralType,
     },
-    ImpossibleRange {
-        locale_name: String,
-        locale_key: String,
-        namespace: Option<String>,
-        range: String,
-    },
+    ImpossibleRange(String),
     PluralTypeMissmatch {
         locale_key: String,
         namespace: Option<String>,
     },
+    InvalidKey(String),
 }
 
 impl Display for Error {
@@ -75,25 +56,15 @@ impl Display for Error {
                 "{:?} is set as default locale but is not in the locales list: {:?}",
                 cfg_file.default, cfg_file.locales
             ),
-            Error::LocaleFileNotFound {locale, namespace: None, err} => {
+            Error::LocaleFileNotFound { path, err} => {
                 write!(f,
-                    "Could not found locale file \"{}.json\" : {}",
-                    locale, err
+                    "Could not found file {:?} : {}",
+                    path, err
                 )
             }
-            Error::LocaleFileNotFound {locale, namespace: Some(namespace), err} => {
-                write!(f,
-                    "Could not found namespace file \"{}/{}.json\" : {}",
-                    locale, namespace, err
-                )
-            }
-            Error::LocaleFileDeser {locale, namespace: None, err} => write!(f,
-                "Parsing of locale file \"{}.json\" failed: {}",
-                locale, err
-            ),
-            Error::LocaleFileDeser {locale, namespace: Some(namespace), err} => write!(f,
-                "Parsing of namespace file \"{}/{}.json\" failed: {}",
-                locale, namespace, err
+            Error::LocaleFileDeser { path, err} => write!(f,
+                "Parsing of file {:?} failed: {}",
+                path, err
             ),
             Error::MissingKeysInLocale { keys, namespace: None, locale } => write!(f,
                 "Some keys are different beetween locale files, \"{}.json\" is missing keys: {:?}",
@@ -103,108 +74,33 @@ impl Display for Error {
                 "Some keys are different beetween namespaces files, \"{}/{}.json\" is missing keys: {:?}",
                 locale, namespace, keys
             ),
-            Error::InvalidLocaleName(name) => {
-                write!(f,
-                    "locale name {:?} could not be turned into an identifier",
-                    name
-                )
-            }
-            Error::InvalidLocaleKey { key, locale, namespace } => {
-                match namespace {
-                    Some(namespace) => write!(f,
-                        "In locale {:?} namespace {:?} the key {:?} cannot be used as an identifier",
-                        locale, namespace, key
-                    ),
-                    None => write!(f,
-                        "In locale {:?} the key {:?} cannot be used as an identifier",
-                        locale, key
-                    ),
-                }
-                
-            }
-            Error::InvalidPlural {
-                locale_name,
-                locale_key,
-                namespace: None,
+            Error::PluralParse {
                 plural,
                 plural_type
             } => write!(f,
-                "In locale {:?} at key {:?} found invalid plural {:?}, expected {:?}", 
-                locale_name, locale_key, plural, plural_type
-            ),
-            Error::InvalidPlural {
-                locale_name,
-                locale_key,
-                namespace: Some(namespace),
-                plural,
-                plural_type
-            } => write!(f,
-                "In locale {:?} at namespace {:?} at key {:?} found invalid plural {:?}, expected {:?}", 
-                locale_name, namespace, locale_key, plural, plural_type
+                "error parsing {:?} as {}", 
+                plural, plural_type
             ),
             Error::DuplicateLocalesInConfig(duplicates) => write!(f,
                 "Found duplicates locales in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
             Error::InvalidBoundEnd {
-                locale_name,
-                locale_key,
-                namespace: None,
                 range,
                 plural_type: plural_type @ (PluralType::F32 | PluralType::F64)
             } => write!(f,
-                "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't use exclusif range with {:?}", 
-                locale_name, locale_key, range, plural_type
+                "the range {:?} end bound is invalid, you can't use exclusif range with {}", 
+                range, plural_type
             ),
             Error::InvalidBoundEnd {
-                locale_name,
-                locale_key,
-                namespace: None,
                 range,
                 plural_type
             } => write!(f,
-                "In locale {:?} at key {:?} the range {:?} end bound is invalid, you can't end before {:?} MIN", 
-                locale_name, locale_key, range, plural_type
+                "the range {:?} end bound is invalid, you can't end before {}::MIN", 
+                range, plural_type
             ),
-            Error::InvalidBoundEnd {
-                locale_name,
-                locale_key,
-                namespace: Some(namespace),
-                range,
-                plural_type: plural_type @ (PluralType::F32 | PluralType::F64)
-            } => write!(f,
-                "In locale {:?} at namespace {:?} at key {:?} the range {:?} end bound is invalid, you can't use exclusif range with {:?}", 
-                locale_name, namespace, locale_key, range, plural_type
-            ),
-            Error::InvalidBoundEnd {
-                locale_name,
-                locale_key,
-                namespace: Some(namespace),
-                range,
-                plural_type
-            } => write!(f,
-                "In locale {:?} at namespace {:?} at key {:?} the range {:?} end bound is invalid, you can't end before {:?} MIN", 
-                locale_name, namespace, locale_key, range, plural_type
-            ),
-            Error::ImpossibleRange {
-                locale_name,
-                locale_key,
-                namespace: None,
+            Error::ImpossibleRange(range) => write!(f, "the range {:?} is impossible, it end before it starts",
                 range
-            } => write!(f, "In locale {:?} at key {:?} the range {:?} is impossible, it end before it starts",
-                locale_name, locale_key, range
-            ),
-            Error::ImpossibleRange {
-                locale_name,
-                locale_key,
-                namespace: Some(namespace),
-                range
-            } => write!(f, "In locale {:?} at namespace {:?} at key {:?} the range {:?} is impossible, it end before it starts",
-                locale_name, namespace, locale_key, range
-            ),
-            Error::InvalidNameSpaceName(name) => write!(f,
-                "namespace {:?} could not be turned into an identifier",
-                name
             ),
             Error::DuplicateNamespacesInConfig(duplicates) => write!(f,
                 "Found duplicates namespaces in configuration (Cargo.toml): {:?}", 
@@ -212,6 +108,7 @@ impl Display for Error {
             ),
             Error::PluralTypeMissmatch { locale_key, namespace: Some(namespace) } => write!(f, "In namespace {:?} at key {:?} the plurals types don't match across locales", namespace, locale_key),
             Error::PluralTypeMissmatch { locale_key, namespace: None } => write!(f, "At key {:?} the plurals types don't match across locales", locale_key),
+            Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters", key),
         }
     }
 }
