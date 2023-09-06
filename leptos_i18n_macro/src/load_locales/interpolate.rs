@@ -17,7 +17,7 @@ pub struct Interpolation {
 struct Field<'a> {
     generic: syn::Ident,
     name: String,
-    kind: &'a InterpolateKey<'a>,
+    kind: &'a InterpolateKey,
     #[cfg(feature = "debug_interpolations")]
     real_name: &'a str,
 }

@@ -14,7 +14,7 @@ use super::{
 };
 
 pub struct Namespace {
-    pub key: Key,
+    pub key: Rc<Key>,
     pub locales: Vec<Locale>,
 }
 
@@ -23,24 +23,27 @@ pub enum LocalesOrNamespaces {
     Locales(Vec<Locale>),
 }
 
-pub struct BuildersKeysInner<'a>(pub HashMap<Rc<Key>, LocaleValue<'a>>);
+pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
 
-pub enum BuildersKeys<'a> {
-    NameSpaces(HashMap<&'a Key, BuildersKeysInner<'a>>),
-    Locales(BuildersKeysInner<'a>),
+pub enum BuildersKeys {
+    NameSpaces {
+        namespaces: Vec<Namespace>,
+        keys: HashMap<Rc<Key>, BuildersKeysInner>,
+    },
+    Locales {
+        locales: Vec<Locale>,
+        keys: BuildersKeysInner,
+    },
 }
 
 impl Namespace {
-    pub fn new(locales_dir: &str, key: &Key, locale_keys: &[Rc<Key>]) -> Result<Self> {
+    pub fn new(locales_dir: &str, key: Rc<Key>, locale_keys: &[Rc<Key>]) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
             let path = format!("{}/{}/{}.json", locales_dir, locale.name, key.name);
             locales.push(Locale::new(path, locale)?);
         }
-        Ok(Namespace {
-            key: key.clone(),
-            locales,
-        })
+        Ok(Namespace { key, locales })
     }
 }
 
@@ -51,7 +54,11 @@ impl LocalesOrNamespaces {
         if let Some(namespace_keys) = &cfg_file.name_spaces {
             let mut namespaces = Vec::with_capacity(namespace_keys.len());
             for namespace in namespace_keys {
-                namespaces.push(Namespace::new(locales_dir, namespace, locale_keys)?);
+                namespaces.push(Namespace::new(
+                    locales_dir,
+                    Rc::clone(namespace),
+                    locale_keys,
+                )?);
             }
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
         } else {
@@ -117,10 +124,10 @@ impl Locale {
         }
     }
 
-    pub fn check_locales_inner<'a>(
-        locales: &'a [Locale],
+    pub fn check_locales_inner(
+        locales: &[Locale],
         namespace: Option<&str>,
-    ) -> Result<BuildersKeysInner<'a>> {
+    ) -> Result<BuildersKeysInner> {
         let mut locales = locales.iter();
         let first_locale = locales.next().unwrap();
 
@@ -186,32 +193,33 @@ impl Locale {
         ))
     }
 
-    pub fn check_locales(locales: &LocalesOrNamespaces) -> Result<BuildersKeys> {
+    pub fn check_locales(locales: LocalesOrNamespaces) -> Result<BuildersKeys> {
         match locales {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
-                let mut builders_keys = HashMap::with_capacity(namespaces.len());
-                for namespace in namespaces {
-                    let keys =
+                let mut keys = HashMap::with_capacity(namespaces.len());
+                for namespace in &namespaces {
+                    let k =
                         Self::check_locales_inner(&namespace.locales, Some(&namespace.key.name))?;
-                    builders_keys.insert(&namespace.key, keys);
+                    keys.insert(Rc::clone(&namespace.key), k);
                 }
-                Ok(BuildersKeys::NameSpaces(builders_keys))
+                Ok(BuildersKeys::NameSpaces { namespaces, keys })
             }
             LocalesOrNamespaces::Locales(locales) => {
-                Self::check_locales_inner(locales, None).map(BuildersKeys::Locales)
+                let keys = Self::check_locales_inner(&locales, None)?;
+                Ok(BuildersKeys::Locales { locales, keys })
             }
         }
     }
 }
 
 #[derive(PartialEq, Eq)]
-pub enum LocaleValue<'a> {
+pub enum LocaleValue {
     String,
-    Builder(HashSet<InterpolateKey<'a>>),
+    Builder(HashSet<InterpolateKey>),
 }
 
-impl<'a> LocaleValue<'a> {
-    fn new(value: Option<HashSet<InterpolateKey<'a>>>) -> Self {
+impl LocaleValue {
+    fn new(value: Option<HashSet<InterpolateKey>>) -> Self {
         match value {
             Some(keys) => Self::Builder(keys),
             None => Self::String,

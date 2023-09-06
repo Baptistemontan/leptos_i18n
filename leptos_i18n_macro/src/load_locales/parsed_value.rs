@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -13,29 +13,29 @@ use super::{
 pub enum ParsedValue {
     Plural(Plurals),
     String(String),
-    Variable(Key),
-    Component { key: Key, inner: Box<Self> },
+    Variable(Rc<Key>),
+    Component { key: Rc<Key>, inner: Box<Self> },
     Bloc(Vec<Self>),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub enum InterpolateKey<'a> {
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+pub enum InterpolateKey {
     Count(PluralType),
-    Variable(&'a Key),
-    Component(&'a Key),
+    Variable(Rc<Key>),
+    Component(Rc<Key>),
 }
 
 impl ParsedValue {
-    pub fn get_keys_inner<'a>(&'a self, keys: &mut Option<HashSet<InterpolateKey<'a>>>) {
+    pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
             ParsedValue::String(_) => {}
             ParsedValue::Variable(key) => {
                 keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Variable(key));
+                    .insert(InterpolateKey::Variable(Rc::clone(key)));
             }
             ParsedValue::Component { key, inner } => {
                 keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Component(key));
+                    .insert(InterpolateKey::Component(Rc::clone(key)));
                 inner.get_keys_inner(keys);
             }
             ParsedValue::Bloc(values) => {
@@ -87,19 +87,19 @@ impl ParsedValue {
 
         let before = Self::new(before);
         let after = Self::new(after);
-        let this = ParsedValue::Variable(ident);
+        let this = ParsedValue::Variable(Rc::new(ident));
 
         Some(ParsedValue::Bloc(vec![before, this, after]))
     }
 
-    fn find_valid_component(value: &str) -> Option<(Key, &str, &str, &str)> {
+    fn find_valid_component(value: &str) -> Option<(Rc<Key>, &str, &str, &str)> {
         let mut skip_sum = 0;
         loop {
             let (before, key, after, skip) = Self::find_opening_tag(&value[skip_sum..])?;
             if let Some((key, beetween, after)) = Self::find_closing_tag(after, key) {
                 let before_len = skip_sum + before.len();
                 let before = &value[..before_len];
-                break Some((key, before, beetween, after));
+                break Some((Rc::new(key), before, beetween, after));
             } else {
                 skip_sum += skip;
             }
@@ -195,15 +195,15 @@ impl ParsedValue {
     }
 }
 
-impl<'a> InterpolateKey<'a> {
-    pub fn as_ident(self) -> syn::Ident {
+impl InterpolateKey {
+    pub fn as_ident(&self) -> syn::Ident {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
             InterpolateKey::Count(_) => format_ident!("var_count"),
         }
     }
 
-    pub fn as_key(self) -> Option<&'a Key> {
+    pub fn as_key(&self) -> Option<&Key> {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
             InterpolateKey::Count(_) => None,
@@ -211,7 +211,7 @@ impl<'a> InterpolateKey<'a> {
     }
 
     #[cfg(feature = "debug_interpolations")]
-    pub fn get_real_name(self) -> &'a str {
+    pub fn get_real_name(&self) -> &str {
         match self {
             InterpolateKey::Count(_) => "count",
             InterpolateKey::Variable(key) => key.name.strip_prefix("var_").unwrap(),
@@ -219,7 +219,7 @@ impl<'a> InterpolateKey<'a> {
         }
     }
 
-    pub fn get_generic(self) -> TokenStream {
+    pub fn get_generic(&self) -> TokenStream {
         match self {
             InterpolateKey::Variable(_) => {
                 quote!(leptos::IntoView + core::clone::Clone + 'static)
@@ -236,7 +236,7 @@ impl<'a> InterpolateKey<'a> {
     }
 }
 
-impl<'a> ToTokens for InterpolateKey<'a> {
+impl ToTokens for InterpolateKey {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         self.as_ident().to_tokens(tokens)
     }
@@ -322,6 +322,10 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed {
 mod tests {
     use super::*;
 
+    fn new_key(key: &str) -> Rc<Key> {
+        Rc::new(Key::new(key).unwrap())
+    }
+
     #[test]
     fn parse_normal_string() {
         let value = ParsedValue::new("test");
@@ -337,7 +341,7 @@ mod tests {
             value,
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
-                ParsedValue::Variable(Key::try_new("var_var").unwrap()),
+                ParsedValue::Variable(new_key("var_var")),
                 ParsedValue::String(" after".to_string())
             ])
         )
@@ -352,7 +356,7 @@ mod tests {
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
                 ParsedValue::Component {
-                    key: Key::try_new("comp_comp").unwrap(),
+                    key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::String("inner".to_string()))
                 },
                 ParsedValue::String(" after".to_string())
@@ -371,11 +375,11 @@ mod tests {
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
                 ParsedValue::Component {
-                    key: Key::try_new("comp_comp").unwrap(),
+                    key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Bloc(vec![
                         ParsedValue::String("inner before".to_string()),
                         ParsedValue::Component {
-                            key: Key::try_new("comp_comp").unwrap(),
+                            key: new_key("comp_comp"),
                             inner: Box::new(ParsedValue::String("inner inner".to_string()))
                         },
                         ParsedValue::String("inner after".to_string()),
@@ -395,7 +399,7 @@ mod tests {
             ParsedValue::Bloc(vec![
                 ParsedValue::String("<p>test".to_string()),
                 ParsedValue::Component {
-                    key: Key::try_new("comp_h3").unwrap(),
+                    key: new_key("comp_h3"),
                     inner: Box::new(ParsedValue::String("this is a h3".to_string()))
                 },
                 ParsedValue::String("not closing p".to_string())

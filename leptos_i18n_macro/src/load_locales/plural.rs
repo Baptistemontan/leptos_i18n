@@ -90,7 +90,7 @@ pub enum Plurals {
 }
 
 impl Plurals {
-    pub fn get_keys_inner<'a>(&'a self, keys: &mut Option<HashSet<InterpolateKey<'a>>>) {
+    pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
             Plurals::I8(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
             Plurals::I16(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),

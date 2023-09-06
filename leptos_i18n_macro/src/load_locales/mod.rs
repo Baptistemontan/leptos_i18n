@@ -22,9 +22,9 @@ pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new()?;
     let locales = LocalesOrNamespaces::new(&cfg_file)?;
 
-    let keys = Locale::check_locales(&locales)?;
+    let keys = Locale::check_locales(locales)?;
 
-    let locale_type = create_locale_type(&locales, &keys);
+    let locale_type = create_locale_type(keys);
     let locale_variants = create_locales_enum(&cfg_file);
     let locales = create_locales_type(&cfg_file);
 
@@ -263,7 +263,7 @@ fn create_namespace_mod_ident(namespace_ident: &syn::Ident) -> syn::Ident {
 fn create_namespaces_types(
     i18n_keys_ident: &syn::Ident,
     namespaces: &[Namespace],
-    keys: &HashMap<&Key, BuildersKeysInner>,
+    keys: &HashMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
@@ -348,15 +348,14 @@ fn create_namespaces_types(
     }
 }
 
-fn create_locale_type(locales: &LocalesOrNamespaces, keys: &BuildersKeys) -> TokenStream {
+fn create_locale_type(keys: BuildersKeys) -> TokenStream {
     let i18n_keys_ident = format_ident!("I18nKeys");
-    match (locales, keys) {
-        (LocalesOrNamespaces::NameSpaces(namespaces), BuildersKeys::NameSpaces(keys)) => {
-            create_namespaces_types(&i18n_keys_ident, namespaces, keys)
+    match keys {
+        BuildersKeys::NameSpaces { namespaces, keys } => {
+            create_namespaces_types(&i18n_keys_ident, &namespaces, &keys)
         }
-        (LocalesOrNamespaces::Locales(locales), BuildersKeys::Locales(BuildersKeysInner(keys))) => {
-            create_locale_type_inner(&i18n_keys_ident, locales, keys, false)
+        BuildersKeys::Locales { locales, keys } => {
+            create_locale_type_inner(&i18n_keys_ident, &locales, &keys.0, false)
         }
-        _ => unreachable!(),
     }
 }
