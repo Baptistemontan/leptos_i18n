@@ -4,9 +4,9 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 
 use super::{
+    error::Error,
     key::Key,
     plural::{PluralType, Plurals},
-    SeedBase,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -260,12 +260,9 @@ impl ToTokens for ParsedValue {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ParsedValueSeed<'a> {
-    pub in_plural: bool,
-    pub base: SeedBase<'a>,
-}
+pub struct ParsedValueSeed(pub bool);
 
-impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
+impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed {
     type Value = ParsedValue;
 
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
@@ -276,7 +273,7 @@ impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
+impl<'de> serde::de::Visitor<'de> for ParsedValueSeed {
     type Value = ParsedValue;
 
     fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
@@ -292,18 +289,8 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     {
         // nested plurals are not allowed, the code technically supports it,
         // but it's pointless and probably nobody will ever needs it.
-        if std::mem::replace(&mut self.in_plural, true) {
-            let msg = match self.base.namespace {
-                Some(namespace) => format!(
-                    "in locale {:?} at namespace {:?} at key {:?}: nested plurals are not allowed",
-                    self.base.locale_name, namespace, self.base.locale_key
-                ),
-                None => format!(
-                    "in locale {:?} at key {:?}: nested plurals are not allowed",
-                    self.base.locale_name, self.base.locale_key
-                ),
-            };
-            return Err(serde::de::Error::custom(msg));
+        if std::mem::replace(&mut self.0, true) {
+            return Err(serde::de::Error::custom(Error::NestedPlurals));
         }
         let plurals = Plurals::from_serde_seq(map, self)?;
 
@@ -311,41 +298,13 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             plurals.check_deserialization();
 
         if invalid_fallback {
-            let msg = match self.base.namespace {
-                Some(namespace) => format!(
-                    "in locale {:?} at namespace {:?} at key {:?}: fallback is only allowed in last position",
-                    self.base.locale_name, namespace, self.base.locale_key
-                ),
-                None => format!(
-                    "in locale {:?} at key {:?}: fallback is only allowed in last position",
-                    self.base.locale_name, self.base.locale_key
-                ),
-            };
-            Err(serde::de::Error::custom(msg))
+            Err(serde::de::Error::custom(Error::InvalidFallback))
         } else if fallback_count > 1 {
-            let msg = match self.base.namespace {
-                Some(namespace) => format!(
-                    "in locale {:?} at namespace {:?} at key {:?}: multiple fallbacks are not allowed",
-                    self.base.locale_name, namespace, self.base.locale_key
-                ),
-                None => format!(
-                    "in locale {:?} at key {:?}: multiple fallbacks are not allowed",
-                    self.base.locale_name, self.base.locale_key
-                ),
-            };
-            Err(serde::de::Error::custom(msg))
+            Err(serde::de::Error::custom(Error::MultipleFallbacks))
         } else if fallback_count == 0 && should_have_fallback {
-            let msg = match self.base.namespace {
-                Some(namespace) => format!(
-                    "in locale {:?} at namespace {:?} at key {:?}: for plural type {:?} a fallback is required",
-                    self.base.locale_name, namespace, self.base.locale_key, plurals.get_type()
-                ),
-                None => format!(
-                    "in locale {:?} at key {:?}: for plural type {:?} a fallback is required",
-                    self.base.locale_name, self.base.locale_key, plurals.get_type()
-                ),
-            };
-            Err(serde::de::Error::custom(msg))
+            Err(serde::de::Error::custom(Error::MissingFallback(
+                plurals.get_type(),
+            )))
         } else {
             Ok(ParsedValue::Plural(plurals))
         }

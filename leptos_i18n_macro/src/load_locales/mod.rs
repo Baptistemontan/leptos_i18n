@@ -18,13 +18,6 @@ use quote::{format_ident, quote};
 
 use self::locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace};
 
-#[derive(Debug, Clone, Copy)]
-pub struct SeedBase<'a> {
-    pub locale_name: &'a str,
-    pub locale_key: &'a str,
-    pub namespace: Option<&'a str>,
-}
-
 pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new()?;
     let locales = LocalesOrNamespaces::new(&cfg_file)?;

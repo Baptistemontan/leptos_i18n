@@ -38,6 +38,12 @@ pub enum Error {
         namespace: Option<String>,
     },
     InvalidKey(String),
+    EmptyPlural,
+    InvalidPluralType(String),
+    NestedPlurals,
+    InvalidFallback,
+    MultipleFallbacks,
+    MissingFallback(PluralType),
 }
 
 impl Display for Error {
@@ -109,6 +115,12 @@ impl Display for Error {
             Error::PluralTypeMissmatch { locale_key, namespace: Some(namespace) } => write!(f, "In namespace {:?} at key {:?} the plurals types don't match across locales", namespace, locale_key),
             Error::PluralTypeMissmatch { locale_key, namespace: None } => write!(f, "At key {:?} the plurals types don't match across locales", locale_key),
             Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters", key),
+            Error::EmptyPlural => write!(f, "empty plurals are not allowed"),
+            Error::InvalidPluralType(t) => write!(f, "invalid plural type {:?}", t),
+            Error::NestedPlurals => write!(f, "nested plurals are not allowed"),
+            Error::InvalidFallback => write!(f, "fallbacks are only allowed in last position"),
+            Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
+            Error::MissingFallback(t) => write!(f, "plural type {} require a fallback (or a fullrange \"..\")", t),
         }
     }
 }

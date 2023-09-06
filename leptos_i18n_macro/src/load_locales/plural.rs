@@ -11,7 +11,6 @@ use quote::{quote, ToTokens};
 use super::{
     error::{Error, Result},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
-    SeedBase,
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -106,7 +105,7 @@ impl Plurals {
         }
     }
 
-    pub fn get_type(&self) -> PluralType {
+    pub const fn get_type(&self) -> PluralType {
         match self {
             Plurals::I8(_) => PluralType::I8,
             Plurals::I16(_) => PluralType::I16,
@@ -272,26 +271,10 @@ impl Plurals {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let SeedBase {
-            locale_name,
-            locale_key,
-            namespace,
-        } = parsed_value_seed.base;
         let type_or_plural = seq
             .next_element_seed(TypeOrPluralSeed(parsed_value_seed))?
-            .ok_or_else(|| {
-                let err = match namespace {
-                    Some(namespace) => format!(
-                    "in locale {:?} at namespace {:?} at key {:?}: empty plurals are not allowed",
-                    locale_name, namespace, locale_key
-                ),
-                    None => format!(
-                        "in locale {:?} at key {:?}: empty plurals are not allowed",
-                        locale_name, locale_key
-                    ),
-                };
-                serde::de::Error::custom(err)
-            })?;
+            .ok_or_else(|| Error::EmptyPlural)
+            .map_err(serde::de::Error::custom)?;
 
         let mut plurals = match type_or_plural {
             TypeOrPlural::Type(plural_type) => Self::from_type(plural_type),
@@ -481,9 +464,9 @@ impl<T: PluralNumber> ToTokens for Plural<T> {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct PluralSeed<'a, T>(pub SeedBase<'a>, PhantomData<T>);
+struct PluralSeed<T>(PhantomData<T>);
 
-impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralSeed<'_, T> {
+impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralSeed<T> {
     type Value = Plural<T>;
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
     where
@@ -493,7 +476,7 @@ impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralSeed<'_, T>
     }
 }
 
-impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<'_, T> {
+impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<T> {
     type Value = Plural<T>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -533,9 +516,9 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<'_, T> {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct PluralStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
+struct PluralStructSeed<T>(pub ParsedValueSeed, PhantomData<T>);
 
-impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<'_, T> {
+impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<T> {
     type Value = (Plural<T>, ParsedValue);
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
     where
@@ -545,7 +528,7 @@ impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<
     }
 }
 
-impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
+impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<T> {
     type Value = (Plural<T>, ParsedValue);
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -583,15 +566,11 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
         }
         let mut plural = None;
         let mut value = None;
-        let seed_base = self.0.base;
-        while let Some(field) = map.next_key_seed(PluralFieldSeed(seed_base))? {
+        while let Some(field) = map.next_key()? {
             match field {
-                PluralField::Plural => deser_field(
-                    &mut plural,
-                    &mut map,
-                    PluralSeed(seed_base, PhantomData),
-                    "count",
-                )?,
+                PluralField::Plural => {
+                    deser_field(&mut plural, &mut map, PluralSeed(PhantomData), "count")?
+                }
                 PluralField::Value => deser_field(&mut value, &mut map, self.0, "count")?,
             }
         }
@@ -609,7 +588,7 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
         let Some(value) = seq.next_element_seed(self.0)? else {
             return Err(serde::de::Error::invalid_length(0, &"at least 1 element"));
         };
-        let plural = PluralSeed(self.0.base, PhantomData).visit_seq(seq)?;
+        let plural = PluralSeed(PhantomData).visit_seq(seq)?;
 
         Ok((plural, value))
     }
@@ -624,20 +603,18 @@ impl PluralField {
     pub const FIELDS: &'static [&'static str] = &["count", "value"];
 }
 
-struct PluralFieldSeed<'a>(pub SeedBase<'a>);
+struct PluralFieldVisitor;
 
-impl<'de> serde::de::DeserializeSeed<'de> for PluralFieldSeed<'_> {
-    type Value = PluralField;
-
-    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+impl<'de> serde::de::Deserialize<'de> for PluralField {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_identifier(self)
+        deserializer.deserialize_identifier(PluralFieldVisitor)
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for PluralFieldSeed<'_> {
+impl<'de> serde::de::Visitor<'de> for PluralFieldVisitor {
     type Value = PluralField;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -665,9 +642,9 @@ enum TypeOrPlural {
     Plural((Plural<i64>, ParsedValue)),
 }
 
-struct TypeOrPluralSeed<'a>(pub ParsedValueSeed<'a>);
+struct TypeOrPluralSeed(pub ParsedValueSeed);
 
-impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed<'_> {
+impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed {
     type Value = TypeOrPlural;
 
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
@@ -678,7 +655,7 @@ impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed<'_> {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
+impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed {
     type Value = TypeOrPlural;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -692,12 +669,6 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     where
         E: serde::de::Error,
     {
-        let SeedBase {
-            locale_name,
-            locale_key,
-            namespace,
-        } = self.0.base;
-
         match v.trim() {
             "i8" => Ok(TypeOrPlural::Type(PluralType::I8)),
             "i16" => Ok(TypeOrPlural::Type(PluralType::I16)),
@@ -709,16 +680,9 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
             "u64" => Ok(TypeOrPlural::Type(PluralType::U64)),
             "f32" => Ok(TypeOrPlural::Type(PluralType::F32)),
             "f64" => Ok(TypeOrPlural::Type(PluralType::F64)),
-            _ => Err(serde::de::Error::custom(match namespace {
-                Some(namespace) => format!(
-                    "in locale {:?} at namespace {:?} at key {:?}: {:?} is not a valid number type",
-                    locale_name, namespace, locale_key, v
-                ),
-                None => format!(
-                    "in locale {:?} at key {:?}: {:?} is not a valid number type",
-                    locale_name, locale_key, v
-                ),
-            })),
+            _ => Err(serde::de::Error::custom(Error::InvalidPluralType(
+                v.to_string(),
+            ))),
         }
     }
 

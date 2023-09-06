@@ -243,15 +243,7 @@ impl<'a: 'de, 'de> serde::de::Visitor<'de> for LocaleSeed<'a> {
             locale: locale_name,
             namespace,
         })? {
-            let parsed_value_seed = ParsedValueSeed {
-                in_plural: false,
-                base: super::SeedBase {
-                    locale_name,
-                    locale_key: &locale_key.name,
-                    namespace,
-                },
-            };
-            let value = map.next_value_seed(parsed_value_seed)?;
+            let value = map.next_value_seed(ParsedValueSeed(false))?;
             keys.insert(locale_key, value);
         }
 
