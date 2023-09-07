@@ -3,7 +3,7 @@
     "subkeys": {
         "subkey": "sub_keys.subkey french",
         "subsubkeys": {
-            "subsubkey": "subkeys.subsub_keys.subsubkey french"
+            "subsubkey": "subkeys.subsubkeys.subsubkey french"
         }
     }
 }
