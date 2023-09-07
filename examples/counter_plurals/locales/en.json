@@ -2,10 +2,10 @@
     "click_to_change_lang": "Click to change language",
     "click_count": [
         {
-            "count": "0",
+            "count": 0,
             "value": "You have not clicked yet"
         },
-        ["You clicked once", "1"],
+        ["You clicked once", 1],
         {
             "count": "2..20",
             "value": "You clicked {{ count }} times"

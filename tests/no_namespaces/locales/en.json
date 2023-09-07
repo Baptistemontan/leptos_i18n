@@ -17,7 +17,7 @@
     "u32_plural": [
         "u32",
         {
-            "count": "0",
+            "count": 0,
             "value": "0"
         },
         {
@@ -61,7 +61,7 @@
         "subkey_2": "<b>subkey_2</b>",
         "subkey_3": [
             ["zero", "0"],
-            ["one", "1"],
+            ["one", 1],
             ["{{ count }}", "_"]
         ]
     }

@@ -359,6 +359,10 @@ pub trait PluralNumber: FromStr + ToTokens + PartialOrd + Copy {
     const TYPE: PluralType;
 
     fn range_end_bound(self) -> Option<Bound<Self>>;
+
+    fn from_u64(v: u64) -> Option<Self>;
+    fn from_i64(v: i64) -> Option<Self>;
+    fn from_f64(v: f64) -> Option<Self>;
 }
 
 pub trait PluralInteger: PluralNumber {}
@@ -495,6 +499,45 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<T> {
             formatter,
             "a string representing a plural or a sequence of string representing a plural"
         )
+    }
+
+    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        T::from_f64(v)
+            .map(Plural::Exact)
+            .ok_or(Error::PluralNumberType {
+                found: PluralType::F64,
+                expected: T::TYPE,
+            })
+            .map_err(serde::de::Error::custom)
+    }
+
+    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        T::from_i64(v)
+            .map(Plural::Exact)
+            .ok_or(Error::PluralNumberType {
+                found: PluralType::I64,
+                expected: T::TYPE,
+            })
+            .map_err(serde::de::Error::custom)
+    }
+
+    fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        T::from_u64(v)
+            .map(Plural::Exact)
+            .ok_or(Error::PluralNumberType {
+                found: PluralType::U64,
+                expected: T::TYPE,
+            })
+            .map_err(serde::de::Error::custom)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
@@ -830,6 +873,18 @@ mod plural_number_impl {
                     fn range_end_bound(self) -> Option<Bound<Self>> {
                         self.checked_sub(1).map(Bound::Included)
                     }
+
+                    fn from_i64(v: i64) -> Option<Self> {
+                        <$num_type>::try_from(v).ok()
+                    }
+
+                    fn from_u64(v: u64) -> Option<Self> {
+                        <$num_type>::try_from(v).ok()
+                    }
+
+                    fn from_f64(_v: f64) -> Option<Self> {
+                        None
+                    }
                 }
 
                 impl PluralInteger for $num_type {}
@@ -845,6 +900,18 @@ mod plural_number_impl {
 
                     fn range_end_bound(self) -> Option<Bound<Self>> {
                         Some(Bound::Excluded(self))
+                    }
+
+                    fn from_i64(v: i64) -> Option<Self> {
+                        Some(v as $num_type)
+                    }
+
+                    fn from_u64(v: u64) -> Option<Self> {
+                        Some(v as $num_type)
+                    }
+
+                    fn from_f64(v: f64) -> Option<Self> {
+                        Some(v as $num_type)
                     }
                 }
 
