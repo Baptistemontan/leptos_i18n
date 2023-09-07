@@ -2,10 +2,12 @@ use std::{collections::HashSet, rc::Rc};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
+use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
 
 use super::{
-    error::Error,
-    key::Key,
+    error::{Error, Result},
+    key::{Key, KeyPath},
+    locale::{Locale, LocaleSeed, LocaleValue},
     plural::{PluralType, Plurals},
 };
 
@@ -16,6 +18,7 @@ pub enum ParsedValue {
     Variable(Rc<Key>),
     Component { key: Rc<Key>, inner: Box<Self> },
     Bloc(Vec<Self>),
+    Subkeys(Rc<Locale>),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -28,7 +31,7 @@ pub enum InterpolateKey {
 impl ParsedValue {
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
-            ParsedValue::String(_) => {}
+            ParsedValue::String(_) | ParsedValue::Subkeys(_) => {}
             ParsedValue::Variable(key) => {
                 keys.get_or_insert_with(HashSet::new)
                     .insert(InterpolateKey::Variable(Rc::clone(key)));
@@ -77,6 +80,101 @@ impl ParsedValue {
 
         // else it's just a string
         ParsedValue::String(value.to_string())
+    }
+
+    pub fn to_locale_value(&self) -> LocaleValue {
+        if let ParsedValue::Subkeys(locale) = self {
+            LocaleValue::Subkeys {
+                locales: vec![Rc::clone(locale)],
+                keys: locale.to_builder_keys(),
+            }
+        } else {
+            LocaleValue::Value(self.get_keys())
+        }
+    }
+
+    fn merge_inner(
+        &self,
+        keys: &mut Option<HashSet<InterpolateKey>>,
+        locale1: &str,
+        locale2: &str,
+        namespace: Option<&str>,
+        key_path: &mut KeyPath,
+    ) -> Result<()> {
+        self.get_keys_inner(keys);
+        let Some(keys) = keys else {
+            return Ok(());
+        };
+        let mut iter = keys.iter();
+        let Some(count_type) = iter.find_map(|key| match key {
+            InterpolateKey::Count(plural_type) => Some(*plural_type),
+            _ => None,
+        }) else {
+            return Ok(());
+        };
+
+        let other_type = iter.find_map(|key| match key {
+            InterpolateKey::Count(plural_type) if *plural_type != count_type => Some(*plural_type),
+            _ => None,
+        });
+
+        if let Some(other_type) = other_type {
+            return Err(Error::PluralTypeMissmatch {
+                locale1: locale1.to_string(),
+                locale2: locale2.to_string(),
+                namespace: namespace.map(str::to_string),
+                key_path: std::mem::take(key_path),
+                type1: count_type,
+                type2: other_type,
+            });
+        }
+
+        // if the set contains InterpolateKey::Count, remove variable keys with name "count"
+        // ("var_count" with the rename)
+        keys.retain(|key| !matches!(key, InterpolateKey::Variable(key) if key.name == "var_count"));
+
+        Ok(())
+    }
+
+    pub fn merge(
+        &self,
+        keys: &mut LocaleValue,
+        locale1: &str,
+        locale2: &str,
+        namespace: Option<&str>,
+        key_path: &mut KeyPath,
+    ) -> Result<()> {
+        match (self, keys) {
+            // Both subkeys
+            (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
+                locales.push(Rc::clone(loc));
+                loc.merge(keys, locale1, locale2, namespace, key_path)
+            }
+            // Both value
+            (
+                ParsedValue::Bloc(_)
+                | ParsedValue::Component { .. }
+                | ParsedValue::Plural(_)
+                | ParsedValue::String(_)
+                | ParsedValue::Variable(_),
+                LocaleValue::Value(keys),
+            ) => self.merge_inner(keys, locale1, locale2, namespace, key_path),
+            // Value/Subkeys or vice versa-
+            (
+                ParsedValue::Bloc(_)
+                | ParsedValue::Component { .. }
+                | ParsedValue::Plural(_)
+                | ParsedValue::String(_)
+                | ParsedValue::Variable(_),
+                LocaleValue::Subkeys { .. },
+            )
+            | (ParsedValue::Subkeys(_), LocaleValue::Value(_)) => Err(Error::SubKeyMissmatch {
+                locale1: locale1.to_string(),
+                locale2: locale2.to_string(),
+                namespace: namespace.map(str::to_string),
+                key_path: std::mem::take(key_path),
+            }),
+        }
     }
 
     fn find_variable(value: &str) -> Option<Self> {
@@ -166,6 +264,7 @@ impl ParsedValue {
     fn flatten(&self, tokens: &mut Vec<TokenStream>) {
         match self {
             ParsedValue::String(s) if s.is_empty() => {}
+            ParsedValue::Subkeys(_) => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
             ParsedValue::Variable(key) => {
@@ -260,12 +359,15 @@ impl ToTokens for ParsedValue {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ParsedValueSeed(pub bool);
+pub struct ParsedValueSeed<'a> {
+    pub in_plural: bool,
+    pub key: &'a Rc<Key>,
+}
 
-impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed {
+impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
     type Value = ParsedValue;
 
-    fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -273,23 +375,39 @@ impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for ParsedValueSeed {
+impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     type Value = ParsedValue;
 
-    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
         Ok(ParsedValue::new(v))
     }
 
-    fn visit_seq<A>(mut self, map: A) -> std::result::Result<Self::Value, A::Error>
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        if self.in_plural {
+            return Err(serde::de::Error::custom(Error::PluralSubkeys));
+        }
+
+        let map_de = MapAccessDeserializer::new(map);
+
+        LocaleSeed(Rc::clone(self.key))
+            .deserialize(map_de)
+            .map(Rc::new)
+            .map(ParsedValue::Subkeys)
+    }
+
+    fn visit_seq<A>(mut self, map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
         // nested plurals are not allowed, the code technically supports it,
         // but it's pointless and probably nobody will ever needs it.
-        if std::mem::replace(&mut self.0, true) {
+        if std::mem::replace(&mut self.in_plural, true) {
             return Err(serde::de::Error::custom(Error::NestedPlurals));
         }
         let plurals = Plurals::from_serde_seq(map, self)?;
