@@ -492,6 +492,12 @@ Accessing your values with the `t!` macro will be like this:
 t!(i18n, $namespace.$key)
 ```
 
+To differentiate beetween namespaces and subkeys you can put `::` after the namespace (this is optionnal):
+
+```rust
+t!(i18n, $namespace::$key.$subkey)
+```
+
 You can have as many namespaces as you want, but the name should be a valid rust identifier (same as component/variable names, `-` are replaced by `_`).
 
 ### Examples

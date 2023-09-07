@@ -1,5 +1,14 @@
 {
     "common_key": "second namespace",
     "click_count": "You clicked {{ count }} times",
-    "click_to_inc": "Click to increment the counter"
+    "click_to_inc": "Click to increment the counter",
+    "subkeys": {
+        "subkey_1": "subkey_1",
+        "subkey_2": "<b>subkey_2</b>",
+        "subkey_3": [
+            ["zero", "0"],
+            ["one", "1"],
+            ["{{ count }}", "_"]
+        ]
+    }
 }

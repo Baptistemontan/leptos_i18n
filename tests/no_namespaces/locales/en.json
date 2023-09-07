@@ -55,5 +55,14 @@
             "value": "10..15 | 20"
         },
         ["fallback with no count"]
-    ]
+    ],
+    "subkeys": {
+        "subkey_1": "subkey_1",
+        "subkey_2": "<b>subkey_2</b>",
+        "subkey_3": [
+            ["zero", "0"],
+            ["one", "1"],
+            ["{{ count }}", "_"]
+        ]
+    }
 }
