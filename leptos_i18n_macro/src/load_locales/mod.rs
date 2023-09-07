@@ -339,7 +339,7 @@ fn create_namespaces_types(
         );
         quote! {
             pub mod #namespace_module_ident {
-                use super::{LocaleEnum, Locales};
+                use super::LocaleEnum;
 
                 #type_impl
             }
