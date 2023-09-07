@@ -40,6 +40,14 @@ Or by adding this line to your `Cargo.toml` under `[dependencies]`:
 leptos_i18n = "0.1"
 ```
 
+## Version compatibility with leptos
+
+| Letpos i18n | Letpos     |
+| ----------- | ---------- |
+| /           | `< v0.4.x` |
+| `v0.1.x`    | `v0.4.x`   |
+| `v0.2.x`    | `v0.5.x`   |
+
 ## How to use
 
 ### Configuration files
