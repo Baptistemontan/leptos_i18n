@@ -1,0 +1,9 @@
+{
+    "click_to_change_lang": "Click to change language",
+    "sub_keys": {
+        "sub_key": "sub_keys.sub_key english",
+        "sub_sub_keys": {
+            "sub_sub_key": "sub_keys.sub_sub_keys.sub_sub_key english"
+        }
+    }
+}

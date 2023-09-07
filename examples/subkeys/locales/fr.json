@@ -1,0 +1,9 @@
+{
+    "click_to_change_lang": "Cliquez pour changez de langue",
+    "sub_keys": {
+        "sub_key": "sub_keys.sub_key french",
+        "sub_sub_keys": {
+            "sub_sub_key": "sub_keys.sub_sub_keys.sub_sub_key french"
+        }
+    }
+}
