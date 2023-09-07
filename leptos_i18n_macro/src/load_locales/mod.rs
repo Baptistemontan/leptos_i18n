@@ -115,8 +115,27 @@ fn create_locales_type(_cfg_file: &ConfigFile) -> TokenStream {
     }
 }
 
-fn create_subkey_mod_ident(subkey_ident: &syn::Ident) -> syn::Ident {
-    format_ident!("sk_{}", subkey_ident)
+struct Subkeys<'a> {
+    original_key: &'a syn::Ident,
+    key: syn::Ident,
+    mod_key: syn::Ident,
+    locales: &'a [Rc<Locale>],
+    keys: &'a BuildersKeysInner,
+}
+
+impl<'a> Subkeys<'a> {
+    pub fn new(key: &'a Key, locales: &'a [Rc<Locale>], keys: &'a BuildersKeysInner) -> Self {
+        let original_key = &key.ident;
+        let mod_key = format_ident!("sk_{}", key.ident);
+        let key = format_ident!("{}_subkeys", key.ident);
+        Subkeys {
+            original_key,
+            key,
+            mod_key,
+            locales,
+            keys,
+        }
+    }
 }
 
 fn create_locale_type_inner(
@@ -140,16 +159,15 @@ fn create_locale_type_inner(
     let subkeys = keys
         .iter()
         .filter_map(|(key, value)| match value {
-            LocaleValue::Subkeys { locales, keys } => Some((key, locales, keys)),
+            LocaleValue::Subkeys { locales, keys } => Some(Subkeys::new(key, locales, keys)),
             _ => None,
         })
         .collect::<Vec<_>>();
 
-    let subkeys_ts = subkeys.iter().map(|(key, locales, keys)| {
-        let subkey_ident = &key.ident;
-        let subkey_mod_ident = create_subkey_mod_ident(&key.ident);
+    let subkeys_ts = subkeys.iter().map(|sk| {
+        let subkey_mod_ident = &sk.mod_key;
         let subkey_impl =
-            create_locale_type_inner(subkey_ident, top_locales, locales, &keys.0, true);
+            create_locale_type_inner(&sk.key, top_locales, sk.locales, &sk.keys.0, true);
         quote! {
             pub mod #subkey_mod_ident {
                 use super::LocaleEnum;
@@ -159,18 +177,20 @@ fn create_locale_type_inner(
         }
     });
 
-    let subkeys_fields = subkeys.iter().map(|(key, _, _)| {
-        let key = &key.ident;
-        let mod_ident = create_subkey_mod_ident(key);
-        quote!(pub #key: subkeys::#mod_ident::#key)
+    let subkeys_fields = subkeys.iter().map(|sk| {
+        let original_key = &sk.original_key;
+        let key = &sk.key;
+        let mod_ident = &sk.mod_key;
+        quote!(pub #original_key: subkeys::#mod_ident::#key)
     });
 
     let subkeys_field_new = subkeys
         .iter()
-        .map(|(key, _, _)| {
-            let key = &key.ident;
-            let mod_ident = create_subkey_mod_ident(key);
-            quote!(#key: subkeys::#mod_ident::#key::new(_variant))
+        .map(|sk| {
+            let original_key = &sk.original_key;
+            let key = &sk.key;
+            let mod_ident = &sk.mod_key;
+            quote!(#original_key: subkeys::#mod_ident::#key::new(_variant))
         })
         .collect::<Vec<_>>();
 

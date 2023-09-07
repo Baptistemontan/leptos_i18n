@@ -26,7 +26,7 @@ fn Subkeys() -> impl IntoView {
     let i18n = use_i18n();
 
     view! {
-        <p>{t!(i18n, sub_keys.sub_key)}</p>
-        <p>{t!(i18n, sub_keys.sub_sub_keys.sub_sub_key)}</p>
+        <p>{t!(i18n, subkeys.subkey)}</p>
+        <p>{t!(i18n, subkeys.subsubkeys.subsubkey)}</p>
     }
 }
