@@ -7,7 +7,7 @@
         "subkey_2": "<b>subkey_2</b>",
         "subkey_3": [
             ["zero", "0"],
-            ["one", "1"],
+            ["one", 1],
             ["{{ count }}", "_"]
         ]
     }
