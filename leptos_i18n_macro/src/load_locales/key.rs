@@ -1,10 +1,20 @@
 use super::error::{Error, Result};
-use std::hash::Hash;
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    rc::Rc,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Key {
     pub name: String,
     pub ident: syn::Ident,
+}
+
+impl Debug for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.name, f)
+    }
 }
 
 impl Hash for Key {
@@ -40,6 +50,33 @@ impl Key {
 impl quote::ToTokens for Key {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         self.ident.to_tokens(tokens)
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct KeyPath(Vec<Rc<Key>>);
+
+impl KeyPath {
+    pub fn push_key(&mut self, key: Rc<Key>) {
+        self.0.push(key);
+    }
+
+    pub fn pop_key(&mut self) {
+        self.0.pop();
+    }
+}
+
+impl Display for KeyPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("\"")?;
+        let mut iter = self.0.iter();
+        if let Some(first) = iter.next() {
+            f.write_str(&first.name)?;
+            for key in iter {
+                write!(f, ".{}", key.name)?;
+            }
+        }
+        f.write_str("\"")
     }
 }
 

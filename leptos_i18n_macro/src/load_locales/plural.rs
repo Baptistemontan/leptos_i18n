@@ -366,6 +366,16 @@ pub trait PluralInteger: PluralNumber {}
 pub trait PluralFloats: PluralNumber {}
 
 impl<T: PluralNumber> Plural<T> {
+    fn flatten(self) -> Self {
+        let Plural::Multiple(plurals) = self else {
+            return self;
+        };
+        if plurals.contains(&Plural::Fallback) {
+            return Plural::Fallback;
+        }
+        Plural::Multiple(plurals)
+    }
+
     pub fn new(s: &str) -> Result<Self> {
         let parse = |s: &str| {
             s.parse::<T>().map_err(|_| Error::PluralParse {
@@ -383,7 +393,8 @@ impl<T: PluralNumber> Plural<T> {
                 .split('|')
                 .map(|s| Self::new(s))
                 .collect::<Result<_>>()
-                .map(Self::Multiple);
+                .map(Self::Multiple)
+                .map(Self::flatten);
         }
 
         if let Some((start, end)) = s.split_once("..") {
@@ -516,9 +527,9 @@ impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralSeed<T> {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct PluralStructSeed<T>(pub ParsedValueSeed, PhantomData<T>);
+struct PluralStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
 
-impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<T> {
+impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<'_, T> {
     type Value = (Plural<T>, ParsedValue);
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
     where
@@ -528,7 +539,7 @@ impl<'de, T: PluralNumber> serde::de::DeserializeSeed<'de> for PluralStructSeed<
     }
 }
 
-impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<T> {
+impl<'de, T: PluralNumber> serde::de::Visitor<'de> for PluralStructSeed<'_, T> {
     type Value = (Plural<T>, ParsedValue);
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -642,9 +653,9 @@ enum TypeOrPlural {
     Plural((Plural<i64>, ParsedValue)),
 }
 
-struct TypeOrPluralSeed(pub ParsedValueSeed);
+struct TypeOrPluralSeed<'a>(pub ParsedValueSeed<'a>);
 
-impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed {
+impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed<'_> {
     type Value = TypeOrPlural;
 
     fn deserialize<D>(self, deserializer: D) -> std::result::Result<Self::Value, D::Error>
@@ -655,7 +666,7 @@ impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed {
+impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     type Value = TypeOrPlural;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -782,7 +793,7 @@ mod tests {
 
     #[test]
     fn test_multiple() {
-        let plural = Plural::<i32>::new("5 | 5..8 | 70..=80 | _").unwrap();
+        let plural = Plural::<i32>::new("5 | 5..8 | 70..=80").unwrap();
 
         assert_eq!(
             plural,
@@ -795,10 +806,16 @@ mod tests {
                 Plural::Range {
                     start: Some(70),
                     end: Bound::Included(80)
-                },
-                Plural::Fallback
+                }
             ])
         );
+    }
+
+    #[test]
+    fn test_multiple_with_fallback() {
+        let plural = Plural::<i32>::new("5 | 5..8 | 70..=80 | _").unwrap();
+
+        assert_eq!(plural, Plural::Fallback);
     }
 }
 

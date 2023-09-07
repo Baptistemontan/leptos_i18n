@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -23,7 +23,12 @@ struct Field<'a> {
 }
 
 impl Interpolation {
-    pub fn new(key: &Key, keys_set: &HashSet<InterpolateKey>, locales: &[Locale]) -> Self {
+    pub fn new(
+        key: &Key,
+        keys_set: &HashSet<InterpolateKey>,
+        top_locales: &[Rc<Locale>],
+        locales: &[Rc<Locale>],
+    ) -> Self {
         let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
 
         let locale_field = Key::new("__locale").unwrap();
@@ -51,7 +56,8 @@ impl Interpolation {
 
         let type_def = Self::create_type(&ident, &fields);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
-        let into_view_impl = Self::into_view_impl(key, &ident, &locale_field, &fields, locales);
+        let into_view_impl =
+            Self::into_view_impl(key, &ident, &locale_field, &fields, top_locales, locales);
         let new_impl = Self::new_impl(&ident, &locale_field, &fields);
         let default_generics = fields
             .iter()
@@ -402,7 +408,8 @@ impl Interpolation {
         ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-        locales: &[Locale],
+        top_locales: &[Rc<Locale>],
+        locales: &[Rc<Locale>],
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
@@ -419,7 +426,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, locales);
+        let locales_impls = Self::create_locale_impl(key, top_locales, locales);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -438,19 +445,22 @@ impl Interpolation {
 
     fn create_locale_impl<'a>(
         key: &'a Key,
-        locales: &'a [Locale],
+        top_locales: &'a [Rc<Locale>],
+        locales: &'a [Rc<Locale>],
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        locales.iter().filter_map(|locale| {
-            let locale_key = &locale.name;
-            let value = locale.keys.get(key)?;
+        top_locales
+            .iter()
+            .zip(locales)
+            .filter_map(|(top_locale, locale)| {
+                let locale_key = &top_locale.name;
+                let value = locale.keys.get(key)?;
 
-            Some(quote! {
-                LocaleEnum::#locale_key => {
-                    #value
-                }
-
+                Some(quote! {
+                    LocaleEnum::#locale_key => {
+                        #value
+                    }
+                })
             })
-        })
     }
 }
 
