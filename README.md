@@ -441,6 +441,28 @@ You can also have multiple conditions by either separate them by `|` or put them
 
 If a plural is a fallback it can omit the `count` key in a map or with only supply the value: `["fallback value"]`
 
+### Subkeys
+
+You may want to compartmentalize your locales for specific area of your application, you can do this with subkeys:
+
+```json
+{
+  "parent_key": {
+    "child_key_1": "this is a child key",
+    "child_key_2": "this is a <b>second</b> child key"
+  }
+}
+```
+
+You can then access your nested keys like this:
+
+```rust
+t!(i18n, parent_key.child_key_1)
+t!(i18n, parent_key.child_key_2, <b>)
+```
+
+You can nest how many you want, but must have the same subkeys across all locales and follow the same interpolation/plurals rules as normal keys.
+
 ### Namespaces
 
 Being constrained to put every translation in one unique file can make the locale file overly big, and keys must be unique making things even more complex. To avoid this situation you can introduce namespaces in the configuration:
