@@ -1,7 +1,7 @@
 {
     "click_to_change_lang": "Click to change language",
     "subkeys": {
-        "subkey": "sub_keys.subkey english",
+        "subkey": "subkeys.subkey english",
         "subsubkeys": {
             "subsubkey": "subkeys.subsubkeys.subsubkey english"
         }
