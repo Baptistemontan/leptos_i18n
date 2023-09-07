@@ -3,7 +3,7 @@
     "common_key": "first namespace",
     "plural_only_en": [
         {
-            "count": "0",
+            "count": 0,
             "value": "exact"
         },
         {

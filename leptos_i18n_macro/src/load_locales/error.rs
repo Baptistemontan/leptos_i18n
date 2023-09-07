@@ -55,6 +55,10 @@ pub enum Error {
     MultipleFallbacks,
     MissingFallback(PluralType),
     PluralSubkeys,
+    PluralNumberType {
+        found: PluralType,
+        expected: PluralType,
+    },
 }
 
 impl Display for Error {
@@ -139,6 +143,7 @@ impl Display for Error {
             Error::SubKeyMissmatch { locale1, locale2, namespace: Some(namespace), key_path } => {
                 write!(f, "missmatch value type beetween locale {:?} and locale {:?} in namespace {:?} at key {}: one has subkeys and the other has direct value.", locale1, locale2, namespace, key_path)
             },
+            Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
         }
     }
 }

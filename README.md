@@ -335,7 +335,7 @@ You declare them in a sequence of plurals, there is 2 syntax for the plurals, fi
 {
   "click_count": [
     {
-      "count": "0",
+      "count": 0,
       "value": "You have not clicked yet"
     },
     {
@@ -356,13 +356,15 @@ The other one is a sequence where the first element is the value and the other e
 {
   "click_count": [
     ["You have not clicked yet", "0"],
-    ["You clicked once", "1"],
+    ["You clicked once", 1],
     ["You clicked {{ count }} times", "_"]
   ]
 }
 ```
 
 You can mix them up as you want.
+
+The count can be a string `"0"` or a litteral `0`.
 
 When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> Into<N> + Clone + 'static` where `N` is the specified type.
 By default `N` is `i64` but you can change that by specifying the type as the **first** value in the sequence:
@@ -434,12 +436,12 @@ You can also have multiple conditions by either separate them by `|` or put them
       "count": "0 | 5",
       "value": "You clicked 0 or 5 times"
     },
-    ["You clicked once", "1"],
+    ["You clicked once", 1],
     {
-      "count": ["2..=10", "20"],
+      "count": ["2..=10", 20],
       "value": "You clicked {{ count }} times"
     },
-    ["You clicked 30 or 40 times", "30", "40"],
+    ["You clicked 30 or 40 times", 30, 40],
     {
       "value": "You clicked <b>a lot</b>"
     }
