@@ -8,7 +8,7 @@ pub trait LocaleVariant: 'static + Default + Clone + Copy {
     fn from_str(s: &str) -> Option<Self>;
 
     /// Return a static str that represent the locale.
-    fn as_str(&self) -> &'static str;
+    fn as_str(self) -> &'static str;
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     fn find_locale<T: AsRef<str>>(accepted_langs: &[T]) -> Self {
