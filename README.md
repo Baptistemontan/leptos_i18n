@@ -42,11 +42,11 @@ leptos_i18n = "0.1"
 
 ## Version compatibility with leptos
 
-| Letpos i18n | Letpos     |
-| ----------- | ---------- |
-| /           | `< v0.4.x` |
-| `v0.1.x`    | `v0.4.x`   |
-| `v0.2.x`    | `v0.5.x`   |
+| Leptos     | Leptos i18n   |
+| ---------- | ------------- |
+| `< v0.4.x` | not supported |
+| `v0.4.x`   | `v0.1.x`      |
+| `v0.5.x`   | `v0.2.x`      |
 
 ## How to use
 
