@@ -8,7 +8,7 @@ pub trait LocaleVariant: 'static + Default + Clone + Copy {
     fn from_str(s: &str) -> Option<Self>;
 
     /// Return a static str that represent the locale.
-    fn as_str(&self) -> &'static str;
+    fn as_str(self) -> &'static str;
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     fn find_locale<T: AsRef<str>>(accepted_langs: &[T]) -> Self {
@@ -44,15 +44,17 @@ pub trait Locales: 'static + Clone + Copy {
     }
 }
 
-/// Trait used for compile time checks of interpolations, it is public to be used by the `t!` macro
+/// This is used to call `.build` on `&str` when building interpolations
 ///
-/// Only time you will maybe need it is with the `debug_interpolations` feature and handwriting the interpolations builders.
-pub trait BuildString: Sized {
-    /// Just return the string itself, does nothing
+/// if it's a `&str` it will just return the str,
+/// but if it's a builder `.build` will either emit an error for a missing key or if all keys
+/// are supplied it will return the correct value
+#[doc(hidden)]
+pub trait BuildStr: Sized {
     #[inline]
     fn build(self) -> Self {
         self
     }
 }
 
-impl<'a> BuildString for &'a str {}
+impl<'a> BuildStr for &'a str {}

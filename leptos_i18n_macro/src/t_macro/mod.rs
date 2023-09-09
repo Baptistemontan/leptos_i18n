@@ -51,7 +51,7 @@ pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
         quote! {
             move || {
                 #[allow(unused)]
-                use leptos_i18n::__private::BuildString;
+                use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
                 _key.build()
             }
