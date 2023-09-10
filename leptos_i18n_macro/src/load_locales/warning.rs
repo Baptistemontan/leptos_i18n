@@ -85,19 +85,20 @@ fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
 
 #[cfg(not(feature = "nightly"))]
 pub fn generate_warnings() -> Option<TokenStream> {
-    WARNINGS.with_borrow(|ws| {
+    WARNINGS.with(|cell| {
+        let ws = cell.borrow();
         if ws.is_empty() {
             None
         } else {
-            Some(generate_warnings_inner(ws))
+            Some(generate_warnings_inner(&ws))
         }
     })
 }
 
 #[cfg(feature = "nightly")]
 pub fn generate_warnings() -> Option<TokenStream> {
-    WARNINGS.with_borrow(|ws| {
-        for warning in ws {
+    WARNINGS.with(|ws| {
+        for warning in ws.borrow().iter() {
             warning.emit();
         }
         None
