@@ -25,3 +25,6 @@ toml = "0.7"
 serde = []
 debug_interpolations = []
 nightly = []
+
+[package.metadata.cargo-all-features]
+denylist = ["nightly"]
