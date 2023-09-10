@@ -1,7 +1,6 @@
 use std::{collections::HashSet, fmt::Display, rc::Rc};
 
 use super::{
-    cfg_file::ConfigFile,
     key::{Key, KeyPath},
     plural::PluralType,
 };
@@ -12,7 +11,6 @@ pub enum Error {
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
     ConfigFileDeser(toml::de::Error),
-    ConfigFileDefaultMissing(Box<ConfigFile>),
     LocaleFileNotFound {
         path: String,
         err: std::io::Error,
@@ -72,10 +70,6 @@ impl Display for Error {
             Error::ConfigFileDeser(err) => {
                 write!(f, "Parsing of cargo manifest (Cargo.toml) failed: {}", err)
             }
-            Error::ConfigFileDefaultMissing(cfg_file) => write!(f,
-                "{:?} is set as default locale but is not in the locales list: {:?}",
-                cfg_file.default, cfg_file.locales
-            ),
             Error::LocaleFileNotFound { path, err} => {
                 write!(f,
                     "Could not found file {:?} : {}",

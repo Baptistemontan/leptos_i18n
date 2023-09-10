@@ -56,7 +56,9 @@ impl ConfigFile {
             // put default as first locale
             cfg.locales.swap(0, i);
         } else {
-            return Err(Error::ConfigFileDefaultMissing(Box::new(cfg)));
+            let len = cfg.locales.len();
+            cfg.locales.push(Rc::clone(&cfg.default));
+            cfg.locales.swap(0, len);
         }
 
         if let Some(duplicates) = Self::contain_duplicates(&cfg.locales) {
