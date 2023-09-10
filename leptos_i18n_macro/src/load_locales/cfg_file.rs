@@ -49,12 +49,17 @@ impl ConfigFile {
             .chain(i18n_cfg.chars())
             .collect::<String>();
 
-        let cfg: ConfigFile =
+        let mut cfg: ConfigFile =
             toml::de::from_str(&cfg_file_whitespaced).map_err(Error::ConfigFileDeser)?;
 
-        if !cfg.locales.contains(&cfg.default) {
-            Err(Error::ConfigFileDefaultMissing(Box::new(cfg)))
-        } else if let Some(duplicates) = Self::contain_duplicates(&cfg.locales) {
+        if let Some(i) = cfg.locales.iter().position(|l| l == &cfg.default) {
+            // put default as first locale
+            cfg.locales.swap(0, i);
+        } else {
+            return Err(Error::ConfigFileDefaultMissing(Box::new(cfg)));
+        }
+
+        if let Some(duplicates) = Self::contain_duplicates(&cfg.locales) {
             Err(Error::DuplicateLocalesInConfig(duplicates))
         } else if let Some(duplicates) = cfg
             .name_spaces

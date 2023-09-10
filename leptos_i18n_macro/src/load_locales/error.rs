@@ -1,6 +1,10 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{collections::HashSet, fmt::Display, rc::Rc};
 
-use super::{cfg_file::ConfigFile, key::KeyPath, plural::PluralType};
+use super::{
+    cfg_file::ConfigFile,
+    key::{Key, KeyPath},
+    plural::PluralType,
+};
 use quote::quote;
 
 #[derive(Debug)]
@@ -20,14 +24,11 @@ pub enum Error {
     DuplicateLocalesInConfig(HashSet<String>),
     DuplicateNamespacesInConfig(HashSet<String>),
     MissingKeyInLocale {
-        locale: String,
-        namespace: Option<String>,
+        locale: Rc<Key>,
         key_path: KeyPath,
     },
     SubKeyMissmatch {
-        locale1: String,
-        locale2: String,
-        namespace: Option<String>,
+        locale: Rc<Key>,
         key_path: KeyPath,
     },
     PluralParse {
@@ -40,9 +41,7 @@ pub enum Error {
     },
     ImpossibleRange(String),
     PluralTypeMissmatch {
-        locale1: String,
-        locale2: String,
-        namespace: Option<String>,
+        locale: Rc<Key>,
         key_path: KeyPath,
         type1: PluralType,
         type2: PluralType,
@@ -87,13 +86,9 @@ impl Display for Error {
                 "Parsing of file {:?} failed: {}",
                 path, err
             ),
-            Error::MissingKeyInLocale { key_path, namespace: None, locale } => write!(f,
-                "Some keys are different beetween locale files, \"{}.json\" is missing key: {}",
+            Error::MissingKeyInLocale { key_path, locale } => write!(f,
+                "Some keys are different beetween locale files, locale {:?} is missing key: {}",
                 locale, key_path
-            ),
-            Error::MissingKeyInLocale { key_path, namespace: Some(namespace), locale } => write!(f,
-                "Some keys are different beetween namespaces files, \"{}/{}.json\" is missing key: {}",
-                locale, namespace, key_path
             ),
             Error::PluralParse {
                 plural,
@@ -127,8 +122,7 @@ impl Display for Error {
                 "Found duplicates namespaces in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
-            Error::PluralTypeMissmatch { locale1, locale2, namespace: Some(namespace), key_path, type1, type2 } => write!(f, "missmatch value type beetween locale {:?} and locale {:?} in namespace {:?} at key {}: plurals type don't match (found {} and {})", locale1, locale2, namespace, key_path, type1, type2),
-            Error::PluralTypeMissmatch { locale1, locale2, namespace: None, key_path, type1, type2 } => write!(f, "missmatch value type beetween locale {:?} and locale {:?} at key {}: plurals type don't match (found {} and {})", locale1, locale2, key_path, type1, type2),
+            Error::PluralTypeMissmatch { locale, key_path, type1, type2 } => write!(f, "Missmatch plural value type as key {}, locale {:?} has type {} but another locale has type {}", key_path, locale, type1, type2),
             Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters", key),
             Error::EmptyPlural => write!(f, "empty plurals are not allowed"),
             Error::InvalidPluralType(t) => write!(f, "invalid plural type {:?}", t),
@@ -137,11 +131,8 @@ impl Display for Error {
             Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
             Error::MissingFallback(t) => write!(f, "plural type {} require a fallback (or a fullrange \"..\")", t),
             Error::PluralSubkeys => write!(f, "subkeys for plurals are not allowed"),
-            Error::SubKeyMissmatch { locale1, locale2, namespace: None, key_path } => {
-                write!(f, "missmatch value type beetween locale {:?} and locale {:?} at key {}: one has subkeys and the other has direct value.", locale1, locale2, key_path)
-            },
-            Error::SubKeyMissmatch { locale1, locale2, namespace: Some(namespace), key_path } => {
-                write!(f, "missmatch value type beetween locale {:?} and locale {:?} in namespace {:?} at key {}: one has subkeys and the other has direct value.", locale1, locale2, namespace, key_path)
+            Error::SubKeyMissmatch { locale, key_path } => {
+                write!(f, "Missmatch value type beetween locale {:?} and default at key {}: one has subkeys and the other has direct value.", locale, key_path)
             },
             Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
         }
