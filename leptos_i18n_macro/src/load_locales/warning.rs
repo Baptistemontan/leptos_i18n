@@ -1,4 +1,5 @@
 use proc_macro2::TokenStream;
+#[cfg(not(feature = "nightly"))]
 use quote::{format_ident, quote};
 
 use super::key::{Key, KeyPath};
@@ -15,7 +16,7 @@ thread_local! {
 }
 
 pub fn emit_warning(warning: Warning) {
-    WARNINGS.with_borrow_mut(|warnings| warnings.push(warning));
+    WARNINGS.with(|warnings| warnings.borrow_mut().push(warning));
 }
 
 impl Display for Warning {
@@ -34,6 +35,7 @@ impl Display for Warning {
 }
 
 impl Warning {
+    #[cfg(not(feature = "nightly"))]
     fn to_fn(&self, index: usize) -> TokenStream {
         let msg = self.to_string();
         let fn_name = format_ident!("w{}", index);
@@ -44,8 +46,21 @@ impl Warning {
             }
         }
     }
+
+    #[cfg(feature = "nightly")]
+    fn emit(&self) {
+        use proc_macro::{Diagnostic, Span};
+
+        Diagnostic::spanned(
+            Span::call_site(),
+            proc_macro::Level::Warning,
+            self.to_string(),
+        )
+        .emit();
+    }
 }
 
+#[cfg(not(feature = "nightly"))]
 fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
     let warning_fns = warnings.iter().enumerate().map(|(i, w)| w.to_fn(i));
 
@@ -68,6 +83,7 @@ fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
     }
 }
 
+#[cfg(not(feature = "nightly"))]
 pub fn generate_warnings() -> Option<TokenStream> {
     WARNINGS.with_borrow(|ws| {
         if ws.is_empty() {
@@ -75,5 +91,15 @@ pub fn generate_warnings() -> Option<TokenStream> {
         } else {
             Some(generate_warnings_inner(ws))
         }
+    })
+}
+
+#[cfg(feature = "nightly")]
+pub fn generate_warnings() -> Option<TokenStream> {
+    WARNINGS.with_borrow(|ws| {
+        for warning in ws {
+            warning.emit();
+        }
+        None
     })
 }
