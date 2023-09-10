@@ -71,7 +71,7 @@ fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
 
     quote! {
         #[allow(unused)]
-        fn emit_warnings() {
+        fn warnings() {
             #(
                 #warning_fns
             )*
