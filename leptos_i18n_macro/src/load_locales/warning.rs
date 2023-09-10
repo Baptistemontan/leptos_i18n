@@ -16,7 +16,9 @@ thread_local! {
 }
 
 pub fn emit_warning(warning: Warning) {
-    WARNINGS.with(|warnings| warnings.borrow_mut().push(warning));
+    if !cfg!(feature = "supress_warnings") {
+        WARNINGS.with(|warnings| warnings.borrow_mut().push(warning));
+    }
 }
 
 impl Display for Warning {
