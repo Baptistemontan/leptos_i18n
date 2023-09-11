@@ -133,7 +133,4 @@ pub use leptos_i18n_macro::{load_locales, t};
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;
-
-    #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-    pub struct EmptyInterpolateValue;
 }

@@ -61,7 +61,7 @@ impl Interpolation {
         let new_impl = Self::new_impl(&ident, &locale_field, &fields);
         let default_generics = fields
             .iter()
-            .map(|_| quote!(leptos_i18n::__private::EmptyInterpolateValue));
+            .map(|_| quote!(builders::EmptyInterpolateValue));
         let default_generic_ident = quote!(#ident<#(#default_generics,)*>);
 
         let imp = quote! {
@@ -82,13 +82,11 @@ impl Interpolation {
     }
 
     fn new_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
-        let generics = fields
-            .iter()
-            .map(|_| quote!(leptos_i18n::__private::EmptyInterpolateValue));
+        let generics = fields.iter().map(|_| quote!(EmptyInterpolateValue));
 
         let fields = fields.iter().map(|field| {
             let field_key = field.kind;
-            quote!(#field_key: leptos_i18n::__private::EmptyInterpolateValue)
+            quote!(#field_key: EmptyInterpolateValue)
         });
 
         quote! {
@@ -242,7 +240,7 @@ impl Interpolation {
             if set {
                 quote::ToTokens::to_token_stream(&field.generic)
             } else {
-                quote!(leptos_i18n::__private::EmptyInterpolateValue)
+                quote!(EmptyInterpolateValue)
             }
         });
         let left_generics = fields.clone().filter(|(set, _)| *set).map(|(_, field)| {
@@ -361,7 +359,7 @@ impl Interpolation {
             );
             let right_generics_empty = Self::generate_generics(
                 left_fields,
-                Some(quote!(leptos_i18n::__private::EmptyInterpolateValue)),
+                Some(quote!(EmptyInterpolateValue)),
                 right_fields,
                 quoted_gen,
             );
@@ -463,5 +461,12 @@ impl Interpolation {
                     }
                 })
             })
+    }
+}
+
+pub fn create_empty_type() -> TokenStream {
+    quote! {
+        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+        pub struct EmptyInterpolateValue;
     }
 }
