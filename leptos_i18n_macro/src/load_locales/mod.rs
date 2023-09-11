@@ -10,7 +10,7 @@ pub mod plural;
 
 use cfg_file::ConfigFile;
 use error::Result;
-use interpolate::{create_empty_type, Interpolation};
+use interpolate::Interpolation;
 use key::Key;
 use locale::{Locale, LocaleValue};
 use proc_macro2::TokenStream;
@@ -256,13 +256,10 @@ fn create_locale_type_inner(
     let builder_impls = builders.iter().map(|(_, inter)| &inter.imp);
 
     let builder_module = builders.is_empty().not().then(move || {
-        let empty_type = create_empty_type();
         quote! {
             #[doc(hidden)]
             pub mod builders {
                 use super::LocaleEnum;
-
-                #empty_type
 
                 #(
                     #builder_impls
