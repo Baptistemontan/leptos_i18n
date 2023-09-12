@@ -75,33 +75,40 @@ impl PluralType {
     }
 }
 
+pub type PluralsInner<T> = Vec<(Plural<T>, ParsedValue)>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Plurals {
-    I8(Vec<(Plural<i8>, ParsedValue)>),
-    I16(Vec<(Plural<i16>, ParsedValue)>),
-    I32(Vec<(Plural<i32>, ParsedValue)>),
-    I64(Vec<(Plural<i64>, ParsedValue)>),
-    U8(Vec<(Plural<u8>, ParsedValue)>),
-    U16(Vec<(Plural<u16>, ParsedValue)>),
-    U32(Vec<(Plural<u32>, ParsedValue)>),
-    U64(Vec<(Plural<u64>, ParsedValue)>),
-    F32(Vec<(Plural<f32>, ParsedValue)>),
-    F64(Vec<(Plural<f64>, ParsedValue)>),
+    I8(PluralsInner<i8>),
+    I16(PluralsInner<i16>),
+    I32(PluralsInner<i32>),
+    I64(PluralsInner<i64>),
+    U8(PluralsInner<u8>),
+    U16(PluralsInner<u16>),
+    U32(PluralsInner<u32>),
+    U64(PluralsInner<u64>),
+    F32(PluralsInner<f32>),
+    F64(PluralsInner<f64>),
 }
 
 impl Plurals {
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
+        fn inner<T>(v: &PluralsInner<T>, keys: &mut Option<HashSet<InterpolateKey>>) {
+            for (_, value) in v {
+                value.get_keys_inner(keys);
+            }
+        }
         match self {
-            Plurals::I8(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::I16(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::I32(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::I64(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::U8(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::U16(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::U32(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::U64(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::F32(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
-            Plurals::F64(v) => v.iter().for_each(|(_, value)| value.get_keys_inner(keys)),
+            Plurals::I8(v) => inner(v, keys),
+            Plurals::I16(v) => inner(v, keys),
+            Plurals::I32(v) => inner(v, keys),
+            Plurals::I64(v) => inner(v, keys),
+            Plurals::U8(v) => inner(v, keys),
+            Plurals::U16(v) => inner(v, keys),
+            Plurals::U32(v) => inner(v, keys),
+            Plurals::U64(v) => inner(v, keys),
+            Plurals::F32(v) => inner(v, keys),
+            Plurals::F64(v) => inner(v, keys),
         }
     }
 
@@ -213,7 +220,7 @@ impl Plurals {
 
     fn deserialize_all_pairs<'de, A, T>(
         mut seq: A,
-        plurals: &mut Vec<(Plural<T>, ParsedValue)>,
+        plurals: &mut PluralsInner<T>,
         parsed_value_seed: ParsedValueSeed,
     ) -> Result<(), A::Error>
     where
