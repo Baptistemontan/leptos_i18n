@@ -39,7 +39,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 ///
 /// view! {
 ///     <p>{t!(i18n, $key)}</p>
-///     <p>{t!(i18n, $key, $variable = $value, <$component> = |children| view! { <b>{children}</b> })}</p>
+///     <p>{t!(i18n, $key, $variable = $value, <$component> = |children| view! { <b>{children()}</b> })}</p>
 /// }
 ///```
 ///
