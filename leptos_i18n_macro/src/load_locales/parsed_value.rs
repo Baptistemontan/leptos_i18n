@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -18,7 +18,7 @@ pub enum ParsedValue {
     Variable(Rc<Key>),
     Component { key: Rc<Key>, inner: Box<Self> },
     Bloc(Vec<Self>),
-    Subkeys(Rc<Locale>),
+    Subkeys(Rc<RefCell<Locale>>),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -86,7 +86,7 @@ impl ParsedValue {
         if let ParsedValue::Subkeys(locale) = self {
             LocaleValue::Subkeys {
                 locales: vec![Rc::clone(locale)],
-                keys: locale.to_builder_keys(),
+                keys: locale.borrow().to_builder_keys(),
             }
         } else {
             LocaleValue::Value(self.get_keys())
@@ -96,9 +96,7 @@ impl ParsedValue {
     fn merge_inner(
         &self,
         keys: &mut Option<HashSet<InterpolateKey>>,
-        locale1: &str,
-        locale2: &str,
-        namespace: Option<&str>,
+        top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.get_keys_inner(keys);
@@ -120,9 +118,7 @@ impl ParsedValue {
 
         if let Some(other_type) = other_type {
             return Err(Error::PluralTypeMissmatch {
-                locale1: locale1.to_string(),
-                locale2: locale2.to_string(),
-                namespace: namespace.map(str::to_string),
+                locale: top_locale,
                 key_path: std::mem::take(key_path),
                 type1: count_type,
                 type2: other_type,
@@ -139,16 +135,25 @@ impl ParsedValue {
     pub fn merge(
         &self,
         keys: &mut LocaleValue,
-        locale1: &str,
-        locale2: &str,
-        namespace: Option<&str>,
+        default_locale: &str,
+        default_value: &Self,
+        top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         match (self, keys) {
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 locales.push(Rc::clone(loc));
-                loc.merge(keys, locale1, locale2, namespace, key_path)
+                match default_value {
+                    ParsedValue::Subkeys(default_value) => loc.borrow_mut().merge(
+                        keys,
+                        default_locale,
+                        Rc::clone(default_value),
+                        top_locale,
+                        key_path,
+                    ),
+                    _ => unreachable!(),
+                }
             }
             // Both value
             (
@@ -158,7 +163,7 @@ impl ParsedValue {
                 | ParsedValue::String(_)
                 | ParsedValue::Variable(_),
                 LocaleValue::Value(keys),
-            ) => self.merge_inner(keys, locale1, locale2, namespace, key_path),
+            ) => self.merge_inner(keys, top_locale, key_path),
             // Value/Subkeys or vice versa-
             (
                 ParsedValue::Bloc(_)
@@ -169,9 +174,7 @@ impl ParsedValue {
                 LocaleValue::Subkeys { .. },
             )
             | (ParsedValue::Subkeys(_), LocaleValue::Value(_)) => Err(Error::SubKeyMissmatch {
-                locale1: locale1.to_string(),
-                locale2: locale2.to_string(),
-                namespace: namespace.map(str::to_string),
+                locale: top_locale,
                 key_path: std::mem::take(key_path),
             }),
         }
@@ -397,6 +400,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
 
         LocaleSeed(Rc::clone(self.key))
             .deserialize(map_de)
+            .map(RefCell::new)
             .map(Rc::new)
             .map(ParsedValue::Subkeys)
     }

@@ -53,23 +53,36 @@ impl quote::ToTokens for Key {
     }
 }
 
-#[derive(Default, Debug)]
-pub struct KeyPath(Vec<Rc<Key>>);
+#[derive(Debug, Clone, Default)]
+pub struct KeyPath {
+    namespace: Option<Rc<Key>>,
+    path: Vec<Rc<Key>>,
+}
 
 impl KeyPath {
+    pub fn new(namespace: Option<Rc<Key>>) -> Self {
+        KeyPath {
+            namespace,
+            path: vec![],
+        }
+    }
+
     pub fn push_key(&mut self, key: Rc<Key>) {
-        self.0.push(key);
+        self.path.push(key);
     }
 
     pub fn pop_key(&mut self) {
-        self.0.pop();
+        self.path.pop();
     }
 }
 
 impl Display for KeyPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("\"")?;
-        let mut iter = self.0.iter();
+        if let Some(namespace) = &self.namespace {
+            write!(f, "{}::", namespace.name)?;
+        }
+        let mut iter = self.path.iter();
         if let Some(first) = iter.next() {
             f.write_str(&first.name)?;
             for key in iter {

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -26,8 +26,8 @@ impl Interpolation {
     pub fn new(
         key: &Key,
         keys_set: &HashSet<InterpolateKey>,
-        top_locales: &[Rc<Locale>],
-        locales: &[Rc<Locale>],
+        top_locales: &[Rc<RefCell<Locale>>],
+        locales: &[Rc<RefCell<Locale>>],
     ) -> Self {
         let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
 
@@ -408,8 +408,8 @@ impl Interpolation {
         ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-        top_locales: &[Rc<Locale>],
-        locales: &[Rc<Locale>],
+        top_locales: &[Rc<RefCell<Locale>>],
+        locales: &[Rc<RefCell<Locale>>],
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
@@ -445,15 +445,16 @@ impl Interpolation {
 
     fn create_locale_impl<'a>(
         key: &'a Key,
-        top_locales: &'a [Rc<Locale>],
-        locales: &'a [Rc<Locale>],
+        top_locales: &'a [Rc<RefCell<Locale>>],
+        locales: &'a [Rc<RefCell<Locale>>],
     ) -> impl Iterator<Item = TokenStream> + 'a {
         top_locales
             .iter()
             .zip(locales)
             .filter_map(|(top_locale, locale)| {
-                let locale_key = &top_locale.name;
-                let value = locale.keys.get(key)?;
+                let locale_key = &top_locale.borrow().name;
+                let locale_ref = locale.borrow();
+                let value = locale_ref.keys.get(key)?;
 
                 Some(quote! {
                     LocaleEnum::#locale_key => {

@@ -1,6 +1,7 @@
 #![deny(missing_docs)]
 #![deny(unsafe_code)]
 #![deny(warnings)]
+#![cfg_attr(feature = "nightly", feature(proc_macro_diagnostic))]
 //! # About Leptos i18n macro
 //!
 //! This crate expose the utility macro for `leptos_i18n`

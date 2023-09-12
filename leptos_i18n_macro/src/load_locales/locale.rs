@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet},
     fs::File,
     rc::Rc,
@@ -11,16 +12,17 @@ use super::{
     error::{Error, Result},
     key::{Key, KeyPath},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
+    warning::{emit_warning, Warning},
 };
 
 pub struct Namespace {
     pub key: Rc<Key>,
-    pub locales: Vec<Rc<Locale>>,
+    pub locales: Vec<Rc<RefCell<Locale>>>,
 }
 
 pub enum LocalesOrNamespaces {
     NameSpaces(Vec<Namespace>),
-    Locales(Vec<Rc<Locale>>),
+    Locales(Vec<Rc<RefCell<Locale>>>),
 }
 
 #[derive(Default)]
@@ -32,7 +34,7 @@ pub enum BuildersKeys {
         keys: HashMap<Rc<Key>, BuildersKeysInner>,
     },
     Locales {
-        locales: Vec<Rc<Locale>>,
+        locales: Vec<Rc<RefCell<Locale>>>,
         keys: BuildersKeysInner,
     },
 }
@@ -42,7 +44,7 @@ impl Namespace {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
             let path = format!("{}/{}/{}.json", locales_dir, locale.name, key.name);
-            locales.push(Rc::new(Locale::new(path, locale)?));
+            locales.push(Rc::new(RefCell::new(Locale::new(path, locale)?)));
         }
         Ok(Namespace { key, locales })
     }
@@ -66,7 +68,7 @@ impl LocalesOrNamespaces {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
                 let path = format!("{}/{}.json", locales_dir, locale.name);
-                locales.push(Rc::new(Locale::new(path, locale)?));
+                locales.push(Rc::new(RefCell::new(Locale::new(path, locale)?)));
             }
             Ok(LocalesOrNamespaces::Locales(locales))
         }
@@ -103,23 +105,27 @@ impl Locale {
     }
 
     pub fn merge(
-        &self,
+        &mut self,
         keys: &mut BuildersKeysInner,
-        locale1: &str,
-        locale2: &str,
-        namespace: Option<&str>,
+        default_locale: &str,
+        default_value: Rc<RefCell<Self>>,
+        top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
+        let defaults = default_value.borrow();
         for (key, keys) in &mut keys.0 {
+            let default_value = defaults.keys.get(key).unwrap();
             key_path.push_key(Rc::clone(key));
-            let Some(value) = self.keys.get(key) else {
-                return Err(Error::MissingKeyInLocale {
-                    locale: locale2.to_string(),
-                    namespace: namespace.map(str::to_string),
-                    key_path: std::mem::take(key_path),
+            let locale = self.name.clone();
+            let value_entry = self.keys.entry(Rc::clone(key));
+            let value = value_entry.or_insert_with(|| {
+                emit_warning(Warning::MissingKey {
+                    locale: top_locale.clone(),
+                    key_path: key_path.clone(),
                 });
-            };
-            value.merge(keys, locale1, locale2, namespace, key_path)?;
+                default_value.clone()
+            });
+            value.merge(keys, default_locale, default_value, locale, key_path)?;
             key_path.pop_key();
         }
 
@@ -127,10 +133,9 @@ impl Locale {
         for key in self.keys.keys() {
             if keys.0.get(key).is_none() {
                 key_path.push_key(Rc::clone(key));
-                return Err(Error::MissingKeyInLocale {
-                    locale: locale1.to_string(),
-                    namespace: namespace.map(str::to_string),
-                    key_path: std::mem::take(key_path),
+                emit_warning(Warning::SurplusKey {
+                    locale: top_locale.clone(),
+                    key_path: key_path.clone(),
                 });
             }
         }
@@ -139,30 +144,31 @@ impl Locale {
     }
 
     pub fn check_locales_inner(
-        locales: &[Rc<Locale>],
-        namespace: Option<&str>,
+        locales: &[Rc<RefCell<Locale>>],
+        namespace: Option<Rc<Key>>,
     ) -> Result<BuildersKeysInner> {
         let mut locales = locales.iter();
-        let first_locale = locales.next().unwrap();
+        let default_locale = locales.next().unwrap();
+        let default_locale_ref = default_locale.borrow();
 
-        let mut first_locale_keys = first_locale.to_builder_keys();
+        let mut default_keys = default_locale_ref.to_builder_keys();
 
-        let locale1 = &first_locale.name.name;
+        let default_locale_name = &default_locale_ref.name.name;
 
-        let mut key_path = KeyPath::default();
+        let mut key_path = KeyPath::new(namespace);
 
         for locale in locales {
-            let locale2 = &locale.name.name;
-            locale.merge(
-                &mut first_locale_keys,
-                locale1,
-                locale2,
-                namespace,
+            let top_locale = locale.borrow().name.clone();
+            locale.borrow_mut().merge(
+                &mut default_keys,
+                default_locale_name,
+                Rc::clone(default_locale),
+                top_locale,
                 &mut key_path,
             )?;
         }
 
-        Ok(first_locale_keys)
+        Ok(default_keys)
     }
 
     pub fn check_locales(locales: LocalesOrNamespaces) -> Result<BuildersKeys> {
@@ -170,8 +176,10 @@ impl Locale {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
                 let mut keys = HashMap::with_capacity(namespaces.len());
                 for namespace in &namespaces {
-                    let k =
-                        Self::check_locales_inner(&namespace.locales, Some(&namespace.key.name))?;
+                    let k = Self::check_locales_inner(
+                        &namespace.locales,
+                        Some(Rc::clone(&namespace.key)),
+                    )?;
                     keys.insert(Rc::clone(&namespace.key), k);
                 }
                 Ok(BuildersKeys::NameSpaces { namespaces, keys })
@@ -187,7 +195,7 @@ impl Locale {
 pub enum LocaleValue {
     Value(Option<HashSet<InterpolateKey>>),
     Subkeys {
-        locales: Vec<Rc<Locale>>,
+        locales: Vec<Rc<RefCell<Locale>>>,
         keys: BuildersKeysInner,
     },
 }

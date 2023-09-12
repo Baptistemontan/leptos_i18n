@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Not, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ops::Not, rc::Rc};
 
 pub mod cfg_file;
 pub mod error;
@@ -7,6 +7,7 @@ pub mod key;
 pub mod locale;
 pub mod parsed_value;
 pub mod plural;
+pub mod warning;
 
 use cfg_file::ConfigFile;
 use error::Result;
@@ -16,7 +17,10 @@ use locale::{Locale, LocaleValue};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use self::locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace};
+use self::{
+    locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace},
+    warning::generate_warnings,
+};
 
 pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new()?;
@@ -27,6 +31,8 @@ pub fn load_locales() -> Result<TokenStream> {
     let locale_type = create_locale_type(keys);
     let locale_variants = create_locales_enum(&cfg_file);
     let locales = create_locales_type(&cfg_file);
+
+    let warnings = generate_warnings();
 
     Ok(quote! {
         pub mod i18n {
@@ -47,6 +53,8 @@ pub fn load_locales() -> Result<TokenStream> {
             }
 
             pub use leptos_i18n::t;
+
+            #warnings
         }
     })
 }
@@ -119,12 +127,16 @@ struct Subkeys<'a> {
     original_key: &'a syn::Ident,
     key: syn::Ident,
     mod_key: syn::Ident,
-    locales: &'a [Rc<Locale>],
+    locales: &'a [Rc<RefCell<Locale>>],
     keys: &'a BuildersKeysInner,
 }
 
 impl<'a> Subkeys<'a> {
-    pub fn new(key: &'a Key, locales: &'a [Rc<Locale>], keys: &'a BuildersKeysInner) -> Self {
+    pub fn new(
+        key: &'a Key,
+        locales: &'a [Rc<RefCell<Locale>>],
+        keys: &'a BuildersKeysInner,
+    ) -> Self {
         let original_key = &key.ident;
         let mod_key = format_ident!("sk_{}", key.ident);
         let key = format_ident!("{}_subkeys", key.ident);
@@ -140,8 +152,8 @@ impl<'a> Subkeys<'a> {
 
 fn create_locale_type_inner(
     type_ident: &syn::Ident,
-    top_locales: &[Rc<Locale>],
-    locales: &[Rc<Locale>],
+    top_locales: &[Rc<RefCell<Locale>>],
+    locales: &[Rc<RefCell<Locale>>],
     keys: &HashMap<Rc<Key>, LocaleValue>,
     is_namespace: bool,
 ) -> TokenStream {
@@ -231,7 +243,8 @@ fn create_locale_type_inner(
         .collect();
 
     let new_match_arms = top_locales.iter().zip(locales).map(|(top_locale, locale)| {
-        let filled_string_fields = locale
+        let locale_ref = locale.borrow();
+        let filled_string_fields = locale_ref
             .keys
             .iter()
             .filter(|(key, _)| {
@@ -243,7 +256,7 @@ fn create_locale_type_inner(
                 Some(quote!(#key: #str_value))
             });
 
-        let ident = &top_locale.name.ident;
+        let ident = &top_locale.borrow().name.ident;
         quote! {
             LocaleEnum::#ident => #type_ident {
                 #(#filled_string_fields,)*
@@ -273,7 +286,7 @@ fn create_locale_type_inner(
 
     let (from_variant, const_values) = if !is_namespace {
         let from_variant_match_arms = top_locales.iter().map(|locale| {
-            let ident = &locale.name.ident;
+            let ident = &locale.borrow().name.ident;
             quote!(LocaleEnum::#ident => &Self::#ident)
         });
 
@@ -291,7 +304,7 @@ fn create_locale_type_inner(
         };
 
         let const_values = top_locales.iter().map(|locale| {
-            let ident = &locale.name.ident;
+            let ident = &locale.borrow().name.ident;
             quote!(pub const #ident: Self = Self::new(LocaleEnum::#ident);)
         });
 
@@ -381,12 +394,12 @@ fn create_namespaces_types(
     let locales = &namespaces.iter().next().unwrap().locales;
 
     let const_values = locales.iter().map(|locale| {
-        let locale_ident = &locale.name;
+        let locale_ident = &locale.borrow().name;
         quote!(pub const #locale_ident: Self = Self::new(LocaleEnum::#locale_ident);)
     });
 
     let from_variant_match_arms = locales.iter().map(|locale| {
-        let locale_ident = &locale.name;
+        let locale_ident = &locale.borrow().name;
         quote!(LocaleEnum::#locale_ident => &Self::#locale_ident)
     });
 

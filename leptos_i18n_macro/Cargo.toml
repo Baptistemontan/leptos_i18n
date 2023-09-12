@@ -22,5 +22,11 @@ syn = "2.0"
 toml = "0.7"
 
 [features]
+# default = ["supress_key_warnings"]
 serde = []
 debug_interpolations = []
+nightly = []
+supress_key_warnings = []
+
+[package.metadata.cargo-all-features]
+denylist = ["nightly"]
