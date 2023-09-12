@@ -285,7 +285,7 @@ impl ParsedValue {
                     #captured_keys
                     move || Into::into(#inner)
                 });
-                let boxed_fn = quote!(Box::new(#f));
+                let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
                 tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)( #boxed_fn))))
             }
             ParsedValue::Bloc(values) => {
