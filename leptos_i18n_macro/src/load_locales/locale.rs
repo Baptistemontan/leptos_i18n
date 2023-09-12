@@ -78,7 +78,7 @@ impl LocalesOrNamespaces {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
     pub name: Rc<Key>,
-    pub keys: HashMap<Rc<Key>, ParsedValue>,
+    pub keys: HashMap<Rc<Key>, Rc<ParsedValue>>,
 }
 
 impl Locale {
@@ -108,13 +108,12 @@ impl Locale {
         &mut self,
         keys: &mut BuildersKeysInner,
         default_locale: &str,
-        default_value: Rc<RefCell<Self>>,
+        default_values: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
-        let defaults = default_value.borrow();
         for (key, keys) in &mut keys.0 {
-            let default_value = defaults.keys.get(key).unwrap();
+            let default_value = default_values.keys.get(key).unwrap();
             key_path.push_key(Rc::clone(key));
             let locale = self.name.clone();
             let value_entry = self.keys.entry(Rc::clone(key));
@@ -123,7 +122,7 @@ impl Locale {
                     locale: top_locale.clone(),
                     key_path: key_path.clone(),
                 });
-                default_value.clone()
+                Rc::clone(default_value)
             });
             value.merge(keys, default_locale, default_value, locale, key_path)?;
             key_path.pop_key();
@@ -162,7 +161,7 @@ impl Locale {
             locale.borrow_mut().merge(
                 &mut default_keys,
                 default_locale_name,
-                Rc::clone(default_locale),
+                &default_locale.borrow(),
                 top_locale,
                 &mut key_path,
             )?;
@@ -204,7 +203,7 @@ pub enum LocaleValue {
 pub struct LocaleSeed(pub Rc<Key>);
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
-    type Value = HashMap<Rc<Key>, ParsedValue>;
+    type Value = HashMap<Rc<Key>, Rc<ParsedValue>>;
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
@@ -217,7 +216,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed {
                 key: &locale_key,
                 in_plural: false,
             })?;
-            keys.insert(locale_key, value);
+            keys.insert(locale_key, Rc::new(value));
         }
 
         Ok(keys)

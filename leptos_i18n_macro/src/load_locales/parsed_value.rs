@@ -148,7 +148,7 @@ impl ParsedValue {
                     ParsedValue::Subkeys(default_value) => loc.borrow_mut().merge(
                         keys,
                         default_locale,
-                        Rc::clone(default_value),
+                        &default_value.borrow(),
                         top_locale,
                         key_path,
                     ),
