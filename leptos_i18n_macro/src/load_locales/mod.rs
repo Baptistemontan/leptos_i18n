@@ -52,7 +52,7 @@ pub fn load_locales() -> Result<TokenStream> {
                 leptos_i18n::provide_i18n_context()
             }
 
-            pub use leptos_i18n::t;
+            pub use leptos_i18n::{t, td};
 
             #warnings
         }
