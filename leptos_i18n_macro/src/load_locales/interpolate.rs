@@ -116,12 +116,21 @@ impl Interpolation {
     }
 
     #[cfg(feature = "debug_interpolations")]
-    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> Option<TokenStream> {
+    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
         if fields.len() > MAX_KEY_GENERATE_BUILD_DEBUG {
-            return None;
+            return Self::generate_success_build_fn(ident, fields);
         }
         let failing_builds = Self::generate_all_failing_build_fn(ident, fields);
+        let success_build = Self::generate_success_build_fn(ident, fields);
 
+        quote! {
+            #(#failing_builds)*
+
+            #success_build
+        }
+    }
+    // #[cfg(not(feature = "debug_interpolations"))]
+    fn generate_success_build_fn(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
             let generic = field.kind.get_generic();
@@ -132,26 +141,6 @@ impl Interpolation {
             let ident = &field.generic;
             quote!(#ident)
         });
-
-        Some(quote! {
-            #(#failing_builds)*
-
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                pub fn build(self) -> Self {
-                    self
-                }
-            }
-        })
-    }
-    // #[cfg(not(feature = "debug_interpolations"))]
-    fn generate_default_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
-        let left_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            quote!(#ident)
-        });
-
-        let right_generics = left_generics.clone();
 
         quote! {
 
@@ -169,10 +158,9 @@ impl Interpolation {
         let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
 
         #[cfg(not(feature = "debug_interpolations"))]
-        let build_fns = Self::generate_default_build_fns(ident, fields);
+        let build_fns = Self::generate_success_build_fn(ident, fields);
         #[cfg(feature = "debug_interpolations")]
-        let build_fns = Self::generate_build_fns(ident, fields)
-            .unwrap_or_else(|| Self::generate_default_build_fns(ident, fields));
+        let build_fns = Self::generate_build_fns(ident, fields);
 
         quote! {
             #set_fns

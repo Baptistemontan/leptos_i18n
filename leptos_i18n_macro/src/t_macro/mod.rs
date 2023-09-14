@@ -31,29 +31,17 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
         }
     };
     let inner = if let Some(interpolations) = interpolations {
-        if cfg!(feature = "debug_interpolations") {
-            quote! {
-                {
-                    let _key = #get_key;
-                    #(
-                        let _key = _key.#interpolations;
-                    )*
-                    #[deny(deprecated)]
-                    _key.build()
-                }
-            }
-        } else {
-            quote! {
-                {
-                    let _key = #get_key;
-                    #(
-                        let _key = _key.#interpolations;
-                    )*
-                    _key
-                }
+        quote! {
+            {
+                let _key = #get_key;
+                #(
+                    let _key = _key.#interpolations;
+                )*
+                #[deny(deprecated)]
+                _key.build()
             }
         }
-    } else if cfg!(feature = "debug_interpolations") {
+    } else {
         quote! {
             {
                 #[allow(unused)]
@@ -62,8 +50,6 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
                 _key.build()
             }
         }
-    } else {
-        get_key
     };
 
     if direct {
