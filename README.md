@@ -529,7 +529,7 @@ Better compilation errors are generated for interpolations with 4 keys or less.
 This is a feature as this code is not "necessary" and could slow compile times,
 advice is to enable it for debug builds but disable it for release builds.
 
-The `supress_key_warnings` feature remove the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
+The `suppress_key_warnings` feature remove the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
 
 ## Contributing
 

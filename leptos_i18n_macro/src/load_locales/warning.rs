@@ -16,7 +16,7 @@ thread_local! {
 }
 
 pub fn emit_warning(warning: Warning) {
-    if !cfg!(feature = "supress_key_warnings") {
+    if !cfg!(feature = "suppress_key_warnings") {
         WARNINGS.with(|warnings| warnings.borrow_mut().push(warning));
     }
 }
