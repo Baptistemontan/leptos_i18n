@@ -526,9 +526,9 @@ use leptos_i18n::td;
 
 view! {
   <p>"In English:"</p>
-  <p>{td!(LocaleEnumm::en, hello_world)}</p>
+  <p>{td!(LocaleEnum::en, hello_world)}</p>
   <p>"En Français:"</p>
-  <p>{td!(LocaleEnumm::fr, hello_world)}</p>
+  <p>{td!(LocaleEnum::fr, hello_world)}</p>
 }
 ```
 
