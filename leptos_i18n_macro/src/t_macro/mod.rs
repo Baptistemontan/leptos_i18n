@@ -30,10 +30,10 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
             quote!(#get_keys.#namespace #(.#keys)*)
         }
     };
-    if let Some(interpolations) = interpolations {
+    let inner = if let Some(interpolations) = interpolations {
         if cfg!(feature = "debug_interpolations") {
             quote! {
-                move || {
+                {
                     let _key = #get_key;
                     #(
                         let _key = _key.#interpolations;
@@ -44,7 +44,7 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
             }
         } else {
             quote! {
-                move || {
+                {
                     let _key = #get_key;
                     #(
                         let _key = _key.#interpolations;
@@ -55,7 +55,7 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
         }
     } else if cfg!(feature = "debug_interpolations") {
         quote! {
-            move || {
+            {
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
@@ -63,6 +63,12 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
             }
         }
     } else {
-        quote!(move || #get_key)
+        get_key
+    };
+
+    if direct {
+        inner
+    } else {
+        quote!(move || #inner)
     }
 }
