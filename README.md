@@ -510,6 +510,30 @@ t!(i18n, $namespace::$key.$subkey)
 
 You can have as many namespaces as you want, but the name should be a valid rust identifier (same as component/variable names, `-` are replaced by `_`).
 
+### The `td!` macro (`d` for direct)
+
+The `td!` macro works just like the `t!` macro but instead of taking the context as it first argument it directly take the locale:
+
+```rust
+td!(LocaleEnum::fr, $key, ...)
+```
+
+This let you use a translation regardless of the the current locale, enabling the use of multiple locales at the same time:
+
+```rust
+use crate::i18n::LocaleEnum;
+use leptos_i18n::td;
+
+view! {
+  <p>"In English:"</p>
+  <p>{td!(LocaleEnumm::en, hello_world)}</p>
+  <p>"En Français:"</p>
+  <p>{td!(LocaleEnumm::fr, hello_world)}</p>
+}
+```
+
+(It's a shame `const` function are not allowed in traits, if that was the case the code outputed by `td!` would be entirly const, making it the same as directly pasting the locale)
+
 ### Examples
 
 If examples works better for you, you can look at the different examples available on the Github.

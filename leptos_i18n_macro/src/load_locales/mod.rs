@@ -96,6 +96,8 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
         }
 
         impl leptos_i18n::LocaleVariant for LocaleEnum {
+            type Keys = I18nKeys;
+
             fn as_str(self) -> &'static str {
                 match self {
                     #(#as_str_match_arms,)*
@@ -292,7 +294,7 @@ fn create_locale_type_inner(
 
         let from_variant = quote! {
             impl leptos_i18n::LocaleKeys for #type_ident {
-                type Locales = Locales;
+                type Variants = LocaleEnum;
                 fn from_variant(_variant: LocaleEnum) -> &'static Self {
                     match _variant {
                         #(
@@ -435,7 +437,7 @@ fn create_namespaces_types(
         }
 
         impl leptos_i18n::LocaleKeys for #i18n_keys_ident {
-            type Locales = Locales;
+            type Variants = LocaleEnum;
             fn from_variant(_variant: LocaleEnum) -> &'static Self {
                 match _variant {
                     #(

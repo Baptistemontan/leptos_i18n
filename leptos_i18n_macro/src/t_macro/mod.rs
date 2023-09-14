@@ -6,22 +6,28 @@ use self::parsed_input::{Keys, ParsedInput};
 pub mod interpolate;
 pub mod parsed_input;
 
-pub fn t_macro(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn t_macro(tokens: proc_macro::TokenStream, direct: bool) -> proc_macro::TokenStream {
     let input = parse_macro_input!(tokens as ParsedInput);
-    t_macro_inner(input).into()
+    t_macro_inner(input, direct).into()
 }
 
-pub fn t_macro_inner(input: ParsedInput) -> proc_macro2::TokenStream {
+pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStream {
     let ParsedInput {
         context,
         keys,
         interpolations,
     } = input;
+    let get_keys = if direct {
+        quote!(leptos_i18n::LocaleVariant::get_keys(#context))
+    } else {
+        quote!(leptos_i18n::I18nContext::get_keys(#context))
+    };
+
     let get_key = match keys {
-        Keys::SingleKey(key) => quote!(leptos_i18n::I18nContext::get_keys(#context).#key),
-        Keys::Subkeys(keys) => quote!(leptos_i18n::I18nContext::get_keys(#context)#(.#keys)*),
+        Keys::SingleKey(key) => quote!(#get_keys.#key),
+        Keys::Subkeys(keys) => quote!(#get_keys #(.#keys)*),
         Keys::Namespace(namespace, keys) => {
-            quote!(leptos_i18n::I18nContext::get_keys(#context).#namespace #(.#keys)*)
+            quote!(#get_keys.#namespace #(.#keys)*)
         }
     };
     if let Some(interpolations) = interpolations {
