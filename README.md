@@ -4,23 +4,30 @@
 
 This crate is made to simplify internalisation in a [Leptos](https://crates.io/crates/leptos) application, that load locales at **_compile time_** and provide compile time check for keys and selected locale.
 
-The main focus is ease of you use with leptos, a typical component using this crate will look like this:
+The main focus is ease of use with leptos, a typical component using this crate will look like this:
 
 ```rust
 use crate::i18n::*;
 use leptos::*;
 
-let i18n = use_i18n();
+#[component]
+fn Counter() -> impl IntoView {
+  let i18n = use_i18n();
 
-let (counter, set_counter) = create_signal(0);
-let inc = move |_| set_counter.update(|count| *count += 1);
+  let (counter, set_counter) = create_signal(0);
+  let inc = move |_| set_counter.update(|count| *count += 1);
 
 
-view! {
-    {/* click_to_inc = "Click to increment" */}
-    <button on:click=inc>{t!(i18n, click_to_inc)}</button>
-    {/* click_count = "You have clicked {{ count }} times" */}
-    <p>{t!(i18n, click_count, count = move || counter.get())}</p>
+  view! {
+    <button on:click=inc>
+      {/* click_to_inc = "Click to increment" */}
+      {t!(i18n, click_to_inc)}
+    </button>
+    <p>
+      {/* click_count = "You have clicked {{ count }} times" */}
+      {t!(i18n, click_count, count = move || counter.get())}
+     </p>
+  }
 }
 ```
 
