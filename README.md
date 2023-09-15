@@ -542,7 +542,7 @@ view! {
 
 ### Examples
 
-If examples works better for you, you can look at the different examples available on the Github.
+If examples works better for you, you can look at the different examples available on the Github. If something is missing or not clear feel free to open a discussion on github!
 
 ## Features
 
