@@ -1,6 +1,6 @@
 use proc_macro2::Ident;
 use syn::token::Comma;
-use syn::Token;
+use syn::{Expr, Token};
 
 use super::interpolate::InterpolatedValue;
 
@@ -11,7 +11,7 @@ pub enum Keys {
 }
 
 pub struct ParsedInput {
-    pub context: Ident,
+    pub context: Expr,
     pub keys: Keys,
     pub interpolations: Option<Vec<InterpolatedValue>>,
 }

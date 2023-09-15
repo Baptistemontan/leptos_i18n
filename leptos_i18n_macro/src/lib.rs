@@ -35,11 +35,13 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// Usage:
 ///
 /// ```rust, ignore
+/// use crate::i18n::*;
+///
 /// let i18n = use_i18n();
 ///
 /// view! {
 ///     <p>{t!(i18n, $key)}</p>
-///     <p>{t!(i18n, $key, $variable = $value, <$component> = |children| view! { <b>{children()}</b> })}</p>
+///     <p>{t!(i18n, $key, $variable = $value, <$component> = |child| ... )}</p>
 /// }
 ///```
 ///
@@ -58,5 +60,25 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// ```
 #[proc_macro]
 pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens)
+    t_macro::t_macro(tokens, false)
+}
+
+/// Just like the `t!` macro but instead of taking `I18nContext` as the first argument it takes the desired locale.
+///
+/// Usage:
+///
+/// ```rust, ignore
+/// use crate::i18n::LocaleEnum;
+/// use leptos_i18n::td;
+///
+/// view! {
+///     <p>{td!(LocaleEnum::en, $key)}</p>
+///     <p>{td!(LocaleEnum::fr, $key, $variable = $value, <$component> = |child| ... )}</p>
+/// }
+///```
+///
+/// This let you use a specific locale regardless of the current one.
+#[proc_macro]
+pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, true)
 }

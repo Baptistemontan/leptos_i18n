@@ -129,7 +129,7 @@ pub use locale_traits::*;
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
 
-pub use leptos_i18n_macro::{load_locales, t};
+pub use leptos_i18n_macro::{load_locales, t, td};
 
 #[doc(hidden)]
 pub mod __private {

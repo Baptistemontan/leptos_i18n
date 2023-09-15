@@ -27,15 +27,13 @@ impl<T: Locales> I18nContext<T> {
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
     pub fn get_keys(self) -> &'static T::LocaleKeys {
-        let variant = self.get_locale();
-        LocaleKeys::from_variant(variant)
+        self.get_locale().get_keys()
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
     pub fn get_keys_untracked(self) -> &'static T::LocaleKeys {
-        let variant = self.get_locale_untracked();
-        LocaleKeys::from_variant(variant)
+        self.get_locale_untracked().get_keys()
     }
 
     /// Set the locale and notify all subscribers
