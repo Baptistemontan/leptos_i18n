@@ -528,8 +528,7 @@ td!(LocaleEnum::fr, $key, ...)
 This let you use a translation regardless of the the current locale, enabling the use of multiple locales at the same time:
 
 ```rust
-use crate::i18n::LocaleEnum;
-use leptos_i18n::td;
+use crate::i18n::*;
 
 view! {
   <p>"In English:"</p>
