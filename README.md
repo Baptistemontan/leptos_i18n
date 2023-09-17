@@ -278,7 +278,7 @@ let i18n = use_i18n();
 
 view! {
     <p>
-        {t!(i18n, important_text, <b> = |children| view!{ <b>{children()}</b> })}
+        {t!(i18n, important_text, <b> = |children| view!{ <b>{children}</b> })}
     </p>
 }
 ```

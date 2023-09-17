@@ -49,7 +49,7 @@ fn Tests() -> impl IntoView {
         <p>{t!(i18n, f32_OR_plural, count = || 42f32)}</p>
         <p>{t!(i18n, OR_plural, count = || 42u8)}</p>
         <p>{t!(i18n, subkeys.subkey_1)}</p>
-        <p>{t!(i18n, subkeys.subkey_2, <b> = |children| view!{ <b>{children()}</b> })}</p>
+        <p>{t!(i18n, subkeys.subkey_2, <b> = |children| view!{ <b>{children}</b> })}</p>
         <p>{t!(i18n, subkeys.subkey_3, count = || 42)}</p>
     }
 }

@@ -46,7 +46,7 @@ fn Tests() -> impl IntoView {
         <p>{t!(i18n, first_namespace.common_key)}</p>
         <p>{t!(i18n, second_namespace.common_key)}</p>
         <p>{t!(i18n, second_namespace.subkeys.subkey_1)}</p>
-        <p>{t!(i18n, second_namespace.subkeys.subkey_2, <b> = |children| view!{ <b>{children()}</b> })}</p>
+        <p>{t!(i18n, second_namespace.subkeys.subkey_2, <b> = |children| view!{ <b>{children}</b> })}</p>
         <p>{t!(i18n, second_namespace.subkeys.subkey_3, count = || 42)}</p>
     }
 }
