@@ -55,7 +55,7 @@ fn set_html_lang_attr(lang: &'static str) {
         lang: Some(lang.into()),
         dir: None,
         class: None,
-        attributes: None,
+        attributes: vec![],
     });
 }
 
