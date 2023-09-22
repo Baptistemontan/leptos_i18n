@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display, rc::Rc};
+use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
 
 use super::{
     key::{Key, KeyPath},
@@ -8,15 +8,16 @@ use quote::quote;
 
 #[derive(Debug)]
 pub enum Error {
+    CargoDirEnvNotPresent(std::env::VarError),
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
     ConfigFileDeser(toml::de::Error),
     LocaleFileNotFound {
-        path: String,
+        path: PathBuf,
         err: std::io::Error,
     },
     LocaleFileDeser {
-        path: String,
+        path: PathBuf,
         err: serde_json::Error,
     },
     DuplicateLocalesInConfig(HashSet<String>),
@@ -61,6 +62,9 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::CargoDirEnvNotPresent(err) => {
+                write!(f, "Error, can't access env variable \"CARGO_MANIFEST_DIR\": {}", err)
+            }
             Error::ManifestNotFound(err) => {
                 write!(f, "Error accessing cargo manifest (Cargo.toml) : {}", err)
             },

@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["counter"]
+default-members = ["counter"]
+
+[workspace.dependencies]
+leptos_i18n = { path = "../../leptos_i18n" }

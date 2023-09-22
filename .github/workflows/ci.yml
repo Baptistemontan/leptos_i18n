@@ -36,6 +36,7 @@ jobs:
             interpolation,
             namespaces,
             subkeys,
+            workspace,
           ]
     steps:
       - name: "Checkout repo"
