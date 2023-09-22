@@ -43,14 +43,17 @@ pub enum BuildersKeys {
 impl Namespace {
     pub fn new<P: AsRef<Path>>(
         manifest_dir_path: P,
-        locales_dir: &str,
+        locales_dir: &Path,
         key: Rc<Key>,
         locale_keys: &[Rc<Key>],
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         let path = manifest_dir_path.as_ref().join(locales_dir);
         for locale in locale_keys.iter().cloned() {
-            let path = path.join(&locale.name).with_extension("json");
+            let path = path
+                .join(&locale.name)
+                .join(&key.name)
+                .with_extension("json");
             locales.push(Rc::new(RefCell::new(Locale::new(path, locale)?)));
         }
         Ok(Namespace { key, locales })
@@ -60,7 +63,8 @@ impl Namespace {
 impl LocalesOrNamespaces {
     pub fn new<P: AsRef<Path>>(manifest_dir_path: P, cfg_file: &ConfigFile) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
-        let locales_dir = cfg_file.locales_dir.as_ref();
+        let locales_dir: &str = cfg_file.locales_dir.as_ref();
+        let locales_dir = locales_dir.as_ref();
         let manifest_dir_path = manifest_dir_path.as_ref();
         if let Some(namespace_keys) = &cfg_file.name_spaces {
             let mut namespaces = Vec::with_capacity(namespace_keys.len());
