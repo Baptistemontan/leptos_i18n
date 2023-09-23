@@ -4,7 +4,7 @@ use super::{
     error::{Error, Result},
     key::Key,
 };
-use std::{borrow::Cow, collections::HashSet, path::Path, rc::Rc};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf, rc::Rc};
 
 #[derive(Debug)]
 pub struct ConfigFile {
@@ -33,11 +33,13 @@ impl ConfigFile {
         duplicates
     }
 
-    pub fn new<P: AsRef<Path>>(manifest_dir_path: P) -> Result<ConfigFile> {
-        let manifest_path = manifest_dir_path.as_ref().join("Cargo.toml");
+    pub fn new(manifest_dir_path: &mut PathBuf) -> Result<ConfigFile> {
+        manifest_dir_path.push("Cargo.toml");
 
         let cfg_file_str =
-            std::fs::read_to_string(manifest_path).map_err(Error::ManifestNotFound)?;
+            std::fs::read_to_string(&manifest_dir_path).map_err(Error::ManifestNotFound)?;
+
+        manifest_dir_path.pop();
 
         let Some((before, i18n_cfg)) = cfg_file_str.split_once("[package.metadata.leptos-i18n]")
         else {

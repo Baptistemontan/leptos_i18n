@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, ops::Not, path::Path, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ops::Not, path::PathBuf, rc::Rc};
 
 pub mod cfg_file;
 pub mod error;
@@ -23,11 +23,12 @@ use self::{
 };
 
 pub fn load_locales() -> Result<TokenStream> {
-    let cargo_manifest_dir =
-        std::env::var("CARGO_MANIFEST_DIR").map_err(Error::CargoDirEnvNotPresent)?;
-    let manifest_dir_path: &Path = cargo_manifest_dir.as_ref();
-    let cfg_file = ConfigFile::new(manifest_dir_path)?;
-    let locales = LocalesOrNamespaces::new(manifest_dir_path, &cfg_file)?;
+    let mut cargo_manifest_dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR")
+        .map_err(Error::CargoDirEnvNotPresent)?
+        .into();
+
+    let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
+    let locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
 
     let keys = Locale::check_locales(locales)?;
 

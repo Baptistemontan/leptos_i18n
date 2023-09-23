@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     fs::File,
-    path::Path,
+    path::{Path, PathBuf},
     rc::Rc,
 };
 
@@ -41,37 +41,37 @@ pub enum BuildersKeys {
 }
 
 impl Namespace {
-    pub fn new<P: AsRef<Path>>(
-        manifest_dir_path: P,
-        locales_dir: &Path,
+    pub fn new(
+        locales_dir_path: &mut PathBuf,
         key: Rc<Key>,
         locale_keys: &[Rc<Key>],
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
-        let path = manifest_dir_path.as_ref().join(locales_dir);
         for locale in locale_keys.iter().cloned() {
-            let path = path
-                .join(&locale.name)
-                .join(&key.name)
-                .with_extension("json");
-            locales.push(Rc::new(RefCell::new(Locale::new(path, locale)?)));
+            let file_path: &Path = key.name.as_ref();
+            locales_dir_path.push(&locale.name);
+            locales_dir_path.push(file_path);
+            locales_dir_path.set_extension("json");
+            locales.push(Rc::new(RefCell::new(Locale::new(
+                locales_dir_path,
+                locale,
+            )?)));
+            locales_dir_path.pop();
+            locales_dir_path.pop();
         }
         Ok(Namespace { key, locales })
     }
 }
 
 impl LocalesOrNamespaces {
-    pub fn new<P: AsRef<Path>>(manifest_dir_path: P, cfg_file: &ConfigFile) -> Result<Self> {
+    pub fn new(manifest_dir_path: &mut PathBuf, cfg_file: &ConfigFile) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
-        let locales_dir: &str = cfg_file.locales_dir.as_ref();
-        let locales_dir = locales_dir.as_ref();
-        let manifest_dir_path = manifest_dir_path.as_ref();
+        manifest_dir_path.push(&*cfg_file.locales_dir);
         if let Some(namespace_keys) = &cfg_file.name_spaces {
             let mut namespaces = Vec::with_capacity(namespace_keys.len());
             for namespace in namespace_keys {
                 namespaces.push(Namespace::new(
                     manifest_dir_path,
-                    locales_dir,
                     Rc::clone(namespace),
                     locale_keys,
                 )?);
@@ -80,11 +80,13 @@ impl LocalesOrNamespaces {
         } else {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
-                let path = manifest_dir_path
-                    .join(locales_dir)
-                    .join(&locale.name)
-                    .with_extension("json");
-                locales.push(Rc::new(RefCell::new(Locale::new(path, locale)?)));
+                manifest_dir_path.push(&locale.name);
+                manifest_dir_path.set_extension("json");
+                locales.push(Rc::new(RefCell::new(Locale::new(
+                    manifest_dir_path,
+                    locale,
+                )?)));
+                manifest_dir_path.pop();
             }
             Ok(LocalesOrNamespaces::Locales(locales))
         }
@@ -98,13 +100,12 @@ pub struct Locale {
 }
 
 impl Locale {
-    pub fn new<P: AsRef<Path>>(path: P, locale: Rc<Key>) -> Result<Self> {
-        let path = path.as_ref();
-        let locale_file = match File::open(path) {
+    pub fn new(path: &mut PathBuf, locale: Rc<Key>) -> Result<Self> {
+        let locale_file = match File::open(&path) {
             Ok(file) => file,
             Err(err) => {
                 return Err(Error::LocaleFileNotFound {
-                    path: path.to_owned(),
+                    path: std::mem::take(path),
                     err,
                 })
             }
@@ -115,7 +116,7 @@ impl Locale {
         LocaleSeed(locale)
             .deserialize(&mut deserializer)
             .map_err(|err| Error::LocaleFileDeser {
-                path: path.to_owned(),
+                path: std::mem::take(path),
                 err,
             })
     }
