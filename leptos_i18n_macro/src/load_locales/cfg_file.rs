@@ -33,7 +33,6 @@ impl ConfigFile {
         duplicates
     }
 
-    #[allow(unreachable_code)]
     pub fn new<P: AsRef<Path>>(manifest_dir_path: P) -> Result<ConfigFile> {
         let manifest_path = manifest_dir_path.as_ref().join("Cargo.toml");
 
