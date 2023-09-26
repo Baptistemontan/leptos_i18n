@@ -175,12 +175,21 @@ impl Locale {
         let mut locales = locales.iter();
         let default_locale = locales.next().unwrap();
         let default_locale_ref = default_locale.borrow();
+        let mut key_path = KeyPath::new(namespace);
+
+        for (key, value) in &default_locale_ref.keys {
+            match value {
+                ParsedValue::Default => {
+                    key_path.push_key(Rc::clone(key));
+                    return Err(Error::ExplicitDefaultInDefault(key_path));
+                }
+                _ => continue,
+            }
+        }
 
         let mut default_keys = default_locale_ref.to_builder_keys();
 
         let default_locale_name = &default_locale_ref.name.name;
-
-        let mut key_path = KeyPath::new(namespace);
 
         for locale in locales {
             let top_locale = locale.borrow().name.clone();
