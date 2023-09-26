@@ -3,7 +3,11 @@ use std::{cell::RefCell, collections::HashSet, rc::Rc};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
-use super::{key::Key, locale::Locale, parsed_value::InterpolateKey};
+use super::{
+    key::Key,
+    locale::Locale,
+    parsed_value::{InterpolateKey, ParsedValue},
+};
 
 #[cfg(feature = "debug_interpolations")]
 const MAX_KEY_GENERATE_BUILD_DEBUG: usize = 4;
@@ -436,20 +440,33 @@ impl Interpolation {
         top_locales: &'a [Rc<RefCell<Locale>>],
         locales: &'a [Rc<RefCell<Locale>>],
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        top_locales
-            .iter()
-            .zip(locales)
-            .filter_map(|(top_locale, locale)| {
+        let mut ts = TokenStream::new();
+        top_locales.iter().zip(locales).enumerate().rev().flat_map(
+            move |(i, (top_locale, locale))| {
                 let locale_key = &top_locale.borrow().name;
                 let locale_ref = locale.borrow();
                 let value = locale_ref.keys.get(key)?;
-
-                Some(quote! {
-                    LocaleEnum::#locale_key => {
-                        #value
+                if i == 0 {
+                    Some(quote! {
+                        LocaleEnum::#locale_key #ts => {
+                            #value
+                        }
+                    })
+                } else {
+                    match value {
+                        ParsedValue::Default => {
+                            ts.extend(quote!(| LocaleEnum::#locale_key));
+                            None
+                        }
+                        _ => Some(quote! {
+                            LocaleEnum::#locale_key => {
+                                #value
+                            }
+                        }),
                     }
-                })
-            })
+                }
+            },
+        )
     }
 }
 

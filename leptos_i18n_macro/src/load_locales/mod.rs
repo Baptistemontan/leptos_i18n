@@ -17,6 +17,8 @@ use locale::{Locale, LocaleValue};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
+use crate::load_locales::parsed_value::ParsedValue;
+
 use self::{
     locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace},
     warning::generate_warnings,
@@ -248,6 +250,8 @@ fn create_locale_type_inner(
         })
         .collect();
 
+    let default_locale = locales.first().unwrap();
+
     let new_match_arms = top_locales.iter().zip(locales).map(|(top_locale, locale)| {
         let locale_ref = locale.borrow();
         let filled_string_fields = locale_ref
@@ -257,9 +261,17 @@ fn create_locale_type_inner(
                 keys.get(*key)
                     .is_some_and(|value| matches!(value, LocaleValue::Value(None)))
             })
-            .filter_map(|(key, value)| {
-                let str_value = value.is_string()?;
-                Some(quote!(#key: #str_value))
+            .filter_map(|(key, value)| match value {
+                ParsedValue::String(str_value) => Some(quote!(#key: #str_value)),
+                ParsedValue::Default => {
+                    let default_locale_ref = default_locale.borrow();
+                    let str_value = default_locale_ref
+                        .keys
+                        .get(key)
+                        .and_then(ParsedValue::is_string)?;
+                    Some(quote!(#key: #str_value))
+                }
+                _ => None,
             });
 
         let ident = &top_locale.borrow().name.ident;

@@ -96,7 +96,7 @@ impl LocalesOrNamespaces {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
     pub name: Rc<Key>,
-    pub keys: HashMap<Rc<Key>, Rc<ParsedValue>>,
+    pub keys: HashMap<Rc<Key>, ParsedValue>,
 }
 
 impl Locale {
@@ -148,7 +148,7 @@ impl Locale {
                     locale: top_locale.clone(),
                     key_path: key_path.clone(),
                 });
-                Rc::clone(default_value)
+                ParsedValue::Default
             });
             value.merge(keys, default_locale, default_value, locale, key_path)?;
             key_path.pop_key();
@@ -229,7 +229,7 @@ pub enum LocaleValue {
 pub struct LocaleSeed(pub Rc<Key>);
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
-    type Value = HashMap<Rc<Key>, Rc<ParsedValue>>;
+    type Value = HashMap<Rc<Key>, ParsedValue>;
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
@@ -242,7 +242,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed {
                 key: &locale_key,
                 in_plural: false,
             })?;
-            keys.insert(locale_key, Rc::new(value));
+            keys.insert(locale_key, value);
         }
 
         Ok(keys)

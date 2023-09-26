@@ -13,6 +13,7 @@ use super::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
+    Default,
     Plural(Plurals),
     String(String),
     Variable(Rc<Key>),
@@ -31,7 +32,7 @@ pub enum InterpolateKey {
 impl ParsedValue {
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
-            ParsedValue::String(_) | ParsedValue::Subkeys(_) => {}
+            ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable(key) => {
                 keys.get_or_insert_with(HashSet::new)
                     .insert(InterpolateKey::Variable(Rc::clone(key)));
@@ -157,7 +158,8 @@ impl ParsedValue {
             }
             // Both value
             (
-                ParsedValue::Bloc(_)
+                ParsedValue::Default
+                | ParsedValue::Bloc(_)
                 | ParsedValue::Component { .. }
                 | ParsedValue::Plural(_)
                 | ParsedValue::String(_)
@@ -166,7 +168,8 @@ impl ParsedValue {
             ) => self.merge_inner(keys, top_locale, key_path),
             // Value/Subkeys or vice versa-
             (
-                ParsedValue::Bloc(_)
+                ParsedValue::Default
+                | ParsedValue::Bloc(_)
                 | ParsedValue::Component { .. }
                 | ParsedValue::Plural(_)
                 | ParsedValue::String(_)
@@ -266,8 +269,8 @@ impl ParsedValue {
 
     fn flatten(&self, tokens: &mut Vec<TokenStream>) {
         match self {
+            ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::Subkeys(_) => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
             ParsedValue::Variable(key) => {
@@ -430,6 +433,13 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         } else {
             Ok(ParsedValue::Plural(plurals))
         }
+    }
+
+    fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ParsedValue::Default)
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
