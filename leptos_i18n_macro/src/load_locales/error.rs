@@ -57,6 +57,7 @@ pub enum Error {
         found: PluralType,
         expected: PluralType,
     },
+    ExplicitDefaultInDefault(KeyPath),
 }
 
 impl Display for Error {
@@ -133,6 +134,7 @@ impl Display for Error {
                 write!(f, "Missmatch value type beetween locale {:?} and default at key {}: one has subkeys and the other has direct value.", locale, key_path)
             },
             Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
+            Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key {}", key_path)
         }
     }
 }

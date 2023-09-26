@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{collections::HashSet, rc::Rc};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -13,12 +13,13 @@ use super::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
+    Default,
     Plural(Plurals),
     String(String),
     Variable(Rc<Key>),
     Component { key: Rc<Key>, inner: Box<Self> },
     Bloc(Vec<Self>),
-    Subkeys(Rc<RefCell<Locale>>),
+    Subkeys(Rc<Locale>),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -31,7 +32,7 @@ pub enum InterpolateKey {
 impl ParsedValue {
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
-            ParsedValue::String(_) | ParsedValue::Subkeys(_) => {}
+            ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable(key) => {
                 keys.get_or_insert_with(HashSet::new)
                     .insert(InterpolateKey::Variable(Rc::clone(key)));
@@ -86,7 +87,7 @@ impl ParsedValue {
         if let ParsedValue::Subkeys(locale) = self {
             LocaleValue::Subkeys {
                 locales: vec![Rc::clone(locale)],
-                keys: locale.borrow().to_builder_keys(),
+                keys: locale.to_builder_keys(),
             }
         } else {
             LocaleValue::Value(self.get_keys())
@@ -136,7 +137,6 @@ impl ParsedValue {
         &self,
         keys: &mut LocaleValue,
         default_locale: &str,
-        default_value: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
@@ -144,16 +144,7 @@ impl ParsedValue {
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 locales.push(Rc::clone(loc));
-                match default_value {
-                    ParsedValue::Subkeys(default_value) => loc.borrow_mut().merge(
-                        keys,
-                        default_locale,
-                        &default_value.borrow(),
-                        top_locale,
-                        key_path,
-                    ),
-                    _ => unreachable!(),
-                }
+                loc.merge(keys, default_locale, top_locale, key_path)
             }
             // Both value
             (
@@ -177,6 +168,8 @@ impl ParsedValue {
                 locale: top_locale,
                 key_path: std::mem::take(key_path),
             }),
+            // Default, do nothing
+            (ParsedValue::Default, _) => Ok(()),
         }
     }
 
@@ -266,8 +259,8 @@ impl ParsedValue {
 
     fn flatten(&self, tokens: &mut Vec<TokenStream>) {
         match self {
+            ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::Subkeys(_) => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
             ParsedValue::Variable(key) => {
@@ -363,6 +356,7 @@ impl ToTokens for ParsedValue {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ParsedValueSeed<'a> {
+    pub top_locale_name: &'a Rc<Key>,
     pub in_plural: bool,
     pub key: &'a Rc<Key>,
 }
@@ -398,11 +392,21 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
 
         let map_de = MapAccessDeserializer::new(map);
 
-        LocaleSeed(Rc::clone(self.key))
-            .deserialize(map_de)
-            .map(RefCell::new)
+        let seed = LocaleSeed {
+            name: Rc::clone(self.key),
+            top_locale_name: Rc::clone(self.top_locale_name),
+        };
+
+        seed.deserialize(map_de)
             .map(Rc::new)
             .map(ParsedValue::Subkeys)
+    }
+
+    fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ParsedValue::Default)
     }
 
     fn visit_seq<A>(mut self, map: A) -> Result<Self::Value, A::Error>

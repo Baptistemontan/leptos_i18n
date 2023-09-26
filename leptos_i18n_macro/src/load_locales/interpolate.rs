@@ -1,9 +1,13 @@
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{collections::HashSet, rc::Rc};
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
-use super::{key::Key, locale::Locale, parsed_value::InterpolateKey};
+use super::{
+    key::Key,
+    locale::Locale,
+    parsed_value::{InterpolateKey, ParsedValue},
+};
 
 #[cfg(feature = "debug_interpolations")]
 const MAX_KEY_GENERATE_BUILD_DEBUG: usize = 4;
@@ -26,8 +30,8 @@ impl Interpolation {
     pub fn new(
         key: &Key,
         keys_set: &HashSet<InterpolateKey>,
-        top_locales: &[Rc<RefCell<Locale>>],
-        locales: &[Rc<RefCell<Locale>>],
+        locales: &[Rc<Locale>],
+        default_match: &TokenStream,
     ) -> Self {
         let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
 
@@ -57,7 +61,7 @@ impl Interpolation {
         let type_def = Self::create_type(&ident, &fields);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl =
-            Self::into_view_impl(key, &ident, &locale_field, &fields, top_locales, locales);
+            Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
         let new_impl = Self::new_impl(&ident, &locale_field, &fields);
         let default_generics = fields
             .iter()
@@ -396,8 +400,8 @@ impl Interpolation {
         ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-        top_locales: &[Rc<RefCell<Locale>>],
-        locales: &[Rc<RefCell<Locale>>],
+        locales: &[Rc<Locale>],
+        default_match: &TokenStream,
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
@@ -414,7 +418,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, top_locales, locales);
+        let locales_impls = Self::create_locale_impl(key, locales, default_match);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -433,22 +437,30 @@ impl Interpolation {
 
     fn create_locale_impl<'a>(
         key: &'a Key,
-        top_locales: &'a [Rc<RefCell<Locale>>],
-        locales: &'a [Rc<RefCell<Locale>>],
+        locales: &'a [Rc<Locale>],
+        default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        top_locales
+        let mut default_match = default_match.clone();
+        locales
             .iter()
-            .zip(locales)
-            .filter_map(|(top_locale, locale)| {
-                let locale_key = &top_locale.borrow().name;
-                let locale_ref = locale.borrow();
-                let value = locale_ref.keys.get(key)?;
+            .enumerate()
+            .rev()
+            .filter_map(move |(i, locale)| {
+                let locale_key = &locale.top_locale_name;
 
-                Some(quote! {
-                    LocaleEnum::#locale_key => {
-                        #value
+                let value = match locale.keys.get(key) {
+                    None | Some(ParsedValue::Default) => {
+                        default_match.extend(quote!(| LocaleEnum::#locale_key));
+                        return None;
                     }
-                })
+                    Some(value) => value,
+                };
+
+                let ts = match i == 0 {
+                    true => quote!(#default_match => { #value }),
+                    false => quote!(LocaleEnum::#locale_key => { #value }),
+                };
+                Some(ts)
             })
     }
 }
