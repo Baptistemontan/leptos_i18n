@@ -87,6 +87,7 @@ impl ParsedValue {
         if let ParsedValue::Subkeys(locale) = self {
             LocaleValue::Subkeys {
                 locales: vec![Rc::clone(locale)],
+                defaulted_locales: vec![],
                 keys: locale.borrow().to_builder_keys(),
             }
         } else {
@@ -137,24 +138,25 @@ impl ParsedValue {
         &self,
         keys: &mut LocaleValue,
         default_locale: &str,
-        default_value: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         match (self, keys) {
             // Both subkeys
-            (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
+            (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys, .. }) => {
                 locales.push(Rc::clone(loc));
-                match default_value {
-                    ParsedValue::Subkeys(default_value) => loc.borrow_mut().merge(
-                        keys,
-                        default_locale,
-                        &default_value.borrow(),
-                        top_locale,
-                        key_path,
-                    ),
-                    _ => unreachable!(),
-                }
+                loc.borrow_mut()
+                    .merge(keys, default_locale, top_locale, key_path)
+            }
+            // default
+            (
+                ParsedValue::Default,
+                LocaleValue::Subkeys {
+                    defaulted_locales, ..
+                },
+            ) => {
+                defaulted_locales.push(top_locale);
+                Ok(())
             }
             // Both value
             (
@@ -168,8 +170,7 @@ impl ParsedValue {
             ) => self.merge_inner(keys, top_locale, key_path),
             // Value/Subkeys or vice versa-
             (
-                ParsedValue::Default
-                | ParsedValue::Bloc(_)
+                ParsedValue::Bloc(_)
                 | ParsedValue::Component { .. }
                 | ParsedValue::Plural(_)
                 | ParsedValue::String(_)

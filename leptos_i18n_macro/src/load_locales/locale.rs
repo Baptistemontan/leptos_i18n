@@ -134,12 +134,10 @@ impl Locale {
         &mut self,
         keys: &mut BuildersKeysInner,
         default_locale: &str,
-        default_values: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
-            let default_value = default_values.keys.get(key).unwrap();
             key_path.push_key(Rc::clone(key));
             let locale = self.name.clone();
             let value_entry = self.keys.entry(Rc::clone(key));
@@ -150,7 +148,7 @@ impl Locale {
                 });
                 ParsedValue::Default
             });
-            value.merge(keys, default_locale, default_value, locale, key_path)?;
+            value.merge(keys, default_locale, locale, key_path)?;
             key_path.pop_key();
         }
 
@@ -196,7 +194,6 @@ impl Locale {
             locale.borrow_mut().merge(
                 &mut default_keys,
                 default_locale_name,
-                &default_locale.borrow(),
                 top_locale,
                 &mut key_path,
             )?;
@@ -230,6 +227,7 @@ pub enum LocaleValue {
     Value(Option<HashSet<InterpolateKey>>),
     Subkeys {
         locales: Vec<Rc<RefCell<Locale>>>,
+        defaulted_locales: Vec<Rc<Key>>,
         keys: BuildersKeysInner,
     },
 }
