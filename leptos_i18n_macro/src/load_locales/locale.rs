@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     collections::{HashMap, HashSet},
     fs::File,
     path::{Path, PathBuf},
@@ -23,12 +22,12 @@ const FILE_FORMAT: &str = "not specified";
 
 pub struct Namespace {
     pub key: Rc<Key>,
-    pub locales: Vec<Rc<RefCell<Locale>>>,
+    pub locales: Vec<Rc<Locale>>,
 }
 
 pub enum LocalesOrNamespaces {
     NameSpaces(Vec<Namespace>),
-    Locales(Vec<Rc<RefCell<Locale>>>),
+    Locales(Vec<Rc<Locale>>),
 }
 
 #[derive(Default)]
@@ -40,7 +39,7 @@ pub enum BuildersKeys {
         keys: HashMap<Rc<Key>, BuildersKeysInner>,
     },
     Locales {
-        locales: Vec<Rc<RefCell<Locale>>>,
+        locales: Vec<Rc<Locale>>,
         keys: BuildersKeysInner,
     },
 }
@@ -57,10 +56,7 @@ impl Namespace {
             locales_dir_path.push(&locale.name);
             locales_dir_path.push(file_path);
             locales_dir_path.set_extension(FILE_FORMAT);
-            locales.push(Rc::new(RefCell::new(Locale::new(
-                locales_dir_path,
-                locale,
-            )?)));
+            locales.push(Rc::new(Locale::new(locales_dir_path, locale)?));
             locales_dir_path.pop();
             locales_dir_path.pop();
         }
@@ -87,10 +83,7 @@ impl LocalesOrNamespaces {
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&locale.name);
                 manifest_dir_path.set_extension(FILE_FORMAT);
-                locales.push(Rc::new(RefCell::new(Locale::new(
-                    manifest_dir_path,
-                    locale,
-                )?)));
+                locales.push(Rc::new(Locale::new(manifest_dir_path, locale)?));
                 manifest_dir_path.pop();
             }
             Ok(LocalesOrNamespaces::Locales(locales))
@@ -100,8 +93,9 @@ impl LocalesOrNamespaces {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
+    pub top_locale_name: Rc<Key>,
     pub name: Rc<Key>,
-    pub keys: HashMap<Rc<Key>, Rc<ParsedValue>>,
+    pub keys: HashMap<Rc<Key>, ParsedValue>,
 }
 
 impl Locale {
@@ -144,8 +138,13 @@ impl Locale {
                 })
             }
         };
+      
+        let seed = LocaleSeed {
+            name: Rc::clone(&locale),
+            top_locale_name: locale,
+        };
 
-        Self::de(locale_file, path, LocaleSeed(locale))
+        Self::de(locale_file, path, seed)
     }
 
     pub fn to_builder_keys(&self) -> BuildersKeysInner {
@@ -158,26 +157,22 @@ impl Locale {
     }
 
     pub fn merge(
-        &mut self,
+        &self,
         keys: &mut BuildersKeysInner,
         default_locale: &str,
-        default_values: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
-            let default_value = default_values.keys.get(key).unwrap();
             key_path.push_key(Rc::clone(key));
-            let locale = self.name.clone();
-            let value_entry = self.keys.entry(Rc::clone(key));
-            let value = value_entry.or_insert_with(|| {
+            if let Some(value) = self.keys.get(key) {
+                value.merge(keys, default_locale, Rc::clone(&self.name), key_path)?;
+            } else {
                 emit_warning(Warning::MissingKey {
                     locale: top_locale.clone(),
                     key_path: key_path.clone(),
                 });
-                Rc::clone(default_value)
-            });
-            value.merge(keys, default_locale, default_value, locale, key_path)?;
+            }
             key_path.pop_key();
         }
 
@@ -196,25 +191,29 @@ impl Locale {
     }
 
     pub fn check_locales_inner(
-        locales: &[Rc<RefCell<Locale>>],
+        locales: &[Rc<Locale>],
         namespace: Option<Rc<Key>>,
     ) -> Result<BuildersKeysInner> {
         let mut locales = locales.iter();
         let default_locale = locales.next().unwrap();
-        let default_locale_ref = default_locale.borrow();
-
-        let mut default_keys = default_locale_ref.to_builder_keys();
-
-        let default_locale_name = &default_locale_ref.name.name;
-
         let mut key_path = KeyPath::new(namespace);
 
+        for (key, value) in &default_locale.keys {
+            if matches!(value, ParsedValue::Default) {
+                key_path.push_key(Rc::clone(key));
+                return Err(Error::ExplicitDefaultInDefault(key_path));
+            }
+        }
+
+        let mut default_keys = default_locale.to_builder_keys();
+
+        let default_locale_name = &default_locale.name.name;
+
         for locale in locales {
-            let top_locale = locale.borrow().name.clone();
-            locale.borrow_mut().merge(
+            let top_locale = locale.name.clone();
+            locale.merge(
                 &mut default_keys,
                 default_locale_name,
-                &default_locale.borrow(),
                 top_locale,
                 &mut key_path,
             )?;
@@ -247,16 +246,19 @@ impl Locale {
 pub enum LocaleValue {
     Value(Option<HashSet<InterpolateKey>>),
     Subkeys {
-        locales: Vec<Rc<RefCell<Locale>>>,
+        locales: Vec<Rc<Locale>>,
         keys: BuildersKeysInner,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct LocaleSeed(pub Rc<Key>);
+pub struct LocaleSeed {
+    pub name: Rc<Key>,
+    pub top_locale_name: Rc<Key>,
+}
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
-    type Value = HashMap<Rc<Key>, Rc<ParsedValue>>;
+    type Value = HashMap<Rc<Key>, ParsedValue>;
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
@@ -266,10 +268,11 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed {
 
         while let Some(locale_key) = map.next_key()? {
             let value = map.next_value_seed(ParsedValueSeed {
+                top_locale_name: &self.top_locale_name,
                 key: &locale_key,
                 in_plural: false,
             })?;
-            keys.insert(locale_key, Rc::new(value));
+            keys.insert(locale_key, value);
         }
 
         Ok(keys)
@@ -283,7 +286,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed {
     }
 }
 
-impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
+impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
     type Value = Locale;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -291,6 +294,14 @@ impl<'a: 'de, 'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
         D: serde::Deserializer<'de>,
     {
         let keys = deserializer.deserialize_map(self.clone())?;
-        Ok(Locale { name: self.0, keys })
+        let Self {
+            name,
+            top_locale_name,
+        } = self;
+        Ok(Locale {
+            name,
+            keys,
+            top_locale_name,
+        })
     }
 }
