@@ -120,11 +120,11 @@ impl Interpolation {
     }
 
     #[cfg(feature = "debug_interpolations")]
-    fn generate_build_fns(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+    fn generate_build_fns(ident: &syn::Ident, fields: &[Field], locale_field: &Key) -> TokenStream {
         if fields.len() > MAX_KEY_GENERATE_BUILD_DEBUG {
             return Self::generate_success_build_fn(ident, fields);
         }
-        let failing_builds = Self::generate_all_failing_build_fn(ident, fields);
+        let failing_builds = Self::generate_all_failing_build_fn(ident, fields, locale_field);
         let success_build = Self::generate_success_build_fn(ident, fields);
 
         quote! {
@@ -164,7 +164,7 @@ impl Interpolation {
         #[cfg(not(feature = "debug_interpolations"))]
         let build_fns = Self::generate_success_build_fn(ident, fields);
         #[cfg(feature = "debug_interpolations")]
-        let build_fns = Self::generate_build_fns(ident, fields);
+        let build_fns = Self::generate_build_fns(ident, fields, locale_field);
 
         quote! {
             #set_fns
@@ -207,22 +207,58 @@ impl Interpolation {
     }
 
     #[cfg(feature = "debug_interpolations")]
+    fn generate_default_constructed(
+        ident: &syn::Ident,
+        fields: &[Field],
+        locale_field: &Key,
+    ) -> TokenStream {
+        let populated_fields = fields
+            .iter()
+            .map(|field| {
+                let field_ident = field.kind;
+                let default = field.kind.get_default();
+                quote!(#field_ident: #default)
+            })
+            .chain(std::iter::once(
+                quote!(#locale_field: core::default::Default::default()),
+            ));
+
+        quote! {
+            #ident {
+                #(#populated_fields,)*
+            }
+        }
+    }
+
+    #[cfg(feature = "debug_interpolations")]
     fn generate_all_failing_build_fn<'a>(
         ident: &'a syn::Ident,
         fields: &'a [Field],
+        locale_field: &Key,
     ) -> impl Iterator<Item = TokenStream> + 'a {
+        let default_constructed = Self::generate_default_constructed(ident, fields, locale_field);
+        let output_generics = fields.iter().map(|field| {
+            let generic = field.kind.get_generic();
+            quote!(impl #generic)
+        });
+        let output = quote!(#ident<#(#output_generics,)*>);
         let max = 1u64 << fields.len();
-        (0..max - 1).map(|states| {
+        (0..max - 1).map(move |states| {
             let fields_iter = fields.iter().enumerate().map(|(i, field)| {
                 let state = (states >> i & 1) == 1;
                 (state, field)
             });
-            Self::generate_failing_build_fn(ident, fields_iter)
+            Self::generate_failing_build_fn(ident, &default_constructed, &output, fields_iter)
         })
     }
 
     #[cfg(feature = "debug_interpolations")]
-    fn generate_failing_build_fn<'a, I>(self_ident: &syn::Ident, fields: I) -> TokenStream
+    fn generate_failing_build_fn<'a, I>(
+        self_ident: &syn::Ident,
+        default_constructed: &TokenStream,
+        output: &TokenStream,
+        fields: I,
+    ) -> TokenStream
     where
         I: Iterator<Item = (bool, &'a Field<'a>)> + Clone,
     {
@@ -254,8 +290,10 @@ impl Interpolation {
         quote! {
             impl<#(#left_generics,)*> #self_ident<#(#right_generics,)*> {
                 #[deprecated(note = #error_message)]
-                pub fn build(self) {
-                    { panic!(#error_message) }
+                pub fn build(self) -> #output {
+                    panic!(#error_message);
+                    #[allow(unreachable_code)]
+                    #default_constructed
                 }
             }
         }
