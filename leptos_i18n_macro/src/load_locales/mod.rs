@@ -1,4 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, ops::Not, path::PathBuf, rc::Rc};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::{Deref, Not},
+    path::PathBuf,
+    rc::Rc,
+};
 
 pub mod cfg_file;
 pub mod error;
@@ -17,6 +22,8 @@ use locale::{Locale, LocaleValue};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
+use crate::load_locales::parsed_value::ParsedValue;
+
 use self::{
     locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace},
     warning::generate_warnings,
@@ -32,7 +39,7 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let keys = Locale::check_locales(locales)?;
 
-    let locale_type = create_locale_type(keys);
+    let locale_type = create_locale_type(keys, &cfg_file);
     let locale_variants = create_locales_enum(&cfg_file);
     let locales = create_locales_type(&cfg_file);
 
@@ -133,16 +140,12 @@ struct Subkeys<'a> {
     original_key: &'a syn::Ident,
     key: syn::Ident,
     mod_key: syn::Ident,
-    locales: &'a [Rc<RefCell<Locale>>],
+    locales: &'a [Rc<Locale>],
     keys: &'a BuildersKeysInner,
 }
 
 impl<'a> Subkeys<'a> {
-    pub fn new(
-        key: &'a Key,
-        locales: &'a [Rc<RefCell<Locale>>],
-        keys: &'a BuildersKeysInner,
-    ) -> Self {
+    pub fn new(key: &'a Key, locales: &'a [Rc<Locale>], keys: &'a BuildersKeysInner) -> Self {
         let original_key = &key.ident;
         let mod_key = format_ident!("sk_{}", key.ident);
         let key = format_ident!("{}_subkeys", key.ident);
@@ -156,13 +159,29 @@ impl<'a> Subkeys<'a> {
     }
 }
 
+fn get_default_match(
+    default_locale: &Key,
+    top_locales: &HashSet<&Key>,
+    locales: &[Rc<Locale>],
+) -> TokenStream {
+    let current_keys = locales
+        .iter()
+        .map(|locale| &*locale.top_locale_name)
+        .collect();
+    let missing_keys = top_locales.difference(&current_keys);
+    quote!(LocaleEnum::#default_locale #(| LocaleEnum::#missing_keys)*)
+}
+
 fn create_locale_type_inner(
+    default_locale: &Key,
     type_ident: &syn::Ident,
-    top_locales: &[Rc<RefCell<Locale>>],
-    locales: &[Rc<RefCell<Locale>>],
+    top_locales: &HashSet<&Key>,
+    locales: &[Rc<Locale>],
     keys: &HashMap<Rc<Key>, LocaleValue>,
     is_namespace: bool,
 ) -> TokenStream {
+    let default_match = get_default_match(default_locale, top_locales, locales);
+
     let string_keys = keys
         .iter()
         .filter(|(_, value)| matches!(value, LocaleValue::Value(None)))
@@ -184,8 +203,14 @@ fn create_locale_type_inner(
 
     let subkeys_ts = subkeys.iter().map(|sk| {
         let subkey_mod_ident = &sk.mod_key;
-        let subkey_impl =
-            create_locale_type_inner(&sk.key, top_locales, sk.locales, &sk.keys.0, true);
+        let subkey_impl = create_locale_type_inner(
+            default_locale,
+            &sk.key,
+            top_locales,
+            sk.locales,
+            &sk.keys.0,
+            true,
+        );
         quote! {
             pub mod #subkey_mod_ident {
                 use super::LocaleEnum;
@@ -230,7 +255,7 @@ fn create_locale_type_inner(
         .filter_map(|(key, value)| match value {
             LocaleValue::Value(None) | LocaleValue::Subkeys { .. } => None,
             LocaleValue::Value(Some(keys)) => {
-                Some((key, Interpolation::new(key, keys, top_locales, locales)))
+                Some((key, Interpolation::new(key, keys, locales, &default_match)))
             }
         })
         .collect::<Vec<_>>();
@@ -248,23 +273,28 @@ fn create_locale_type_inner(
         })
         .collect();
 
-    let new_match_arms = top_locales.iter().zip(locales).map(|(top_locale, locale)| {
-        let locale_ref = locale.borrow();
-        let filled_string_fields = locale_ref
-            .keys
-            .iter()
-            .filter(|(key, _)| {
-                keys.get(*key)
-                    .is_some_and(|value| matches!(value, LocaleValue::Value(None)))
-            })
-            .filter_map(|(key, value)| {
-                let str_value = value.is_string()?;
-                Some(quote!(#key: #str_value))
-            });
+    let default_locale = locales.first().unwrap();
 
-        let ident = &top_locale.borrow().name.ident;
+    let new_match_arms = locales.iter().enumerate().map(|(i, locale)| {
+        let filled_string_fields =
+            string_keys
+                .iter()
+                .filter_map(|&key| match locale.keys.get(key) {
+                    Some(ParsedValue::String(str_value)) => Some(quote!(#key: #str_value)),
+                    _ => {
+                        let str_value = default_locale
+                            .keys
+                            .get(key)
+                            .and_then(ParsedValue::is_string)?;
+                        Some(quote!(#key: #str_value))
+                    }
+                });
+
+        let ident = &locale.top_locale_name;
+        let pattern = (i != 0).then(|| quote!(LocaleEnum::#ident));
+        let pattern = pattern.as_ref().unwrap_or(&default_match);
         quote! {
-            LocaleEnum::#ident => #type_ident {
+            #pattern => #type_ident {
                 #(#filled_string_fields,)*
                 #(#init_builder_fields,)*
                 #(#subkeys_field_new,)*
@@ -291,10 +321,9 @@ fn create_locale_type_inner(
     });
 
     let (from_variant, const_values) = if !is_namespace {
-        let from_variant_match_arms = top_locales.iter().map(|locale| {
-            let ident = &locale.borrow().name.ident;
-            quote!(LocaleEnum::#ident => &Self::#ident)
-        });
+        let from_variant_match_arms = top_locales
+            .iter()
+            .map(|locale| quote!(LocaleEnum::#locale => &Self::#locale));
 
         let from_variant = quote! {
             impl leptos_i18n::LocaleKeys for #type_ident {
@@ -309,10 +338,9 @@ fn create_locale_type_inner(
             }
         };
 
-        let const_values = top_locales.iter().map(|locale| {
-            let ident = &locale.borrow().name.ident;
-            quote!(pub const #ident: Self = Self::new(LocaleEnum::#ident);)
-        });
+        let const_values = top_locales
+            .iter()
+            .map(|locale| quote!(pub const #locale: Self = Self::new(LocaleEnum::#locale);));
 
         let const_values = quote! {
             #(
@@ -361,8 +389,10 @@ fn create_namespace_mod_ident(namespace_ident: &syn::Ident) -> syn::Ident {
 }
 
 fn create_namespaces_types(
+    default_locale: &Key,
     i18n_keys_ident: &syn::Ident,
     namespaces: &[Namespace],
+    top_locales: &HashSet<&Key>,
     keys: &HashMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
@@ -370,8 +400,9 @@ fn create_namespaces_types(
         let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
         let keys = keys.get(&namespace.key).unwrap();
         let type_impl = create_locale_type_inner(
+            default_locale,
             namespace_ident,
-            &namespace.locales,
+            top_locales,
             &namespace.locales,
             &keys.0,
             true,
@@ -400,12 +431,12 @@ fn create_namespaces_types(
     let locales = &namespaces.iter().next().unwrap().locales;
 
     let const_values = locales.iter().map(|locale| {
-        let locale_ident = &locale.borrow().name;
+        let locale_ident = &locale.name;
         quote!(pub const #locale_ident: Self = Self::new(LocaleEnum::#locale_ident);)
     });
 
     let from_variant_match_arms = locales.iter().map(|locale| {
-        let locale_ident = &locale.borrow().name;
+        let locale_ident = &locale.name;
         quote!(LocaleEnum::#locale_ident => &Self::#locale_ident)
     });
 
@@ -453,14 +484,26 @@ fn create_namespaces_types(
     }
 }
 
-fn create_locale_type(keys: BuildersKeys) -> TokenStream {
+fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream {
+    let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
+    let default_locale = cfg_file.default.as_ref();
+
     let i18n_keys_ident = format_ident!("I18nKeys");
     match keys {
-        BuildersKeys::NameSpaces { namespaces, keys } => {
-            create_namespaces_types(&i18n_keys_ident, &namespaces, &keys)
-        }
-        BuildersKeys::Locales { locales, keys } => {
-            create_locale_type_inner(&i18n_keys_ident, &locales, &locales, &keys.0, false)
-        }
+        BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
+            default_locale,
+            &i18n_keys_ident,
+            &namespaces,
+            &top_locales,
+            &keys,
+        ),
+        BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
+            default_locale,
+            &i18n_keys_ident,
+            &top_locales,
+            &locales,
+            &keys.0,
+            false,
+        ),
     }
 }
