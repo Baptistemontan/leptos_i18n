@@ -1,7 +1,7 @@
 use crate::locale_traits::*;
 use actix_web::http::header;
 
-pub fn fetch_locale_server<T: Locales>() -> T::Variants {
+pub fn fetch_locale_server<T: Locale>() -> T {
     // when leptos_router inspect the routes it execute the code once but don't set an HttpRequest in the context,
     // so we can't expect it to be present.
     leptos::use_context::<actix_web::HttpRequest>()
@@ -9,7 +9,7 @@ pub fn fetch_locale_server<T: Locales>() -> T::Variants {
         .unwrap_or_default()
 }
 
-fn from_req<T: LocaleVariant>(req: &actix_web::HttpRequest) -> T {
+fn from_req<T: Locale>(req: &actix_web::HttpRequest) -> T {
     #[cfg(feature = "cookie")]
     if let Some(pref) = req
         .cookie(crate::COOKIE_PREFERED_LANG)
@@ -28,5 +28,5 @@ fn from_req<T: LocaleVariant>(req: &actix_web::HttpRequest) -> T {
 
     let langs = super::parse_header(header);
 
-    LocaleVariant::find_locale(&langs)
+    T::find_locale(&langs)
 }
