@@ -21,7 +21,7 @@ web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 
 [features]
-default = ["cookie", "debug_interpolations"]
+default = ["cookie"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 cookie = []
 hydrate = [
