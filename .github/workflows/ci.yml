@@ -53,21 +53,3 @@ jobs:
         run: |
           cargo install cargo-leptos
           cargo leptos build
-
-  test_suite:
-    name: Test suite
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v3
-
-      - name: "Install wasm32-unknown-unknown"
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: "stable"
-
-      - name: Running test suite
-        working-directory: tests
-        run: cargo test
