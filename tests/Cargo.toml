@@ -1,8 +1,0 @@
-[workspace]
-resolver = "2"
-members = ["common", "json", "yaml"]
-
-[workspace.dependencies]
-common = { path = "./common" }
-leptos_i18n = { path = "../leptos_i18n", features = ["debug_interpolations"] }
-leptos = "0.5.0-rc3"
