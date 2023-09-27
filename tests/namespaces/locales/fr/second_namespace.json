@@ -6,7 +6,7 @@
         "subkey_1": "subkey_1",
         "subkey_2": "<b>subkey_2</b>",
         "subkey_3": [
-            ["0", 0],
+            ["zero", 0],
             ["{{ count }}", "_"]
         ]
     }
