@@ -56,7 +56,7 @@ jobs:
           cargo leptos build
 
   test_suite:
-    name: Test suite
+    name: Test suite ${{ matrix.tests_suites }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
