@@ -181,7 +181,7 @@ impl Interpolation {
         });
 
         quote! {
-            #[allow(non_camel_case_types)]
+            #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
             pub struct #ident<#(#generics,)*> {
                 __locale: LocaleEnum,

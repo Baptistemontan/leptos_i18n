@@ -356,7 +356,7 @@ fn create_locale_type_inner(
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-        #[allow(non_camel_case_types)]
+        #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident {
             #(#string_fields,)*
             #(#builder_fields,)*
