@@ -55,12 +55,10 @@ jobs:
           cargo leptos build
 
   test_suite:
-    name: Test suite ${{ matrix.tests }}
+    name: Test suite
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        tests: [namespaces, no_namespaces]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3
@@ -70,6 +68,6 @@ jobs:
         with:
           toolchain: "stable"
 
-      - name: "Testing ${{ matrix.tests }}"
-        working-directory: tests/${{ matrix.tests }}
+      - name: Running test suite
+        working-directory: tests
         run: cargo test
