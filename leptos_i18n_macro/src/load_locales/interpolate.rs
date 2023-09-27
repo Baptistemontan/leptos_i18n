@@ -95,7 +95,7 @@ impl Interpolation {
 
         quote! {
             impl #ident<#(#generics,)*> {
-                pub const fn new(#locale_field: LocaleEnum) -> Self {
+                pub const fn new(#locale_field: Locale) -> Self {
                     Self {
                         #(#fields,)*
                         #locale_field
@@ -184,7 +184,7 @@ impl Interpolation {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
             pub struct #ident<#(#generics,)*> {
-                __locale: LocaleEnum,
+                __locale: Locale,
                 #(#fields,)*
             }
         }
@@ -450,7 +450,7 @@ impl Interpolation {
 
                 let value = match locale.keys.get(key) {
                     None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| LocaleEnum::#locale_key));
+                        default_match.extend(quote!(| Locale::#locale_key));
                         return None;
                     }
                     Some(value) => value,
@@ -458,7 +458,7 @@ impl Interpolation {
 
                 let ts = match i == 0 {
                     true => quote!(#default_match => { #value }),
-                    false => quote!(LocaleEnum::#locale_key => { #value }),
+                    false => quote!(Locale::#locale_key => { #value }),
                 };
                 Some(ts)
             })
