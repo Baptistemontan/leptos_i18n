@@ -1,4 +1,4 @@
-# No Namespaces test
+# JSON files format tests
 
 Test 2 things:
 
