@@ -1,6 +1,6 @@
 /// Trait implemented the enum representing the supported locales of the application
 ///
-/// Appart from maybe `as_str` you will probably never need to use it has it only serves the internals of the library.
+/// Most functions of this crate are generic of type implementing this trait
 pub trait Locale: 'static + Default + Clone + Copy {
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = Self>;
