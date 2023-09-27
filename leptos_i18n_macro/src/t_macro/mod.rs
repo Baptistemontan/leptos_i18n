@@ -18,7 +18,7 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
         interpolations,
     } = input;
     let get_keys = if direct {
-        quote!(leptos_i18n::LocaleVariant::get_keys(#context))
+        quote!(leptos_i18n::Locale::get_keys(#context))
     } else {
         quote!(leptos_i18n::I18nContext::get_keys(#context))
     };

@@ -9,42 +9,42 @@ use crate::{fetch_locale, locale_traits::*};
 ///
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug, Clone, Copy)]
-pub struct I18nContext<T: Locales>(RwSignal<T::Variants>);
+pub struct I18nContext<T: Locale>(RwSignal<T>);
 
-impl<T: Locales> I18nContext<T> {
+impl<T: Locale> I18nContext<T> {
     /// Return the current locale subscribing to any changes.
     #[inline]
-    pub fn get_locale(self) -> T::Variants {
+    pub fn get_locale(self) -> T {
         self.0.get()
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_locale_untracked(self) -> T::Variants {
+    pub fn get_locale_untracked(self) -> T {
         self.0.get_untracked()
     }
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
-    pub fn get_keys(self) -> &'static T::LocaleKeys {
+    pub fn get_keys(self) -> &'static T::Keys {
         self.get_locale().get_keys()
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_keys_untracked(self) -> &'static T::LocaleKeys {
+    pub fn get_keys_untracked(self) -> &'static T::Keys {
         self.get_locale_untracked().get_keys()
     }
 
     /// Set the locale and notify all subscribers
     #[inline]
-    pub fn set_locale(self, lang: T::Variants) {
+    pub fn set_locale(self, lang: T) {
         self.0.set(lang)
     }
 
     /// Set the locale but does not notify the subscribers
     #[inline]
-    pub fn set_locale_untracked(self, lang: T::Variants) {
+    pub fn set_locale_untracked(self, lang: T) {
         self.0.set_untracked(lang)
     }
 }
@@ -59,7 +59,7 @@ fn set_html_lang_attr(lang: &'static str) {
     });
 }
 
-fn init_context<T: Locales>() -> I18nContext<T> {
+fn init_context<T: Locale>() -> I18nContext<T> {
     provide_meta_context();
 
     let locale = fetch_locale::fetch_locale::<T>();
@@ -87,7 +87,7 @@ fn init_context<T: Locales>() -> I18nContext<T> {
 /// It returns the newly created context.
 ///
 /// If called when a context is already present it will not overwrite it and just return the current context.
-pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
+pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().unwrap_or_else(init_context)
 }
 
@@ -97,12 +97,12 @@ pub fn provide_i18n_context<T: Locales>() -> I18nContext<T> {
 ///
 /// Panics if the context is missing.
 #[inline]
-pub fn use_i18n_context<T: Locales>() -> I18nContext<T> {
+pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
 #[cfg(all(feature = "hydrate", feature = "cookie"))]
-fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
+fn set_lang_cookie<T: Locale>(lang: T) -> Option<()> {
     use crate::COOKIE_PREFERED_LANG;
     use wasm_bindgen::JsCast;
     let document = document().dyn_into::<web_sys::HtmlDocument>().ok()?;
@@ -116,8 +116,8 @@ fn set_lang_cookie<T: Locales>(lang: T::Variants) -> Option<()> {
 
 // get locale
 #[cfg(feature = "nightly")]
-impl<T: Locales> FnOnce<()> for I18nContext<T> {
-    type Output = T::Variants;
+impl<T: Locale> FnOnce<()> for I18nContext<T> {
+    type Output = T;
     #[inline]
     extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -125,7 +125,7 @@ impl<T: Locales> FnOnce<()> for I18nContext<T> {
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locales> FnMut<()> for I18nContext<T> {
+impl<T: Locale> FnMut<()> for I18nContext<T> {
     #[inline]
     extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -133,7 +133,7 @@ impl<T: Locales> FnMut<()> for I18nContext<T> {
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locales> Fn<()> for I18nContext<T> {
+impl<T: Locale> Fn<()> for I18nContext<T> {
     #[inline]
     extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -142,26 +142,26 @@ impl<T: Locales> Fn<()> for I18nContext<T> {
 
 // set locale
 #[cfg(feature = "nightly")]
-impl<T: Locales> FnOnce<(T::Variants,)> for I18nContext<T> {
+impl<T: Locale> FnOnce<(T,)> for I18nContext<T> {
     type Output = ();
     #[inline]
-    extern "rust-call" fn call_once(self, (locale,): (T::Variants,)) -> Self::Output {
+    extern "rust-call" fn call_once(self, (locale,): (T,)) -> Self::Output {
         self.set_locale(locale)
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locales> FnMut<(T::Variants,)> for I18nContext<T> {
+impl<T: Locale> FnMut<(T,)> for I18nContext<T> {
     #[inline]
-    extern "rust-call" fn call_mut(&mut self, (locale,): (T::Variants,)) -> Self::Output {
+    extern "rust-call" fn call_mut(&mut self, (locale,): (T,)) -> Self::Output {
         self.set_locale(locale)
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locales> Fn<(T::Variants,)> for I18nContext<T> {
+impl<T: Locale> Fn<(T,)> for I18nContext<T> {
     #[inline]
-    extern "rust-call" fn call(&self, (locale,): (T::Variants,)) -> Self::Output {
+    extern "rust-call" fn call(&self, (locale,): (T,)) -> Self::Output {
         self.set_locale(locale)
     }
 }

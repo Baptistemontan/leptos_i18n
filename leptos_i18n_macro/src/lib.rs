@@ -19,9 +19,8 @@ pub(crate) mod t_macro;
 ///
 /// It creates multiple types allowing to easily incorporate translations in you application such as:
 ///
-/// - `LocaleEnum`: an enum representing the available locales of the application.
+/// - `Locale`: an enum representing the available locales of the application.
 /// - `I18nKeys`: a struct representing the translation keys.
-/// - `Locales`: an empty type that serves as a bridge beetween the two types.
 #[proc_macro]
 pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match load_locales::load_locales() {
@@ -68,12 +67,12 @@ pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// Usage:
 ///
 /// ```rust, ignore
-/// use crate::i18n::LocaleEnum;
+/// use crate::i18n::Locale;
 /// use leptos_i18n::td;
 ///
 /// view! {
-///     <p>{td!(LocaleEnum::en, $key)}</p>
-///     <p>{td!(LocaleEnum::fr, $key, $variable = $value, <$component> = |child| ... )}</p>
+///     <p>{td!(Locale::en, $key)}</p>
+///     <p>{td!(Locale::fr, $key, $variable = $value, <$component> = |child| ... )}</p>
 /// }
 ///```
 ///

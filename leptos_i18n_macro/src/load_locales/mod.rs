@@ -40,26 +40,23 @@ pub fn load_locales() -> Result<TokenStream> {
     let keys = Locale::check_locales(locales)?;
 
     let locale_type = create_locale_type(keys, &cfg_file);
-    let locale_variants = create_locales_enum(&cfg_file);
-    let locales = create_locales_type(&cfg_file);
+    let locale_enum = create_locales_enum(&cfg_file);
 
     let warnings = generate_warnings();
 
     Ok(quote! {
         pub mod i18n {
-            #locales
-
-            #locale_variants
+            #locale_enum
 
             #locale_type
 
             #[inline]
-            pub fn use_i18n() -> leptos_i18n::I18nContext<Locales> {
+            pub fn use_i18n() -> leptos_i18n::I18nContext<Locale> {
                 leptos_i18n::use_i18n_context()
             }
 
             #[inline]
-            pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locales> {
+            pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locale> {
                 leptos_i18n::provide_i18n_context()
             }
 
@@ -78,13 +75,13 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
     let as_str_match_arms = locales
         .iter()
         .map(|key| (&key.ident, &key.name))
-        .map(|(variant, locale)| quote!(LocaleEnum::#variant => #locale))
+        .map(|(variant, locale)| quote!(Locale::#variant => #locale))
         .collect::<Vec<_>>();
 
     let from_str_match_arms = locales
         .iter()
         .map(|key| (&key.ident, &key.name))
-        .map(|(variant, locale)| quote!(#locale => Some(LocaleEnum::#variant)))
+        .map(|(variant, locale)| quote!(#locale => Some(Locale::#variant)))
         .collect::<Vec<_>>();
 
     let derives = if cfg!(feature = "serde") {
@@ -96,17 +93,17 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
     quote! {
         #derives
         #[allow(non_camel_case_types)]
-        pub enum LocaleEnum {
+        pub enum Locale {
             #(#locales,)*
         }
 
-        impl Default for LocaleEnum {
+        impl Default for Locale {
             fn default() -> Self {
-                LocaleEnum::#default
+                Locale::#default
             }
         }
 
-        impl leptos_i18n::LocaleVariant for LocaleEnum {
+        impl leptos_i18n::Locale for Locale {
             type Keys = I18nKeys;
 
             fn as_str(self) -> &'static str {
@@ -120,18 +117,6 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
                     _ => None
                 }
             }
-        }
-    }
-}
-
-fn create_locales_type(_cfg_file: &ConfigFile) -> TokenStream {
-    quote! {
-        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-        pub struct Locales;
-
-        impl leptos_i18n::Locales for Locales {
-            type Variants = LocaleEnum;
-            type LocaleKeys = I18nKeys;
         }
     }
 }
@@ -169,7 +154,7 @@ fn get_default_match(
         .map(|locale| &*locale.top_locale_name)
         .collect();
     let missing_keys = top_locales.difference(&current_keys);
-    quote!(LocaleEnum::#default_locale #(| LocaleEnum::#missing_keys)*)
+    quote!(Locale::#default_locale #(| Locale::#missing_keys)*)
 }
 
 fn create_locale_type_inner(
@@ -213,7 +198,7 @@ fn create_locale_type_inner(
         );
         quote! {
             pub mod #subkey_mod_ident {
-                use super::LocaleEnum;
+                use super::Locale;
 
                 #subkey_impl
             }
@@ -241,7 +226,7 @@ fn create_locale_type_inner(
         quote! {
             #[doc(hidden)]
             pub mod subkeys {
-                use super::LocaleEnum;
+                use super::Locale;
 
                 #(
                     #subkeys_ts
@@ -291,7 +276,7 @@ fn create_locale_type_inner(
                 });
 
         let ident = &locale.top_locale_name;
-        let pattern = (i != 0).then(|| quote!(LocaleEnum::#ident));
+        let pattern = (i != 0).then(|| quote!(Locale::#ident));
         let pattern = pattern.as_ref().unwrap_or(&default_match);
         quote! {
             #pattern => #type_ident {
@@ -309,7 +294,7 @@ fn create_locale_type_inner(
         quote! {
             #[doc(hidden)]
             pub mod builders {
-                use super::LocaleEnum;
+                use super::Locale;
 
                 #empty_type
 
@@ -323,12 +308,12 @@ fn create_locale_type_inner(
     let (from_variant, const_values) = if !is_namespace {
         let from_variant_match_arms = top_locales
             .iter()
-            .map(|locale| quote!(LocaleEnum::#locale => &Self::#locale));
+            .map(|locale| quote!(Locale::#locale => &Self::#locale));
 
         let from_variant = quote! {
             impl leptos_i18n::LocaleKeys for #type_ident {
-                type Variants = LocaleEnum;
-                fn from_variant(_variant: LocaleEnum) -> &'static Self {
+                type Locale = Locale;
+                fn from_variant(_variant: Locale) -> &'static Self {
                     match _variant {
                         #(
                             #from_variant_match_arms,
@@ -340,7 +325,7 @@ fn create_locale_type_inner(
 
         let const_values = top_locales
             .iter()
-            .map(|locale| quote!(pub const #locale: Self = Self::new(LocaleEnum::#locale);));
+            .map(|locale| quote!(pub const #locale: Self = Self::new(Locale::#locale);));
 
         let const_values = quote! {
             #(
@@ -367,7 +352,7 @@ fn create_locale_type_inner(
 
             #const_values
 
-            pub const fn new(_variant: LocaleEnum) -> Self {
+            pub const fn new(_variant: Locale) -> Self {
                 match _variant {
                     #(
                         #new_match_arms,
@@ -409,7 +394,7 @@ fn create_namespaces_types(
         );
         quote! {
             pub mod #namespace_module_ident {
-                use super::LocaleEnum;
+                use super::Locale;
 
                 #type_impl
             }
@@ -432,17 +417,17 @@ fn create_namespaces_types(
 
     let const_values = locales.iter().map(|locale| {
         let locale_ident = &locale.name;
-        quote!(pub const #locale_ident: Self = Self::new(LocaleEnum::#locale_ident);)
+        quote!(pub const #locale_ident: Self = Self::new(Locale::#locale_ident);)
     });
 
     let from_variant_match_arms = locales.iter().map(|locale| {
         let locale_ident = &locale.name;
-        quote!(LocaleEnum::#locale_ident => &Self::#locale_ident)
+        quote!(Locale::#locale_ident => &Self::#locale_ident)
     });
 
     quote! {
         pub mod namespaces {
-            use super::LocaleEnum;
+            use super::Locale;
 
             #(
                 #namespaces_ts
@@ -462,7 +447,7 @@ fn create_namespaces_types(
                 #const_values
             )*
 
-            pub const fn new(_variant: LocaleEnum) -> Self {
+            pub const fn new(_variant: Locale) -> Self {
                 Self {
                     #(
                         #namespaces_fields_new,
@@ -472,8 +457,8 @@ fn create_namespaces_types(
         }
 
         impl leptos_i18n::LocaleKeys for #i18n_keys_ident {
-            type Variants = LocaleEnum;
-            fn from_variant(_variant: LocaleEnum) -> &'static Self {
+            type Locale = Locale;
+            fn from_variant(_variant: Locale) -> &'static Self {
                 match _variant {
                     #(
                         #from_variant_match_arms,
