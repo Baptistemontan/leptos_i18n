@@ -60,6 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      matrix:
+        tests_suites: [json, yaml, namespaces]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3
@@ -69,6 +71,6 @@ jobs:
         with:
           toolchain: "stable"
 
-      - name: Running test suite
-        working-directory: tests
+      - name: Running test suite ${{ matrix.tests_suites }}
+        working-directory: tests/${{ matrix.tests_suites }}
         run: cargo test
