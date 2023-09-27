@@ -1,5 +1,6 @@
+
 [package]
-name = "no_namespaces"
+name = "common"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,10 +11,3 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 leptos = { workspace = true }
-leptos_i18n = { workspace = true }
-common = { workspace = true }
-
-
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]

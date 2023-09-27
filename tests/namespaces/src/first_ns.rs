@@ -1,4 +1,5 @@
-use crate::tests_includes::*;
+use crate::i18n::*;
+use common::*;
 
 #[test]
 fn click_to_change_lang() {

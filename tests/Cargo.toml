@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["common", "namespaces", "no_namespaces"]
+
+[workspace.dependencies]
+common = { path = "./common" }
+leptos_i18n = { path = "../leptos_i18n" }
+leptos = "0.5.0-rc3"
