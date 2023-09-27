@@ -21,7 +21,7 @@ web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 
 [features]
-default = ["cookie"]
+default = ["cookie", "json_files"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 cookie = []
 hydrate = [
@@ -36,10 +36,12 @@ axum = ["ssr", "dep:axum", "dep:leptos_axum"]
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
+json_files = ["leptos_i18n_macro/json_files"]
+yaml_files = ["leptos_i18n_macro/yaml_files"]
 
 
 [package.metadata.cargo-all-features]
-denylist = ["ssr", "nightly"]
+denylist = ["ssr", "nightly", "yaml_files"]
 skip_feature_sets = [
     [
         "actix",
@@ -54,3 +56,5 @@ skip_feature_sets = [
         "actix",
     ],
 ]
+# see leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
+always_include_features = ["json_files"]

@@ -6,8 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use serde::de::DeserializeSeed;
-
 use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
@@ -15,6 +13,13 @@ use super::{
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
     warning::{emit_warning, Warning},
 };
+
+#[cfg(feature = "yaml_files")]
+const FILE_FORMAT: &str = "yaml";
+#[cfg(feature = "json_files")]
+const FILE_FORMAT: &str = "json";
+#[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
+const FILE_FORMAT: &str = "not specified";
 
 pub struct Namespace {
     pub key: Rc<Key>,
@@ -51,7 +56,7 @@ impl Namespace {
             let file_path: &Path = key.name.as_ref();
             locales_dir_path.push(&locale.name);
             locales_dir_path.push(file_path);
-            locales_dir_path.set_extension("json");
+            locales_dir_path.set_extension(FILE_FORMAT);
             locales.push(Rc::new(RefCell::new(Locale::new(
                 locales_dir_path,
                 locale,
@@ -81,7 +86,7 @@ impl LocalesOrNamespaces {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&locale.name);
-                manifest_dir_path.set_extension("json");
+                manifest_dir_path.set_extension(FILE_FORMAT);
                 locales.push(Rc::new(RefCell::new(Locale::new(
                     manifest_dir_path,
                     locale,
@@ -100,6 +105,35 @@ pub struct Locale {
 }
 
 impl Locale {
+    #[cfg(feature = "yaml_files")]
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
+        let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
+        serde::de::DeserializeSeed::deserialize(seed, deserializer)
+    }
+
+    #[cfg(feature = "json_files")]
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
+        let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
+        serde::de::DeserializeSeed::deserialize(seed, &mut deserializer)
+    }
+
+    #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
+    fn de_inner(
+        locale_file: File,
+        path: &mut PathBuf,
+        seed: LocaleSeed,
+    ) -> Result<Self, super::error::SerdeError> {
+        let _ = (locale_file, path, seed);
+        compile_error!("No file format has been provided, supported formats are: json and yaml")
+    }
+
+    fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
+        Self::de_inner(locale_file, seed).map_err(|err| Error::LocaleFileDeser {
+            path: std::mem::take(path),
+            err,
+        })
+    }
+
     pub fn new(path: &mut PathBuf, locale: Rc<Key>) -> Result<Self> {
         let locale_file = match File::open(&path) {
             Ok(file) => file,
@@ -111,14 +145,7 @@ impl Locale {
             }
         };
 
-        let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
-
-        LocaleSeed(locale)
-            .deserialize(&mut deserializer)
-            .map_err(|err| Error::LocaleFileDeser {
-                path: std::mem::take(path),
-                err,
-            })
+        Self::de(locale_file, path, LocaleSeed(locale))
     }
 
     pub fn to_builder_keys(&self) -> BuildersKeysInner {

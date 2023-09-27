@@ -37,6 +37,7 @@ jobs:
             namespaces,
             subkeys,
             workspace,
+            yaml,
           ]
     steps:
       - name: "Checkout repo"

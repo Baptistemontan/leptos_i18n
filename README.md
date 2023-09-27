@@ -106,6 +106,16 @@ locales = ["en", "fr"]
 locales-dir = "./path/to/locales"
 ```
 
+### Other file format
+
+By default the macro expect JSON files, you can remove the default features and add the `${format}_files` feature to change what file format to use.
+Supported formats are:
+
+- JSON
+- YAML
+
+The crate won't compile if you enable multiple of them at the same time, or none
+
 ### Loading the locales
 
 You can then use the `leptos_i18n::load_locales!()` macro, this will load _at compile time_ the locales, and create a module named `i18n` that expose multiple things:
@@ -560,6 +570,10 @@ This is a feature as this code is not "necessary" and could slow compile times,
 advice is to enable it for debug builds but disable it for release builds.
 
 The `suppress_key_warnings` feature remove the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
+
+The `json_files` feature tell the macro to expect JSON files for the locales, enabled by default
+
+The `yaml_files` feature tell the macro to expect YAML files for the locales
 
 ## Contributing
 
