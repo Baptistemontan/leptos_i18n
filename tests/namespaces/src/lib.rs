@@ -1,7 +1,15 @@
 #![deny(warnings)]
 leptos_i18n::load_locales!();
 #[cfg(test)]
-mod tests;
+mod first_ns;
+#[cfg(test)]
+mod second_ns;
+
+mod tests_includes {
+    pub use super::{assert_eq_rendered, render_to_string};
+    pub use crate::i18n::*;
+    pub use leptos::*;
+}
 
 use leptos::{IntoView, Oco};
 pub fn render_to_string<'a, T: 'a>(view: T) -> Oco<'a, str>
@@ -29,11 +37,11 @@ fn remove_noise<'a>(s: Oco<'a, str>, start_delim: &str, end_delim: &str) -> Oco<
     }
 }
 
-pub fn remove_html_comments(s: Oco<str>) -> Oco<str> {
+fn remove_html_comments(s: Oco<str>) -> Oco<str> {
     remove_noise(s, "<!--", "-->")
 }
 
-pub fn remove_hk(s: Oco<str>) -> Oco<str> {
+fn remove_hk(s: Oco<str>) -> Oco<str> {
     remove_noise(s, " data-hk=\"", "\"")
 }
 
