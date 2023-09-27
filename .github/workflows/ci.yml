@@ -70,6 +70,6 @@ jobs:
         with:
           toolchain: "stable"
 
-      - name: "Build test ${{ matrix.tests }}"
+      - name: "Testing ${{ matrix.tests }}"
         working-directory: tests/${{ matrix.tests }}
         run: cargo test
