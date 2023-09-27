@@ -112,12 +112,8 @@ impl Locale {
     }
 
     #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-    fn de_inner(
-        locale_file: File,
-        path: &mut PathBuf,
-        seed: LocaleSeed,
-    ) -> Result<Self, super::error::SerdeError> {
-        let _ = (locale_file, path, seed);
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
+        let _ = (locale_file, seed);
         compile_error!("No file format has been provided, supported formats are: json and yaml")
     }
 
@@ -138,7 +134,7 @@ impl Locale {
                 })
             }
         };
-      
+
         let seed = LocaleSeed {
             name: Rc::clone(&locale),
             top_locale_name: locale,
