@@ -1,3 +1,6 @@
 # Namespaces test
 
-Test if everything compile fine as this crate is mostly proc macro
+Test 2 things:
+
+- Everything compile fine
+- Check if the output is correct

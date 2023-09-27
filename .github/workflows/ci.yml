@@ -22,7 +22,7 @@ jobs:
           cargo test-all-features
 
   compile_examples:
-    name: Compile example ${{ matrix.examples }}
+    name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -51,29 +51,6 @@ jobs:
 
       - name: "Build exemple ${{ matrix.examples }}"
         working-directory: examples/${{ matrix.examples }}
-        run: |
-          cargo install cargo-leptos
-          cargo leptos build
-
-  test_suite:
-    name: Compile test ${{ matrix.tests }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        tests: [namespaces, no_namespaces]
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v3
-
-      - name: "Install wasm32-unknown-unknown"
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: "stable"
-          targets: "wasm32-unknown-unknown"
-
-      - name: "Build test ${{ matrix.tests }}"
-        working-directory: tests/${{ matrix.tests }}
         run: |
           cargo install cargo-leptos
           cargo leptos build

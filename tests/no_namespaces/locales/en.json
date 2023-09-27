@@ -64,5 +64,11 @@
             ["one", 1],
             ["{{ count }}", "_"]
         ]
-    }
+    },
+    "defaulted_string": "this string is declared in locale en",
+    "defaulted_interpolation": "this interpolation is declared in locale {{ locale }}",
+    "defaulted_plurals": [
+        ["zero", 0],
+        ["this plural is declared in locale {{ locale }}"]
+    ]
 }

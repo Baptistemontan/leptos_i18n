@@ -69,5 +69,8 @@
             ["0", "0"],
             ["{{ count }}", "_"]
         ]
-    }
+    },
+    "defaulted_string": null,
+    "defaulted_interpolation": null,
+    "defaulted_plurals": null
 }

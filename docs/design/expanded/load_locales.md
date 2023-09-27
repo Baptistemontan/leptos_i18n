@@ -46,40 +46,32 @@ Expected expanded code of the `load_locales!` macro :
 ```rs
 // originally directly outputed the code, now output all code in it's own module. Changed that in `v0.2` beta
 pub mod i18n {
-    #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-    pub struct Locales;
-
-    impl leptos_i18n::Locales for Locales {
-        type Variants = LocaleEnum;
-        type LocaleKeys = I18nKeys;
-    }
-
     #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     #[allow(non_camel_case_types)]
-    pub enum LocaleEnum {
+    pub enum Locale {
         en,
         fr
     }
 
-    impl Default for LocaleEnum {
+    impl Default for Locale {
         fn default() -> Self {
-            LocaleEnum::en
+            Locale::en
         }
     }
 
-    impl leptos_i18n::LocaleVariant for LocaleEnum {
+    impl leptos_i18n::Locale for Locale {
         type Keys = I18nKeys;
 
         fn as_str(self) -> &'static str {
             match self {
-                LocaleEnum::en => "en",
-                LocaleEnum::fr => "fr",
+                Locale::en => "en",
+                Locale::fr => "fr",
             }
         }
         fn from_str(s: &str) -> Option<Self> {
             match s {
-                "en" => LocaleEnum::en,
-                "fr" => LocaleEnum::fr,
+                "en" => Locale::en,
+                "fr" => Locale::fr,
                 _ => None
             }
         }
@@ -100,19 +92,19 @@ pub mod i18n {
         // so instead of re-creating the type eache time you want to access the values you return a static ref to a value
         // created at compile time.
         #[allow(non_upper_case_globals)]
-        pub const en: Self = Self::new(LocaleEnum::en);
+        pub const en: Self = Self::new(Locale::en);
         #[allow(non_upper_case_globals)]
-        pub const fr: Self = Self::new(LocaleEnum::fr);
+        pub const fr: Self = Self::new(Locale::fr);
 
-        pub const fn new(_variant: LocaleEnum) -> Self {
+        pub const fn new(_variant: Locale) -> Self {
             match _variant {
-                LocaleEnum::en => I18nKeys {
+                Locale::en => I18nKeys {
                     hello_world: "Hello World!",
                     key_present_only_in_default: "english default",
                     plural: builders::plural_builder::new(_variant),
                     some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_variant),
                 },
-                LocaleEnum::fr => I18nKeys {
+                Locale::fr => I18nKeys {
                     hello_world: "Bonjour le monde!",
                     // keys present in default but not in another locale is defaulted to the default locale value
                     key_present_only_in_default: "english default",
@@ -124,11 +116,11 @@ pub mod i18n {
     }
 
     impl leptos_i18n::LocaleKeys for I18nKeys {
-        type Variants = LocaleEnum;
-        fn from_variant(_variant: LocaleEnum) -> &'static Self {
+        type Locale = Locale;
+        fn from_variant(_variant: Locale) -> &'static Self {
             match _variant {
-                LocaleEnum::en => &Self::en,
-                LocaleEnum::fr => &Self::fr,
+                Locale::en => &Self::en,
+                Locale::fr => &Self::fr,
             }
         }
     }
@@ -136,22 +128,22 @@ pub mod i18n {
     // Builders type have there own module
     #[doc(hidden)]
     pub mod builders {
-        use super::LocaleEnum;
+        use super::Locale;
 
         // this type is a marker for an empty field
-        // as a ZST this makes the empty builder the same size as LocaleEnum
+        // as a ZST this makes the empty builder the same size as Locale
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct EmptyInterpolateValue;
 
         #[allow(non_camel_case_types)]
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct plural_builder<__var_count> {
-            __locale: LocaleEnum,
+            __locale: Locale,
             var_count: __var_count,
         }
 
         impl plural_builder<EmptyInterpolateValue> {
-            pub const fn new(__locale: LocaleEnum) -> Self {
+            pub const fn new(__locale: Locale) -> Self {
                 Self {
                     __locale,
                     var_count: EmptyInterpolateValue
@@ -164,7 +156,7 @@ pub mod i18n {
             fn into_view(self) -> leptos::View {
                 let Self { __locale, var_count } = self;
                 match __locale {
-                    LocaleEnum::en => {
+                    Locale::en => {
                         leptos::IntoView::into_view(
                             {
                                 let var_count = core::clone::Clone::clone(&var_count);
@@ -181,7 +173,7 @@ pub mod i18n {
                         // and without the clones the function would be `FnOnce`, which can't be turned into a `View`
                         // The block return a function because `var_count` could be a wrapper for a signal, needing reactivity.
                     },
-                    LocaleEnum::fr => {
+                    Locale::fr => {
                         leptos::IntoView::into_view("simple string")
                     }
                 }
@@ -216,13 +208,13 @@ pub mod i18n {
     // Subkeys have there own modules
     #[doc(hidden)]
     pub mod subkeys {
-        use super::LocaleEnum;
+        use super::Locale;
 
         // and each subkeys have the own modules
         // this is because it's the same function that is called to make the subkeys type that the one that make the `I18nKeys` type,
         // so if this has some builders, or some subkeys, it will create a `builders`/`subkeys` module.
         pub mod sk_some_subkeys {
-            use super::LocaleEnum;
+            use super::Locale;
 
             #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
             #[allow(non_camel_case_types)]
@@ -231,12 +223,12 @@ pub mod i18n {
             }
 
             impl some_subkeys_subkeys {
-                pub const fn new(_variant: LocaleEnum) -> Self {
+                pub const fn new(_variant: Locale) -> Self {
                     match _variant {
-                        LocaleEnum::en => Self {
+                        Locale::en => Self {
                             subkey_1: "This is subkey 1",
                         },
-                        LocaleEnum::fr => Self {
+                        Locale::fr => Self {
                             subkey_1: "Sous clé numéro 1",
                         }
                     }
@@ -245,16 +237,16 @@ pub mod i18n {
         }
     }
 
-    // create wrapper function to avoid needing to type the `Locales` type every f*ing time.
+    // create wrapper function to avoid needing to type the `Locale` type every time.
     // also shorten the function name.
     #[inline]
-    pub fn use_i18n() -> leptos_i18n::I18nContext<Locales> {
+    pub fn use_i18n() -> leptos_i18n::I18nContext<Locale> {
         leptos_i18n::use_i18n_context()
     }
 
     // same here
     #[inline]
-    pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locales> {
+    pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locale> {
         leptos_i18n::provide_i18n_context()
     }
 

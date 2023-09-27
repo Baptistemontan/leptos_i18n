@@ -135,15 +135,11 @@ struct I18nKeys {
 It also create an enum that describe the supported locales:
 
 ```rust
-enum LocaleEnum {
+enum Locale {
     en,
     fr
 }
 ```
-
-#### The glue
-
-It also declare a type `Locales` which unique pupose is to serves as a bridge beetween the two, most functions of the crate are generics over this type.
 
 #### Helper functions
 
@@ -195,7 +191,7 @@ The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_
 
 ### Accessing the current locale
 
-You may need to know what locale is currenly used, for that you can call `.get_locale` on the context, it will return the `LocaleEnum` defined by the `load_locales!()` macro. This function actually call `.get` on a signal, this means you should call it in a function like any signal.
+You may need to know what locale is currenly used, for that you can call `.get_locale` on the context, it will return the `Locale` defined by the `load_locales!()` macro. This function actually call `.get` on a signal, this means you should call it in a function like any signal.
 
 ### Accessing the keys
 
@@ -211,8 +207,8 @@ let i18n = use_i18n();
 let on_click = move |_| {
     let current_locale = i18n.get_locale();
     let new_locale = match current_locale {
-        LocaleEnum::en => LocaleEnum::fr,
-        LocaleEnum::fr => LocaleEnum::en,
+        Locale::en => Locale::fr,
+        Locale::fr => Locale::en,
     };
     i18n.set_locale(new_locale);
 };
@@ -532,7 +528,7 @@ You can have as many namespaces as you want, but the name should be a valid rust
 The `td!` macro works just like the `t!` macro but instead of taking the context as it first argument it directly take the locale:
 
 ```rust
-td!(LocaleEnum::fr, $key, ...)
+td!(Locale::fr, $key, ...)
 ```
 
 This let you use a translation regardless of the the current locale, enabling the use of multiple locales at the same time:
@@ -542,9 +538,9 @@ use crate::i18n::*;
 
 view! {
   <p>"In English:"</p>
-  <p>{td!(LocaleEnum::en, hello_world)}</p>
+  <p>{td!(Locale::en, hello_world)}</p>
   <p>"En Français:"</p>
-  <p>{td!(LocaleEnum::fr, hello_world)}</p>
+  <p>{td!(Locale::fr, hello_world)}</p>
 }
 ```
 
