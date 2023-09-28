@@ -78,7 +78,7 @@ pub mod i18n {
     }
 
     #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-    #[allow(non_camel_case_types)]
+    #[allow(non_camel_case_types, non_snake_case)]
     pub struct I18nKeys {
         pub hello_world: &'static str,
         pub key_present_only_in_default: &'static str,
@@ -135,7 +135,7 @@ pub mod i18n {
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct EmptyInterpolateValue;
 
-        #[allow(non_camel_case_types)]
+        #[allow(non_camel_case_types, non_snake_case)]
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct plural_builder<__var_count> {
             __locale: Locale,
@@ -217,7 +217,7 @@ pub mod i18n {
             use super::Locale;
 
             #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-            #[allow(non_camel_case_types)]
+            #[allow(non_camel_case_types, non_snake_case)]
             pub struct some_subkeys_subkeys {
                 pub subkey_1: &'static str,
             }
