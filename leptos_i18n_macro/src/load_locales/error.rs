@@ -6,6 +6,13 @@ use super::{
 };
 use quote::quote;
 
+#[cfg(feature = "json_files")]
+pub type SerdeError = serde_json::Error;
+#[cfg(feature = "yaml_files")]
+pub type SerdeError = serde_yaml::Error;
+#[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
+pub type SerdeError = &'static str; // whatever impl Display
+
 #[derive(Debug)]
 pub enum Error {
     CargoDirEnvNotPresent(std::env::VarError),
@@ -18,7 +25,7 @@ pub enum Error {
     },
     LocaleFileDeser {
         path: PathBuf,
-        err: serde_json::Error,
+        err: SerdeError,
     },
     DuplicateLocalesInConfig(HashSet<String>),
     DuplicateNamespacesInConfig(HashSet<String>),

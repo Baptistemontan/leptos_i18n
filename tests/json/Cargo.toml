@@ -1,5 +1,5 @@
 [package]
-name = "namespaces"
+name = "json"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,4 +17,3 @@ leptos_i18n = { path = "../../leptos_i18n" }
 [package.metadata.leptos-i18n]
 default = "en"
 locales = ["en", "fr"]
-namespaces = ["first_namespace", "second_namespace"]

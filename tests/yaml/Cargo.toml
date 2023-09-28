@@ -1,5 +1,5 @@
 [package]
-name = "no_namespaces"
+name = "yaml"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,9 +9,12 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { workspace = true }
-leptos_i18n = { workspace = true }
-common = { workspace = true }
+leptos = "0.5.0-rc3"
+common = { path = "../common" }
+leptos_i18n = { path = "../../leptos_i18n", default-features = false, features = [
+    "yaml_files",
+    "debug_interpolations",
+] }
 
 
 [package.metadata.leptos-i18n]

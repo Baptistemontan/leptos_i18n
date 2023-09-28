@@ -15,7 +15,8 @@ proc-macro = true
 
 [dependencies]
 serde = { version = "1", features = ["rc"] }
-serde_json = "1"
+serde_json = { version = "1", optional = true }
+serde_yaml = { version = "0.9", optional = true }
 proc-macro2 = "1"
 quote = "1"
 syn = "2.0"
@@ -26,6 +27,10 @@ serde = []
 debug_interpolations = []
 nightly = []
 suppress_key_warnings = []
+json_files = ["serde_json"]
+yaml_files = ["serde_yaml"]
 
 [package.metadata.cargo-all-features]
-denylist = ["nightly"]
+# cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
+denylist = ["nightly", "yaml_files"]
+always_include_features = ["json_files"]
