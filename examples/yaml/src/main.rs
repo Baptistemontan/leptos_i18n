@@ -5,9 +5,9 @@
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
     use actix_web::*;
-    use counter::app::App;
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
+    use yaml::app::App;
 
     #[actix_web::get("favicon.ico")]
     async fn favicon(
