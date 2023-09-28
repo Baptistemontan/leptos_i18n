@@ -23,6 +23,7 @@ syn = "2.0"
 toml = "0.7"
 
 [features]
+default = ["json_files"]
 serde = []
 debug_interpolations = []
 nightly = []
