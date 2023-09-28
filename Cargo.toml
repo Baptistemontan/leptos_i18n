@@ -7,4 +7,4 @@ exclude = ["examples", "tests"]
 version = "0.2.0-rc"
 
 [workspace.dependencies]
-leptos_i18n_macro = { path = "./leptos_i18n_macro", version = "0.2.0-rc", default-features = false }
+leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false }
