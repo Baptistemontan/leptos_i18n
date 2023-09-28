@@ -9,8 +9,8 @@ pub fn App() -> impl IntoView {
 
     let on_switch = move |_| {
         let new_lang = match i18n.get_locale() {
-            LocaleEnum::en => LocaleEnum::fr,
-            LocaleEnum::fr => LocaleEnum::en,
+            Locale::en => Locale::fr,
+            Locale::fr => Locale::en,
         };
         i18n.set_locale(new_lang);
     };
