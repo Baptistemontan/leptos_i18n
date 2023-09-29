@@ -3,10 +3,10 @@ name: Test
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 env:
   CARGO_TERM_COLOR: always
@@ -27,7 +27,30 @@ jobs:
           cargo install cargo-all-features
           cargo test-all-features
 
-  compile_examples:
+  compile_ssr_exemples:
+    name: Compile ${{ matrix.examples }} example
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        examples: [hello_world_actix, hello_world_axum, workspace]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Install wasm32-unknown-unknown"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+          targets: "wasm32-unknown-unknown"
+
+      - name: "Build ${{ matrix.examples }} exemple"
+        working-directory: examples/${{ matrix.examples }}
+        run: |
+          cargo install cargo-leptos
+          cargo leptos build
+
+  compile_csr_exemples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
@@ -35,14 +58,12 @@ jobs:
       matrix:
         examples:
           [
+            csr,
             counter,
             counter_plurals,
-            hello_world_actix,
-            hello_world_axum,
             interpolation,
             namespaces,
             subkeys,
-            workspace,
             yaml,
           ]
     steps:
@@ -55,11 +76,11 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build exemple ${{ matrix.examples }}"
+      - name: "Build ${{ matrix.examples }} exemple"
         working-directory: examples/${{ matrix.examples }}
         run: |
-          cargo install cargo-leptos
-          cargo leptos build
+          cargo install trunk
+          trunk build
 
   test_suite:
     name: Test suite ${{ matrix.tests_suites }}
