@@ -379,8 +379,8 @@ You can mix them up as you want.
 
 The count can be a string `"0"` or a litteral `0`.
 
-When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> Into<N> + Clone + 'static` where `N` is the specified type.
-By default `N` is `i64` but you can change that by specifying the type as the **first** value in the sequence:
+When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> N + Clone + 'static` where `N` is the specified type.
+By default `N` is `i32` but you can change that by specifying the type as the **first** value in the sequence:
 
 ```json
 {

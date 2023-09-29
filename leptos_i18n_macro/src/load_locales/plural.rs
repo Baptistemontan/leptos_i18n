@@ -29,9 +29,11 @@ pub enum PluralType {
 
 impl Default for PluralType {
     fn default() -> Self {
-        Self::I64
+        Self::I32
     }
 }
+
+type DefaultPluralType = i32;
 
 impl core::fmt::Display for PluralType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -285,7 +287,7 @@ impl Plurals {
 
         let mut plurals = match type_or_plural {
             TypeOrPlural::Type(plural_type) => Self::from_type(plural_type),
-            TypeOrPlural::Plural(plural) => Plurals::I64(vec![plural]),
+            TypeOrPlural::Plural(plural) => Plurals::I32(vec![plural]),
         };
 
         plurals.deserialize_inner(seq, parsed_value_seed)?;
@@ -700,7 +702,7 @@ impl<'de> serde::de::Visitor<'de> for PluralFieldVisitor {
 
 enum TypeOrPlural {
     Type(PluralType),
-    Plural((Plural<i64>, ParsedValue)),
+    Plural((Plural<DefaultPluralType>, ParsedValue)),
 }
 
 struct TypeOrPluralSeed<'a>(pub ParsedValueSeed<'a>);
@@ -751,7 +753,7 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     where
         A: serde::de::MapAccess<'de>,
     {
-        let plural_seed = PluralStructSeed::<i64>(self.0, PhantomData);
+        let plural_seed = PluralStructSeed::<DefaultPluralType>(self.0, PhantomData);
         plural_seed.visit_map(map).map(TypeOrPlural::Plural)
     }
 
@@ -759,7 +761,7 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        let plural_seed = PluralStructSeed::<i64>(self.0, PhantomData);
+        let plural_seed = PluralStructSeed::<DefaultPluralType>(self.0, PhantomData);
         plural_seed.visit_seq(seq).map(TypeOrPlural::Plural)
     }
 }

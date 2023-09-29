@@ -363,12 +363,10 @@ impl Interpolation {
             InterpolateKey::Count(plural_type) => {
                 quote! {
                     #[inline]
-                    pub fn var_count<__T, __N>(self, var_count: __T) -> #ident<#(#output_generics,)*>
-                        where __T: Fn() -> __N + core::clone::Clone + 'static,
-                              __N: core::convert::Into<#plural_type>
+                    pub fn var_count<__T>(self, var_count: __T) -> #ident<#(#output_generics,)*>
+                        where __T: Fn() -> #plural_type + core::clone::Clone + 'static,
                     {
                         #destructure
-                        let var_count = move || core::convert::Into::into(var_count());
                         #restructure
                     }
                 }
