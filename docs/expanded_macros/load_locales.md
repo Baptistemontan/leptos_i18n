@@ -192,11 +192,10 @@ pub mod i18n {
         #[allow(non_camel_case_types)]
         impl<__var_count, __comp_b> plural_builder<__var_count, __comp_b> {
             #[inline]
-            pub fn var_count<__T, __N>(self, var_count: __T) -> plural_builder<impl Fn() -> u32 + core::clone::Clone + 'static, __comp_b>
-                where __T: Fn() -> __N + core::clone::Clone + 'static, __N: core::convert::Into<u32>
+            pub fn var_count<__T>(self, var_count: __T) -> plural_builder<impl Fn() -> u32 + core::clone::Clone + 'static, __comp_b>
+                where __T: Fn() -> u32 + core::clone::Clone + 'static
             {
                 let Self { __locale, comp_b, .. } = self;
-                let var_count = move || core::convert::Into::into(var_count());
                 Self { __locale, var_count, comp_b }
             }
         }
