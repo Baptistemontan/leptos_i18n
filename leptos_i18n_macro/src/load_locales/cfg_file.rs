@@ -103,7 +103,7 @@ enum Field {
 }
 
 impl Field {
-    const FIELDS: &'static [&'static str] = &["default", "locales, namespaces", "locales-dir"];
+    const FIELDS: &'static [&'static str] = &["default", "locales", "namespaces", "locales-dir"];
 }
 
 struct FieldVisitor;
