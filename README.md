@@ -497,7 +497,7 @@ locales = ["en", "fr"]
 namespaces = ["common", "home"]
 ```
 
-Then your file structures must look like this int the `/locales` directory:
+Then your file structures must look like this in the `/locales` directory:
 
 ```bash
 ./locales
