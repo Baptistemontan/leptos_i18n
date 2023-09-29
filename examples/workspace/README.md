@@ -4,8 +4,14 @@ This exemple showcase how you can interpolate a variable in your translations an
 
 ## How to run
 
-Simply use `trunk` to run it:
+Simply use `cargo_leptos` to run it:
 
-```bash
-trunk serve --open
+```sh
+cargo leptos watch
+```
+
+and to build:
+
+```sh
+cargo leptos build --release
 ```
