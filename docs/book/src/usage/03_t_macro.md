@@ -136,7 +136,7 @@ Any missing components will generate an error.
 
 ## Plurals
 
-Plurals expect a variable named `count`, that implement `Fn() -> Into<N> + Clone + 'static` where `N` is the specified type of the plural (default is `i64`).
+Plurals expect a variable named `count`, that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the plural (default is `i32`).
 
 ## Access subkeys
 

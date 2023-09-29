@@ -32,14 +32,14 @@ fn f32_plural() {
 #[test]
 fn u32_plural() {
     // count = 0
-    let count = move || 0u32;
+    let count = move || 0;
     let en = td!(Locale::en, u32_plural, count);
     assert_eq_rendered!(en, "0");
     let fr = td!(Locale::fr, u32_plural, count);
     assert_eq_rendered!(fr, "0");
 
     // count = 1..
-    for i in [1u32, 45, 72] {
+    for i in [1, 45, 72] {
         let count = move || i;
         let en = td!(Locale::en, u32_plural, count);
         assert_eq_rendered!(en, "1..");
@@ -51,7 +51,7 @@ fn u32_plural() {
 #[test]
 fn or_plural() {
     // count = 0 | 5
-    for i in [0u8, 5] {
+    for i in [0, 5] {
         let count = move || i;
         let en = td!(Locale::en, OR_plural, count);
         assert_eq_rendered!(en, "0 or 5");
@@ -60,7 +60,7 @@ fn or_plural() {
     }
 
     // count = 1..5 | 6..10
-    for i in [1u8, 4, 6, 9] {
+    for i in [1, 4, 6, 9] {
         let count = move || i;
         let en = td!(Locale::en, OR_plural, count);
         assert_eq_rendered!(en, "1..5 | 6..10");
@@ -69,7 +69,7 @@ fn or_plural() {
     }
 
     // count = 10..15 | 20
-    for i in [10u8, 12, 14, 20] {
+    for i in [10, 12, 14, 20] {
         let count = move || i;
         let en = td!(Locale::en, OR_plural, count);
         assert_eq_rendered!(en, "10..15 | 20");
@@ -78,7 +78,7 @@ fn or_plural() {
     }
 
     // count = _
-    for i in [15u8, 17, 21, 56] {
+    for i in [15, 17, 21, 56] {
         let count = move || i;
         let en = td!(Locale::en, OR_plural, count);
         assert_eq_rendered!(en, "fallback with no count");
