@@ -1,6 +1,6 @@
-# Component Interpolation Example
+# Interpolation Example
 
-This exemple showcase how you can interpolate a component in your translations, for exemple to highlight some part of it.
+This exemple showcase how you can interpolate components/variable in your translations.
 
 ## How to run
 
