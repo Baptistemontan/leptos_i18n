@@ -47,8 +47,15 @@ hydrate = [
 ]
 ```
 
-## Client side rendering
+## Client Side Rendering
 
-For now `csr` is not fully supported, but the only missing piece is saving the locale. You can still update the locale and see the changes on the client, but a page reload will go back to the default locale.
+When compiling for the client, enable the `csr` feature:
+
+```toml
+# Cargo.toml
+
+[dependencies.leptos_i18n]
+features = ["csr"]
+```
 
 > **Note**: This version of the book reflects the upcoming `Leptos_i18n` `v0.2.0` release, using upcoming `Leptos` `v0.5.0`.
