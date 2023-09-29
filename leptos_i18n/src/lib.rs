@@ -122,9 +122,6 @@ mod locale_traits;
 #[cfg(feature = "ssr")]
 mod server;
 
-#[cfg(all(any(feature = "ssr", feature = "hydrate"), feature = "cookie"))]
-pub(crate) const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
-
 pub use locale_traits::*;
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
@@ -134,4 +131,16 @@ pub use leptos_i18n_macro::{load_locales, t, td};
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;
+}
+
+#[cfg(all(
+    feature = "cookie",
+    any(feature = "ssr", feature = "hydrate", feature = "csr")
+))]
+pub(crate) const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
+
+#[cfg(all(feature = "cookie", any(feature = "hydrate", feature = "csr")))]
+pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
+    use wasm_bindgen::JsCast;
+    leptos::document().dyn_into::<web_sys::HtmlDocument>().ok()
 }

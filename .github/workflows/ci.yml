@@ -61,6 +61,27 @@ jobs:
           cargo install cargo-leptos
           cargo leptos build
 
+  compile_csr_exemple:
+    name: Compile CSR example
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Install wasm32-unknown-unknown"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+          targets: "wasm32-unknown-unknown"
+
+      - name: "Build exemple csr"
+        working-directory: examples/csr
+        run: |
+          cargo install trunk
+          trunk build
+
   test_suite:
     name: Test suite ${{ matrix.tests_suites }}
     runs-on: ubuntu-latest

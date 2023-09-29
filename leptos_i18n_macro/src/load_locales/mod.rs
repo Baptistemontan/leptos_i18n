@@ -112,7 +112,7 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
                 }
             }
             fn from_str(s: &str) -> Option<Self> {
-                match s {
+                match s.trim() {
                     #(#from_str_match_arms,)*
                     _ => None
                 }
