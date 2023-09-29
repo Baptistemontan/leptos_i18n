@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, hello_world_axum]
+        examples: [hello_world_actix, hello_world_axum, workspace]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3
@@ -64,7 +64,6 @@ jobs:
             interpolation,
             namespaces,
             subkeys,
-            workspace,
             yaml,
           ]
     steps:
