@@ -4,7 +4,7 @@ members = ["leptos_i18n", "leptos_i18n_macro"]
 exclude = ["examples", "tests"]
 
 [workspace.package]
-version = "0.2.0-rc"
+version = "0.2.0"
 
 [workspace.dependencies]
-leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "0.2.0-rc" }
+leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "0.2.0" }

@@ -5,7 +5,7 @@ First thing we need is a `Leptos` project, you can find documentation on how to 
 Once you have set one up, you can add this crate to your project with
 
 ```bash
-cargo add leptos_i18n@0.2.0-rc
+cargo add leptos_i18n
 ```
 
 ## `actix-web` Backend
