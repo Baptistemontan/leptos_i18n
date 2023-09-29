@@ -1,6 +1,6 @@
-# Counter Example
+# YAML Example
 
-This exemple showcase how you can interpolate a variable in your translations and switch locale without loosing state.
+This exemple showcase how you can use the YAML format for declaring your locales
 
 ## How to run
 
