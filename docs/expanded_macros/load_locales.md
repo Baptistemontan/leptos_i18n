@@ -34,7 +34,7 @@ locales = ["en", "fr"]
 ```json
 {
   "hello_world": "Bonjour le monde!",
-  "plural": "simple string",
+  "plural": "<b>interpolate</b>",
   "some_subkeys": {
     "subkey_1": "Sous clé numéro 1"
   }
@@ -43,7 +43,7 @@ locales = ["en", "fr"]
 
 Expected expanded code of the `load_locales!` macro :
 
-```rs
+```rust
 // originally directly outputed the code, now output all code in it's own module. Changed that in `v0.2` beta
 pub mod i18n {
     #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -137,24 +137,29 @@ pub mod i18n {
 
         #[allow(non_camel_case_types, non_snake_case)]
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct plural_builder<__var_count> {
+        pub struct plural_builder<__var_count, __comp_b> {
             __locale: Locale,
             var_count: __var_count,
+            comp_b: __comp_b
         }
 
-        impl plural_builder<EmptyInterpolateValue> {
+        impl plural_builder<EmptyInterpolateValue, EmptyInterpolateValue> {
             pub const fn new(__locale: Locale) -> Self {
                 Self {
                     __locale,
-                    var_count: EmptyInterpolateValue
+                    var_count: EmptyInterpolateValue,
+                    comp_b: EmptyInterpolateValue
                 }
             }
         }
 
         #[allow(non_camel_case_types)]
-        impl<__var_count: Fn() -> u32 + core::clone::Clone + 'static> leptos::IntoView for plural_builder<__var_count> {
+        impl<
+            __var_count: Fn() -> u32 + core::clone::Clone + 'static,
+            __comp_b: Fn(leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static
+        > leptos::IntoView for plural_builder<__var_count, __comp_b> {
             fn into_view(self) -> leptos::View {
-                let Self { __locale, var_count } = self;
+                let Self { __locale, var_count, comp_b } = self;
                 match __locale {
                     Locale::en => {
                         leptos::IntoView::into_view(
@@ -174,21 +179,39 @@ pub mod i18n {
                         // The block return a function because `var_count` could be a wrapper for a signal, needing reactivity.
                     },
                     Locale::fr => {
-                        leptos::IntoView::into_view("simple string")
+                        leptos::IntoView::into_view(core::clone::Clone::clone(&comp_b)(
+                            leptos::ToChildren::to_children({
+                                move || Into::into(leptos::IntoView::into_view("interpolate"))
+                            })
+                        ))
                     }
                 }
             }
         }
 
         #[allow(non_camel_case_types)]
-        impl<__var_count> plural_builder<__var_count> {
+        impl<__var_count, __comp_b> plural_builder<__var_count, __comp_b> {
             #[inline]
-            pub fn var_count<__T, __N>(self, var_count: __T) -> plural_builder<impl Fn() -> u32 + core::clone::Clone + 'static>
+            pub fn var_count<__T, __N>(self, var_count: __T) -> plural_builder<impl Fn() -> u32 + core::clone::Clone + 'static, __comp_b>
                 where __T: Fn() -> __N + core::clone::Clone + 'static, __N: core::convert::Into<u32>
             {
-                let Self { __locale, .. } = self;
+                let Self { __locale, comp_b, .. } = self;
                 let var_count = move || core::convert::Into::into(var_count());
-                Self { __locale, var_count }
+                Self { __locale, var_count, comp_b }
+            }
+        }
+
+        #[allow(non_camel_case_types)]
+        impl<__var_count, __comp_b> plural_builder<__var_count, __comp_b> {
+            #[inline]
+            pub fn comp_b<__O, __T>(self, comp_b: __T) -> plural_builder<__var_count, impl Fn(leptos::ChildrenFn) ->  leptos::View + core::clone::Clone + 'static>
+            where
+                __O: leptos::IntoView,
+                __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
+            {
+                let Self { __locale, var_count, .. } = self;
+                let comp_b = move |children| leptos::IntoView::into_view(comp_b(children));
+                Self { __locale, var_count, comp_b }
             }
         }
 
@@ -197,7 +220,10 @@ pub mod i18n {
         // if a key is missing you'll get a `builder function does not exist ...` type of error, instead of the obscure `IntoView is not implemented on super_weird_generics_whatever`. Not a lot better in itself, but from what I've seen the `IntoView` error span the whole `view!` macro, but the build function error span only the `t!` macro, which is a lot more helpfull.
         // This also allow to generate variants of this function that can serves as better error feedback with the `debug_interpolations` feature.
         #[allow(non_camel_case_types)]
-        impl<__var_count: Fn() -> u32 + core::clone::Clone + 'static> plural_builder<__var_count> {
+        impl<
+            __var_count: Fn() -> u32 + core::clone::Clone + 'static,
+            __comp_b: Fn(leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static
+        > plural_builder<__var_count, __comp_b> {
             #[inline]
             pub fn build(self) -> Self {
                 self
