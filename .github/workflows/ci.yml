@@ -27,7 +27,30 @@ jobs:
           cargo install cargo-all-features
           cargo test-all-features
 
-  compile_examples:
+  compile_ssr_exemples:
+    name: Compile ${{ matrix.examples }} example
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        examples: [hello_world_actix, hello_world_axum]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Install wasm32-unknown-unknown"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+          targets: "wasm32-unknown-unknown"
+
+      - name: "Build ${{ matrix.examples }} exemple"
+        working-directory: examples/${{ matrix.examples }}
+        run: |
+          cargo install cargo-leptos
+          cargo leptos build
+
+  compile_csr_exemples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
@@ -35,10 +58,9 @@ jobs:
       matrix:
         examples:
           [
+            csr,
             counter,
             counter_plurals,
-            hello_world_actix,
-            hello_world_axum,
             interpolation,
             namespaces,
             subkeys,
@@ -55,29 +77,8 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build exemple ${{ matrix.examples }}"
+      - name: "Build ${{ matrix.examples }} exemple"
         working-directory: examples/${{ matrix.examples }}
-        run: |
-          cargo install cargo-leptos
-          cargo leptos build
-
-  compile_csr_exemple:
-    name: Compile CSR example
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v3
-
-      - name: "Install wasm32-unknown-unknown"
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: "stable"
-          targets: "wasm32-unknown-unknown"
-
-      - name: "Build exemple csr"
-        working-directory: examples/csr
         run: |
           cargo install trunk
           trunk build
