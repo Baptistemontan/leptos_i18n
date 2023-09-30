@@ -53,10 +53,10 @@ impl quote::ToTokens for Key {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct KeyPath {
-    namespace: Option<Rc<Key>>,
-    path: Vec<Rc<Key>>,
+    pub namespace: Option<Rc<Key>>,
+    pub path: Vec<Rc<Key>>,
 }
 
 impl KeyPath {
@@ -71,8 +71,8 @@ impl KeyPath {
         self.path.push(key);
     }
 
-    pub fn pop_key(&mut self) {
-        self.path.pop();
+    pub fn pop_key(&mut self) -> Option<Rc<Key>> {
+        self.path.pop()
     }
 }
 

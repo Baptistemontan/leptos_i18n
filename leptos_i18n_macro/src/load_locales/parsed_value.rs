@@ -1,4 +1,9 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashSet,
+    ops::Deref,
+    rc::Rc,
+};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -7,14 +12,25 @@ use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
 use super::{
     error::{Error, Result},
     key::{Key, KeyPath},
-    locale::{Locale, LocaleSeed, LocaleValue},
+    locale::{Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plural::{PluralType, Plurals},
 };
 
-#[derive(Debug, Clone, PartialEq, Default)]
+thread_local! {
+    pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForeignKey {
+    NotSet(KeyPath),
+    Set(Box<ParsedValue>),
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum ParsedValue {
     #[default]
     Default,
+    ForeignKey(RefCell<ForeignKey>),
     Plural(Plurals),
     String(String),
     Variable(Rc<Key>),
@@ -34,6 +50,108 @@ pub enum InterpolateKey {
 }
 
 impl ParsedValue {
+    pub fn resolve_foreign_keys(
+        values: &LocalesOrNamespaces,
+        default_locale: &Rc<Key>,
+    ) -> Result<()> {
+        FOREIGN_KEYS.with(|foreign_keys| {
+            let set = foreign_keys.borrow();
+            for (locale, value_path) in &*set {
+                let value = values.get_value_at(locale, value_path).unwrap();
+                value.resolve_foreign_key(values, locale, default_locale, value_path)?;
+            }
+            Ok(())
+        })
+    }
+
+    fn resolve_foreign_key_inner(
+        foreign_key: &mut ForeignKey,
+        values: &LocalesOrNamespaces,
+        top_locale: &Rc<Key>,
+        default_locale: &Rc<Key>,
+        path: &KeyPath,
+    ) -> Result<()> {
+        let ForeignKey::NotSet(key_path) = &*foreign_key else {
+            // already set, I don't know how we got here but whatever
+            return Ok(());
+        };
+
+        let Some(value) = values.get_value_at(top_locale, key_path) else {
+            return Err(Error::InvalidForeignKey {
+                foreign_key: key_path.to_owned(),
+                locale: Rc::clone(top_locale),
+                key_path: path.to_owned(),
+            });
+        };
+
+        match value {
+            ParsedValue::Default => {
+                return Self::resolve_foreign_key_inner(
+                    foreign_key,
+                    values,
+                    default_locale,
+                    default_locale,
+                    path,
+                );
+            }
+            ParsedValue::Plural(_) => {
+                return Err(Error::Custom(format!(
+                    "foreign key to plurals is not supported yet, at key {} in locale {:?}",
+                    path, top_locale
+                )))
+            }
+            _ => {}
+        }
+
+        // possibility that the foreign key must be resolved too
+        value.resolve_foreign_key(values, top_locale, default_locale, key_path)?;
+
+        let _ = std::mem::replace(foreign_key, ForeignKey::Set(Box::new(value.clone())));
+
+        Ok(())
+    }
+
+    pub fn resolve_foreign_key(
+        &self,
+        values: &LocalesOrNamespaces,
+        top_locale: &Rc<Key>,
+        default_locale: &Rc<Key>,
+        path: &KeyPath,
+    ) -> Result<()> {
+        match self {
+            ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
+            ParsedValue::Plural(inner) => {
+                inner.resolve_foreign_keys(values, top_locale, default_locale, path)
+            }
+            ParsedValue::Component { inner, .. } => {
+                inner.resolve_foreign_key(values, top_locale, default_locale, path)
+            }
+            ParsedValue::Bloc(bloc) => {
+                for value in bloc {
+                    value.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                }
+                Ok(())
+            }
+            ParsedValue::ForeignKey(foreign_key) => {
+                let Ok(mut foreign_key) = foreign_key.try_borrow_mut() else {
+                    return Err(Error::RecursiveForeignKey {
+                        locale: Rc::clone(top_locale),
+                        key_path: path.to_owned(),
+                    });
+                };
+
+                Self::resolve_foreign_key_inner(
+                    &mut foreign_key,
+                    values,
+                    top_locale,
+                    default_locale,
+                    path,
+                )
+            }
+        }
+    }
+
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
             ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
@@ -57,6 +175,10 @@ impl ParsedValue {
                 keys.get_or_insert_with(HashSet::new)
                     .insert(InterpolateKey::Count(plural_type));
             }
+            ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
+                ForeignKey::Set(inner) => inner.get_keys_inner(keys),
+                ForeignKey::NotSet(_) => unreachable!("dafuk?"),
+            },
         }
     }
 
@@ -73,13 +195,13 @@ impl ParsedValue {
         }
     }
 
-    pub fn new(value: &str) -> Self {
+    pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Self {
         // look for component
-        if let Some(component) = Self::find_component(value) {
+        if let Some(component) = Self::find_component(value, key_path, locale) {
             return component;
         }
         // else look for variables
-        if let Some(variable) = Self::find_variable(value) {
+        if let Some(variable) = Self::find_variable(value, key_path, locale) {
             return variable;
         }
 
@@ -147,7 +269,10 @@ impl ParsedValue {
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
+        self.reduce();
         match (&self, keys) {
+            // Default, do nothing
+            (ParsedValue::Default, _) => Ok(()),
             // Both subkeys
             (ParsedValue::Subkeys(_), LocaleValue::Subkeys { locales, keys }) => {
                 let ParsedValue::Subkeys(mut loc) = core::mem::take(self) else {
@@ -163,38 +288,64 @@ impl ParsedValue {
                 | ParsedValue::Component { .. }
                 | ParsedValue::Plural(_)
                 | ParsedValue::String(_)
-                | ParsedValue::Variable(_),
+                | ParsedValue::Variable(_)
+                | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(keys),
             ) => self.merge_inner(keys, top_locale, key_path),
-            // Value/Subkeys or vice versa-
-            (
-                ParsedValue::Bloc(_)
-                | ParsedValue::Component { .. }
-                | ParsedValue::Plural(_)
-                | ParsedValue::String(_)
-                | ParsedValue::Variable(_),
-                LocaleValue::Subkeys { .. },
-            )
-            | (ParsedValue::Subkeys(_), LocaleValue::Value(_)) => Err(Error::SubKeyMissmatch {
+            // not compatible
+            _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
                 key_path: std::mem::take(key_path),
             }),
-            // Default, do nothing
-            (ParsedValue::Default, _) => Ok(()),
         }
     }
 
-    fn find_variable(value: &str) -> Option<Self> {
+    fn parse_key_path(path: &str) -> Option<KeyPath> {
+        let (mut key_path, path) = if let Some((namespace, rest)) = path.split_once("::") {
+            let namespace = Key::new(namespace)?;
+
+            (KeyPath::new(Some(Rc::new(namespace))), rest)
+        } else {
+            (KeyPath::new(None), path)
+        };
+
+        for key in path.split('.') {
+            let key = Key::new(key)?;
+            key_path.push_key(Rc::new(key));
+        }
+
+        Some(key_path)
+    }
+
+    fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
         let ident = ident.trim();
 
-        let before = Self::new(before);
-        let after = Self::new(after);
+        let first_char = ident.chars().next()?;
 
-        let ident = Key::new(&format!("var_{}", ident))?;
-        let this = ParsedValue::Variable(Rc::new(ident));
+        let before = Self::new(before, key_path, locale);
+        let after = Self::new(after, key_path, locale);
+
+        let this = match first_char {
+            // foreign key
+            '@' => {
+                let path = ident.strip_prefix('@')?;
+                let foreign_key_path = Self::parse_key_path(path)?;
+                FOREIGN_KEYS.with(|foreign_keys| {
+                    foreign_keys
+                        .borrow_mut()
+                        .insert((Rc::clone(locale), key_path.clone()))
+                });
+                ParsedValue::ForeignKey(RefCell::new(ForeignKey::NotSet(foreign_key_path)))
+            }
+            // variable key
+            _ => {
+                let ident = Key::new(&format!("var_{}", ident))?;
+                ParsedValue::Variable(Rc::new(ident))
+            }
+        };
 
         Some(ParsedValue::Bloc(vec![before, this, after]))
     }
@@ -213,12 +364,12 @@ impl ParsedValue {
         }
     }
 
-    fn find_component(value: &str) -> Option<Self> {
+    fn find_component(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
         let (key, before, beetween, after) = Self::find_valid_component(value)?;
 
-        let before = ParsedValue::new(before);
-        let beetween = ParsedValue::new(beetween);
-        let after = ParsedValue::new(after);
+        let before = ParsedValue::new(before, key_path, locale);
+        let beetween = ParsedValue::new(beetween, key_path, locale);
+        let after = ParsedValue::new(after, key_path, locale);
 
         let this = ParsedValue::Component {
             key,
@@ -270,6 +421,70 @@ impl ParsedValue {
         Some((before, ident.trim(), after, skip))
     }
 
+    fn reduce_bloc(values: &mut Vec<ParsedValue>) -> Option<ParsedValue> {
+        let mut iter = values.iter_mut();
+        let Some(mut acc) = iter.next() else {
+            return Some(ParsedValue::String(String::new()));
+        };
+        acc.reduce();
+
+        for value in iter {
+            value.reduce();
+            match (&mut *acc, value) {
+                (ParsedValue::String(acc_str), ParsedValue::String(s)) => {
+                    acc_str.push_str(s.as_str());
+                    s.clear();
+                }
+                (_, new_acc @ ParsedValue::String(_)) => {
+                    acc = new_acc;
+                }
+                _ => continue,
+            }
+        }
+
+        values.retain(|value| !matches!(value, ParsedValue::String(s) if s.is_empty()));
+
+        match &mut **values {
+            [] => Some(ParsedValue::String(String::new())),
+            [one] => Some(std::mem::take(one)),
+            _ => None,
+        }
+    }
+
+    pub fn reduce(&mut self) {
+        match self {
+            ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => {}
+            ParsedValue::ForeignKey(foreign_key) => {
+                let fk = foreign_key.get_mut();
+                match fk {
+                    ForeignKey::NotSet(_) => unreachable!(),
+                    ForeignKey::Set(value) => {
+                        value.reduce();
+                        let value = std::mem::take(&mut **value);
+                        *self = value;
+                    }
+                }
+            }
+            ParsedValue::Plural(plurals) => {
+                let _: Result<_, ()> = plurals.try_for_each_value_mut(|value| {
+                    value.reduce();
+                    Ok(())
+                });
+            }
+            ParsedValue::Component { inner, .. } => inner.reduce(),
+            ParsedValue::Subkeys(subkeys) => {
+                for value in subkeys.keys.values_mut() {
+                    value.reduce();
+                }
+            }
+            ParsedValue::Bloc(values) => {
+                if let Some(value) = Self::reduce_bloc(values) {
+                    *self = value;
+                }
+            }
+        }
+    }
+
     fn flatten(&self, tokens: &mut Vec<TokenStream>) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
@@ -299,6 +514,10 @@ impl ParsedValue {
                     value.flatten(tokens)
                 }
             }
+            ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
+                ForeignKey::Set(inner) => inner.flatten(tokens),
+                ForeignKey::NotSet(_) => unreachable!(),
+            },
         }
     }
 }
@@ -387,6 +606,7 @@ impl ToTokens for ParsedValue {
 pub struct ParsedValueSeed<'a> {
     pub top_locale_name: &'a Rc<Key>,
     pub in_plural: bool,
+    pub key_path: &'a KeyPath,
     pub key: &'a Rc<Key>,
 }
 
@@ -408,7 +628,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         E: serde::de::Error,
     {
-        Ok(ParsedValue::new(v))
+        Ok(ParsedValue::new(v, self.key_path, self.top_locale_name))
     }
 
     fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
@@ -424,6 +644,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         let seed = LocaleSeed {
             name: Rc::clone(self.key),
             top_locale_name: Rc::clone(self.top_locale_name),
+            key_path: self.key_path.to_owned(),
         };
 
         seed.deserialize(map_de).map(ParsedValue::Subkeys)
@@ -475,20 +696,27 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
 mod tests {
     use super::*;
 
+    fn new_parsed_value(value: &str) -> ParsedValue {
+        let key_path = KeyPath::new(None);
+        let locale = Rc::new(Key::new("locale_key").unwrap());
+
+        ParsedValue::new(value, &key_path, &locale)
+    }
+
     fn new_key(key: &str) -> Rc<Key> {
         Rc::new(Key::new(key).unwrap())
     }
 
     #[test]
     fn parse_normal_string() {
-        let value = ParsedValue::new("test");
+        let value = new_parsed_value("test");
 
         assert_eq!(value, ParsedValue::String("test".to_string()));
     }
 
     #[test]
     fn parse_variable() {
-        let value = ParsedValue::new("before {{ var }} after");
+        let value = new_parsed_value("before {{ var }} after");
 
         assert_eq!(
             value,
@@ -502,7 +730,7 @@ mod tests {
 
     #[test]
     fn parse_comp() {
-        let value = ParsedValue::new("before <comp>inner</comp> after");
+        let value = new_parsed_value("before <comp>inner</comp> after");
 
         assert_eq!(
             value,
@@ -519,7 +747,7 @@ mod tests {
 
     #[test]
     fn parse_nested_comp() {
-        let value = ParsedValue::new(
+        let value = new_parsed_value(
             "before <comp>inner before<comp>inner inner</comp>inner after</comp> after",
         );
 
@@ -545,7 +773,7 @@ mod tests {
 
     #[test]
     fn parse_skipped_tag() {
-        let value = ParsedValue::new("<p>test<h3>this is a h3</h3>not closing p");
+        let value = new_parsed_value("<p>test<h3>this is a h3</h3>not closing p");
 
         assert_eq!(
             value,
