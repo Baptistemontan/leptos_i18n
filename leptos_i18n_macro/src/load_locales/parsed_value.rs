@@ -435,10 +435,9 @@ impl ParsedValue {
                     acc_str.push_str(s.as_str());
                     s.clear();
                 }
-                (_, new_acc @ ParsedValue::String(_)) => {
+                (_, new_acc) => {
                     acc = new_acc;
                 }
-                _ => continue,
             }
         }
 
