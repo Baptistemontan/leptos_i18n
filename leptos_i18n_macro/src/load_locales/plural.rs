@@ -2,11 +2,17 @@ use std::{
     collections::HashSet,
     marker::PhantomData,
     ops::{Bound, Not},
+    rc::Rc,
     str::FromStr,
 };
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+
+use crate::load_locales::{
+    key::{Key, KeyPath},
+    locale::LocalesOrNamespaces,
+};
 
 use super::{
     error::{Error, Result},
@@ -94,6 +100,18 @@ pub enum Plurals {
 }
 
 impl Plurals {
+    pub fn resolve_foreign_keys(
+        &self,
+        values: &LocalesOrNamespaces,
+        top_locale: &Rc<Key>,
+        default_locale: &Rc<Key>,
+        path: &KeyPath,
+    ) -> Result<()> {
+        self.try_for_each_value(move |value| {
+            value.resolve_foreign_key(values, top_locale, default_locale, path)
+        })
+    }
+
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         fn inner<T>(v: &PluralsInner<T>, keys: &mut Option<HashSet<InterpolateKey>>) {
             for (_, value) in v {
@@ -111,6 +129,60 @@ impl Plurals {
             Plurals::U64(v) => inner(v, keys),
             Plurals::F32(v) => inner(v, keys),
             Plurals::F64(v) => inner(v, keys),
+        }
+    }
+
+    pub fn try_for_each_value<F, E>(&self, f: F) -> Result<(), E>
+    where
+        F: FnMut(&ParsedValue) -> Result<(), E>,
+    {
+        fn inner<T, F, E>(v: &PluralsInner<T>, mut f: F) -> Result<(), E>
+        where
+            F: FnMut(&ParsedValue) -> Result<(), E>,
+        {
+            for (_, value) in v {
+                f(value)?;
+            }
+            Ok(())
+        }
+        match self {
+            Plurals::I8(v) => inner(v, f),
+            Plurals::I16(v) => inner(v, f),
+            Plurals::I32(v) => inner(v, f),
+            Plurals::I64(v) => inner(v, f),
+            Plurals::U8(v) => inner(v, f),
+            Plurals::U16(v) => inner(v, f),
+            Plurals::U32(v) => inner(v, f),
+            Plurals::U64(v) => inner(v, f),
+            Plurals::F32(v) => inner(v, f),
+            Plurals::F64(v) => inner(v, f),
+        }
+    }
+
+    pub fn try_for_each_value_mut<F, E>(&mut self, f: F) -> Result<(), E>
+    where
+        F: FnMut(&mut ParsedValue) -> Result<(), E>,
+    {
+        fn inner<T, F, E>(v: &mut PluralsInner<T>, mut f: F) -> Result<(), E>
+        where
+            F: FnMut(&mut ParsedValue) -> Result<(), E>,
+        {
+            for (_, value) in v {
+                f(value)?;
+            }
+            Ok(())
+        }
+        match self {
+            Plurals::I8(v) => inner(v, f),
+            Plurals::I16(v) => inner(v, f),
+            Plurals::I32(v) => inner(v, f),
+            Plurals::I64(v) => inner(v, f),
+            Plurals::U8(v) => inner(v, f),
+            Plurals::U16(v) => inner(v, f),
+            Plurals::U32(v) => inner(v, f),
+            Plurals::U64(v) => inner(v, f),
+            Plurals::F32(v) => inner(v, f),
+            Plurals::F64(v) => inner(v, f),
         }
     }
 

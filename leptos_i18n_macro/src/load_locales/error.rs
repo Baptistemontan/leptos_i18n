@@ -15,6 +15,7 @@ pub type SerdeError = &'static str; // whatever impl Display
 
 #[derive(Debug)]
 pub enum Error {
+    Custom(String),
     CargoDirEnvNotPresent(std::env::VarError),
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
@@ -65,6 +66,15 @@ pub enum Error {
         expected: PluralType,
     },
     ExplicitDefaultInDefault(KeyPath),
+    RecursiveForeignKey {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
+    InvalidForeignKey {
+        foreign_key: KeyPath,
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
 }
 
 impl Display for Error {
@@ -141,7 +151,10 @@ impl Display for Error {
                 write!(f, "Missmatch value type beetween locale {:?} and default at key {}: one has subkeys and the other has direct value.", locale, key_path)
             },
             Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
-            Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key {}", key_path)
+            Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key {}", key_path),
+            Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key {} in locale {:?}, check for recursive foreign key.", key_path, locale),
+            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key at key {} in locale {:?}, key {} don't exist.", key_path, locale, foreign_key),
+            Error::Custom(s) => f.write_str(s)
         }
     }
 }

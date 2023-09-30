@@ -37,6 +37,8 @@ pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
     let mut locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
 
+    ParsedValue::resolve_foreign_keys(&locales, &cfg_file.default)?;
+
     let keys = Locale::check_locales(&mut locales)?;
 
     let locale_type = create_locale_type(keys, &cfg_file);

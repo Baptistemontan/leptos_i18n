@@ -20,11 +20,13 @@ const FILE_FORMAT: &str = "json";
 #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
 const FILE_FORMAT: &str = "not specified";
 
+#[derive(Debug)]
 pub struct Namespace {
     pub key: Rc<Key>,
     pub locales: Vec<Locale>,
 }
 
+#[derive(Debug)]
 pub enum LocalesOrNamespaces {
     NameSpaces(Vec<Namespace>),
     Locales(Vec<Locale>),
@@ -56,7 +58,11 @@ impl Namespace {
             locales_dir_path.push(&locale.name);
             locales_dir_path.push(file_path);
             locales_dir_path.set_extension(FILE_FORMAT);
-            locales.push(Locale::new(locales_dir_path, locale)?);
+            locales.push(Locale::new(
+                locales_dir_path,
+                locale,
+                Some(Rc::clone(&key)),
+            )?);
             locales_dir_path.pop();
             locales_dir_path.pop();
         }
@@ -65,6 +71,26 @@ impl Namespace {
 }
 
 impl LocalesOrNamespaces {
+    pub fn get_value_at(&self, top_locale: &Rc<Key>, path: &KeyPath) -> Option<&'_ ParsedValue> {
+        let locale = match (&path.namespace, self) {
+            (None, LocalesOrNamespaces::NameSpaces(_))
+            | (Some(_), LocalesOrNamespaces::Locales(_)) => None,
+            (None, LocalesOrNamespaces::Locales(locales)) => {
+                locales.iter().find(|locale| &locale.name == top_locale)
+            }
+            (Some(target_namespace), LocalesOrNamespaces::NameSpaces(namespaces)) => {
+                let namespace = namespaces.iter().find(|ns| &ns.key == target_namespace)?;
+
+                namespace
+                    .locales
+                    .iter()
+                    .find(|locale| &locale.name == top_locale)
+            }
+        }?;
+
+        locale.get_value_at(&path.path)
+    }
+
     pub fn new(manifest_dir_path: &mut PathBuf, cfg_file: &ConfigFile) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
         manifest_dir_path.push(&*cfg_file.locales_dir);
@@ -83,7 +109,7 @@ impl LocalesOrNamespaces {
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&locale.name);
                 manifest_dir_path.set_extension(FILE_FORMAT);
-                locales.push(Locale::new(manifest_dir_path, locale)?);
+                locales.push(Locale::new(manifest_dir_path, locale, None)?);
                 manifest_dir_path.pop();
             }
             Ok(LocalesOrNamespaces::Locales(locales))
@@ -99,6 +125,20 @@ pub struct Locale {
 }
 
 impl Locale {
+    pub fn get_value_at(&self, path: &[Rc<Key>]) -> Option<&'_ ParsedValue> {
+        match path {
+            [] => None,
+            [key] => self.keys.get(key),
+            [key, path @ ..] => {
+                let value = self.keys.get(key)?;
+                let ParsedValue::Subkeys(subkeys) = value else {
+                    return None;
+                };
+                subkeys.get_value_at(path)
+            }
+        }
+    }
+
     #[cfg(feature = "yaml_files")]
     fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
         let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
@@ -124,7 +164,7 @@ impl Locale {
         })
     }
 
-    pub fn new(path: &mut PathBuf, locale: Rc<Key>) -> Result<Self> {
+    pub fn new(path: &mut PathBuf, locale: Rc<Key>, namespace: Option<Rc<Key>>) -> Result<Self> {
         let locale_file = match File::open(&path) {
             Ok(file) => file,
             Err(err) => {
@@ -138,6 +178,7 @@ impl Locale {
         let seed = LocaleSeed {
             name: Rc::clone(&locale),
             top_locale_name: locale,
+            key_path: KeyPath::new(namespace),
         };
 
         Self::de(locale_file, path, seed)
@@ -146,6 +187,7 @@ impl Locale {
     pub fn make_builder_keys(&mut self) -> BuildersKeysInner {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
+            value.reduce();
             let locale_value = value.make_locale_value();
             keys.0.insert(Rc::clone(key), locale_value);
         }
@@ -251,23 +293,27 @@ pub enum LocaleValue {
 pub struct LocaleSeed {
     pub name: Rc<Key>,
     pub top_locale_name: Rc<Key>,
+    pub key_path: KeyPath,
 }
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
     type Value = HashMap<Rc<Key>, ParsedValue>;
 
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
         let mut keys = HashMap::new();
 
         while let Some(locale_key) = map.next_key()? {
+            self.key_path.push_key(Rc::clone(&locale_key));
             let value = map.next_value_seed(ParsedValueSeed {
                 top_locale_name: &self.top_locale_name,
                 key: &locale_key,
+                key_path: &self.key_path,
                 in_plural: false,
             })?;
+            self.key_path.pop_key();
             keys.insert(locale_key, value);
         }
 
@@ -293,6 +339,7 @@ impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
         let Self {
             name,
             top_locale_name,
+            ..
         } = self;
         Ok(Locale {
             name,
