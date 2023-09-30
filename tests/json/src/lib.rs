@@ -12,3 +12,6 @@ mod tests;
 
 #[cfg(test)]
 mod defaulted;
+
+#[cfg(test)]
+mod foreign;

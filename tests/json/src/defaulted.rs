@@ -33,3 +33,11 @@ fn defaulted_plurals() {
         assert_eq_rendered!(fr, "this plural is declared in locale en");
     }
 }
+
+#[test]
+fn defaulted_foreign_key() {
+    let en = td!(Locale::en, defaulted_foreign_key);
+    assert_eq_rendered!(en, "before Click to increment the counter after");
+    let fr = td!(Locale::fr, defaulted_foreign_key);
+    assert_eq_rendered!(fr, "before Click to increment the counter after");
+}

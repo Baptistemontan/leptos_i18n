@@ -72,5 +72,10 @@
     },
     "defaulted_string": null,
     "defaulted_interpolation": null,
-    "defaulted_plurals": null
+    "defaulted_plurals": null,
+    "defaulted_foreign_key": null,
+    "foreign_key_to_string": "before {{ @click_to_inc }} after",
+    "foreign_key_to_interpolation": "before {{ @click_count }} after",
+    "foreign_key_to_subkey": "before {{ @subkeys.subkey_1 }} after",
+    "foreign_key_to_explicit_default": "before {{ @defaulted_string }} after"
 }
