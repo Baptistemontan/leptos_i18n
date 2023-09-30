@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -30,7 +30,7 @@ impl Interpolation {
     pub fn new(
         key: &Key,
         keys_set: &HashSet<InterpolateKey>,
-        locales: &[Rc<Locale>],
+        locales: &[Locale],
         default_match: &TokenStream,
     ) -> Self {
         let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
@@ -436,7 +436,7 @@ impl Interpolation {
         ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-        locales: &[Rc<Locale>],
+        locales: &[Locale],
         default_match: &TokenStream,
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
@@ -473,7 +473,7 @@ impl Interpolation {
 
     fn create_locale_impl<'a>(
         key: &'a Key,
-        locales: &'a [Rc<Locale>],
+        locales: &'a [Locale],
         default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let mut default_match = default_match.clone();

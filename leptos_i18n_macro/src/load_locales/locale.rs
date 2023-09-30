@@ -22,24 +22,24 @@ const FILE_FORMAT: &str = "not specified";
 
 pub struct Namespace {
     pub key: Rc<Key>,
-    pub locales: Vec<Rc<Locale>>,
+    pub locales: Vec<Locale>,
 }
 
 pub enum LocalesOrNamespaces {
     NameSpaces(Vec<Namespace>),
-    Locales(Vec<Rc<Locale>>),
+    Locales(Vec<Locale>),
 }
 
 #[derive(Default)]
 pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
 
-pub enum BuildersKeys {
+pub enum BuildersKeys<'a> {
     NameSpaces {
-        namespaces: Vec<Namespace>,
+        namespaces: &'a [Namespace],
         keys: HashMap<Rc<Key>, BuildersKeysInner>,
     },
     Locales {
-        locales: Vec<Rc<Locale>>,
+        locales: &'a [Locale],
         keys: BuildersKeysInner,
     },
 }
@@ -56,7 +56,7 @@ impl Namespace {
             locales_dir_path.push(&locale.name);
             locales_dir_path.push(file_path);
             locales_dir_path.set_extension(FILE_FORMAT);
-            locales.push(Rc::new(Locale::new(locales_dir_path, locale)?));
+            locales.push(Locale::new(locales_dir_path, locale)?);
             locales_dir_path.pop();
             locales_dir_path.pop();
         }
@@ -83,7 +83,7 @@ impl LocalesOrNamespaces {
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&locale.name);
                 manifest_dir_path.set_extension(FILE_FORMAT);
-                locales.push(Rc::new(Locale::new(manifest_dir_path, locale)?));
+                locales.push(Locale::new(manifest_dir_path, locale)?);
                 manifest_dir_path.pop();
             }
             Ok(LocalesOrNamespaces::Locales(locales))
@@ -143,17 +143,17 @@ impl Locale {
         Self::de(locale_file, path, seed)
     }
 
-    pub fn to_builder_keys(&self) -> BuildersKeysInner {
+    pub fn make_builder_keys(&mut self) -> BuildersKeysInner {
         let mut keys = BuildersKeysInner::default();
-        for (key, value) in &self.keys {
-            let locale_value = value.to_locale_value();
+        for (key, value) in &mut self.keys {
+            let locale_value = value.make_locale_value();
             keys.0.insert(Rc::clone(key), locale_value);
         }
         keys
     }
 
     pub fn merge(
-        &self,
+        &mut self,
         keys: &mut BuildersKeysInner,
         default_locale: &str,
         top_locale: Rc<Key>,
@@ -161,7 +161,7 @@ impl Locale {
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
-            if let Some(value) = self.keys.get(key) {
+            if let Some(value) = self.keys.get_mut(key) {
                 value.merge(keys, default_locale, Rc::clone(&self.name), key_path)?;
             } else {
                 emit_warning(Warning::MissingKey {
@@ -187,10 +187,10 @@ impl Locale {
     }
 
     pub fn check_locales_inner(
-        locales: &[Rc<Locale>],
+        locales: &mut [Locale],
         namespace: Option<Rc<Key>>,
     ) -> Result<BuildersKeysInner> {
-        let mut locales = locales.iter();
+        let mut locales = locales.iter_mut();
         let default_locale = locales.next().unwrap();
         let mut key_path = KeyPath::new(namespace);
 
@@ -201,7 +201,7 @@ impl Locale {
             }
         }
 
-        let mut default_keys = default_locale.to_builder_keys();
+        let mut default_keys = default_locale.make_builder_keys();
 
         let default_locale_name = &default_locale.name.name;
 
@@ -218,13 +218,13 @@ impl Locale {
         Ok(default_keys)
     }
 
-    pub fn check_locales(locales: LocalesOrNamespaces) -> Result<BuildersKeys> {
+    pub fn check_locales(locales: &mut LocalesOrNamespaces) -> Result<BuildersKeys> {
         match locales {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
                 let mut keys = HashMap::with_capacity(namespaces.len());
-                for namespace in &namespaces {
+                for namespace in &mut *namespaces {
                     let k = Self::check_locales_inner(
-                        &namespace.locales,
+                        &mut namespace.locales,
                         Some(Rc::clone(&namespace.key)),
                     )?;
                     keys.insert(Rc::clone(&namespace.key), k);
@@ -232,7 +232,7 @@ impl Locale {
                 Ok(BuildersKeys::NameSpaces { namespaces, keys })
             }
             LocalesOrNamespaces::Locales(locales) => {
-                let keys = Self::check_locales_inner(&locales, None)?;
+                let keys = Self::check_locales_inner(locales, None)?;
                 Ok(BuildersKeys::Locales { locales, keys })
             }
         }
@@ -242,7 +242,7 @@ impl Locale {
 pub enum LocaleValue {
     Value(Option<HashSet<InterpolateKey>>),
     Subkeys {
-        locales: Vec<Rc<Locale>>,
+        locales: Vec<Locale>,
         keys: BuildersKeysInner,
     },
 }
