@@ -11,15 +11,19 @@ use super::{
     plural::{PluralType, Plurals},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ParsedValue {
+    #[default]
     Default,
     Plural(Plurals),
     String(String),
     Variable(Rc<Key>),
-    Component { key: Rc<Key>, inner: Box<Self> },
+    Component {
+        key: Rc<Key>,
+        inner: Box<Self>,
+    },
     Bloc(Vec<Self>),
-    Subkeys(Rc<Locale>),
+    Subkeys(Locale),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -83,11 +87,14 @@ impl ParsedValue {
         ParsedValue::String(value.to_string())
     }
 
-    pub fn to_locale_value(&self) -> LocaleValue {
-        if let ParsedValue::Subkeys(locale) = self {
+    pub fn make_locale_value(&mut self) -> LocaleValue {
+        if let ParsedValue::Subkeys(_) = self {
+            let ParsedValue::Subkeys(mut locale) = core::mem::take(self) else {
+                unreachable!();
+            };
             LocaleValue::Subkeys {
-                locales: vec![Rc::clone(locale)],
-                keys: locale.to_builder_keys(),
+                keys: locale.make_builder_keys(),
+                locales: vec![locale],
             }
         } else {
             LocaleValue::Value(self.get_keys())
@@ -134,17 +141,21 @@ impl ParsedValue {
     }
 
     pub fn merge(
-        &self,
+        &mut self,
         keys: &mut LocaleValue,
         default_locale: &str,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
-        match (self, keys) {
+        match (&self, keys) {
             // Both subkeys
-            (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
-                locales.push(Rc::clone(loc));
-                loc.merge(keys, default_locale, top_locale, key_path)
+            (ParsedValue::Subkeys(_), LocaleValue::Subkeys { locales, keys }) => {
+                let ParsedValue::Subkeys(mut loc) = core::mem::take(self) else {
+                    unreachable!();
+                };
+                loc.merge(keys, default_locale, top_locale, key_path)?;
+                locales.push(loc);
+                Ok(())
             }
             // Both value
             (
@@ -177,10 +188,12 @@ impl ParsedValue {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
-        let ident = Key::new(&format!("var_{}", ident.trim()))?;
+        let ident = ident.trim();
 
         let before = Self::new(before);
         let after = Self::new(after);
+
+        let ident = Key::new(&format!("var_{}", ident))?;
         let this = ParsedValue::Variable(Rc::new(ident));
 
         Some(ParsedValue::Bloc(vec![before, this, after]))
@@ -413,9 +426,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             top_locale_name: Rc::clone(self.top_locale_name),
         };
 
-        seed.deserialize(map_de)
-            .map(Rc::new)
-            .map(ParsedValue::Subkeys)
+        seed.deserialize(map_de).map(ParsedValue::Subkeys)
     }
 
     fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>

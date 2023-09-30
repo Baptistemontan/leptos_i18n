@@ -35,9 +35,9 @@ pub fn load_locales() -> Result<TokenStream> {
         .into();
 
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
-    let locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
+    let mut locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
 
-    let keys = Locale::check_locales(locales)?;
+    let keys = Locale::check_locales(&mut locales)?;
 
     let locale_type = create_locale_type(keys, &cfg_file);
     let locale_enum = create_locales_enum(&cfg_file);
@@ -125,12 +125,12 @@ struct Subkeys<'a> {
     original_key: &'a syn::Ident,
     key: syn::Ident,
     mod_key: syn::Ident,
-    locales: &'a [Rc<Locale>],
+    locales: &'a [Locale],
     keys: &'a BuildersKeysInner,
 }
 
 impl<'a> Subkeys<'a> {
-    pub fn new(key: &'a Key, locales: &'a [Rc<Locale>], keys: &'a BuildersKeysInner) -> Self {
+    pub fn new(key: &'a Key, locales: &'a [Locale], keys: &'a BuildersKeysInner) -> Self {
         let original_key = &key.ident;
         let mod_key = format_ident!("sk_{}", key.ident);
         let key = format_ident!("{}_subkeys", key.ident);
@@ -147,7 +147,7 @@ impl<'a> Subkeys<'a> {
 fn get_default_match(
     default_locale: &Key,
     top_locales: &HashSet<&Key>,
-    locales: &[Rc<Locale>],
+    locales: &[Locale],
 ) -> TokenStream {
     let current_keys = locales
         .iter()
@@ -161,7 +161,7 @@ fn create_locale_type_inner(
     default_locale: &Key,
     type_ident: &syn::Ident,
     top_locales: &HashSet<&Key>,
-    locales: &[Rc<Locale>],
+    locales: &[Locale],
     keys: &HashMap<Rc<Key>, LocaleValue>,
     is_namespace: bool,
 ) -> TokenStream {
@@ -478,7 +478,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
             default_locale,
             &i18n_keys_ident,
-            &namespaces,
+            namespaces,
             &top_locales,
             &keys,
         ),
@@ -486,7 +486,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             default_locale,
             &i18n_keys_ident,
             &top_locales,
-            &locales,
+            locales,
             &keys.0,
             false,
         ),

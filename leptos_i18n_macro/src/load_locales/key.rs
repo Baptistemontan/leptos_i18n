@@ -53,7 +53,7 @@ impl quote::ToTokens for Key {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct KeyPath {
     namespace: Option<Rc<Key>>,
     path: Vec<Rc<Key>>,
