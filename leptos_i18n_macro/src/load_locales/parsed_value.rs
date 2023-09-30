@@ -1,9 +1,4 @@
-use std::{
-    cell::{Ref, RefCell},
-    collections::HashSet,
-    ops::Deref,
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};

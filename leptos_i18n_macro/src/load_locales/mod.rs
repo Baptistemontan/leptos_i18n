@@ -1,4 +1,3 @@
-#![allow(unreachable_code, unused_mut, unused)]
 use std::{
     collections::{HashMap, HashSet},
     ops::{Deref, Not},
@@ -41,8 +40,6 @@ pub fn load_locales() -> Result<TokenStream> {
     ParsedValue::resolve_foreign_keys(&locales, &cfg_file.default)?;
 
     let keys = Locale::check_locales(&mut locales)?;
-
-    // panic!("{:?}", locales);
 
     let locale_type = create_locale_type(keys, &cfg_file);
     let locale_enum = create_locales_enum(&cfg_file);
