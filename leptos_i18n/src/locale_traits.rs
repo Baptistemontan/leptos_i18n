@@ -33,15 +33,17 @@ pub trait LocaleKeys: 'static + Clone + Copy {
     /// The associated enum representing the supported locales
     type Locale: Locale<Keys = Self>;
 
-    /// Create self according to the given locale.
-    fn from_variant(variant: Self::Locale) -> &'static Self;
+    /// Return a static ref to Self containing the translations for the given locale
+    fn from_variant(locale: Self::Locale) -> &'static Self;
 }
 
-/// This is used to call `.build` on `&str` when building interpolations
+/// This is used to call `.build` on `&str` when building interpolations.
 ///
-/// if it's a `&str` it will just return the str,
+/// If it's a `&str` it will just return the str,
 /// but if it's a builder `.build` will either emit an error for a missing key or if all keys
 /// are supplied it will return the correct value
+///
+/// It has no uses outside of the internals of the `t!` macro.
 #[doc(hidden)]
 pub trait BuildStr: Sized {
     #[inline]
