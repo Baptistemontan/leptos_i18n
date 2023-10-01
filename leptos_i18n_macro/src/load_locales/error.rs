@@ -1,5 +1,7 @@
 use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
 
+use crate::load_locales::locale::FILE_FORMAT;
+
 use super::{
     key::{Key, KeyPath},
     plural::PluralType,
@@ -97,10 +99,16 @@ impl Display for Error {
             Error::ConfigFileDeser(err) => {
                 write!(f, "Parsing of cargo manifest (Cargo.toml) failed: {}", err)
             }
-            Error::LocaleFileNotFound { path, err} => {
+            Error::LocaleFileNotFound { path, err} if FILE_FORMAT.len() == 1 => {
                 write!(f,
                     "Could not found file {:?} : {}",
                     path, err
+                )
+            }
+            Error::LocaleFileNotFound { path, err} => {
+                write!(f,
+                    "Could not found file {:?} : {}\nTried with extensions: {:?}",
+                    path, err, FILE_FORMAT
                 )
             }
             Error::LocaleFileDeser { path, err} => write!(f,
