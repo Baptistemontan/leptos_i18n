@@ -22,7 +22,7 @@ pub trait Locale: 'static + Default + Clone + Copy {
     /// Return the keys based on self
     #[inline]
     fn get_keys(self) -> &'static Self::Keys {
-        LocaleKeys::from_variant(self)
+        LocaleKeys::from_locale(self)
     }
 }
 
@@ -34,7 +34,7 @@ pub trait LocaleKeys: 'static + Clone + Copy {
     type Locale: Locale<Keys = Self>;
 
     /// Return a static ref to Self containing the translations for the given locale
-    fn from_variant(locale: Self::Locale) -> &'static Self;
+    fn from_locale(locale: Self::Locale) -> &'static Self;
 }
 
 /// This is used to call `.build` on `&str` when building interpolations.

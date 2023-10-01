@@ -35,7 +35,7 @@ impl Interpolation {
     ) -> Self {
         let ident = syn::Ident::new(&format!("{}_builder", key.name), Span::call_site());
 
-        let locale_field = Key::new("__locale").unwrap();
+        let locale_field = Key::new("_locale").unwrap();
 
         let fields = keys_set
             .iter()
@@ -184,7 +184,7 @@ impl Interpolation {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
             pub struct #ident<#(#generics,)*> {
-                __locale: Locale,
+                _locale: Locale,
                 #(#fields,)*
             }
         }

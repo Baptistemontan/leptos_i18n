@@ -220,7 +220,7 @@ fn create_locale_type_inner(
             let original_key = &sk.original_key;
             let key = &sk.key;
             let mod_ident = &sk.mod_key;
-            quote!(#original_key: subkeys::#mod_ident::#key::new(_variant))
+            quote!(#original_key: subkeys::#mod_ident::#key::new(_locale))
         })
         .collect::<Vec<_>>();
 
@@ -256,7 +256,7 @@ fn create_locale_type_inner(
         .iter()
         .map(|(key, inter)| {
             let ident = &inter.ident;
-            quote!(#key: builders::#ident::new(_variant))
+            quote!(#key: builders::#ident::new(_locale))
         })
         .collect();
 
@@ -307,18 +307,18 @@ fn create_locale_type_inner(
         }
     });
 
-    let (from_variant, const_values) = if !is_namespace {
-        let from_variant_match_arms = top_locales
+    let (from_locale, const_values) = if !is_namespace {
+        let from_locale_match_arms = top_locales
             .iter()
             .map(|locale| quote!(Locale::#locale => &Self::#locale));
 
-        let from_variant = quote! {
+        let from_locale = quote! {
             impl leptos_i18n::LocaleKeys for #type_ident {
                 type Locale = Locale;
-                fn from_variant(_variant: Locale) -> &'static Self {
-                    match _variant {
+                fn from_locale(_locale: Locale) -> &'static Self {
+                    match _locale {
                         #(
-                            #from_variant_match_arms,
+                            #from_locale_match_arms,
                         )*
                     }
                 }
@@ -336,7 +336,7 @@ fn create_locale_type_inner(
             )*
         };
 
-        (Some(from_variant), Some(const_values))
+        (Some(from_locale), Some(const_values))
     } else {
         (None, None)
     };
@@ -354,8 +354,8 @@ fn create_locale_type_inner(
 
             #const_values
 
-            pub const fn new(_variant: Locale) -> Self {
-                match _variant {
+            pub const fn new(_locale: Locale) -> Self {
+                match _locale {
                     #(
                         #new_match_arms,
                     )*
@@ -363,7 +363,7 @@ fn create_locale_type_inner(
             }
         }
 
-        #from_variant
+        #from_locale
 
         #builder_module
 
@@ -412,7 +412,7 @@ fn create_namespaces_types(
     let namespaces_fields_new = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
         let namespace_module_ident = create_namespace_mod_ident(&key.ident);
-        quote!(#key: namespaces::#namespace_module_ident::#key::new(_variant))
+        quote!(#key: namespaces::#namespace_module_ident::#key::new(_locale))
     });
 
     let locales = &namespaces.iter().next().unwrap().locales;
@@ -422,7 +422,7 @@ fn create_namespaces_types(
         quote!(pub const #locale_ident: Self = Self::new(Locale::#locale_ident);)
     });
 
-    let from_variant_match_arms = locales.iter().map(|locale| {
+    let from_locale_match_arms = locales.iter().map(|locale| {
         let locale_ident = &locale.name;
         quote!(Locale::#locale_ident => &Self::#locale_ident)
     });
@@ -449,7 +449,7 @@ fn create_namespaces_types(
                 #const_values
             )*
 
-            pub const fn new(_variant: Locale) -> Self {
+            pub const fn new(_locale: Locale) -> Self {
                 Self {
                     #(
                         #namespaces_fields_new,
@@ -460,10 +460,10 @@ fn create_namespaces_types(
 
         impl leptos_i18n::LocaleKeys for #i18n_keys_ident {
             type Locale = Locale;
-            fn from_variant(_variant: Locale) -> &'static Self {
-                match _variant {
+            fn from_locale(_locale: Locale) -> &'static Self {
+                match _locale {
                     #(
-                        #from_variant_match_arms,
+                        #from_locale_match_arms,
                     )*
                 }
             }

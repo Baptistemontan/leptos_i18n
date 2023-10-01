@@ -96,20 +96,20 @@ pub mod i18n {
         #[allow(non_upper_case_globals)]
         pub const fr: Self = Self::new(Locale::fr);
 
-        pub const fn new(_variant: Locale) -> Self {
-            match _variant {
+        pub const fn new(_locale: Locale) -> Self {
+            match _locale {
                 Locale::en => I18nKeys {
                     hello_world: "Hello World!",
                     key_present_only_in_default: "english default",
-                    plural: builders::plural_builder::new(_variant),
-                    some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_variant),
+                    plural: builders::plural_builder::new(_locale),
+                    some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_locale),
                 },
                 Locale::fr => I18nKeys {
                     hello_world: "Bonjour le monde!",
                     // keys present in default but not in another locale is defaulted to the default locale value
                     key_present_only_in_default: "english default",
-                    plural: builders::plural_builder::new(_variant),
-                    some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_variant),
+                    plural: builders::plural_builder::new(_locale),
+                    some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_locale),
                 }
             }
         }
@@ -117,8 +117,8 @@ pub mod i18n {
 
     impl leptos_i18n::LocaleKeys for I18nKeys {
         type Locale = Locale;
-        fn from_variant(_variant: Locale) -> &'static Self {
-            match _variant {
+        fn from_locale(_locale: Locale) -> &'static Self {
+            match _locale {
                 Locale::en => &Self::en,
                 Locale::fr => &Self::fr,
             }
@@ -138,15 +138,15 @@ pub mod i18n {
         #[allow(non_camel_case_types, non_snake_case)]
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
         pub struct plural_builder<__var_count, __comp_b> {
-            __locale: Locale,
+            _locale: Locale,
             var_count: __var_count,
             comp_b: __comp_b
         }
 
         impl plural_builder<EmptyInterpolateValue, EmptyInterpolateValue> {
-            pub const fn new(__locale: Locale) -> Self {
+            pub const fn new(_locale: Locale) -> Self {
                 Self {
-                    __locale,
+                    _locale,
                     var_count: EmptyInterpolateValue,
                     comp_b: EmptyInterpolateValue
                 }
@@ -159,8 +159,8 @@ pub mod i18n {
             __comp_b: Fn(leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static
         > leptos::IntoView for plural_builder<__var_count, __comp_b> {
             fn into_view(self) -> leptos::View {
-                let Self { __locale, var_count, comp_b } = self;
-                match __locale {
+                let Self { _locale, var_count, comp_b } = self;
+                match _locale {
                     Locale::en => {
                         leptos::IntoView::into_view(
                             {
@@ -195,8 +195,8 @@ pub mod i18n {
             pub fn var_count<__T>(self, var_count: __T) -> plural_builder<impl Fn() -> u32 + core::clone::Clone + 'static, __comp_b>
                 where __T: Fn() -> u32 + core::clone::Clone + 'static
             {
-                let Self { __locale, comp_b, .. } = self;
-                Self { __locale, var_count, comp_b }
+                let Self { _locale, comp_b, .. } = self;
+                Self { _locale, var_count, comp_b }
             }
         }
 
@@ -208,9 +208,9 @@ pub mod i18n {
                 __O: leptos::IntoView,
                 __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
             {
-                let Self { __locale, var_count, .. } = self;
+                let Self { _locale, var_count, .. } = self;
                 let comp_b = move |children| leptos::IntoView::into_view(comp_b(children));
-                Self { __locale, var_count, comp_b }
+                Self { _locale, var_count, comp_b }
             }
         }
 
@@ -248,8 +248,8 @@ pub mod i18n {
             }
 
             impl some_subkeys_subkeys {
-                pub const fn new(_variant: Locale) -> Self {
-                    match _variant {
+                pub const fn new(_locale: Locale) -> Self {
+                    match _locale {
                         Locale::en => Self {
                             subkey_1: "This is subkey 1",
                         },
