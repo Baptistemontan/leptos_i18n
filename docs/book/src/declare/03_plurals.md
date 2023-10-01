@@ -2,9 +2,9 @@
 
 What if your translation display a count, and thus you must handle the case where the count is zero, one, or multiple ? You could declare multiple translations and use some kind of switch-case, but again this is not elegant.
 
-To simplify this process you can declare plurals, they are based around a count and display different tranlsations based on this count.
+To simplify this process you can declare plurals, they are based around a count and display different translations based on this count.
 
-To declare them the key take a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
+To declare them the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
 
 ```json
 {
@@ -44,10 +44,11 @@ You can also declare a range where the translations is used:
 }
 ```
 
-You can use all Rust ranges syntax: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will considered fallback `_`)
+You can use all Rust ranges syntax: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will be considered fallback `_`)
 
 ## Number type
 
+// TODO: here its `i64` in usage/03_t_macro.html#plurals it says '(default is `i32`)'
 By default the count is expected to be an `i64`, but you can change that by specifying the type as the first element of the sequence:
 
 ```json
@@ -67,7 +68,7 @@ The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f
 
 ## Fallback
 
-If all the given counts don't fill the range of the number type, you can use a fallback (`"_"` or `".."`) as seen above, but it can be completly ommitted on the last element of the sequence:
+If all the given counts don't fill the range of the number type, you can use a fallback (`"_"` or `".."`) as seen above, but it can be completely omitted on the last element of the sequence:
 
 ```json
 {
@@ -96,7 +97,7 @@ Fallbacks are always required for `f32` and `f64`.
 
 ## Order
 
-The order of the plurals matter, for exemple:
+The order of the plurals matter, for example:
 
 ```json
 {
@@ -108,7 +109,7 @@ The order of the plurals matter, for exemple:
 }
 ```
 
-Here "second" will only be printed if count is 5, if `0 <= count > 5` then "first" will be printed.
+Here "second" will only be printed if count is 5, if `0 <= count < 5` then "first" will be printed.
 
 ## Mix ranges with exact values
 
