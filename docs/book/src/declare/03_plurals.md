@@ -48,8 +48,7 @@ You can use all Rust ranges syntax: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or eve
 
 ## Number type
 
-// TODO: here its `i64` in usage/03_t_macro.html#plurals it says '(default is `i32`)'
-By default the count is expected to be an `i64`, but you can change that by specifying the type as the first element of the sequence:
+By default the count is expected to be an `i32`, but you can change that by specifying the type as the first element of the sequence:
 
 ```json
 {
