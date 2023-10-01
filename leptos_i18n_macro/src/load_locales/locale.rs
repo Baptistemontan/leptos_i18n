@@ -14,11 +14,11 @@ use super::{
 };
 
 #[cfg(feature = "yaml_files")]
-pub const FILE_FORMAT: &[&str] = &["yaml", "yml"];
+const FILE_FORMAT: &[&str] = &["yaml", "yml"];
 #[cfg(feature = "json_files")]
-pub const FILE_FORMAT: &[&str] = &["json"];
+const FILE_FORMAT: &[&str] = &["json"];
 #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-pub const FILE_FORMAT: &[&str] = &["not specified"];
+const FILE_FORMAT: &[&str] = &["not specified"];
 
 #[derive(Debug)]
 pub struct Namespace {
