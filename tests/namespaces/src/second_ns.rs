@@ -71,6 +71,14 @@ fn subkey_3() {
 }
 
 #[test]
+fn foreign_key_to_same_namespace() {
+    let en = td!(Locale::en, second_namespace::foreign_key_to_same_namespace);
+    assert_eq!(en, "before second namespace after");
+    let fr = td!(Locale::fr, second_namespace::foreign_key_to_same_namespace);
+    assert_eq!(fr, "before deuxième namespace after");
+}
+
+#[test]
 fn foreign_key_to_another_namespace() {
     let en = td!(
         Locale::en,

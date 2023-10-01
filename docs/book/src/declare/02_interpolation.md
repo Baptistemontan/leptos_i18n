@@ -2,7 +2,7 @@
 
 ## Interpolate Values
 
-There may be situations where you must interpolate a value inside your translations, for exemple a dynamic number.
+There may be situations where you must interpolate a value inside your translations, for example a dynamic number.
 You could declare 2 translations and use them around that number, but this is not an elegant solution.
 
 To declare a value that will be interpolated in your translations, simply give it a name around `{{ }}`:
@@ -15,13 +15,13 @@ To declare a value that will be interpolated in your translations, simply give i
 
 ## Interpolate Components
 
-There may also be situations where you want to use wrapp a part of your translation into a component, for exemple to highlight it.
+There may also be situations where you want to use wrap a part of your translation into a component, for example to highlight it.
 
 You can declare a component with html-like syntax:
 
 ```json
 {
-  "highlight_me": "highligh <b>me</b>"
+  "highlight_me": "highlight <b>me</b>"
 }
 ```
 
@@ -37,4 +37,4 @@ You can mix them both without problem:
 
 ## Names
 
-Just like keys, names of variable/components must be valid Rust identifier, appart from `-` which will be converted to `_`
+Just like keys, names of variable/components must be valid Rust identifier, apart from `-` which will be converted to `_`

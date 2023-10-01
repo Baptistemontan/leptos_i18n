@@ -11,13 +11,13 @@ Foreign keys let you re-use already declared translations, you declare them like
 
 This will replace `{{ @hello_world }}` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
 
-You can point to any key other than plurals and key containing subkeys.
+You can point to any key other than plurals and keys containing subkeys.
 
 To point to subkeys you give the path by separating the the key by `.`: `{{ @key.subkey.subsubkey }}`.
 
 When using namespaces you _must_ specify the namespace of the key you are looking for, using `::`: `{{ @namespace::key }}`.
 
-You can point to explicitly defaulted keys, but not implictly defaulted ones.
+You can point to explicitly defaulted keys, but not implicitly defaulted ones.
 
 ## Supply arguments
 

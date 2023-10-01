@@ -2,7 +2,7 @@
 
 # Leptos i18n
 
-This crate is made to simplify internalisation in a [Leptos](https://crates.io/crates/leptos) application, that load locales at **_compile time_** and provide compile time check for keys and selected locale.
+This crate is made to simplify internationalization in a [Leptos](https://crates.io/crates/leptos) application, that loads locales at **_compile time_** and provides compile time checks for translation keys, interpolation keys and the selected locale.
 
 The main focus is ease of use with leptos, a typical component using this crate will look like this:
 
@@ -269,7 +269,7 @@ view! {
 
 You can pass anything that implement `leptos::IntoView + Clone + 'static` as your variable. If a variable is not supplied it will not compile, same for an unknown variable key.
 
-You may also need to interpolate components, to highlight some part of a text for exemple, you can define them with html tags:
+You may also need to interpolate components, to highlight some part of a text for example, you can define them with html tags:
 
 ```json
 {
@@ -340,7 +340,7 @@ t!(i18n, key, count, <b>, other_key = ..)
 
 ### Plurals
 
-You may need to display different messages depending on a count, for exemple one when there is 0 elements, another when there is only one, and a last one when the count is anything else.
+You may need to display different messages depending on a count, for example one when there is 0 elements, another when there is only one, and a last one when the count is anything else.
 
 You declare them in a sequence of plurals, there is 2 syntax for the plurals, first is being a map with the `count` and the `value`:
 

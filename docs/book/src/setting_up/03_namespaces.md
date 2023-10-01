@@ -22,5 +22,5 @@ Then your file structures must look like this in the `/locales` directory:
     └── home.json
 ```
 
-You can now make smaller files, with one for each sections of the website for exemple.
+You can now make smaller files, with one for each sections of the website for example.
 This also allow the `common` namespace to use keys that the `home` namespace also use, without colliding.

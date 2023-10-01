@@ -1,6 +1,6 @@
 # Counter Plurals Example
 
-This exemple showcase how you can use plurals to display a different text based on a count.
+This example showcase how you can use plurals to display a different text based on a count.
 
 ## How to run
 

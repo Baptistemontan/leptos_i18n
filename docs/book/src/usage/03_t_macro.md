@@ -38,7 +38,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-If your variable as the same name as the value, you can pass it directly:
+If your variable has the same name as the value, you can pass it directly:
 
 ```rust
 use crate::i18n::*;
@@ -140,7 +140,7 @@ Plurals expect a variable named `count`, that implement `Fn() -> N + Clone + 'st
 
 ## Access subkeys
 
-You can access subkeys by simply seperating the path with `.`:
+You can access subkeys by simply separating the path with `.`:
 
 ```rust
 use crate::i18n::*;
@@ -179,7 +179,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-To avoid confusion with subkeys you can use `::` to seperate the namespace name from the rest of the path:
+To avoid confusion with subkeys you can use `::` to separate the namespace name from the rest of the path:
 
 ```rust
 t!(i18n, my_namespace::hello_world)
