@@ -14,7 +14,7 @@ The macro will generate a module called `i18n`, this module contain everything y
 
 ### The `Locale` enum
 
-You can found in this module the enum `Locale`, it represent all the locales you declared, for exemple this configuration:
+You can find the enum `Locale` in this module, it represent all the locales you declared, for example this configuration:
 
 ```toml
 [package.metadata.leptos-i18n]

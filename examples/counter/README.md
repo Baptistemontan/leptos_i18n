@@ -1,6 +1,6 @@
 # Counter Example
 
-This exemple showcase how you can interpolate a variable in your translations and switch locale without loosing state.
+This example showcase how you can interpolate a variable in your translations and switch locale without loosing state.
 
 ## How to run
 

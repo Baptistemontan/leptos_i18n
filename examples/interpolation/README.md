@@ -1,6 +1,6 @@
 # Interpolation Example
 
-This exemple showcase how you can interpolate components/variable in your translations.
+This example showcase how you can interpolate components/variable in your translations.
 
 ## How to run
 

@@ -1,6 +1,6 @@
 # Subkeys Example
 
-This exemple showcase how you can use subkeys.
+This example showcase how you can use subkeys.
 
 ## How to run
 

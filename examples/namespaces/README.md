@@ -1,6 +1,6 @@
 # Namespaces Example
 
-This exemple showcase how you can break down your translations in seperate files using namespaces.
+This example showcase how you can break down your translations in separate files using namespaces.
 
 ## How to run
 

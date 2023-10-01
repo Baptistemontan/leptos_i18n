@@ -1,10 +1,10 @@
 # Hello World Example
 
-This exemple showcase how to setup the files to use `leptos_i18n` and easily introduce translations in you application.
+This example showcase how to setup the files to use `leptos_i18n` and easily introduce translations in you application.
 
-This exemple use the `axum` backend, but all the code in relation to `leptos_i18n` would be the same using `actix`.
+This example use the `axum` backend, but all the code in relation to `leptos_i18n` would be the same using `actix`.
 
-Check the `actix` Hello World exemple to compare.
+Check the `actix` Hello World example to compare.
 
 ## How to run
 

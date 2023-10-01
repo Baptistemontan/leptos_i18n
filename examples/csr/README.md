@@ -1,6 +1,6 @@
 # CSR Example
 
-This exemple showcase how to use `leptos_i18n` with client side rendering
+This example showcase how to use `leptos_i18n` with client side rendering
 
 ## How to run
 

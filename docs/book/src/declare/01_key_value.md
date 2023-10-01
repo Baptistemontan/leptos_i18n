@@ -8,7 +8,7 @@ As expected, you declare your translations a key-value pairs:
 }
 ```
 
-But there are additionnal rules you must follow in addition to those of the format you use.
+But there are additional rules you must follow in addition to those of the format you use.
 
 ## Keys
 
@@ -44,4 +44,4 @@ You can specify multiple kinds of values:
 - Interpolated String
 - Plurals
 
-The next chapters of this section will cover them, appart for strings, those are self explanatory.
+The next chapters of this section will cover them, apart for strings, those are self explanatory.

@@ -6,8 +6,8 @@ The context is a wrapper around a `RwSignal` of the current locale, every getter
 
 ## Provide the context
 
-The `load_locales!` macro generate the `provide_i18n_context` function in the `i18n` module,
-you can use this fonction in a component to make the context accessible to all child components.
+The `load_locales!` macro generates the `provide_i18n_context` function in the `i18n` module,
+you can use this function in a component to make the context accessible to all child components.
 
 ```rust
 use crate::i18n::*;
@@ -80,7 +80,7 @@ A non-reactive counterpart to `get_locale` exist: `get_locale_untracked`.
 
 ## Change the locale
 
-With the context you can change the current locale with the `set_locale` method, for exemple this component will switch beetween `en` and `fr` with a button:
+With the context you can change the current locale with the `set_locale` method, for example this component will switch between `en` and `fr` with a button:
 
 ```rust
 use crate::i18n::*;

@@ -10,5 +10,6 @@
             ["{{ count }}", "_"]
         ]
     },
+    "foreign_key_to_same_namespace": "before {{ @second_namespace::common_key }} after",
     "foreign_key_to_another_namespace": "before {{ @first_namespace::common_key }} after"
 }
