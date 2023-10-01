@@ -50,3 +50,11 @@ fn foreign_key_to_explicit_default() {
     let fr = td!(Locale::fr, foreign_key_to_explicit_default);
     assert_eq!(fr, "before this string is declared in locale en after");
 }
+
+#[test]
+fn populated_foreign_key() {
+    let en = td!(Locale::en, populated_foreign_key);
+    assert_eq!(en, "before You clicked 45 times after");
+    let fr = td!(Locale::fr, populated_foreign_key);
+    assert_eq!(fr, "before Vous avez cliqué 32 fois after");
+}

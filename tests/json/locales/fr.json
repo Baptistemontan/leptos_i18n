@@ -77,5 +77,6 @@
     "foreign_key_to_string": "before {{ @click_to_inc }} after",
     "foreign_key_to_interpolation": "before {{ @click_count }} after",
     "foreign_key_to_subkey": "before {{ @subkeys.subkey_1 }} after",
-    "foreign_key_to_explicit_default": "before {{ @defaulted_string }} after"
+    "foreign_key_to_explicit_default": "before {{ @defaulted_string }} after",
+    "populated_foreign_key": "before {{ @click_count, count = \"32\" }} after"
 }
