@@ -14,11 +14,11 @@ use super::{
 };
 
 #[cfg(feature = "yaml_files")]
-const FILE_FORMAT: &str = "yaml";
+const FILE_EXTS: &[&str] = &["yaml", "yml"];
 #[cfg(feature = "json_files")]
-const FILE_FORMAT: &str = "json";
+const FILE_EXTS: &[&str] = &["json"];
 #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-const FILE_FORMAT: &str = "not specified";
+const FILE_EXTS: &[&str] = &[];
 
 #[derive(Debug)]
 pub struct Namespace {
@@ -46,6 +46,22 @@ pub enum BuildersKeys<'a> {
     },
 }
 
+fn find_file(path: &mut PathBuf) -> Result<File> {
+    let mut errs = vec![];
+
+    for ext in FILE_EXTS {
+        path.set_extension(ext);
+        match File::open(&path) {
+            Ok(file) => return Ok(file),
+            Err(err) => {
+                errs.push((path.to_owned(), err));
+            }
+        };
+    }
+
+    Err(Error::LocaleFileNotFound(errs))
+}
+
 impl Namespace {
     pub fn new(
         locales_dir_path: &mut PathBuf,
@@ -57,12 +73,12 @@ impl Namespace {
             let file_path: &Path = key.name.as_ref();
             locales_dir_path.push(&locale.name);
             locales_dir_path.push(file_path);
-            locales_dir_path.set_extension(FILE_FORMAT);
-            locales.push(Locale::new(
-                locales_dir_path,
-                locale,
-                Some(Rc::clone(&key)),
-            )?);
+
+            let locale_file = find_file(locales_dir_path)?;
+
+            let locale = Locale::new(locale_file, locales_dir_path, locale, Some(Rc::clone(&key)))?;
+
+            locales.push(locale);
             locales_dir_path.pop();
             locales_dir_path.pop();
         }
@@ -108,8 +124,9 @@ impl LocalesOrNamespaces {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&locale.name);
-                manifest_dir_path.set_extension(FILE_FORMAT);
-                locales.push(Locale::new(manifest_dir_path, locale, None)?);
+                let locale_file = find_file(manifest_dir_path)?;
+                let locale = Locale::new(locale_file, manifest_dir_path, locale, None)?;
+                locales.push(locale);
                 manifest_dir_path.pop();
             }
             Ok(LocalesOrNamespaces::Locales(locales))
@@ -164,17 +181,12 @@ impl Locale {
         })
     }
 
-    pub fn new(path: &mut PathBuf, locale: Rc<Key>, namespace: Option<Rc<Key>>) -> Result<Self> {
-        let locale_file = match File::open(&path) {
-            Ok(file) => file,
-            Err(err) => {
-                return Err(Error::LocaleFileNotFound {
-                    path: std::mem::take(path),
-                    err,
-                })
-            }
-        };
-
+    pub fn new(
+        locale_file: File,
+        path: &mut PathBuf,
+        locale: Rc<Key>,
+        namespace: Option<Rc<Key>>,
+    ) -> Result<Self> {
         let seed = LocaleSeed {
             name: Rc::clone(&locale),
             top_locale_name: locale,

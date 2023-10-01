@@ -20,10 +20,7 @@ pub enum Error {
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
     ConfigFileDeser(toml::de::Error),
-    LocaleFileNotFound {
-        path: PathBuf,
-        err: std::io::Error,
-    },
+    LocaleFileNotFound(Vec<(PathBuf, std::io::Error)>),
     LocaleFileDeser {
         path: PathBuf,
         err: SerdeError,
@@ -97,11 +94,14 @@ impl Display for Error {
             Error::ConfigFileDeser(err) => {
                 write!(f, "Parsing of cargo manifest (Cargo.toml) failed: {}", err)
             }
-            Error::LocaleFileNotFound { path, err} => {
-                write!(f,
-                    "Could not found file {:?} : {}",
-                    path, err
-                )
+            Error::LocaleFileNotFound(errs) => {
+                for (path, err) in errs {
+                    writeln!(f,
+                        "Could not found file {:?} : {}",
+                        path, err
+                    )?;
+                }
+                Ok(())
             }
             Error::LocaleFileDeser { path, err} => write!(f,
                 "Parsing of file {:?} failed: {}",
