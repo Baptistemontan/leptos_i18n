@@ -47,22 +47,19 @@ pub enum BuildersKeys<'a> {
 }
 
 fn find_file(path: &mut PathBuf) -> Result<File> {
-    for (i, ext) in FILE_FORMAT.iter().enumerate().rev() {
-        path.set_extension(ext);
-        let err = match File::open(&path) {
-            Ok(file) => return Ok(file),
-            Err(err) => err,
-        };
+    let mut errs = vec![];
 
-        if i == 0 {
-            return Err(Error::LocaleFileNotFound {
-                path: std::mem::take(path),
-                err,
-            });
-        }
+    for ext in FILE_FORMAT {
+        path.set_extension(ext);
+        match File::open(&path) {
+            Ok(file) => return Ok(file),
+            Err(err) => {
+                errs.push((path.to_owned(), err));
+            }
+        };
     }
 
-    unreachable!("break out of loop without returning error in find_file, if you got this error please open an issue on github.")
+    Err(Error::LocaleFileNotFound(errs))
 }
 
 impl Namespace {
