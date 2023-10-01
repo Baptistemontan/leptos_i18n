@@ -14,11 +14,11 @@ use super::{
 };
 
 #[cfg(feature = "yaml_files")]
-const FILE_FORMAT: &[&str] = &["yaml", "yml"];
+const FILE_EXTS: &[&str] = &["yaml", "yml"];
 #[cfg(feature = "json_files")]
-const FILE_FORMAT: &[&str] = &["json"];
+const FILE_EXTS: &[&str] = &["json"];
 #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-const FILE_FORMAT: &[&str] = &["not specified"];
+const FILE_EXTS: &[&str] = &[];
 
 #[derive(Debug)]
 pub struct Namespace {
@@ -49,7 +49,7 @@ pub enum BuildersKeys<'a> {
 fn find_file(path: &mut PathBuf) -> Result<File> {
     let mut errs = vec![];
 
-    for ext in FILE_FORMAT {
+    for ext in FILE_EXTS {
         path.set_extension(ext);
         match File::open(&path) {
             Ok(file) => return Ok(file),
