@@ -546,6 +546,40 @@ view! {
 
 (It's a shame `const` function are not allowed in traits, if that was the case the code outputed by `td!` would be entirly const, making it the same as directly pasting the locale)
 
+### Foreign keys
+
+Foreign keys let you re-use already declared translations, you declare them like variables but with a '@' before the path:
+
+```json
+{
+  "hello_world": "Hello World!",
+  "reuse": "message: {{ @hello_world }}"
+}
+```
+
+This will replace `{{ @hello_world }}` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
+
+#### Supply arguments
+
+You can also supply arguments to fill variables of the pointed key:
+
+```json
+{
+  "click_count": "You clicked {{ count }} times",
+  "clicked_twice": "{{ @click_count, count = 'two' }}"
+}
+```
+
+This will result to `clicked_twice` to have the value `"You clicked two times"`.
+
+Arguments must be string, delimited by either single quotes or double quotes.
+
+**Note**: Any argument with no matching variable are just discarded, they will not emit any warning/error.
+
+### Book
+
+A more in-depth doc is available on github, the [book](https://github.com/Baptistemontan/leptos_i18n/tree/master/docs/book)
+
 ### Examples
 
 If examples works better for you, you can look at the different examples available on the Github. If something is missing or not clear feel free to open a discussion on github!

@@ -70,6 +70,11 @@ pub enum Error {
         locale: Rc<Key>,
         key_path: KeyPath,
     },
+    MissingForeignKey {
+        foreign_key: KeyPath,
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
     InvalidForeignKey {
         foreign_key: KeyPath,
         locale: Rc<Key>,
@@ -153,8 +158,9 @@ impl Display for Error {
             Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
             Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key {}", key_path),
             Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key {} in locale {:?}, check for recursive foreign key.", key_path, locale),
-            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key at key {} in locale {:?}, key {} don't exist.", key_path, locale, foreign_key),
-            Error::Custom(s) => f.write_str(s)
+            Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key {} at key {} in locale {:?}, key don't exist.", foreign_key, key_path, locale),
+            Error::Custom(s) => f.write_str(s),
+            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key {} at key {} in locale {:?}, foreign key to plurals or subkeys are not allowed.", foreign_key, key_path, locale),
         }
     }
 }

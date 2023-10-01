@@ -18,3 +18,20 @@ To point to subkeys you give the path by separating the the key by `.`: `{{ @key
 When using namespaces you _must_ specify the namespace of the key you are looking for, using `::`: `{{ @namespace::key }}`.
 
 You can point to explicitly defaulted keys, but not implicitly defaulted ones.
+
+## Supply arguments
+
+You can also supply arguments to fill variables of the pointed key:
+
+```json
+{
+  "click_count": "You clicked {{ count }} times",
+  "clicked_twice": "{{ @click_count, count = 'two' }}"
+}
+```
+
+This will result to `clicked_twice` to have the value `"You clicked two times"`.
+
+Arguments must be string, delimited by either single quotes or double quotes.
+
+**Note**: Any argument with no matching variable are just discarded, they will not emit any warning/error.

@@ -535,7 +535,6 @@ impl<T: PluralNumber> ToTokens for Plural<T> {
             } => {
                 quote!(#start..)
             }
-            // unreachable normally but mal
             Plural::Range {
                 start,
                 end: Bound::Excluded(end),

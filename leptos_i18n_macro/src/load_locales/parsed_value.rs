@@ -1,4 +1,8 @@
-use std::{cell::RefCell, collections::HashSet, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -17,7 +21,7 @@ thread_local! {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForeignKey {
-    NotSet(KeyPath),
+    NotSet(KeyPath, HashMap<String, String>),
     Set(Box<ParsedValue>),
 }
 
@@ -64,18 +68,18 @@ impl ParsedValue {
         values: &LocalesOrNamespaces,
         top_locale: &Rc<Key>,
         default_locale: &Rc<Key>,
-        path: &KeyPath,
+        key_path: &KeyPath,
     ) -> Result<()> {
-        let ForeignKey::NotSet(key_path) = &*foreign_key else {
+        let ForeignKey::NotSet(foreign_key_path, args) = &*foreign_key else {
             // already set, I don't know how we got here but whatever
             return Ok(());
         };
 
-        let Some(value) = values.get_value_at(top_locale, key_path) else {
-            return Err(Error::InvalidForeignKey {
-                foreign_key: key_path.to_owned(),
+        let Some(value) = values.get_value_at(top_locale, foreign_key_path) else {
+            return Err(Error::MissingForeignKey {
+                foreign_key: foreign_key_path.to_owned(),
                 locale: Rc::clone(top_locale),
-                key_path: path.to_owned(),
+                key_path: key_path.to_owned(),
             });
         };
 
@@ -86,22 +90,24 @@ impl ParsedValue {
                     values,
                     default_locale,
                     default_locale,
-                    path,
+                    key_path,
                 );
             }
             ParsedValue::Plural(_) => {
                 return Err(Error::Custom(format!(
                     "foreign key to plurals is not supported yet, at key {} in locale {:?}",
-                    path, top_locale
+                    key_path, top_locale
                 )))
             }
             _ => {}
         }
 
         // possibility that the foreign key must be resolved too
-        value.resolve_foreign_key(values, top_locale, default_locale, key_path)?;
+        value.resolve_foreign_key(values, top_locale, default_locale, foreign_key_path)?;
 
-        let _ = std::mem::replace(foreign_key, ForeignKey::Set(Box::new(value.clone())));
+        let value = value.populate(args, foreign_key_path, top_locale, key_path)?;
+
+        let _ = std::mem::replace(foreign_key, ForeignKey::Set(Box::new(value)));
 
         Ok(())
     }
@@ -147,6 +153,38 @@ impl ParsedValue {
         }
     }
 
+    pub fn populate(
+        &self,
+        args: &HashMap<String, String>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<Self> {
+        match self {
+            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::String(_) => {
+                Ok(self.clone())
+            }
+            ParsedValue::Variable(key) => match args.get(&key.name) {
+                Some(value) => Ok(ParsedValue::String(value.to_owned())),
+                None => Ok(ParsedValue::Variable(Rc::clone(key))),
+            },
+            ParsedValue::Component { key, inner } => Ok(ParsedValue::Component {
+                key: Rc::clone(key),
+                inner: Box::new(inner.populate(args, foreign_key, locale, key_path)?),
+            }),
+            ParsedValue::Bloc(bloc) => bloc
+                .iter()
+                .map(|value| value.populate(args, foreign_key, locale, key_path))
+                .collect::<Result<_>>()
+                .map(ParsedValue::Bloc),
+            ParsedValue::Subkeys(_) | ParsedValue::Plural(_) => Err(Error::InvalidForeignKey {
+                foreign_key: foreign_key.to_owned(),
+                locale: Rc::clone(locale),
+                key_path: key_path.to_owned(),
+            }),
+        }
+    }
+
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
             ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
@@ -172,7 +210,7 @@ impl ParsedValue {
             }
             ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
                 ForeignKey::Set(inner) => inner.get_keys_inner(keys),
-                ForeignKey::NotSet(_) => unreachable!("dafuk?"),
+                ForeignKey::NotSet(_, _) => unreachable!("called get_keys_inner on an unresolved foreign key. If you got this error please open a issue on github."),
             },
         }
     }
@@ -207,7 +245,7 @@ impl ParsedValue {
     pub fn make_locale_value(&mut self) -> LocaleValue {
         if let ParsedValue::Subkeys(_) = self {
             let ParsedValue::Subkeys(mut locale) = core::mem::take(self) else {
-                unreachable!();
+                unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
             };
             LocaleValue::Subkeys {
                 keys: locale.make_builder_keys(),
@@ -271,7 +309,7 @@ impl ParsedValue {
             // Both subkeys
             (ParsedValue::Subkeys(_), LocaleValue::Subkeys { locales, keys }) => {
                 let ParsedValue::Subkeys(mut loc) = core::mem::take(self) else {
-                    unreachable!();
+                    unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
                 loc.merge(keys, default_locale, top_locale, key_path)?;
                 locales.push(loc);
@@ -312,6 +350,37 @@ impl ParsedValue {
         Some(key_path)
     }
 
+    fn parse_foreign_key(ident: &str, locale: &Rc<Key>, key_path: &KeyPath) -> Option<Self> {
+        let ident = ident.strip_prefix('@')?;
+        let mut splitted = ident.split(',');
+        let path = splitted.next()?;
+
+        let foreign_key_path = Self::parse_key_path(path)?;
+        FOREIGN_KEYS.with(|foreign_keys| {
+            foreign_keys
+                .borrow_mut()
+                .insert((Rc::clone(locale), key_path.clone()))
+        });
+
+        let mut args = HashMap::new();
+        const QUOTES: &[char] = &['"', '\''];
+
+        for arg in splitted {
+            let (ident, value) = arg.split_once('=')?;
+            let mut key = String::from("var_");
+            key.push_str(ident.trim());
+
+            let value = value.trim().strip_prefix(QUOTES)?;
+            let value = value.strip_suffix(QUOTES)?;
+            args.insert(key, value.to_owned());
+        }
+
+        Some(ParsedValue::ForeignKey(RefCell::new(ForeignKey::NotSet(
+            foreign_key_path,
+            args,
+        ))))
+    }
+
     fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
@@ -325,16 +394,7 @@ impl ParsedValue {
 
         let this = match first_char {
             // foreign key
-            '@' => {
-                let path = ident.strip_prefix('@')?;
-                let foreign_key_path = Self::parse_key_path(path)?;
-                FOREIGN_KEYS.with(|foreign_keys| {
-                    foreign_keys
-                        .borrow_mut()
-                        .insert((Rc::clone(locale), key_path.clone()))
-                });
-                ParsedValue::ForeignKey(RefCell::new(ForeignKey::NotSet(foreign_key_path)))
-            }
+            '@' => Self::parse_foreign_key(ident, locale, key_path)?,
             // variable key
             _ => {
                 let ident = Key::new(&format!("var_{}", ident))?;
@@ -451,7 +511,7 @@ impl ParsedValue {
             ParsedValue::ForeignKey(foreign_key) => {
                 let fk = foreign_key.get_mut();
                 match fk {
-                    ForeignKey::NotSet(_) => unreachable!(),
+                    ForeignKey::NotSet(_, _) => unreachable!("called reduce on unresolved foreign key. If you got this error please open an issue on github."),
                     ForeignKey::Set(value) => {
                         value.reduce();
                         let value = std::mem::take(&mut **value);
@@ -510,7 +570,7 @@ impl ParsedValue {
             }
             ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
                 ForeignKey::Set(inner) => inner.flatten(tokens),
-                ForeignKey::NotSet(_) => unreachable!(),
+                ForeignKey::NotSet(_, _) => unreachable!("called flatten on an unresolved foreign key, if you got this error please open a issue on github."),
             },
         }
     }
