@@ -27,17 +27,24 @@
 //! - [`namespaces`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/namespaces) show how to break down your translations
 //!     in multiple namespaces to avoid big files
 //!
-//!
 //! Details on how to run each example can be found in its README.
 //!
+//! # In depth documentation
+//!
+//! You can find the [book](https://github.com/Baptistemontan/leptos_i18n/tree/master/docs/book) on the github repo.
+//!
 //! # Feature Flags
-//! - `nightly`: On `nightly` Rust, enables the function-call syntax the i18n  context to get/set the locale.
-//! - `hydrate`: Enable this feature when building for the client.
+//! - `cookie` (*Default*): Enable this feature to set a cookie on the client to remember the last locale set.
+//! - `json_files` (*Default*): Enable this feature if you use JSON files for declaring your locales.
+//! - `hydrate`: Enable this feature when building for the client with hydratation.
 //! - `actix`: Enable this feature when building for the server with actix as the backend (can't be enabled with the `axum` feature).
 //! - `axum`: Enable this feature when building for the server with axum as the backend (can't be enabled with the `actix` feature).
+//! - `csr`: Enable this feature when building for the client with CSR.
+//! - `serde`: Enabling this feature implement `serde::Serialize` and `serde::Deserialize` for the locale enum.
 //! - `debug_interpolations`: Enable the macros to generate code to emit a warning if a key is supplied twice in interpolations and a better compilation error when a key is missing.
-//! - `cookie` (*Default*): Enable this feature to set a cookie on the client to remember the last locale set.
 //! - `suppress_key_warnings`: Disable the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
+//! - `yaml_files`: Enable this feature if you use YAML files for declaring your locales (can't be used with `json_files`).
+//! - `nightly`: On `nightly` Rust, enables the function-call syntax on the i18n context to get/set the locale.
 //!
 //! # A Simple Counter
 //!
