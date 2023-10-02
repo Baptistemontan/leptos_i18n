@@ -586,7 +586,7 @@ If examples works better for you, you can look at the different examples availab
 
 ## Features
 
-You must enable the `hydrate` feature when building the client, and when building the server you must enable either the `actix` or `axum` feature. There is no support for `csr` at the moment.
+You must enable the `hydrate` feature when building the client, either the `actix` or `axum` feature when building the server, and the `csr` feature when building with CSR.
 
 The `cookie` feature enable to set a cookie when a locale is chosen by the user, this feature is enabled by default.
 

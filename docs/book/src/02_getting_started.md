@@ -68,6 +68,4 @@ When compiling for the client, enable the `csr` feature:
 features = ["csr"]
 ```
 
-You can find an  using CSR [here](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/csr)
-
-> **Note**: This version of the book and the linked examples reflects the upcoming `Leptos_i18n` `v0.2.0` release, using upcoming `Leptos` `v0.5.0`.
+You can find an example using CSR [here](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/csr)
