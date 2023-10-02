@@ -92,12 +92,12 @@ pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// // click_count = "You clicked {{ count }} times"
 /// assert_eq!(
-///     td_string!(Locale::en, click_count, count = 10),
+///     td_string!(Locale::en, click_count, count = 10).to_string(),
 ///     "You clicked 10 times"
 /// )
 ///
 /// assert_eq!(
-///     td_string!(Locale::en, click_count, count = "a lot of"),
+///     td_string!(Locale::en, click_count, count = "a lot of").to_string(),
 ///     "You clicked a lot of times"
 /// )
 ///```
