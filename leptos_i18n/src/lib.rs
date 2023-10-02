@@ -135,6 +135,9 @@ pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
 
 pub use leptos_i18n_macro::{load_locales, t, td};
 
+#[cfg(feature = "interpolate_display")]
+pub use leptos_i18n_macro::td_string;
+
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;

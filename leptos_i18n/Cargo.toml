@@ -34,6 +34,7 @@ debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
 json_files = ["leptos_i18n_macro/json_files"]
 yaml_files = ["leptos_i18n_macro/yaml_files"]
+interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 
 
 [package.metadata.cargo-all-features]

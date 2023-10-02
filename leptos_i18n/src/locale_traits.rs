@@ -50,6 +50,11 @@ pub trait BuildStr: Sized {
     fn build(self) -> Self {
         self
     }
+
+    #[inline]
+    fn build_string(self) -> Self {
+        self
+    }
 }
 
 impl<'a> BuildStr for &'a str {}

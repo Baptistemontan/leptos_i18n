@@ -49,6 +49,24 @@ fn u32_plural() {
 }
 
 #[test]
+fn u32_plural_string() {
+    // count = 0
+    let count = 0;
+    let en = td_string!(Locale::en, u32_plural, count);
+    assert_eq!(en.to_string(), "0");
+    let fr = td_string!(Locale::fr, u32_plural, count);
+    assert_eq!(fr.to_string(), "0");
+
+    // count = 1..
+    for count in [1, 45, 72] {
+        let en = td_string!(Locale::en, u32_plural, count);
+        assert_eq!(en.to_string(), "1..");
+        let fr = td_string!(Locale::fr, u32_plural, count);
+        assert_eq!(fr.to_string(), "1..");
+    }
+}
+
+#[test]
 fn or_plural() {
     // count = 0 | 5
     for i in [0, 5] {
@@ -123,5 +141,40 @@ fn f32_or_plural() {
         assert_eq_rendered!(en, "fallback with no count");
         let fr = td!(Locale::fr, f32_OR_plural, count);
         assert_eq_rendered!(fr, "fallback avec tuple vide");
+    }
+}
+
+#[test]
+fn f32_or_plural_string() {
+    // count = 0 | 5
+    for count in [0.0, 5.0] {
+        let en = td_string!(Locale::en, f32_OR_plural, count);
+        assert_eq_string!(en, "0 or 5");
+        let fr = td_string!(Locale::fr, f32_OR_plural, count);
+        assert_eq_string!(fr, "0 or 5");
+    }
+
+    // count = 1..5 | 6..10
+    for count in [1.0, 4.0, 6.0, 9.0] {
+        let en = td_string!(Locale::en, f32_OR_plural, count);
+        assert_eq_string!(en, "1..5 | 6..10");
+        let fr = td_string!(Locale::fr, f32_OR_plural, count);
+        assert_eq_string!(fr, "1..5 | 6..10");
+    }
+
+    // count = 10..15 | 20
+    for count in [10.0, 12.0, 14.0, 20.0] {
+        let en = td_string!(Locale::en, f32_OR_plural, count);
+        assert_eq_string!(en, "10..15 | 20");
+        let fr = td_string!(Locale::fr, f32_OR_plural, count);
+        assert_eq_string!(fr, "10..15 | 20");
+    }
+
+    // count = _
+    for count in [15.0, 17.0, 21.0, 56.0] {
+        let en = td_string!(Locale::en, f32_OR_plural, count);
+        assert_eq_string!(en, "fallback with no count");
+        let fr = td_string!(Locale::fr, f32_OR_plural, count);
+        assert_eq_string!(fr, "fallback avec tuple vide");
     }
 }

@@ -100,6 +100,22 @@ pub enum Plurals {
 }
 
 impl Plurals {
+    #[cfg(feature = "interpolate_display")]
+    pub fn as_string_impl(&self) -> TokenStream {
+        match self {
+            Plurals::I8(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::I16(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::I32(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::I64(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::U8(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::U16(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::U32(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::U64(plurals) => Self::to_tokens_integers_string(plurals),
+            Plurals::F32(plurals) => Self::to_tokens_floats_string(plurals),
+            Plurals::F64(plurals) => Self::to_tokens_floats_string(plurals),
+        }
+    }
+
     pub fn resolve_foreign_keys(
         &self,
         values: &LocalesOrNamespaces,
@@ -237,25 +253,43 @@ impl Plurals {
         }
     }
 
-    fn to_tokens_floats<T: PluralFloats>(plurals: &[(Plural<T>, ParsedValue)]) -> TokenStream {
-        fn to_condition<T: PluralFloats>(plural: &Plural<T>) -> Option<TokenStream> {
-            match plural {
-                Plural::Exact(exact) => Some(quote!(plural_count == #exact)),
-                Plural::Range { .. } => {
-                    Some(quote!(core::ops::RangeBounds::contains(&(#plural), &plural_count)))
-                }
-                Plural::Multiple(conditions) => {
-                    let mut conditions = conditions.iter().filter_map(to_condition);
-                    let first = conditions.next();
-                    Some(quote!(#first #(|| #conditions)*))
-                }
-                Plural::Fallback => None,
+    #[cfg(feature = "interpolate_display")]
+    fn to_tokens_integers_string<T: PluralInteger>(
+        plurals: &[(Plural<T>, ParsedValue)],
+    ) -> TokenStream {
+        let match_arms = plurals.iter().map(|(plural, value)| {
+            let value = value.as_string_impl();
+            quote!(#plural => #value)
+        });
+
+        quote! {
+            match *var_count {
+                #(
+                    #match_arms,
+                )*
             }
         }
+    }
 
+    fn to_condition<T: PluralFloats>(plural: &Plural<T>) -> Option<TokenStream> {
+        match plural {
+            Plural::Exact(exact) => Some(quote!(plural_count == #exact)),
+            Plural::Range { .. } => {
+                Some(quote!(core::ops::RangeBounds::contains(&(#plural), &plural_count)))
+            }
+            Plural::Multiple(conditions) => {
+                let mut conditions = conditions.iter().filter_map(Self::to_condition);
+                let first = conditions.next();
+                Some(quote!(#first #(|| #conditions)*))
+            }
+            Plural::Fallback => None,
+        }
+    }
+
+    fn to_tokens_floats<T: PluralFloats>(plurals: &[(Plural<T>, ParsedValue)]) -> TokenStream {
         let mut ifs = plurals
             .iter()
-            .map(|(plural, value)| match to_condition(plural) {
+            .map(|(plural, value)| match Self::to_condition(plural) {
                 None => quote!({ #value }),
                 Some(condition) => quote!(if #condition { #value }),
             });
@@ -289,6 +323,31 @@ impl Plurals {
                 },
 
             )
+        }
+    }
+
+    #[cfg(feature = "interpolate_display")]
+    fn to_tokens_floats_string<T: PluralFloats>(
+        plurals: &[(Plural<T>, ParsedValue)],
+    ) -> TokenStream {
+        let mut ifs = plurals.iter().map(|(plural, value)| {
+            let value = value.as_string_impl();
+            match Self::to_condition(plural) {
+                None => quote!({ #value }),
+                Some(condition) => quote!(if #condition { #value }),
+            }
+        });
+        let first = ifs.next();
+        let ifs = quote! {
+            #first
+            #(else #ifs)*
+        };
+
+        quote! {
+            {
+                let plural_count = *var_count;
+                #ifs
+            }
         }
     }
 

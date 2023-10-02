@@ -59,7 +59,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// ```
 #[proc_macro]
 pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, false)
+    t_macro::t_macro(tokens, false, false)
 }
 
 /// Just like the `t!` macro but instead of taking `I18nContext` as the first argument it takes the desired locale.
@@ -79,5 +79,30 @@ pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// This let you use a specific locale regardless of the current one.
 #[proc_macro]
 pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true)
+    t_macro::t_macro(tokens, true, false)
+}
+
+/// Just like the `td!` macro but return a struct implementing `Display`
+///
+/// Usage:
+///
+/// ```rust, ignore
+/// use crate::i18n::Locale;
+/// use leptos_i18n::td_string;
+///
+/// // click_count = "You clicked {{ count }} times"
+/// assert_eq!(
+///     td_string!(Locale::en, click_count, count = 10),
+///     "You clicked 10 times"
+/// )
+///
+/// assert_eq!(
+///     td_string!(Locale::en, click_count, count = "a lot of"),
+///     "You clicked a lot of times"
+/// )
+///```
+#[cfg(feature = "interpolate_display")]
+#[proc_macro]
+pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, true, true)
 }
