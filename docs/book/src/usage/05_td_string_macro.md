@@ -2,6 +2,10 @@
 
 The `td_string!` macro is to use interpolations outside the context of rendering views, it let you give a different kind of values such that the resulting value implement `Display` (and thus inherit the `ToString` impl).
 
+This requires the `interpolate_display` feature to be enabled.
+
+It enable you to do this:
+
 ```rust
 // click_count = "You clicked {{ count }} times"
 assert_eq!(
