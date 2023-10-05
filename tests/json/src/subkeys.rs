@@ -22,6 +22,11 @@ fn subkey_2() {
     assert_eq_rendered!(en, "<div>before subkey_2 after</div>");
     let fr = td!(Locale::fr, subkeys.subkey_2, <b>);
     assert_eq_rendered!(fr, "<div>before subkey_2 after</div>");
+
+    let en = td!(Locale::en, subkeys.subkey_2, <b> = <span attr:id="test"/>);
+    assert_eq_rendered!(en, "<span id=\"test\">subkey_2</span>");
+    let fr = td!(Locale::fr, subkeys.subkey_2, <b> = <span/>);
+    assert_eq_rendered!(fr, "<span>subkey_2</span>");
 }
 
 #[test]
