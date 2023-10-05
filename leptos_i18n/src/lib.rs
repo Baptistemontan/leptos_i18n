@@ -129,7 +129,7 @@ mod locale_traits;
 #[cfg(feature = "ssr")]
 mod server;
 
-// #[cfg(feature = "interpolate_display")]
+#[cfg(feature = "interpolate_display")]
 pub mod display;
 
 pub use locale_traits::*;
