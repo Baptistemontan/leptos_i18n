@@ -574,6 +574,44 @@ impl ParsedValue {
             },
         }
     }
+
+    #[cfg(feature = "interpolate_display")]
+    fn flatten_string(&self, tokens: &mut Vec<TokenStream>) {
+        match self {
+            ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+            ParsedValue::String(s) if s.is_empty() => {}
+            ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
+            ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
+            ParsedValue::Variable(key) => {
+                tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter)))
+            }
+            ParsedValue::Component { key, inner } => {
+                let inner = inner.as_string_impl();
+                tokens.push(quote!(leptos_i18n::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
+            }
+            ParsedValue::Bloc(values) => {
+                for value in values {
+                    value.flatten_string(tokens)
+                }
+            }
+            ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
+                ForeignKey::Set(inner) => inner.flatten_string(tokens),
+                ForeignKey::NotSet(_, _) => unreachable!("called flatten_string on an unresolved foreign key, if you got this error please open a issue on github."),
+            },
+        }
+    }
+
+    #[cfg(feature = "interpolate_display")]
+    pub fn as_string_impl(&self) -> TokenStream {
+        let mut tokens = Vec::new();
+        self.flatten_string(&mut tokens);
+
+        match &tokens[..] {
+            [] => quote!(Ok(())),
+            [value] => value.clone(),
+            values => quote!({ #(#values?;)* Ok(()) }),
+        }
+    }
 }
 
 impl InterpolateKey {
@@ -613,6 +651,15 @@ impl InterpolateKey {
                     + core::clone::Clone
                     + 'static
             ),
+        }
+    }
+
+    #[cfg(feature = "interpolate_display")]
+    pub fn get_string_generic(&self) -> Result<TokenStream, PluralType> {
+        match self {
+            InterpolateKey::Count(t) => Err(*t),
+            InterpolateKey::Variable(_) => Ok(quote!(core::fmt::Display)),
+            InterpolateKey::Component(_) => Ok(quote!(leptos_i18n::display::DisplayComponent)),
         }
     }
 

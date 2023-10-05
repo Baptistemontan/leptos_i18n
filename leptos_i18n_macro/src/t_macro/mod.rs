@@ -1,17 +1,29 @@
 use quote::quote;
 use syn::parse_macro_input;
 
+use crate::t_macro::interpolate::InterpolatedValueTokenizer;
+
 use self::parsed_input::{Keys, ParsedInput};
 
 pub mod interpolate;
 pub mod parsed_input;
 
-pub fn t_macro(tokens: proc_macro::TokenStream, direct: bool) -> proc_macro::TokenStream {
+pub fn t_macro(
+    tokens: proc_macro::TokenStream,
+    direct: bool,
+    display: bool,
+    to_string: bool,
+) -> proc_macro::TokenStream {
     let input = parse_macro_input!(tokens as ParsedInput);
-    t_macro_inner(input, direct).into()
+    t_macro_inner(input, direct, display, to_string).into()
 }
 
-pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStream {
+pub fn t_macro_inner(
+    input: ParsedInput,
+    direct: bool,
+    display: bool,
+    to_string: bool,
+) -> proc_macro2::TokenStream {
     let ParsedInput {
         context,
         keys,
@@ -30,7 +42,22 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
             quote!(#get_keys.#namespace #(.#keys)*)
         }
     };
+
+    let build = if display {
+        if to_string {
+            quote!(build_string)
+        } else {
+            quote!(build_display)
+        }
+    } else {
+        quote!(build)
+    };
+
     let inner = if let Some(interpolations) = interpolations {
+        let interpolations = interpolations
+            .iter()
+            .map(|inter| InterpolatedValueTokenizer::new(inter, display));
+
         quote! {
             {
                 let _key = #get_key;
@@ -38,7 +65,7 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
                     let _key = _key.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _key.build()
+                _key.#build()
             }
         }
     } else {
@@ -47,7 +74,7 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool) -> proc_macro2::TokenStre
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
-                _key.build()
+                _key.#build()
             }
         }
     };

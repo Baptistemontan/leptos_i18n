@@ -65,3 +65,10 @@ macro_rules! assert_eq_rendered {
         assert_eq!(render_to_string($left), $($right)*)
     };
 }
+
+#[macro_export]
+macro_rules! assert_eq_string {
+    ($left:expr, $($right:tt)*) => {
+        assert_eq!($left.to_string(), $($right)*)
+    };
+}

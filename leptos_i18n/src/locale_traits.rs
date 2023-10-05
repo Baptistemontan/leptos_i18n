@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 /// Trait implemented the enum representing the supported locales of the application
 ///
 /// Most functions of this crate are generic of type implementing this trait
@@ -50,6 +52,18 @@ pub trait BuildStr: Sized {
     fn build(self) -> Self {
         self
     }
+
+    #[inline]
+    fn build_display(self) -> Self {
+        self
+    }
+
+    fn build_string(self) -> Cow<'static, str>;
 }
 
-impl<'a> BuildStr for &'a str {}
+impl BuildStr for &'static str {
+    #[inline]
+    fn build_string(self) -> Cow<'static, str> {
+        Cow::Borrowed(self)
+    }
+}
