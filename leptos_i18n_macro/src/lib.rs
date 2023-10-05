@@ -82,32 +82,6 @@ pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, true, false, false)
 }
 
-/// Just like the `td_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`,
-/// This allow finer formatting of the value.
-///
-/// Usage:
-///
-/// ```rust, ignore
-/// use crate::i18n::Locale;
-/// use leptos_i18n::td_display;
-///
-/// // click_count = "You clicked {{ count }} times"
-/// assert_eq!(
-///     td_display!(Locale::en, click_count, count = 10).to_string(),
-///     "You clicked 10 times"
-/// )
-///
-/// assert_eq!(
-///     td_display!(Locale::en, click_count, count = "a lot of").to_string(),
-///     "You clicked a lot of times"
-/// )
-///```
-#[cfg(feature = "interpolate_display")]
-#[proc_macro]
-pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true, true, false)
-}
-
 /// Just like the `td!` macro but return a `Cow<'static, str>`
 ///
 /// Usage:
@@ -131,4 +105,29 @@ pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, true, true, true)
+}
+
+/// Just like the `td_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
+///
+/// This is usefull if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
+///
+/// Usage:
+///
+/// ```rust, ignore
+/// use crate::i18n::Locale;
+/// use leptos_i18n::td_display;
+///
+/// // click_count = "You clicked {{ count }} times"
+/// let t = td_display!(Locale::en, click_count, count = 10); // this only return the builder, no work has been done.
+///
+/// assert_eq!(format!("before {t} after"), "before You clicked 10 times after");
+///
+/// let t_str = t.to_string(); // can call `to_string` as the value impl `Display`
+///
+/// assert_eq!(t_str, "You clicked 10 times");
+///```
+#[cfg(feature = "interpolate_display")]
+#[proc_macro]
+pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, true, true, false)
 }
