@@ -27,10 +27,22 @@ If the key use plurals it expect the type of the count, if you set the type to `
 Components expect a value that implement `leptos_i18::display::DisplayComponent`, you can find some type made to help the formatting in the `display` module,
 such as `DisplayComp`.
 
+`String` and `&str` implement this trait such that
+
 ```rust
 // hello_world = "Hello <b>World</b> !"
-let hw = td_string!(Locale::en, hello_world, <b> = DisplayComp("div"));
-assert_eq!(hw, "Hello <div>World</div> !");
+
+let hw = td_string(Locale::en, hello_world, <b> = "span");
+assert_eq!(hw, "Hello <span>World</span> !");
+```
+
+The `DisplayComp` struct let you pass leptos attributes:
+
+```rust
+let attrs = [("id", leptos::Attribute::String("my_id".into()))];
+let b = DisplayComp::new("div", &attrs);
+let hw = td_string!(Locale::en, hello_world, <b>);
+assert_eq!(hw, "Hello <div id=\"my_id\">World</div> !");
 ```
 
 If you want finer control over the formatting, you can create your own types implementing the `DisplayComponent` trait, or you can pass this abomination of a function:
