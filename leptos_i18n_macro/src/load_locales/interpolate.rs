@@ -584,7 +584,7 @@ impl Interpolation {
         quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> core::fmt::Display for #ident<#(#right_generics,)*> {
-                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                fn fmt(&self, __formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
                     match #locale_field {
                         #(

@@ -129,6 +129,9 @@ mod locale_traits;
 #[cfg(feature = "ssr")]
 mod server;
 
+// #[cfg(feature = "interpolate_display")]
+pub mod display;
+
 pub use locale_traits::*;
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};

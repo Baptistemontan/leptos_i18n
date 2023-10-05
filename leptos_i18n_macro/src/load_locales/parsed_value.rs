@@ -580,14 +580,14 @@ impl ParsedValue {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, f))),
+            ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
             ParsedValue::Variable(key) => {
-                tokens.push(quote!(core::fmt::Display::fmt(#key, f)))
+                tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter)))
             }
             ParsedValue::Component { key, inner } => {
                 let inner = inner.as_string_impl();
-                tokens.push(quote!((#key)(f, &|f| #inner)))
+                tokens.push(quote!(leptos_i18n::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
@@ -659,12 +659,7 @@ impl InterpolateKey {
         match self {
             InterpolateKey::Count(t) => Err(*t),
             InterpolateKey::Variable(_) => Ok(quote!(core::fmt::Display)),
-            InterpolateKey::Component(_) => Ok(quote!(
-                Fn(
-                    &mut core::fmt::Formatter<'_>,
-                    &dyn Fn(&mut core::fmt::Formatter<'_>) -> core::fmt::Result,
-                ) -> core::fmt::Result
-            )),
+            InterpolateKey::Component(_) => Ok(quote!(leptos_i18n::display::DisplayComponent)),
         }
     }
 

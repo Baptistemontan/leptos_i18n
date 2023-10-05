@@ -29,26 +29,20 @@ fn subkey_2_string() {
     let b = |f: &mut core::fmt::Formatter,
              children: &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result|
      -> core::fmt::Result {
-        write!(f, "<b>")?;
+        write!(f, "<b>before ")?;
         children(f)?;
-        write!(f, "</b>")
+        write!(f, " after</b>")
     };
     let en = td_string!(Locale::en, subkeys.subkey_2, <b>);
-    assert_eq_string!(en, "<b>subkey_2</b>");
+    assert_eq_string!(en, "<b>before subkey_2 after</b>");
     let fr = td_string!(Locale::fr, subkeys.subkey_2, <b>);
-    assert_eq_string!(fr, "<b>subkey_2</b>");
+    assert_eq_string!(fr, "<b>before subkey_2 after</b>");
 
-    let b = |f: &mut core::fmt::Formatter,
-             children: &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result|
-     -> core::fmt::Result {
-        write!(f, "<div>before ")?;
-        children(f)?;
-        write!(f, " after</div>")
-    };
+    let b = leptos_i18n::display::DisplayComp("div");
     let en = td_string!(Locale::en, subkeys.subkey_2, <b>);
-    assert_eq_string!(en, "<div>before subkey_2 after</div>");
+    assert_eq_string!(en, "<div>subkey_2</div>");
     let fr = td_string!(Locale::fr, subkeys.subkey_2, <b>);
-    assert_eq_string!(fr, "<div>before subkey_2 after</div>");
+    assert_eq_string!(fr, "<div>subkey_2</div>");
 }
 
 #[test]
