@@ -38,7 +38,14 @@ interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 
 
 [package.metadata.cargo-all-features]
-denylist = ["ssr", "nightly", "yaml_files"]
+denylist = [
+    "ssr",
+    "nightly",
+    "yaml_files",
+    "serde",
+    "debug_interpolations",
+    "suppress_key_warnings",
+]
 skip_feature_sets = [
     [
         "actix",
