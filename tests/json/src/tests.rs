@@ -35,15 +35,15 @@ fn click_count() {
 fn click_count_string() {
     for count in -5..5 {
         let en = td_string!(Locale::en, click_count, count);
-        assert_eq_string!(en, format!("You clicked {} times", count));
+        assert_eq!(en, format!("You clicked {} times", count));
         let fr = td_string!(Locale::fr, click_count, count);
-        assert_eq_string!(fr, format!("Vous avez cliqué {} fois", count));
+        assert_eq!(fr, format!("Vous avez cliqué {} fois", count));
     }
 
     let en = td_string!(Locale::en, click_count, count = "a lot of");
-    assert_eq_string!(en, "You clicked a lot of times");
+    assert_eq!(en, "You clicked a lot of times");
     let fr = td_string!(Locale::fr, click_count, count = "beaucoups de");
-    assert_eq_string!(fr, "Vous avez cliqué beaucoups de fois");
+    assert_eq!(fr, "Vous avez cliqué beaucoups de fois");
 }
 
 #[test]

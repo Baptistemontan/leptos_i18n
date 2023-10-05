@@ -149,32 +149,32 @@ fn f32_or_plural_string() {
     // count = 0 | 5
     for count in [0.0, 5.0] {
         let en = td_string!(Locale::en, f32_OR_plural, count);
-        assert_eq_string!(en, "0 or 5");
+        assert_eq!(en, "0 or 5");
         let fr = td_string!(Locale::fr, f32_OR_plural, count);
-        assert_eq_string!(fr, "0 or 5");
+        assert_eq!(fr, "0 or 5");
     }
 
     // count = 1..5 | 6..10
     for count in [1.0, 4.0, 6.0, 9.0] {
         let en = td_string!(Locale::en, f32_OR_plural, count);
-        assert_eq_string!(en, "1..5 | 6..10");
+        assert_eq!(en, "1..5 | 6..10");
         let fr = td_string!(Locale::fr, f32_OR_plural, count);
-        assert_eq_string!(fr, "1..5 | 6..10");
+        assert_eq!(fr, "1..5 | 6..10");
     }
 
     // count = 10..15 | 20
     for count in [10.0, 12.0, 14.0, 20.0] {
         let en = td_string!(Locale::en, f32_OR_plural, count);
-        assert_eq_string!(en, "10..15 | 20");
+        assert_eq!(en, "10..15 | 20");
         let fr = td_string!(Locale::fr, f32_OR_plural, count);
-        assert_eq_string!(fr, "10..15 | 20");
+        assert_eq!(fr, "10..15 | 20");
     }
 
     // count = _
     for count in [15.0, 17.0, 21.0, 56.0] {
         let en = td_string!(Locale::en, f32_OR_plural, count);
-        assert_eq_string!(en, "fallback with no count");
+        assert_eq!(en, "fallback with no count");
         let fr = td_string!(Locale::fr, f32_OR_plural, count);
-        assert_eq_string!(fr, "fallback avec tuple vide");
+        assert_eq!(fr, "fallback avec tuple vide");
     }
 }

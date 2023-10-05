@@ -59,7 +59,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// ```
 #[proc_macro]
 pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, false, false)
+    t_macro::t_macro(tokens, false, false, false)
 }
 
 /// Just like the `t!` macro but instead of taking `I18nContext` as the first argument it takes the desired locale.
@@ -79,30 +79,56 @@ pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// This let you use a specific locale regardless of the current one.
 #[proc_macro]
 pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true, false)
+    t_macro::t_macro(tokens, true, false, false)
 }
 
-/// Just like the `td!` macro but return a struct implementing `Display`
+/// Just like the `td_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`,
+/// This allow finer formatting of the value.
 ///
 /// Usage:
 ///
 /// ```rust, ignore
 /// use crate::i18n::Locale;
-/// use leptos_i18n::td_string;
+/// use leptos_i18n::td_display;
 ///
 /// // click_count = "You clicked {{ count }} times"
 /// assert_eq!(
-///     td_string!(Locale::en, click_count, count = 10).to_string(),
+///     td_display!(Locale::en, click_count, count = 10).to_string(),
 ///     "You clicked 10 times"
 /// )
 ///
 /// assert_eq!(
-///     td_string!(Locale::en, click_count, count = "a lot of").to_string(),
+///     td_display!(Locale::en, click_count, count = "a lot of").to_string(),
+///     "You clicked a lot of times"
+/// )
+///```
+#[cfg(feature = "interpolate_display")]
+#[proc_macro]
+pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, true, true, false)
+}
+
+/// Just like the `td!` macro but return a `Cow<'static, str>`
+///
+/// Usage:
+///
+/// ```rust, ignore
+/// use crate::i18n::Locale;
+/// use leptos_i18n::td_display;
+///
+/// // click_count = "You clicked {{ count }} times"
+/// assert_eq!(
+///     td_string!(Locale::en, click_count, count = 10),
+///     "You clicked 10 times"
+/// )
+///
+/// assert_eq!(
+///     td_string!(Locale::en, click_count, count = "a lot of"),
 ///     "You clicked a lot of times"
 /// )
 ///```
 #[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true, true)
+    t_macro::t_macro(tokens, true, true, true)
 }

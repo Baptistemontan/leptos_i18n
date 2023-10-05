@@ -171,8 +171,12 @@ impl Interpolation {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics_string,)*> #ident<#(#right_generics_string,)*> {
                 #[inline]
-                pub fn build_string(self) -> Self {
+                pub fn build_display(self) -> Self {
                     self
+                }
+
+                pub fn build_string(self) -> std::borrow::Cow<'static, str> {
+                    self.to_string().into()
                 }
             }
         }

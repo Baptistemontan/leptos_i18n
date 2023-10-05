@@ -48,7 +48,7 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let macros_reexport = if cfg!(feature = "interpolate_display") {
         quote!(
-            pub use leptos_i18n::{t, td, td_string};
+            pub use leptos_i18n::{t, td, td_string, td_display};
         )
     } else {
         quote!(

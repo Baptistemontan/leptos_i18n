@@ -11,13 +11,19 @@ pub mod parsed_input;
 pub fn t_macro(
     tokens: proc_macro::TokenStream,
     direct: bool,
-    string: bool,
+    display: bool,
+    to_string: bool,
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(tokens as ParsedInput);
-    t_macro_inner(input, direct, string).into()
+    t_macro_inner(input, direct, display, to_string).into()
 }
 
-pub fn t_macro_inner(input: ParsedInput, direct: bool, string: bool) -> proc_macro2::TokenStream {
+pub fn t_macro_inner(
+    input: ParsedInput,
+    direct: bool,
+    display: bool,
+    to_string: bool,
+) -> proc_macro2::TokenStream {
     let ParsedInput {
         context,
         keys,
@@ -37,8 +43,12 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool, string: bool) -> proc_mac
         }
     };
 
-    let build = if string {
-        quote!(build_string)
+    let build = if display {
+        if to_string {
+            quote!(build_string)
+        } else {
+            quote!(build_display)
+        }
     } else {
         quote!(build)
     };
@@ -46,7 +56,7 @@ pub fn t_macro_inner(input: ParsedInput, direct: bool, string: bool) -> proc_mac
     let inner = if let Some(interpolations) = interpolations {
         let interpolations = interpolations
             .iter()
-            .map(|inter| InterpolatedValueTokenizer::new(inter, string));
+            .map(|inter| InterpolatedValueTokenizer::new(inter, display));
 
         quote! {
             {
