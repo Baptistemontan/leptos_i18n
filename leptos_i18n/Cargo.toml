@@ -12,11 +12,11 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_macro = { workspace = true }
-leptos = "0.5.0"
-leptos_meta = "0.5.0"
+leptos = "0.5"
+leptos_meta = "0.5"
 actix-web = { version = "4", optional = true }
 axum = { version = "0.6", optional = true }
-leptos_axum = { version = "0.5.0", optional = true }
+leptos_axum = { version = "0.5", optional = true }
 web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 
