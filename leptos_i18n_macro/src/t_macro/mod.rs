@@ -1,4 +1,5 @@
-use quote::quote;
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
 use syn::parse_macro_input;
 
 use crate::t_macro::interpolate::InterpolatedValueTokenizer;
@@ -8,55 +9,37 @@ use self::parsed_input::{Keys, ParsedInput};
 pub mod interpolate;
 pub mod parsed_input;
 
-pub fn t_macro(
-    tokens: proc_macro::TokenStream,
-    direct: bool,
-    display: bool,
-    to_string: bool,
-) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(tokens as ParsedInput);
-    t_macro_inner(input, direct, display, to_string).into()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputType {
+    View,
+    #[cfg(feature = "interpolate_display")]
+    String,
+    #[cfg(feature = "interpolate_display")]
+    Display,
 }
 
-pub fn t_macro_inner(
-    input: ParsedInput,
-    direct: bool,
-    display: bool,
-    to_string: bool,
-) -> proc_macro2::TokenStream {
+pub fn t_macro(
+    tokens: proc_macro::TokenStream,
+    output_type: OutputType,
+) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(tokens as ParsedInput);
+    t_macro_inner(input, output_type).into()
+}
+
+pub fn t_macro_inner(input: ParsedInput, output_type: OutputType) -> TokenStream {
     let ParsedInput {
         context,
         keys,
         interpolations,
     } = input;
-    let get_keys = if direct {
-        quote!(leptos_i18n::Locale::get_keys(#context))
-    } else {
-        quote!(leptos_i18n::I18nContext::get_keys(#context))
-    };
 
-    let get_key = match keys {
-        Keys::SingleKey(key) => quote!(#get_keys.#key),
-        Keys::Subkeys(keys) => quote!(#get_keys #(.#keys)*),
-        Keys::Namespace(namespace, keys) => {
-            quote!(#get_keys.#namespace #(.#keys)*)
-        }
-    };
-
-    let build = if display {
-        if to_string {
-            quote!(build_string)
-        } else {
-            quote!(build_display)
-        }
-    } else {
-        quote!(build)
-    };
+    let get_key = output_type.get_key(context, keys);
+    let build_fn = output_type.build_fn();
 
     let inner = if let Some(interpolations) = interpolations {
         let interpolations = interpolations
             .iter()
-            .map(|inter| InterpolatedValueTokenizer::new(inter, display));
+            .map(|inter| InterpolatedValueTokenizer::new(inter, output_type.is_string()));
 
         quote! {
             {
@@ -65,7 +48,7 @@ pub fn t_macro_inner(
                     let _key = _key.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _key.#build()
+                _key.#build_fn()
             }
         }
     } else {
@@ -74,14 +57,48 @@ pub fn t_macro_inner(
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
-                _key.#build()
+                _key.#build_fn()
             }
         }
     };
 
-    if direct {
-        inner
-    } else {
-        quote!(move || #inner)
+    output_type.wrapp(inner)
+}
+
+impl OutputType {
+    pub fn get_key<T: ToTokens>(self, input: T, keys: Keys) -> TokenStream {
+        match self {
+            OutputType::View => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys),
+            #[cfg(feature = "interpolate_display")]
+            OutputType::String | OutputType::Display => {
+                quote!(leptos_i18n::Locale::get_keys(#input).#keys)
+            }
+        }
+    }
+
+    pub fn build_fn(self) -> TokenStream {
+        match self {
+            OutputType::View => quote!(build),
+            #[cfg(feature = "interpolate_display")]
+            OutputType::String => quote!(build_string),
+            #[cfg(feature = "interpolate_display")]
+            OutputType::Display => quote!(build_display),
+        }
+    }
+
+    pub fn is_string(self) -> bool {
+        match self {
+            OutputType::View => false,
+            #[cfg(feature = "interpolate_display")]
+            OutputType::String | OutputType::Display => true,
+        }
+    }
+
+    pub fn wrapp(self, ts: TokenStream) -> TokenStream {
+        match self {
+            OutputType::View => quote!(move || #ts),
+            #[cfg(feature = "interpolate_display")]
+            OutputType::String | OutputType::Display => ts,
+        }
     }
 }

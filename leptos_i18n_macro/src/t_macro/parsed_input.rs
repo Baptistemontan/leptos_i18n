@@ -1,4 +1,5 @@
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Punct};
+use quote::{quote, ToTokens, TokenStreamExt};
 use syn::token::Comma;
 use syn::{Expr, Token};
 
@@ -7,7 +8,6 @@ use super::interpolate::InterpolatedValue;
 pub enum Keys {
     SingleKey(Ident),
     Subkeys(Vec<Ident>),
-    Namespace(Ident, Vec<Ident>),
 }
 
 pub struct ParsedInput {
@@ -53,18 +53,22 @@ fn parse_subkeys(input: syn::parse::ParseStream, keys: &mut Vec<Ident>) -> syn::
 impl syn::parse::Parse for Keys {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let first_key = input.parse()?;
-        if input.peek(Token![::]) {
-            input.parse::<Token![::]>()?;
-            let mut keys = vec![];
-            parse_subkeys(input, &mut keys)?;
-            Ok(Keys::Namespace(first_key, keys))
-        } else if input.peek(Token![.]) {
-            input.parse::<Token![.]>()?;
+        if input.peek(Token![::]) || input.peek(Token![.]) {
+            input.parse::<Punct>()?;
             let mut keys = vec![first_key];
             parse_subkeys(input, &mut keys)?;
             Ok(Keys::Subkeys(keys))
         } else {
             Ok(Keys::SingleKey(first_key))
+        }
+    }
+}
+
+impl ToTokens for Keys {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Keys::SingleKey(key) => tokens.append(key.clone()),
+            Keys::Subkeys(keys) => tokens.append_separated(keys, quote!(.)),
         }
     }
 }

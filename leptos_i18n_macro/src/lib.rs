@@ -11,6 +11,8 @@
 pub(crate) mod load_locales;
 pub(crate) mod t_macro;
 
+use t_macro::OutputType;
+
 // for deserializing the files custom deserialization is done,
 // this is to use `serde::de::DeserializeSeed` to pass information on what locale or key we are currently at
 // and give better information on what went wrong when an error is emitted.
@@ -59,7 +61,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 /// ```
 #[proc_macro]
 pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, false, false, false)
+    t_macro::t_macro(tokens, OutputType::View)
 }
 
 /// Just like the `t!` macro but instead of taking `I18nContext` as the first argument it takes the desired locale.
@@ -79,7 +81,7 @@ pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// This let you use a specific locale regardless of the current one.
 #[proc_macro]
 pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true, false, false)
+    t_macro::t_macro(tokens, OutputType::View)
 }
 
 /// Just like the `td!` macro but return a `Cow<'static, str>`
@@ -104,7 +106,7 @@ pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true, true, true)
+    t_macro::t_macro(tokens, OutputType::String)
 }
 
 /// Just like the `td_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
@@ -129,5 +131,5 @@ pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, true, true, false)
+    t_macro::t_macro(tokens, OutputType::Display)
 }
