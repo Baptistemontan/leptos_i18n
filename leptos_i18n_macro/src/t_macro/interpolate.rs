@@ -1,6 +1,6 @@
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use syn::{parse::ParseBuffer, Expr, Ident, Token};
+use syn::{buffer::Cursor, parse::ParseBuffer, Expr, Ident, Token};
 
 pub enum InterpolatedValue {
     // form t!(i18n, key, count)
@@ -25,11 +25,28 @@ pub enum InterpolatedValue {
     },
 }
 
+fn check_component_end(input: Cursor) -> bool {
+    // check for "/>" with either a ',' or end of stream after.
+    let cursor = match input.punct() {
+        Some((punct, cursor)) if punct.as_char() == '/' => cursor,
+        _ => return false,
+    };
+    let cursor = match cursor.punct() {
+        Some((punct, cursor)) if punct.as_char() == '>' => cursor,
+        _ => return false,
+    };
+    match cursor.token_tree() {
+        Some((TokenTree::Punct(punct), _)) if punct.as_char() == ',' => true,
+        None => true,
+        _ => false,
+    }
+}
+
 fn parse_view_component(input: &ParseBuffer) -> syn::Result<(Ident, TokenStream)> {
     input.parse::<Token![<]>()?;
     let comp_name = input.parse()?;
     let mut attrs = TokenStream::new();
-    while !(input.peek(Token![/]) && input.peek2(Token![>])) {
+    while !check_component_end(input.cursor()) {
         let token = input.parse::<TokenTree>()?;
         attrs.append(token)
     }
