@@ -1,16 +1,58 @@
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
-use syn::{Expr, Ident, Token};
+use proc_macro2::{TokenStream, TokenTree};
+use quote::{format_ident, quote, ToTokens, TokenStreamExt};
+use syn::{buffer::Cursor, parse::ParseBuffer, Expr, Ident, Token};
 
 pub enum InterpolatedValue {
     // form t!(i18n, key, count)
     Var(Ident),
     // form t!(i18n, key, count = ..)
-    AssignedVar { key: Ident, value: Expr },
+    AssignedVar {
+        key: Ident,
+        value: Expr,
+    },
     // form t!(i18n, key, <count>)
     Comp(Ident),
     // form t!(i18n, key, <count> = ..)
-    AssignedComp { key: Ident, value: Expr },
+    AssignedComp {
+        key: Ident,
+        value: Expr,
+    },
+    // form t!(i18n, key, <count> = <count attrs...>)
+    DirectComp {
+        key: Ident,
+        comp_name: Ident,
+        attrs: TokenStream,
+    },
+}
+
+fn check_component_end(input: Cursor) -> bool {
+    // check for "/>" with either a ',' or end of stream after.
+    let cursor = match input.punct() {
+        Some((punct, cursor)) if punct.as_char() == '/' => cursor,
+        _ => return false,
+    };
+    let cursor = match cursor.punct() {
+        Some((punct, cursor)) if punct.as_char() == '>' => cursor,
+        _ => return false,
+    };
+    match cursor.token_tree() {
+        Some((TokenTree::Punct(punct), _)) if punct.as_char() == ',' => true,
+        None => true,
+        _ => false,
+    }
+}
+
+fn parse_view_component(input: &ParseBuffer) -> syn::Result<(Ident, TokenStream)> {
+    input.parse::<Token![<]>()?;
+    let comp_name = input.parse()?;
+    let mut attrs = TokenStream::new();
+    while !check_component_end(input.cursor()) {
+        let token = input.parse::<TokenTree>()?;
+        attrs.append(token)
+    }
+    input.parse::<Token![/]>()?;
+    input.parse::<Token![>]>()?;
+    Ok((comp_name, attrs))
 }
 
 impl syn::parse::Parse for InterpolatedValue {
@@ -25,11 +67,20 @@ impl syn::parse::Parse for InterpolatedValue {
         }
         let value = if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
-            let value = input.parse()?;
-            if is_comp {
-                InterpolatedValue::AssignedComp { key, value }
+            if input.peek(Token![<]) {
+                let (comp_name, attrs) = input.call(parse_view_component)?;
+                InterpolatedValue::DirectComp {
+                    key,
+                    comp_name,
+                    attrs,
+                }
             } else {
-                InterpolatedValue::AssignedVar { key, value }
+                let value = input.parse()?;
+                if is_comp {
+                    InterpolatedValue::AssignedComp { key, value }
+                } else {
+                    InterpolatedValue::AssignedVar { key, value }
+                }
             }
         } else if is_comp {
             InterpolatedValue::Comp(key)
@@ -67,6 +118,14 @@ impl InterpolatedValue {
             InterpolatedValue::AssignedComp { key, value } => {
                 let comp_ident = format_ident(key, false, string);
                 quote!(#comp_ident(#value))
+            }
+            InterpolatedValue::DirectComp {
+                key,
+                comp_name,
+                attrs,
+            } => {
+                let comp_ident = format_ident(key, false, string);
+                quote!(#comp_ident(move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> }))
             }
         }
     }
