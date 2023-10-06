@@ -134,6 +134,23 @@ You can pass anything that implement `Fn(leptos::ChildrenFn) -> V + Clone + 'sta
 
 Any missing components will generate an error.
 
+`|children| view! { <b>{children}</b> }` can be verbose for simple components, you can use this syntax when the children is wrapped by a single component:
+
+```rust
+// key = "<b>{{ count }}</b>"
+t!(i18n, key, <b> = <span />, count = 32);
+```
+
+This will render `<span>32</span>`.
+
+You can set attributes, event handlers, props ect:
+
+```rust
+t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, count = 0);
+```
+
+Basically `<name .../>` expand to `move |children| view! { <name ...>{children}</name> }`
+
 ## Plurals
 
 Plurals expect a variable named `count`, that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the plural (default is `i32`).
