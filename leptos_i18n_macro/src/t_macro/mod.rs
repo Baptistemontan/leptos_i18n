@@ -12,28 +12,40 @@ pub mod parsed_input;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputType {
     View,
+    Builder,
     #[cfg(feature = "interpolate_display")]
     String,
     #[cfg(feature = "interpolate_display")]
     Display,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputType {
+    Locale,
+    Context,
+}
+
 pub fn t_macro(
     tokens: proc_macro::TokenStream,
+    input_type: InputType,
     output_type: OutputType,
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(tokens as ParsedInput);
-    t_macro_inner(input, output_type).into()
+    t_macro_inner(input, input_type, output_type).into()
 }
 
-pub fn t_macro_inner(input: ParsedInput, output_type: OutputType) -> TokenStream {
+pub fn t_macro_inner(
+    input: ParsedInput,
+    input_type: InputType,
+    output_type: OutputType,
+) -> TokenStream {
     let ParsedInput {
         context,
         keys,
         interpolations,
     } = input;
 
-    let get_key = output_type.get_key(context, keys);
+    let get_key = input_type.get_key(context, keys);
     let build_fn = output_type.build_fn();
 
     let inner = if let Some(interpolations) = interpolations {
@@ -66,19 +78,9 @@ pub fn t_macro_inner(input: ParsedInput, output_type: OutputType) -> TokenStream
 }
 
 impl OutputType {
-    pub fn get_key<T: ToTokens>(self, input: T, keys: Keys) -> TokenStream {
-        match self {
-            OutputType::View => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys),
-            #[cfg(feature = "interpolate_display")]
-            OutputType::String | OutputType::Display => {
-                quote!(leptos_i18n::Locale::get_keys(#input).#keys)
-            }
-        }
-    }
-
     pub fn build_fn(self) -> TokenStream {
         match self {
-            OutputType::View => quote!(build),
+            OutputType::View | OutputType::Builder => quote!(build),
             #[cfg(feature = "interpolate_display")]
             OutputType::String => quote!(build_string),
             #[cfg(feature = "interpolate_display")]
@@ -88,7 +90,7 @@ impl OutputType {
 
     pub fn is_string(self) -> bool {
         match self {
-            OutputType::View => false,
+            OutputType::View | OutputType::Builder => false,
             #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => true,
         }
@@ -97,8 +99,18 @@ impl OutputType {
     pub fn wrapp(self, ts: TokenStream) -> TokenStream {
         match self {
             OutputType::View => quote!(move || #ts),
+            OutputType::Builder => ts,
             #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => ts,
+        }
+    }
+}
+
+impl InputType {
+    pub fn get_key<T: ToTokens>(self, input: T, keys: Keys) -> TokenStream {
+        match self {
+            InputType::Context => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys),
+            InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys),
         }
     }
 }
