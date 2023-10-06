@@ -1,4 +1,4 @@
-use proc_macro2::{Ident, Punct};
+use proc_macro2::Ident;
 use quote::{quote, ToTokens, TokenStreamExt};
 use syn::token::Comma;
 use syn::{Expr, Token};
@@ -53,8 +53,13 @@ fn parse_subkeys(input: syn::parse::ParseStream, keys: &mut Vec<Ident>) -> syn::
 impl syn::parse::Parse for Keys {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let first_key = input.parse()?;
-        if input.peek(Token![::]) || input.peek(Token![.]) {
-            input.parse::<Punct>()?;
+        let dot = input.peek(Token![.]);
+        if dot || input.peek(Token![::]) {
+            if dot {
+                input.parse::<Token![.]>()?;
+            } else {
+                input.parse::<Token![::]>()?;
+            }
             let mut keys = vec![first_key];
             parse_subkeys(input, &mut keys)?;
             Ok(Keys::Subkeys(keys))
