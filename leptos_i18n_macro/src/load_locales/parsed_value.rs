@@ -38,7 +38,7 @@ pub enum ParsedValue {
         inner: Box<Self>,
     },
     Bloc(Vec<Self>),
-    Subkeys(Locale),
+    Subkeys(Option<Locale>),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -208,10 +208,10 @@ impl ParsedValue {
                 keys.get_or_insert_with(HashSet::new)
                     .insert(InterpolateKey::Count(plural_type));
             }
-            ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
-                ForeignKey::Set(inner) => inner.get_keys_inner(keys),
-                ForeignKey::NotSet(_, _) => unreachable!("called get_keys_inner on an unresolved foreign key. If you got this error please open a issue on github."),
-            },
+            ParsedValue::ForeignKey(foreign_key) => foreign_key
+                .borrow()
+                .as_inner("get_keys_inner")
+                .get_keys_inner(keys),
         }
     }
 
@@ -243,8 +243,8 @@ impl ParsedValue {
     }
 
     pub fn make_locale_value(&mut self) -> LocaleValue {
-        if let ParsedValue::Subkeys(_) = self {
-            let ParsedValue::Subkeys(mut locale) = core::mem::take(self) else {
+        if let ParsedValue::Subkeys(locale) = self {
+            let Some(mut locale) = locale.take() else {
                 unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
             };
             LocaleValue::Subkeys {
@@ -303,12 +303,12 @@ impl ParsedValue {
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
-        match (&self, keys) {
+        match (&mut *self, keys) {
             // Default, do nothing
             (ParsedValue::Default, _) => Ok(()),
             // Both subkeys
-            (ParsedValue::Subkeys(_), LocaleValue::Subkeys { locales, keys }) => {
-                let ParsedValue::Subkeys(mut loc) = core::mem::take(self) else {
+            (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
+                let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
                 loc.merge(keys, default_locale, top_locale, key_path)?;
@@ -476,48 +476,14 @@ impl ParsedValue {
         Some((before, ident.trim(), after, skip))
     }
 
-    fn reduce_bloc(values: &mut Vec<ParsedValue>) -> Option<ParsedValue> {
-        let mut iter = values.iter_mut();
-        let Some(mut acc) = iter.next() else {
-            return Some(ParsedValue::String(String::new()));
-        };
-        acc.reduce();
-
-        for value in iter {
-            value.reduce();
-            match (&mut *acc, value) {
-                (ParsedValue::String(acc_str), ParsedValue::String(s)) => {
-                    acc_str.push_str(s.as_str());
-                    s.clear();
-                }
-                (_, new_acc) => {
-                    acc = new_acc;
-                }
-            }
-        }
-
-        values.retain(|value| !matches!(value, ParsedValue::String(s) if s.is_empty()));
-
-        match &mut **values {
-            [] => Some(ParsedValue::String(String::new())),
-            [one] => Some(std::mem::take(one)),
-            _ => None,
-        }
-    }
-
     pub fn reduce(&mut self) {
         match self {
             ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => {}
             ParsedValue::ForeignKey(foreign_key) => {
-                let fk = foreign_key.get_mut();
-                match fk {
-                    ForeignKey::NotSet(_, _) => unreachable!("called reduce on unresolved foreign key. If you got this error please open an issue on github."),
-                    ForeignKey::Set(value) => {
-                        value.reduce();
-                        let value = std::mem::take(&mut **value);
-                        *self = value;
-                    }
-                }
+                let value = foreign_key.get_mut().as_inner_mut("reduce");
+                value.reduce();
+                let value = std::mem::take(value);
+                *self = value;
             }
             ParsedValue::Plural(plurals) => {
                 let _: Result<_, ()> = plurals.try_for_each_value_mut(|value| {
@@ -526,14 +492,57 @@ impl ParsedValue {
                 });
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
-            ParsedValue::Subkeys(subkeys) => {
+            ParsedValue::Subkeys(Some(subkeys)) => {
                 for value in subkeys.keys.values_mut() {
                     value.reduce();
                 }
             }
+            ParsedValue::Subkeys(None) => {
+                unreachable!("called reduce on empty subkeys. If you got this error please open an issue on github.")
+            }
             ParsedValue::Bloc(values) => {
-                if let Some(value) = Self::reduce_bloc(values) {
-                    *self = value;
+                for value in std::mem::take(values) {
+                    value.reduce_into(values);
+                }
+
+                match values.as_mut_slice() {
+                    [] => *self = ParsedValue::String(String::new()),
+                    [one] => *self = std::mem::take(one),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    pub fn reduce_into(self, bloc: &mut Vec<Self>) {
+        match self {
+            ParsedValue::Default => {}    // default in a bloc ? skip
+            ParsedValue::Plural(_) => {}  // same for plural, can't be in a bloc
+            ParsedValue::Subkeys(_) => {} // same for subkeys
+            ParsedValue::ForeignKey(foreign_key) => {
+                foreign_key
+                    .into_inner()
+                    .into_inner("reduce_into")
+                    .reduce_into(bloc);
+            }
+            ParsedValue::String(s) => {
+                if s.is_empty() {
+                    // skip empty strings
+                } else if let Some(ParsedValue::String(last)) = bloc.last_mut() {
+                    // if last in the bloc is a string push into it instead of 2 strings next to each others
+                    last.push_str(&s);
+                } else {
+                    bloc.push(ParsedValue::String(s));
+                }
+            }
+            ParsedValue::Variable(key) => bloc.push(ParsedValue::Variable(key)),
+            ParsedValue::Component { key, mut inner } => {
+                inner.reduce();
+                bloc.push(ParsedValue::Component { key, inner });
+            }
+            ParsedValue::Bloc(inner) => {
+                for value in inner {
+                    value.reduce_into(bloc);
                 }
             }
         }
@@ -568,10 +577,9 @@ impl ParsedValue {
                     value.flatten(tokens)
                 }
             }
-            ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
-                ForeignKey::Set(inner) => inner.flatten(tokens),
-                ForeignKey::NotSet(_, _) => unreachable!("called flatten on an unresolved foreign key, if you got this error please open a issue on github."),
-            },
+            ParsedValue::ForeignKey(foreign_key) => {
+                foreign_key.borrow().as_inner("flatten").flatten(tokens)
+            }
         }
     }
 
@@ -594,10 +602,10 @@ impl ParsedValue {
                     value.flatten_string(tokens)
                 }
             }
-            ParsedValue::ForeignKey(foreign_key) => match &*foreign_key.borrow() {
-                ForeignKey::Set(inner) => inner.flatten_string(tokens),
-                ForeignKey::NotSet(_, _) => unreachable!("called flatten_string on an unresolved foreign key, if you got this error please open a issue on github."),
-            },
+            ParsedValue::ForeignKey(foreign_key) => foreign_key
+                .borrow()
+                .as_inner("flatten_string")
+                .flatten_string(tokens),
         }
     }
 
@@ -610,6 +618,29 @@ impl ParsedValue {
             [] => quote!(Ok(())),
             [value] => value.clone(),
             values => quote!({ #(#values?;)* Ok(()) }),
+        }
+    }
+}
+
+impl ForeignKey {
+    pub fn into_inner(self, call_site: &str) -> ParsedValue {
+        match self {
+            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
+            ForeignKey::Set(inner) => *inner,
+        }
+    }
+
+    pub fn as_inner(&self, call_site: &str) -> &ParsedValue {
+        match self {
+            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
+            ForeignKey::Set(inner) => inner,
+        }
+    }
+
+    pub fn as_inner_mut(&mut self, call_site: &str) -> &mut ParsedValue {
+        match self {
+            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
+            ForeignKey::Set(inner) => inner,
         }
     }
 }
@@ -748,7 +779,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             key_path: self.key_path.to_owned(),
         };
 
-        seed.deserialize(map_de).map(ParsedValue::Subkeys)
+        seed.deserialize(map_de).map(Some).map(ParsedValue::Subkeys)
     }
 
     fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>

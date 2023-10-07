@@ -151,7 +151,10 @@ impl Locale {
                 let ParsedValue::Subkeys(subkeys) = value else {
                     return None;
                 };
-                subkeys.get_value_at(path)
+                match subkeys {
+                    None => unreachable!("called get_value_at on empty subkeys. If you got this error please open an issue on github."),
+                    Some(subkeys) => subkeys.get_value_at(path)
+                }
             }
         }
     }
