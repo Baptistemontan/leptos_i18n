@@ -33,7 +33,7 @@ fn Counter() -> impl IntoView {
 
     view! {
         <p>{t!(i18n, counter.click_count, count)}</p>
-        // <p>{t!(i18n, click_count, count = move || counter.get())}</p>
+        // <p>{t!(i18n, counter.click_count, count = move || counter.get())}</p>
         <button on:click=inc>{t!(i18n, counter.click_to_inc)}</button>
     }
 }
