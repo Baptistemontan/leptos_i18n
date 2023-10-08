@@ -199,14 +199,18 @@ impl Locale {
         Self::de(locale_file, path, seed)
     }
 
-    pub fn make_builder_keys(&mut self) -> BuildersKeysInner {
+    pub fn make_builder_keys(&mut self, key_path: &mut KeyPath) -> Result<BuildersKeysInner> {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
             value.reduce();
-            let locale_value = value.make_locale_value();
-            keys.0.insert(Rc::clone(key), locale_value);
+            key_path.push_key(Rc::clone(key));
+            let locale_value = value.make_locale_value(key_path)?;
+            let key = key_path
+                .pop_key()
+                .expect("Unexpected empty KeyPath in make_builder_keys. If you got this error please open an issue on github.");
+            keys.0.insert(key, locale_value);
         }
-        keys
+        Ok(keys)
     }
 
     pub fn merge(
@@ -251,14 +255,7 @@ impl Locale {
         let default_locale = locales.next().unwrap();
         let mut key_path = KeyPath::new(namespace);
 
-        for (key, value) in &default_locale.keys {
-            if matches!(value, ParsedValue::Default) {
-                key_path.push_key(Rc::clone(key));
-                return Err(Error::ExplicitDefaultInDefault(key_path));
-            }
-        }
-
-        let mut default_keys = default_locale.make_builder_keys();
+        let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
 
         let default_locale_name = &default_locale.name.name;
 
