@@ -85,13 +85,21 @@ impl ParsedValue {
 
         match value {
             ParsedValue::Default => {
-                return Self::resolve_foreign_key_inner(
-                    foreign_key,
-                    values,
-                    default_locale,
-                    default_locale,
-                    key_path,
-                );
+                // this check is normally done in a later step for optimisations (Locale::make_builder_keys),
+                // but we still need to do it here to avoid infinite loop
+                // this case happen if a foreign key point to an explicit default in the default locale
+                // pretty niche, but would cause a rustc stack overflow if not done.
+                if top_locale == default_locale {
+                    return Err(Error::ExplicitDefaultInDefault(key_path.to_owned()));
+                } else {
+                    return Self::resolve_foreign_key_inner(
+                        foreign_key,
+                        values,
+                        default_locale,
+                        default_locale,
+                        key_path,
+                    );
+                }
             }
             ParsedValue::Plural(_) => {
                 return Err(Error::Custom(format!(
@@ -242,17 +250,20 @@ impl ParsedValue {
         ParsedValue::String(value.to_string())
     }
 
-    pub fn make_locale_value(&mut self) -> LocaleValue {
-        if let ParsedValue::Subkeys(locale) = self {
-            let Some(mut locale) = locale.take() else {
-                unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
-            };
-            LocaleValue::Subkeys {
-                keys: locale.make_builder_keys(),
-                locales: vec![locale],
+    pub fn make_locale_value(&mut self, key_path: &mut KeyPath) -> Result<LocaleValue> {
+        match self {
+            ParsedValue::Subkeys(locale) => {
+                let Some(mut locale) = locale.take() else {
+                    unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
+                };
+                let keys = locale.make_builder_keys(key_path)?;
+                Ok(LocaleValue::Subkeys {
+                    keys,
+                    locales: vec![locale],
+                })
             }
-        } else {
-            LocaleValue::Value(self.get_keys())
+            ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
+            this => Ok(LocaleValue::Value(this.get_keys())),
         }
     }
 
