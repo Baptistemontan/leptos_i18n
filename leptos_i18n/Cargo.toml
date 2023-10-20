@@ -11,6 +11,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cfg-if = "1.0.0"
 leptos_i18n_macro = { workspace = true }
 leptos = "0.5"
 leptos_meta = "0.5"
@@ -39,14 +40,24 @@ interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 
 [package.metadata.cargo-all-features]
 denylist = [
-    "ssr",
-    "nightly",
-    "yaml_files",
+    # Always exclude:
+    "ssr",        # Should always be enabled via a server integration rather than directly - see `./src/server/mod.rs`
+    "yaml_files", # See leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
+    "nightly",    # Requires a nightly toolchain
+
+    # Only passed through to `leptos_i18n_macros`, exclude to save time:
     "serde",
     "debug_interpolations",
     "suppress_key_warnings",
 ]
 skip_feature_sets = [
+    # Axum and Actix features are incompatible with each other - see `./src/server/mod.rs`, always exclude:
+    [
+        "axum",
+        "actix",
+    ],
+
+    # Only one of `hydrate`, (`axum`, `actix`), `csr` should be enabled in a single crate, exclude to save time:
     [
         "actix",
         "hydrate",

@@ -126,7 +126,10 @@
 mod context;
 mod fetch_locale;
 mod locale_traits;
-#[cfg(feature = "ssr")]
+#[cfg(all(
+    feature = "ssr",
+    not(any(feature = "hydrate", all(feature = "csr", feature = "cookie")))
+))]
 mod server;
 
 #[cfg(feature = "interpolate_display")]
