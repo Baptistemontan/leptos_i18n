@@ -267,45 +267,6 @@ impl ParsedValue {
         }
     }
 
-    fn merge_inner(
-        &self,
-        keys: &mut Option<HashSet<InterpolateKey>>,
-        top_locale: Rc<Key>,
-        key_path: &mut KeyPath,
-    ) -> Result<()> {
-        self.get_keys_inner(keys);
-        let Some(keys) = keys else {
-            return Ok(());
-        };
-        let mut iter = keys.iter();
-        let Some(count_type) = iter.find_map(|key| match key {
-            InterpolateKey::Count(plural_type) => Some(*plural_type),
-            _ => None,
-        }) else {
-            return Ok(());
-        };
-
-        let other_type = iter.find_map(|key| match key {
-            InterpolateKey::Count(plural_type) if *plural_type != count_type => Some(*plural_type),
-            _ => None,
-        });
-
-        if let Some(other_type) = other_type {
-            return Err(Error::PluralTypeMissmatch {
-                locale: top_locale,
-                key_path: std::mem::take(key_path),
-                type1: count_type,
-                type2: other_type,
-            });
-        }
-
-        // if the set contains InterpolateKey::Count, remove variable keys with name "count"
-        // ("var_count" with the rename)
-        keys.retain(|key| !matches!(key, InterpolateKey::Variable(key) if key.name == "var_count"));
-
-        Ok(())
-    }
-
     pub fn merge(
         &mut self,
         keys: &mut LocaleValue,
@@ -335,7 +296,10 @@ impl ParsedValue {
                 | ParsedValue::Variable(_)
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(keys),
-            ) => self.merge_inner(keys, top_locale, key_path),
+            ) => {
+                self.get_keys_inner(keys);
+                Ok(())
+            }
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,

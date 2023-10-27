@@ -32,7 +32,7 @@ pub enum LocalesOrNamespaces {
     Locales(Vec<Locale>),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
 
 pub enum BuildersKeys<'a> {
@@ -269,6 +269,8 @@ impl Locale {
             )?;
         }
 
+        default_keys.check_conflicts(&mut key_path)?;
+
         Ok(default_keys)
     }
 
@@ -293,12 +295,63 @@ impl Locale {
     }
 }
 
+impl BuildersKeysInner {
+    fn check_conflicts(&mut self, key_path: &mut KeyPath) -> Result<()> {
+        for (key, values) in &mut self.0 {
+            key_path.push_key(Rc::clone(key));
+            values.check_conflicts(key_path)?;
+            key_path.pop_key();
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
 pub enum LocaleValue {
     Value(Option<HashSet<InterpolateKey>>),
     Subkeys {
         locales: Vec<Locale>,
         keys: BuildersKeysInner,
     },
+}
+
+impl LocaleValue {
+    fn check_conflicts(&mut self, key_path: &mut KeyPath) -> Result<()> {
+        match self {
+            LocaleValue::Value(Some(keys)) => {
+                let mut iter = keys.iter();
+                let Some(count_type) = iter.find_map(|key| match key {
+                    InterpolateKey::Count(plural_type) => Some(*plural_type),
+                    _ => None,
+                }) else {
+                    return Ok(());
+                };
+
+                let other_type = iter.find_map(|key| match key {
+                    InterpolateKey::Count(plural_type) => Some(*plural_type),
+                    _ => None,
+                });
+
+                if let Some(other_type) = other_type {
+                    return Err(Error::PluralTypeMissmatch {
+                        key_path: std::mem::take(key_path),
+                        type1: count_type,
+                        type2: other_type,
+                    });
+                }
+
+                // if the set contains InterpolateKey::Count, remove variable keys with name "count"
+                // ("var_count" with the rename)
+                keys.retain(
+                    |key| !matches!(key, InterpolateKey::Variable(key) if key.name == "var_count"),
+                );
+
+                Ok(())
+            }
+            LocaleValue::Value(None) => Ok(()),
+            LocaleValue::Subkeys { keys, .. } => keys.check_conflicts(key_path),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
