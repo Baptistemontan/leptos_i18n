@@ -45,7 +45,6 @@ pub enum Error {
     },
     ImpossibleRange(String),
     PluralTypeMissmatch {
-        locale: Rc<Key>,
         key_path: KeyPath,
         type1: PluralType,
         type2: PluralType,
@@ -143,8 +142,8 @@ impl Display for Error {
                 "Found duplicates namespaces in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
-            Error::PluralTypeMissmatch { locale, key_path, type1, type2 } => write!(f, "Missmatch plural value type as key {}, locale {:?} has type {} but another locale has type {}", key_path, locale, type1, type2),
-            Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters", key),
+            Error::PluralTypeMissmatch { key_path, type1, type2 } => write!(f, "Conflicting plural value type at key {}, found type {} but also type {}.", key_path, type1, type2),
+            Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters.", key),
             Error::EmptyPlural => write!(f, "empty plurals are not allowed"),
             Error::InvalidPluralType(t) => write!(f, "invalid plural type {:?}", t),
             Error::NestedPlurals => write!(f, "nested plurals are not allowed"),
