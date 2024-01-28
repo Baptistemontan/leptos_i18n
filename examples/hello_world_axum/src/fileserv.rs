@@ -1,7 +1,7 @@
 use crate::app::App;
 use axum::response::Response as AxumResponse;
 use axum::{
-    body::{boxed, Body, BoxBody},
+    body::Body,
     extract::State,
     http::{Request, Response, StatusCode, Uri},
     response::IntoResponse,
