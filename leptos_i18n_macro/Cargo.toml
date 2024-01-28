@@ -20,7 +20,7 @@ serde_yaml = { version = "0.9", optional = true }
 proc-macro2 = "1"
 quote = "1"
 syn = "2.0"
-toml = "0.7"
+toml = "0.8"
 
 [features]
 default = ["json_files"]
