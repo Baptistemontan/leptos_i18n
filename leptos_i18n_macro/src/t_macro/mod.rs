@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
 
-use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
+use crate::t_macro::interpolate::InterpolatedValueTokenizer;
 
 use self::parsed_input::{Keys, ParsedInput};
 
@@ -49,7 +49,7 @@ pub fn t_macro_inner(
 
     let (inner, params) = if let Some(mut interpolations) = interpolations {
         let string = output_type.is_string();
-        let params = interpolations.iter_mut().map(|iv| iv.params(string));
+        let params = interpolations.iter_mut().map(|iv| iv.param(string));
         let params = quote! {
             {
                 #(
