@@ -92,31 +92,70 @@ impl syn::parse::Parse for InterpolatedValue {
 }
 
 impl InterpolatedValue {
-    fn to_token_stream(&self, string: bool) -> TokenStream {
-        fn format_ident(ident: &Ident, variable: bool, string: bool) -> Ident {
-            match (variable, string) {
-                (true, true) => format_ident!("var_{}_string", ident),
-                (true, false) => format_ident!("var_{}", ident),
-                (false, true) => format_ident!("comp_{}_string", ident),
-                (false, false) => format_ident!("comp_{}", ident),
-            }
+    fn format_ident(ident: &Ident, variable: bool, string: bool) -> Ident {
+        match (variable, string) {
+            (true, true) => format_ident!("var_{}_string", ident),
+            (true, false) => format_ident!("var_{}", ident),
+            (false, true) => format_ident!("comp_{}_string", ident),
+            (false, false) => format_ident!("comp_{}", ident),
         }
+    }
 
+    pub fn param(&mut self) -> TokenStream {
         match self {
             InterpolatedValue::Var(ident) => {
-                let var_ident = format_ident(ident, true, string);
+                quote!{}
+            }
+            InterpolatedValue::Comp(ident) => {
+                quote!{}
+            }
+            InterpolatedValue::AssignedVar { key, value } => {
+                let var_ident = Self::format_ident(key, true, string);
+                let ts = quote!{
+                    let #var_ident = #value;
+                };
+                *self = InterpolatedValue::Var(var_ident);
+                ts
+            }
+            InterpolatedValue::AssignedComp { key, value } => {
+                let comp_ident = Self::format_ident(key, false, string);
+                let ts = quote!{
+                    let #comp_ident = #value;
+                };
+                *self = InterpolatedValue::Comp(comp_ident);
+                ts
+            }
+            InterpolatedValue::DirectComp {
+                key,
+                comp_name,
+                attrs,
+            } => {
+                let comp_ident = Self::format_ident(key, false, string);
+                let ts = quote!{
+                    let #comp_ident = move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> };
+                };
+                *self = InterpolatedValue::Comp(comp_ident);
+                ts
+            }
+        }
+    }
+
+    fn to_token_stream(&self, string: bool) -> TokenStream {
+        match self {
+            InterpolatedValue::Var(ident) => {
+                let var_ident = Self::format_ident(ident, true, string);
                 quote!(#var_ident(#ident))
             }
             InterpolatedValue::Comp(ident) => {
-                let comp_ident = format_ident(ident, false, string);
+                let comp_ident = Self::format_ident(ident, false, string);
                 quote!(#comp_ident(#ident))
             }
             InterpolatedValue::AssignedVar { key, value } => {
-                let var_ident = format_ident(key, true, string);
+                let var_ident = Self::format_ident(key, true, string);
                 quote!(#var_ident(#value))
             }
             InterpolatedValue::AssignedComp { key, value } => {
-                let comp_ident = format_ident(key, false, string);
+                let comp_ident = Self::format_ident(key, false, string);
                 quote!(#comp_ident(#value))
             }
             InterpolatedValue::DirectComp {
@@ -124,7 +163,7 @@ impl InterpolatedValue {
                 comp_name,
                 attrs,
             } => {
-                let comp_ident = format_ident(key, false, string);
+                let comp_ident = Self::format_ident(key, false, string);
                 quote!(#comp_ident(move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> }))
             }
         }

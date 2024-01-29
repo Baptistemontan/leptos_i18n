@@ -47,12 +47,13 @@ pub fn t_macro_inner(
     let get_key = input_type.get_key(context, keys);
     let build_fn = output_type.build_fn();
 
-    let inner = if let Some(interpolations) = interpolations {
-        let interpolations = interpolations
+    let (inner, params) = if let Some(interpolations) = interpolations {
+        let interpolations: Vec<_> = interpolations
             .iter()
-            .map(|inter| InterpolatedValueTokenizer::new(inter, output_type.is_string()));
+            .map(|inter| InterpolatedValueTokenizer::new(inter, output_type.is_string())).collect();
+        let params = make_params(&mut interpolations);
 
-        quote! {
+        let inner = quote! {
             {
                 let _key = #get_key;
                 #(
@@ -61,9 +62,12 @@ pub fn t_macro_inner(
                 #[deny(deprecated)]
                 _key.#build_fn()
             }
-        }
+        };
+
+        (inner, Some(params))
+
     } else {
-        quote! {
+        let inner = quote! {
             {
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
@@ -71,9 +75,21 @@ pub fn t_macro_inner(
                 _key.#build_fn()
             }
         }
+        (inner, None)
     };
 
     output_type.wrapp(inner)
+}
+
+fn make_params(interpolations: &mut [InterpolatedValueTokenizer]) -> TokenStream {
+    let params = interpolations.iter_mut().map(InterpolatedValueTokenizer::param);
+    quote! {
+        {
+            #(
+                #params
+            )*
+        }
+    }
 }
 
 impl OutputType {
@@ -95,11 +111,21 @@ impl OutputType {
         }
     }
 
-    pub fn wrapp(self, ts: TokenStream) -> TokenStream {
+    pub fn wrapp(self, ts: TokenStream, params: Option<TokenStream>) -> TokenStream {
         match self {
-            OutputType::View => quote!(move || #ts),
+            OutputType::View => quote!{
+                {
+                    #params
+                    move || #ts
+                }
+            },
             #[cfg(feature = "interpolate_display")]
-            OutputType::String | OutputType::Display => ts,
+            OutputType::String | OutputType::Display => quote!{
+                {
+                    #params
+                    #ts
+                }
+            },
         }
     }
 }
