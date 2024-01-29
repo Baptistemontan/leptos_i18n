@@ -12,7 +12,6 @@ pub mod parsed_input;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputType {
     View,
-    Builder,
     #[cfg(feature = "interpolate_display")]
     String,
     #[cfg(feature = "interpolate_display")]
@@ -80,7 +79,7 @@ pub fn t_macro_inner(
 impl OutputType {
     pub fn build_fn(self) -> TokenStream {
         match self {
-            OutputType::View | OutputType::Builder => quote!(build),
+            OutputType::View => quote!(build),
             #[cfg(feature = "interpolate_display")]
             OutputType::String => quote!(build_string),
             #[cfg(feature = "interpolate_display")]
@@ -90,7 +89,7 @@ impl OutputType {
 
     pub fn is_string(self) -> bool {
         match self {
-            OutputType::View | OutputType::Builder => false,
+            OutputType::View => false,
             #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => true,
         }
@@ -99,7 +98,6 @@ impl OutputType {
     pub fn wrapp(self, ts: TokenStream) -> TokenStream {
         match self {
             OutputType::View => quote!(move || #ts),
-            OutputType::Builder => ts,
             #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => ts,
         }

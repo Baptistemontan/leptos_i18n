@@ -44,7 +44,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 ///     <p>{t!(i18n, $key)}</p>
 ///     <p>{t!(i18n, $key, $variable = $value, <$component> = |child| ... )}</p>
 /// }
-///```
+/// ```
 ///
 /// # Notes
 ///
@@ -69,28 +69,79 @@ pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// Usage:
 ///
 /// ```rust, ignore
-/// use crate::i18n::Locale;
-/// use leptos_i18n::td;
+/// use crate::i18n::*;
 ///
 /// view! {
 ///     <p>{td!(Locale::en, $key)}</p>
 ///     <p>{td!(Locale::fr, $key, $variable = $value, <$component> = |child| ... )}</p>
 /// }
-///```
+/// ```
 ///
 /// This let you use a specific locale regardless of the current one.
 #[proc_macro]
 pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::Builder)
+    t_macro::t_macro(tokens, InputType::Locale, OutputType::View)
 }
 
-/// Just like the `td!` macro but return a `Cow<'static, str>`
+/// Just like the `t!` macro but return a `Cow<'static, str>` instead of a view.
 ///
 /// Usage:
 ///
 /// ```rust, ignore
-/// use crate::i18n::Locale;
-/// use leptos_i18n::td_display;
+/// use crate::i18n::*;
+///
+/// let i18n = use_i18n(); // locale = "en"
+///
+/// // click_count = "You clicked {{ count }} times"
+///
+/// assert_eq!(
+///     t_string!(i18n, click_count, count = 10),
+///     "You clicked 10 times"
+/// )
+///
+/// assert_eq!(
+///     t_string!(i18n, click_count, count = "a lot of"),
+///     "You clicked a lot of times"
+/// )
+/// ```
+#[cfg(feature = "interpolate_display")]
+#[proc_macro]
+pub fn t_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, InputType::Context, OutputType::String)
+}
+
+/// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
+///
+/// This is usefull if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
+///
+/// Usage:
+///
+/// ```rust, ignore
+/// use crate::i18n::*;
+///
+/// let i18n = use_i18n(); // locale = "en"
+///
+/// // click_count = "You clicked {{ count }} times"
+/// let t = t_display!(i18n, click_count, count = 10); // this only return the builder, no work has been done.
+///
+/// assert_eq!(format!("before {t} after"), "before You clicked 10 times after");
+///
+/// let t_str = t.to_string(); // can call `to_string` as the value impl `Display`
+///
+/// assert_eq!(t_str, "You clicked 10 times");
+/// ```
+#[cfg(feature = "interpolate_display")]
+#[proc_macro]
+pub fn t_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, InputType::Context, OutputType::Display)
+}
+
+/// Just like the `t_string!` macro but takes the `Locale` as an argument instead of the context.
+///
+/// Usage:
+///
+/// ```rust, ignore
+/// use crate::i18n::*;
 ///
 /// // click_count = "You clicked {{ count }} times"
 /// assert_eq!(
@@ -102,22 +153,21 @@ pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     td_string!(Locale::en, click_count, count = "a lot of"),
 ///     "You clicked a lot of times"
 /// )
-///```
+/// ```
 #[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Locale, OutputType::String)
 }
 
-/// Just like the `td_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
+/// Just like the `t_display!` macro but takes the `Locale` as an argument instead of the context.
 ///
 /// This is usefull if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 ///
 /// Usage:
 ///
 /// ```rust, ignore
-/// use crate::i18n::Locale;
-/// use leptos_i18n::td_display;
+/// use crate::i18n::*;
 ///
 /// // click_count = "You clicked {{ count }} times"
 /// let t = td_display!(Locale::en, click_count, count = 10); // this only return the builder, no work has been done.
@@ -127,7 +177,7 @@ pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// let t_str = t.to_string(); // can call `to_string` as the value impl `Display`
 ///
 /// assert_eq!(t_str, "You clicked 10 times");
-///```
+/// ```
 #[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
