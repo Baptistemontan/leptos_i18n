@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
 
-use crate::t_macro::interpolate::InterpolatedValueTokenizer;
+use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
 
 use self::parsed_input::{Keys, ParsedInput};
 
@@ -48,11 +48,11 @@ pub fn t_macro_inner(
     let build_fn = output_type.build_fn();
 
     let (inner, params) = if let Some(mut interpolations) = interpolations {
-        let string = output_type.is_string();
-        let (keys, values): (Vec<_>, Vec<_>) = interpolations.iter_mut().map(|iv| iv.param(string)).unzip();
+        let (keys, values): (Vec<_>, Vec<_>) = interpolations.iter_mut().map(InterpolatedValue::param).unzip();
         let params = quote! {
             let (#(#keys,)*) = (#(#values,)*);
         };
+        let string = output_type.is_string();
         let interpolations = interpolations
             .iter()
             .map(|inter| InterpolatedValueTokenizer::new(inter, string));

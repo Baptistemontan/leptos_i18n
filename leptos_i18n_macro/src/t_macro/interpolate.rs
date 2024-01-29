@@ -101,7 +101,7 @@ impl InterpolatedValue {
         }
     }
 
-    pub fn param(&mut self, string: bool) -> (Ident, TokenStream) {
+    pub fn param(&mut self) -> (Ident, TokenStream) {
         match self {
             InterpolatedValue::Var(ident) | InterpolatedValue::Comp(ident) => {
                 (ident.clone(), quote!(#ident))
