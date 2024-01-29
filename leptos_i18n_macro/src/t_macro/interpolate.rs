@@ -101,7 +101,7 @@ impl InterpolatedValue {
         }
     }
 
-    pub fn param(&mut self) -> TokenStream {
+    pub fn param(&mut self, string: bool) -> TokenStream {
         match self {
             InterpolatedValue::Var(ident) => {
                 quote!{}
