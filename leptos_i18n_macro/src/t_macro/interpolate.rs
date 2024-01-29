@@ -103,10 +103,7 @@ impl InterpolatedValue {
 
     pub fn param(&mut self, string: bool) -> TokenStream {
         match self {
-            InterpolatedValue::Var(ident) => {
-                quote!{}
-            }
-            InterpolatedValue::Comp(ident) => {
+            InterpolatedValue::Var(_) | InterpolatedValue::Comp(_) => {
                 quote!{}
             }
             InterpolatedValue::AssignedVar { key, value } => {
