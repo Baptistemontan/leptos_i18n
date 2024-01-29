@@ -48,7 +48,10 @@ pub fn t_macro_inner(
     let build_fn = output_type.build_fn();
 
     let (inner, params) = if let Some(mut interpolations) = interpolations {
-        let (keys, values): (Vec<_>, Vec<_>) = interpolations.iter_mut().map(InterpolatedValue::param).unzip();
+        let (keys, values): (Vec<_>, Vec<_>) = interpolations
+            .iter_mut()
+            .map(InterpolatedValue::param)
+            .unzip();
         let params = quote! {
             let (#(#keys,)*) = (#(#values,)*);
         };
@@ -69,7 +72,6 @@ pub fn t_macro_inner(
         };
 
         (inner, Some(params))
-
     } else {
         let inner = quote! {
             {
@@ -106,14 +108,14 @@ impl OutputType {
 
     pub fn wrapp(self, ts: TokenStream, params: Option<TokenStream>) -> TokenStream {
         match self {
-            OutputType::View => quote!{
+            OutputType::View => quote! {
                 {
                     #params
                     move || #ts
                 }
             },
             #[cfg(feature = "interpolate_display")]
-            OutputType::String | OutputType::Display => quote!{
+            OutputType::String | OutputType::Display => quote! {
                 {
                     #params
                     #ts
