@@ -101,25 +101,19 @@ impl InterpolatedValue {
         }
     }
 
-    pub fn param(&mut self, string: bool) -> TokenStream {
+    pub fn param(&mut self, string: bool) -> (Ident, TokenStream) {
         match self {
-            InterpolatedValue::Var(_) | InterpolatedValue::Comp(_) => {
-                quote!{}
+            InterpolatedValue::Var(ident) | InterpolatedValue::Comp(ident) => {
+                (ident.clone(), quote!(#ident))
             }
             InterpolatedValue::AssignedVar { key, value } => {
-                let var_ident = Self::format_ident(key, true, string);
-                let ts = quote!{
-                    let #var_ident = #value;
-                };
-                *self = InterpolatedValue::Var(var_ident);
+                let ts = (key.clone(), quote!(#value);
+                *self = InterpolatedValue::Var(key);
                 ts
             }
             InterpolatedValue::AssignedComp { key, value } => {
-                let comp_ident = Self::format_ident(key, false, string);
-                let ts = quote!{
-                    let #comp_ident = #value;
-                };
-                *self = InterpolatedValue::Comp(comp_ident);
+                let ts = (key.clone(), quote!(#value));
+                *self = InterpolatedValue::Comp(key);
                 ts
             }
             InterpolatedValue::DirectComp {
@@ -127,11 +121,11 @@ impl InterpolatedValue {
                 comp_name,
                 attrs,
             } => {
-                let comp_ident = Self::format_ident(key, false, string);
                 let ts = quote!{
-                    let #comp_ident = move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> };
+                    move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> };
                 };
-                *self = InterpolatedValue::Comp(comp_ident);
+                let ts = (key.clone(), ts);
+                *self = InterpolatedValue::Comp(key);
                 ts
             }
         }

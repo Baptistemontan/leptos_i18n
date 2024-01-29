@@ -49,13 +49,9 @@ pub fn t_macro_inner(
 
     let (inner, params) = if let Some(mut interpolations) = interpolations {
         let string = output_type.is_string();
-        let params = interpolations.iter_mut().map(|iv| iv.param(string));
+        let (keys, values): (Vec<_>, Vec<_>) = interpolations.iter_mut().map(|iv| iv.param(string)).unzip();
         let params = quote! {
-            {
-                #(
-                    #params
-                )*
-            }
+            let (#(#keys,)*) = (#(#values,)*);
         };
         let interpolations = interpolations
             .iter()
