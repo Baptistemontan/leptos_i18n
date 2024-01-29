@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
 
-use crate::t_macro::interpolate::InterpolatedValueTokenizer;
+use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
 
 use self::parsed_input::{Keys, ParsedInput};
 
@@ -12,7 +12,6 @@ pub mod parsed_input;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputType {
     View,
-    Builder,
     #[cfg(feature = "interpolate_display")]
     String,
     #[cfg(feature = "interpolate_display")]
@@ -48,12 +47,20 @@ pub fn t_macro_inner(
     let get_key = input_type.get_key(context, keys);
     let build_fn = output_type.build_fn();
 
-    let inner = if let Some(interpolations) = interpolations {
+    let (inner, params) = if let Some(mut interpolations) = interpolations {
+        let (keys, values): (Vec<_>, Vec<_>) = interpolations
+            .iter_mut()
+            .map(InterpolatedValue::param)
+            .unzip();
+        let params = quote! {
+            let (#(#keys,)*) = (#(#values,)*);
+        };
+        let string = output_type.is_string();
         let interpolations = interpolations
             .iter()
-            .map(|inter| InterpolatedValueTokenizer::new(inter, output_type.is_string()));
+            .map(|inter| InterpolatedValueTokenizer::new(inter, string));
 
-        quote! {
+        let inner = quote! {
             {
                 let _key = #get_key;
                 #(
@@ -62,25 +69,28 @@ pub fn t_macro_inner(
                 #[deny(deprecated)]
                 _key.#build_fn()
             }
-        }
+        };
+
+        (inner, Some(params))
     } else {
-        quote! {
+        let inner = quote! {
             {
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
                 _key.#build_fn()
             }
-        }
+        };
+        (inner, None)
     };
 
-    output_type.wrapp(inner)
+    output_type.wrapp(inner, params)
 }
 
 impl OutputType {
     pub fn build_fn(self) -> TokenStream {
         match self {
-            OutputType::View | OutputType::Builder => quote!(build),
+            OutputType::View => quote!(build),
             #[cfg(feature = "interpolate_display")]
             OutputType::String => quote!(build_string),
             #[cfg(feature = "interpolate_display")]
@@ -90,18 +100,27 @@ impl OutputType {
 
     pub fn is_string(self) -> bool {
         match self {
-            OutputType::View | OutputType::Builder => false,
+            OutputType::View => false,
             #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => true,
         }
     }
 
-    pub fn wrapp(self, ts: TokenStream) -> TokenStream {
+    pub fn wrapp(self, ts: TokenStream, params: Option<TokenStream>) -> TokenStream {
         match self {
-            OutputType::View => quote!(move || #ts),
-            OutputType::Builder => ts,
+            OutputType::View => quote! {
+                {
+                    #params
+                    move || #ts
+                }
+            },
             #[cfg(feature = "interpolate_display")]
-            OutputType::String | OutputType::Display => ts,
+            OutputType::String | OutputType::Display => quote! {
+                {
+                    #params
+                    #ts
+                }
+            },
         }
     }
 }

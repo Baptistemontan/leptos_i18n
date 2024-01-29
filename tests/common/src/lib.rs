@@ -72,3 +72,10 @@ macro_rules! assert_eq_string {
         assert_eq!($left.to_string(), $($right)*)
     };
 }
+
+#[macro_export]
+macro_rules! tdbg {
+    ($($tt:tt)*) => {
+        td!($($tt)*)()
+    };
+}
