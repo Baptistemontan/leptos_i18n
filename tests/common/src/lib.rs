@@ -75,7 +75,7 @@ macro_rules! assert_eq_string {
 
 #[macro_export]
 macro_rules! tdbg {
-    ($($tt)*:tt) => {
+    ($($tt:tt)*) => {
         td!($($tt)*)()
     };
 }
