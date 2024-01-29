@@ -108,12 +108,12 @@ impl InterpolatedValue {
             }
             InterpolatedValue::AssignedVar { key, value } => {
                 let ts = (key.clone(), quote!(#value));
-                *self = InterpolatedValue::Var(key);
+                *self = InterpolatedValue::Var(std::mem::take(key));
                 ts
             }
             InterpolatedValue::AssignedComp { key, value } => {
                 let ts = (key.clone(), quote!(#value));
-                *self = InterpolatedValue::Comp(key);
+                *self = InterpolatedValue::Comp(std::mem::take(key));
                 ts
             }
             InterpolatedValue::DirectComp {
@@ -125,7 +125,7 @@ impl InterpolatedValue {
                     move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> };
                 };
                 let ts = (key.clone(), ts);
-                *self = InterpolatedValue::Comp(key);
+                *self = InterpolatedValue::Comp(std::mem::take(key));
                 ts
             }
         }
