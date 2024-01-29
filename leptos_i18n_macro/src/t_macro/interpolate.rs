@@ -107,7 +107,7 @@ impl InterpolatedValue {
                 (ident.clone(), quote!(#ident))
             }
             InterpolatedValue::AssignedVar { key, value } => {
-                let ts = (key.clone(), quote!(#value);
+                let ts = (key.clone(), quote!(#value));
                 *self = InterpolatedValue::Var(key);
                 ts
             }
