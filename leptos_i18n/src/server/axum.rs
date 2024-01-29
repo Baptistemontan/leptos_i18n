@@ -1,15 +1,16 @@
 use crate::locale_traits::*;
 use axum::http::header;
+use http::request::Parts;
 
 pub fn fetch_locale_server<T: Locale>() -> T {
     // when leptos_router inspect the routes it execute the code once but don't set a RequestParts in the context,
     // so we can't expect it to be present.
-    leptos::use_context::<leptos_axum::RequestParts>()
+    leptos::use_context::<Parts>()
         .map(|req| from_req(&req))
         .unwrap_or_default()
 }
 
-fn from_req<T: Locale>(req: &leptos_axum::RequestParts) -> T {
+fn from_req<T: Locale>(req: &Parts) -> T {
     #[cfg(feature = "cookie")]
     if let Some(pref_lang_cookie) = get_prefered_lang_cookie::<T>(req) {
         return pref_lang_cookie;
@@ -29,7 +30,7 @@ fn from_req<T: Locale>(req: &leptos_axum::RequestParts) -> T {
 }
 
 #[cfg(feature = "cookie")]
-fn get_prefered_lang_cookie<T: Locale>(req: &leptos_axum::RequestParts) -> Option<T> {
+fn get_prefered_lang_cookie<T: Locale>(req: &Parts) -> Option<T> {
     req.headers
         .get_all(header::COOKIE)
         .into_iter()

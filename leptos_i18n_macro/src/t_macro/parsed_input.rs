@@ -1,7 +1,9 @@
 use proc_macro2::Ident;
 use quote::{quote, ToTokens, TokenStreamExt};
-use syn::token::Comma;
-use syn::{Expr, Token};
+use syn::{
+    token::Comma,
+    {Expr, Token},
+};
 
 use super::interpolate::InterpolatedValue;
 
