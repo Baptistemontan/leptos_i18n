@@ -121,8 +121,8 @@ impl InterpolatedValue {
                 comp_name,
                 attrs,
             } => {
-                let ts = quote!{
-                    move |__children| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
+                let ts = quote! {
+                    move |__children:leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
                 };
                 let ts = (key.clone(), ts);
                 *self = InterpolatedValue::Comp(key.clone());
@@ -155,7 +155,7 @@ impl InterpolatedValue {
                 attrs,
             } => {
                 let comp_ident = Self::format_ident(key, false, string);
-                quote!(#comp_ident(move |__children| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> }))
+                quote!(#comp_ident(move |__children:leptos::ChildrenFn| leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> }))
             }
         }
     }
