@@ -12,9 +12,9 @@ fn defaulted_string() {
 #[test]
 fn defaulted_interpolation() {
     let en = td!(Locale::en, defaulted_interpolation, locale = "en")();
-    assert_eq_rendered!(en, "this interpolation is declared in locale en")();
+    assert_eq_rendered!(en, "this interpolation is declared in locale en");
     let fr = td!(Locale::fr, defaulted_interpolation, locale = "en")();
-    assert_eq_rendered!(fr, "this interpolation is declared in locale en")();
+    assert_eq_rendered!(fr, "this interpolation is declared in locale en");
 }
 
 #[test]
