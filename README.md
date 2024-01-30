@@ -44,7 +44,7 @@ cargo add leptos_i18n
 Or by adding this line to your `Cargo.toml` under `[dependencies]`:
 
 ```toml
-leptos_i18n = "0.2"
+leptos_i18n = "0.3"
 ```
 
 ## Version compatibility with leptos
@@ -54,6 +54,7 @@ leptos_i18n = "0.2"
 | `< v0.4.x` | not supported |
 | `v0.4.x`   | `v0.1.x`      |
 | `v0.5.x`   | `v0.2.x`      |
+| `v0.6.x`   | `v0.3.x`      |
 
 ## How to use
 
