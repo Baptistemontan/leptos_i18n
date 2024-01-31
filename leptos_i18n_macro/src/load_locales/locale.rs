@@ -10,6 +10,7 @@ use super::{
     error::{Error, Result},
     key::{Key, KeyPath},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
+    tracking::track_file,
     warning::{emit_warning, Warning},
 };
 
@@ -190,16 +191,7 @@ impl Locale {
         locale: Rc<Key>,
         namespace: Option<Rc<Key>>,
     ) -> Result<Self> {
-        #[cfg(feature = "nightly")]
-        if let Some(path) = path.as_os_str().to_str() {
-            proc_macro::tracked_path::path(path);
-        } else {
-            emit_warning(Warning::NonUnicodePath {
-                locale: locale.clone(),
-                namespace: namespace.clone(),
-                path: path.clone(),
-            });
-        }
+        track_file(&locale, namespace.as_ref(), path);
 
         let seed = LocaleSeed {
             name: Rc::clone(&locale),

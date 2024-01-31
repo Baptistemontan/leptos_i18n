@@ -12,6 +12,7 @@ pub mod key;
 pub mod locale;
 pub mod parsed_value;
 pub mod plural;
+pub mod tracking;
 pub mod warning;
 
 use cfg_file::ConfigFile;
@@ -67,8 +68,12 @@ pub fn load_locales() -> Result<TokenStream> {
         )
     };
 
+    let file_tracking = tracking::generate_file_tracking();
+
     Ok(quote! {
         pub mod i18n {
+            #file_tracking
+
             #locale_enum
 
             #locale_type

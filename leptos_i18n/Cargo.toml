@@ -37,6 +37,7 @@ suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
 json_files = ["leptos_i18n_macro/json_files"]
 yaml_files = ["leptos_i18n_macro/yaml_files"]
 interpolate_display = ["leptos_i18n_macro/interpolate_display"]
+track_locale_files = ["leptos_i18n_macro/track_locale_files"]
 
 
 [package.metadata.cargo-all-features]
@@ -50,6 +51,7 @@ denylist = [
     "serde",
     "debug_interpolations",
     "suppress_key_warnings",
+    "track_locale_files",
 ]
 skip_feature_sets = [
     # Axum and Actix features are incompatible with each other - see `./src/server/mod.rs`, always exclude:
