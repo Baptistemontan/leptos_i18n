@@ -190,6 +190,17 @@ impl Locale {
         locale: Rc<Key>,
         namespace: Option<Rc<Key>>,
     ) -> Result<Self> {
+        #[cfg(feature = "nightly")]
+        if let Some(path) = path.as_os_str().to_str() {
+            proc_macro::tracked_path::path(path);
+        } else {
+            emit_warning(Warning::NonUnicodePath {
+                locale: locale.clone(),
+                namespace: namespace.clone(),
+                path: path.clone(),
+            });
+        }
+
         let seed = LocaleSeed {
             name: Rc::clone(&locale),
             top_locale_name: locale,
