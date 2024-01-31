@@ -595,7 +595,7 @@ The `cookie` feature enable to set a cookie when a locale is chosen by the user,
 The `serde` feature implement `serde::Serialize` and `serde::Deserialize` for the locale enum.
 
 The `nightly` feature enable to do `i18n()` to get the locale instead of `i18n.get_locale()` and `i18n(new_locale)` instead of `i18n.set_locale(new_locale)`.
-It also allow macros to use unstable APIs for better warnings and to track the locales files as dependencies.
+It also allow macros to use unstable APIs for better warnings.
 
 The `debug_interpolations` feature enable the macros to generate code to emit a warning if a key is supplied twice in interpolations and a better compilation error when a key is missing.
 Better compilation errors are generated for interpolations with 4 keys or less.
@@ -612,7 +612,7 @@ The `track_locale_files` feature is to track files for rebuilds. The `load_local
 you may have noticed that if you use `cargo-leptos` with `watch-additional-files = ["locales"]` and running `cargo leptos watch`, even if the file changes and cargo-leptos triggers a rebuild nothing changes.
 This feature use a "trick" by using `include_bytes!()` to declare the use of a file, but I'm a bit sceptical of the impact on build time using this.
 I've already checked and it does not include the bytes in the final binary, even in debug, but it may slow down compilation time.
-If you use the `nighly` feature it already use the proc_macro tracking API so this feature is not used.
+If you use the `nighly` feature it use the [path tracking API](https://github.com/rust-lang/rust/issues/99515) so no trick using `include_bytes!` and the possible slowdown in compile times coming with it.
 
 ## Contributing
 

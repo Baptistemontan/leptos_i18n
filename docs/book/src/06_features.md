@@ -46,7 +46,6 @@ Set a cookie to remember the last chosen locale.
 
 - Enable the use of some nighly features, like directly calling the context to get/set the current locale.
 - Allow the `load_locale!` macro to emit better warnings.
-- Allow tracking of locale files as dependencies for rebuilds.
 
 #### `track_locale_files`
 
@@ -55,4 +54,4 @@ The `load_locales!()` macro using external dependencies the build system is not 
 you may have noticed that if you use `cargo-leptos` with `watch-additional-files = ["locales"]` and running `cargo leptos watch`, even if the file changes and cargo-leptos triggers a rebuild nothing changes.
 This feature use a "trick" by using `include_bytes!()` to declare the use of a file, but I'm a bit sceptical of the impact on build time using this.
 I've already checked and it does not include the bytes in the final binary, even in debug, but it may slow down compilation time.
-If you use the `nighly` feature it already use the proc_macro tracking API so this feature is pointless.
+If you use the `nighly` feature it use the [path tracking API](https://github.com/rust-lang/rust/issues/99515) so no trick using `include_bytes!` and the possible slowdown in compile times coming with it.

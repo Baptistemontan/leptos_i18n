@@ -45,6 +45,7 @@
 //! - `suppress_key_warnings`: Disable the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
 //! - `yaml_files`: Enable this feature if you use YAML files for declaring your locales (can't be used with `json_files`).
 //! - `nightly`: On `nightly` Rust, enables the function-call syntax on the i18n context to get/set the locale.
+//! - `track_locale_files`: Enable the tracking of locale files as dependencies, usefull if you use some watcher. See the README for more infos.
 //!
 //! # A Simple Counter
 //!
