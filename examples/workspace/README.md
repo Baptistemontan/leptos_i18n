@@ -1,6 +1,6 @@
 # Counter Example
 
-This example showcase how you can interpolate a variable in your translations and switch locale without loosing state.
+This example showcase one way to setup the library in a workspace environment.
 
 ## How to run
 
