@@ -10,6 +10,7 @@ use super::{
     error::{Error, Result},
     key::{Key, KeyPath},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
+    tracking::track_file,
     warning::{emit_warning, Warning},
 };
 
@@ -190,6 +191,8 @@ impl Locale {
         locale: Rc<Key>,
         namespace: Option<Rc<Key>>,
     ) -> Result<Self> {
+        track_file(&locale, namespace.as_ref(), path);
+
         let seed = LocaleSeed {
             name: Rc::clone(&locale),
             top_locale_name: locale,

@@ -7,8 +7,20 @@ use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 #[derive(Debug)]
 pub enum Warning {
-    MissingKey { locale: Rc<Key>, key_path: KeyPath },
-    SurplusKey { locale: Rc<Key>, key_path: KeyPath },
+    MissingKey {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
+    SurplusKey {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
+    #[cfg(feature = "track_locale_files")]
+    NonUnicodePath {
+        locale: Rc<Key>,
+        namespace: Option<Rc<Key>>,
+        path: std::path::PathBuf,
+    },
 }
 
 thread_local! {
@@ -32,6 +44,10 @@ impl Display for Warning {
                 "Key {} is present in locale {:?} but not in default locale, it is ignored",
                 key_path, locale
             ),
+            #[cfg(feature = "track_locale_files")]
+            Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, path),
+            #[cfg(feature = "track_locale_files")]
+            Warning::NonUnicodePath { locale, namespace: Some(ns), path } => write!(f, "File path for locale {:?} in namespace {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, ns, path),
         }
     }
 }
