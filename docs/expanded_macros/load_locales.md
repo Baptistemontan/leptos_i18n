@@ -70,8 +70,8 @@ pub mod i18n {
         }
         fn from_str(s: &str) -> Option<Self> {
             match s {
-                "en" => Locale::en,
-                "fr" => Locale::fr,
+                "en" => Some(Locale::en),
+                "fr" => Some(Locale::fr),
                 _ => None
             }
         }
@@ -82,7 +82,7 @@ pub mod i18n {
     pub struct I18nKeys {
         pub hello_world: &'static str,
         pub key_present_only_in_default: &'static str,
-        pub plural: builders::plural_builder<builders::EmptyInterpolateValue>,
+        pub plural: builders::plural_builder<builders::EmptyInterpolateValue, builders::EmptyInterpolateValue>,
         pub some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys,
     }
 
@@ -196,7 +196,7 @@ pub mod i18n {
                 where __T: Fn() -> u32 + core::clone::Clone + 'static
             {
                 let Self { _locale, comp_b, .. } = self;
-                Self { _locale, var_count, comp_b }
+                plural_builder { _locale, var_count, comp_b }
             }
         }
 
@@ -210,7 +210,7 @@ pub mod i18n {
             {
                 let Self { _locale, var_count, .. } = self;
                 let comp_b = move |children| leptos::IntoView::into_view(comp_b(children));
-                Self { _locale, var_count, comp_b }
+                plural_builder { _locale, var_count, comp_b }
             }
         }
 
