@@ -1,11 +1,10 @@
 #![deny(warnings)]
 
-#[cfg(feature = "ssr")]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use actix_files::Files;
     use actix_web::*;
-    use counter::app::App;
+    use client::app::App;
     use leptos::*;
     use leptos_actix::{generate_route_list, LeptosRoutes};
 
@@ -45,6 +44,3 @@ async fn main() -> std::io::Result<()> {
     .run()
     .await
 }
-
-#[cfg(not(feature = "ssr"))]
-fn main() {}
