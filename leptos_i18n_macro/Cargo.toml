@@ -31,6 +31,7 @@ suppress_key_warnings = []
 json_files = ["serde_json"]
 yaml_files = ["serde_yaml"]
 interpolate_display = []
+track_locale_files = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
