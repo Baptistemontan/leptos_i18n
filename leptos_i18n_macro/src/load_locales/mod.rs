@@ -70,6 +70,12 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let file_tracking = tracking::generate_file_tracking();
 
+    let island_or_component = if cfg!(feature = "experimental-islands") {
+        quote!(island)
+    } else {
+        quote!(component)
+    };
+
     Ok(quote! {
         pub mod i18n {
             #file_tracking
@@ -87,6 +93,16 @@ pub fn load_locales() -> Result<TokenStream> {
             pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locale> {
                 leptos_i18n::provide_i18n_context()
             }
+
+            mod provider {
+                #[leptos::#island_or_component]
+                pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
+                    super::provide_i18n_context();
+                    children()
+                }
+            }
+
+            pub use provider::I18nContextProvider;
 
             #macros_reexport
 
