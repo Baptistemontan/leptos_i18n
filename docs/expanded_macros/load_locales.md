@@ -275,6 +275,16 @@ pub mod i18n {
         leptos_i18n::provide_i18n_context()
     }
 
+    mod provider {
+        // #[leptos::island] if the `experimental-island` feature is enabled
+        #[leptos::component]
+        pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
+            super::provide_i18n_context();
+            children()
+        }
+    }
+    pub use provider::I18nContextProvider; // this is to avoid bloat with the generated struct of the component
+
     // re-export `t!` and `td!` to just need to do `use i18n::*` and basically import everything you need.
     pub use leptos_i18n::{t, td};
 
