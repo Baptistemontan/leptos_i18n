@@ -197,6 +197,8 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 ///         {children}
 ///     </div>
 /// }); // NOT OK -> tries to capture outer scope.
+///
+/// Also note that this macro does NOT take the context as the first argument, only the key then the args.
 /// ```
 #[cfg(feature = "experimental-islands")]
 #[macro_export]
