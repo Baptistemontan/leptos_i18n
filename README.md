@@ -579,7 +579,7 @@ Arguments must be string, delimited by either single quotes or double quotes.
 
 ### Book
 
-A more in-depth doc is available on github, the [book](https://github.com/Baptistemontan/leptos_i18n/tree/master/docs/book)
+A more in-depth doc is available on github, the [book](https://baptistemontan.github.io/leptos_i18n)
 
 ### Examples
 
