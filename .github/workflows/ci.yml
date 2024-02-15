@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, hello_world_axum, workspace]
+        examples: [hello_world_actix, hello_world_axum, workspace, axum_island]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3

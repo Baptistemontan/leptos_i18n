@@ -38,6 +38,10 @@ json_files = ["leptos_i18n_macro/json_files"]
 yaml_files = ["leptos_i18n_macro/yaml_files"]
 interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 track_locale_files = ["leptos_i18n_macro/track_locale_files"]
+experimental-islands = [
+    "leptos/experimental-islands",
+    "leptos_i18n_macro/experimental-islands",
+]
 
 
 [package.metadata.cargo-all-features]
