@@ -110,7 +110,7 @@ A non-reactive counterpart to `set_locale` exist: `set_locale_untracked`.
 
 ## Note on island
 
-If you use the `experimental-island` feature from Leptos this will not work and cause an error on the client:
+If you use the `experimental-islands` feature from Leptos this will not work and cause an error on the client:
 
 ```rust
 #[component]
@@ -133,7 +133,7 @@ fn HomePage() -> impl IntoView {
 
 Because `App` is only rendered on the server, and the code is never called on the client, thus the context is never provided on the client, making `use_i18n` panic when trying to access it.
 
-To fix it first enable the `experimental-island` feature for `leptos_i18n` and use the `I18nContextProvider` component exported by the `i18n` module:
+To fix it first enable the `experimental-islands` feature for `leptos_i18n` and use the `I18nContextProvider` component exported by the `i18n` module:
 
 ```rust
 #[component]
