@@ -171,7 +171,7 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 /// fn App() -> impl IntoView {
 ///     view! {
 ///         <I18nContextProvider>
-///                 <p>{ti!(hello_world)}</p> // <- using `t!` here would'nt work
+///             <p>{ti!(HelloWorld, hello_world)}</p> // <- using `t!` here would'nt work
 ///         </I18nContextProvider>
 ///     }
 /// }
@@ -185,13 +185,13 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 /// I mean ACTUAL variables, it is totally ok to use litterals or refer to global variable, as long as you are not trying to capture outer variables.
 ///
 /// ```rust, ignore
-/// ti!(say_name, name = "John"); // totally OK
+/// ti!(SayName, say_name, name = "John"); // totally OK
 ///
 /// static MY_NUM: usize = 0;
-/// ti!(counter, count = MY_NUM); // totally OK
+/// ti!(Counter, counter, count = MY_NUM); // totally OK
 ///
 /// let foo: String = get_my_string();
-/// ti!(render_my_struct, <bar> = |children| view! {
+/// ti!(RenderMyStruct, render_my_struct, <bar> = |children| view! {
 ///     <div>
 ///         <p>{foo}</p>
 ///         {children}
@@ -199,25 +199,84 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 /// }); // NOT OK -> tries to capture outer scope.
 /// ```
 ///
-/// Also note that this macro does NOT take the context as the first argument, only the key then the args.
+/// Also note that this macro does NOT take the context as the first argument, instead it takes the name for the generated island.
 ///
-/// If you need to pass args, you will have to make yourself an island that take those args.
+/// If you need to pass variable args, you will have to make yourself an island that take those args.
 #[cfg(feature = "experimental-islands")]
 #[macro_export]
 macro_rules! ti {
-    ($($tt:tt)*) => {
+    ($island_name: ident, $($tt:tt)*) => {
         {
             mod inner {
                 use super::*;
                 #[leptos::island]
-                pub fn I18nInnerIsland() -> impl IntoView {
+                pub fn $island_name() -> impl IntoView {
                     let i18n = use_i18n();
                     leptos::view! { <>{t!(i18n, $($tt)*)}</> }
                 }
             }
-            use inner::I18nInnerIsland;
+            use inner::$island_name;
 
-            || view! { <I18nInnerIsland /> }
+            || view! { <$island_name /> }
+        }
+    };
+}
+
+/// Utility Macro to generate an island for a translation key.
+///
+/// One of the limitation of `ti!` is that if you use the same key multiple time, you must still give a unique name and creating duplicate code.
+///
+/// This macro mitigate that by creating the island and then you can use it multiple time.
+///
+/// ```rust, ignore
+/// use crate::i18n::*;
+///
+/// #[component]
+/// fn App() -> impl IntoView {
+///     view! {
+///         <I18nContextProvider>
+///             <p>
+///                 {ti!(HelloWorld, hello_world)}
+///                 {ti!(HelloWorld, hello_world)}
+///                 {ti!(HelloWorld, hello_world)}
+///                 {ti!(HelloWorld, hello_world)}
+///             </p>
+///         </I18nContextProvider>
+///     }
+/// }
+/// ```
+///
+/// The code above won't compile as the `HelloWorld` island is created multiple time, and `wasm_bindgen` don't like duplicate symbols.
+///
+/// Do this instead:
+///
+/// ```rust, ignore
+/// use crate::i18n::*;
+///
+/// leptos_i18n::make_i18n_island(HelloWold, hello_world);
+///
+/// #[component]
+/// fn App() -> impl IntoView {
+///     view! {
+///         <I18nContextProvider>
+///             <p>
+///                 <HelloWorld />
+///                 <HelloWorld />
+///                 <HelloWorld />
+///                 <HelloWorld />
+///             </p>
+///         </I18nContextProvider>
+///     }
+/// }
+/// ```
+#[cfg(feature = "experimental-islands")]
+#[macro_export]
+macro_rules! make_i18n_island {
+    ($island_name: ident, $($tt:tt)*) => {
+        #[leptos::island]
+        pub fn $island_name() -> impl IntoView {
+            let i18n = use_i18n();
+            leptos::view! { <>{t!(i18n, $($tt)*)}</> }
         }
     };
 }

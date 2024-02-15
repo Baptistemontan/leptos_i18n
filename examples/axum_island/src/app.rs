@@ -6,6 +6,9 @@ pub fn App() -> impl IntoView {
     // use the `I18nContextProvider` instead of `provide_i18n_context` to provide the context to all island in the application.
     view! {
         <I18nContextProvider>
+            <p>
+                {ti!(HelloWorld, hello_world)}
+            </p>
             <Counter />
             <ChangeLang />
         </I18nContextProvider>
@@ -48,7 +51,6 @@ fn ChangeLang() -> impl IntoView {
     };
 
     view! {
-        <h1>{t!(i18n, hello_world)}</h1>
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
     }
 }
