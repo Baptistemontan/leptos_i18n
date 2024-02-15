@@ -1,5 +1,7 @@
 [![crates.io](https://img.shields.io/crates/v/leptos_i18n.svg)](https://crates.io/crates/leptos_i18n)
 
+[Docs.rs](https://docs.rs/leptos_i18n/latest/leptos_i18n/) | [Book](https://baptistemontan.github.io/leptos_i18n)
+
 # Leptos i18n
 
 This crate is made to simplify internationalization in a [Leptos](https://crates.io/crates/leptos) application, that loads locales at **_compile time_** and provides compile time checks for translation keys, interpolation keys and the selected locale.
