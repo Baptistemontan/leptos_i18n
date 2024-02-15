@@ -107,3 +107,41 @@ pub fn Foo() -> impl IntoView {
 If you enable the `nightly` feature you can directly call the context`i18n(new_locale);`.
 
 A non-reactive counterpart to `set_locale` exist: `set_locale_untracked`.
+
+## Note on island
+
+If you use the `experimental-islands` feature from Leptos this will not work and cause an error on the client:
+
+```rust
+#[component]
+fn App() -> impl IntoView {
+    provide_i18n_context();
+
+    view! {
+        <HomePage />
+    }
+}
+
+#[island]
+fn HomePage() -> impl IntoView {
+    let i18n = use_i18n();
+    view! {
+        <p>{t!(i18n, hello_world)}</p>
+    }
+}
+```
+
+Because `App` is only rendered on the server, and the code is never called on the client, thus the context is never provided on the client, making `use_i18n` panic when trying to access it.
+
+To fix it first enable the `experimental-islands` feature for `leptos_i18n` and use the `I18nContextProvider` component exported by the `i18n` module:
+
+```rust
+#[component]
+fn App() -> impl IntoView {
+    view! {
+        <I18nContextProvider>
+            <HomePage />
+        </I18nContextProvider>
+    }
+}
+```

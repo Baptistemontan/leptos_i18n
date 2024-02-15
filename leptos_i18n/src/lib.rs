@@ -161,3 +161,63 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
     use wasm_bindgen::JsCast;
     leptos::document().dyn_into::<web_sys::HtmlDocument>().ok()
 }
+
+/// Utility macro for using reactive translations in a non reactive component when using islands.
+///
+/// ```rust, ignore
+/// use crate::i18n::*;
+///
+/// #[component]
+/// fn App() -> impl IntoView {
+///     view! {
+///         <I18nContextProvider>
+///                 <p>{ti!(hello_world)}</p> // <- using `t!` here would'nt work
+///         </I18nContextProvider>
+///     }
+/// }
+/// ```
+///
+/// The code above would not work because the component is only rendered on the server and never runs on the client, so using `t!` would make the translation unreactive.
+///
+/// `ti!` wrapp the call to `t!` in an isolated island, making it run on the client.
+///
+/// The drawbacks are that this macro is really simple, so it don't add args to the island, making it impossible to use variable in your translation.
+/// I mean ACTUAL variables, it is totally ok to use litterals or refer to global variable, as long as you are not trying to capture outer variables.
+///
+/// ```rust, ignore
+/// ti!(say_name, name = "John"); // totally OK
+///
+/// static MY_NUM: usize = 0;
+/// ti!(counter, count = MY_NUM); // totally OK
+///
+/// let foo: String = get_my_string();
+/// ti!(render_my_struct, <bar> = |children| view! {
+///     <div>
+///         <p>{foo}</p>
+///         {children}
+///     </div>
+/// }); // NOT OK -> tries to capture outer scope.
+/// ```
+///
+/// Also note that this macro does NOT take the context as the first argument, only the key then the args.
+///
+/// If you need to pass args, you will have to make yourself an island that take those args.
+#[cfg(feature = "experimental-islands")]
+#[macro_export]
+macro_rules! ti {
+    ($($tt:tt)*) => {
+        {
+            mod inner {
+                use super::*;
+                #[leptos::island]
+                pub fn I18nInnerIsland() -> impl IntoView {
+                    let i18n = use_i18n();
+                    leptos::view! { <>{t!(i18n, $($tt)*)}</> }
+                }
+            }
+            use inner::I18nInnerIsland;
+
+            || view! { <I18nInnerIsland /> }
+        }
+    };
+}

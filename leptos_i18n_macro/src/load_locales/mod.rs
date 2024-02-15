@@ -58,17 +58,26 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let warnings = generate_warnings();
 
-    let macros_reexport = if cfg!(feature = "interpolate_display") {
-        quote!(
-            pub use leptos_i18n::{t, td, t_string, t_display, td_string, td_display};
-        )
+    let file_tracking = tracking::generate_file_tracking();
+
+    let mut macros_reexport = vec![quote!(t), quote!(td)];
+    if cfg!(feature = "interpolate_display") {
+        macros_reexport.extend([
+            quote!(t_string),
+            quote!(t_display),
+            quote!(td_string),
+            quote!(td_display),
+        ]);
+    }
+
+    let island_or_component = if cfg!(feature = "experimental-islands") {
+        macros_reexport.push(quote!(ti));
+        quote!(island)
     } else {
-        quote!(
-            pub use leptos_i18n::{t, td};
-        )
+        quote!(component)
     };
 
-    let file_tracking = tracking::generate_file_tracking();
+    let macros_reexport = quote!(pub use leptos_i18n::{#(#macros_reexport,)*};);
 
     Ok(quote! {
         pub mod i18n {
@@ -87,6 +96,16 @@ pub fn load_locales() -> Result<TokenStream> {
             pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locale> {
                 leptos_i18n::provide_i18n_context()
             }
+
+            mod provider {
+                #[leptos::#island_or_component]
+                pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
+                    super::provide_i18n_context();
+                    children()
+                }
+            }
+
+            pub use provider::I18nContextProvider;
 
             #macros_reexport
 
