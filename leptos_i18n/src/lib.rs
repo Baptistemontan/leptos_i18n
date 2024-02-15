@@ -177,7 +177,7 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 /// }
 /// ```
 ///
-/// It would not work because the component is only rendered on the server nad never runs on the client, so using `t!` would make the translation unreactive.
+/// The code above would not work because the component is only rendered on the server and never runs on the client, so using `t!` would make the translation unreactive.
 ///
 /// `ti!` wrapp the call to `t!` in an isolated island, making it run on the client.
 ///
@@ -197,9 +197,11 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 ///         {children}
 ///     </div>
 /// }); // NOT OK -> tries to capture outer scope.
+/// ```
 ///
 /// Also note that this macro does NOT take the context as the first argument, only the key then the args.
-/// ```
+///
+/// If you need to pass args, you will have to make yourself an island that take those args.
 #[cfg(feature = "experimental-islands")]
 #[macro_export]
 macro_rules! ti {
