@@ -183,7 +183,8 @@ pub(crate) fn get_html_document() -> Option<web_sys::HtmlDocument> {
 ///
 /// The drawbacks are that this macro is really simple, so it don't add args to the island, making it impossible to use variable in your translation.
 /// I mean ACTUAL variables, it is totally ok to use litterals or refer to global variable, as long as you are not trying to capture outer variables.
-/// ```
+///
+/// ```rust, ignore
 /// ti!(say_name, name = "John"); // totally OK
 ///
 /// static MY_NUM: usize = 0;
