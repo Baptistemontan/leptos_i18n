@@ -100,13 +100,14 @@ pub fn load_locales() -> Result<TokenStream> {
 
             mod provider {
                 #[leptos::#island_or_component]
-                pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
+                pub fn i18n_context_provider(children: leptos::Children) -> impl leptos::IntoView {
                     super::provide_i18n_context();
                     children()
                 }
             }
 
-            pub use provider::I18nContextProvider;
+            #[allow(non_snake_case)]
+            pub use provider::i18n_context_provider as I18nContextProvider;
 
             #macros_reexport
 
@@ -224,11 +225,6 @@ fn create_locale_type_inner(
         .map(|(key, _)| key)
         .collect::<Vec<_>>();
 
-    let string_fields = string_keys
-        .iter()
-        .map(|key| quote!(pub #key: &'static str))
-        .collect::<Vec<_>>();
-
     let subkeys = keys
         .iter()
         .filter_map(|(key, value)| match value {
@@ -258,23 +254,6 @@ fn create_locale_type_inner(
         }
     });
 
-    let subkeys_fields = subkeys.iter().map(|sk| {
-        let original_key = &sk.original_key;
-        let key = &sk.key;
-        let mod_ident = &sk.mod_key;
-        quote!(pub #original_key: subkeys::#mod_ident::#key)
-    });
-
-    let subkeys_field_new = subkeys
-        .iter()
-        .map(|sk| {
-            let original_key = &sk.original_key;
-            let key = &sk.key;
-            let mod_ident = &sk.mod_key;
-            quote!(#original_key: subkeys::#mod_ident::#key::new(_locale))
-        })
-        .collect::<Vec<_>>();
-
     let subkeys_module = subkeys.is_empty().not().then(move || {
         quote! {
             #[doc(hidden)]
@@ -299,47 +278,7 @@ fn create_locale_type_inner(
         })
         .collect::<Vec<_>>();
 
-    let builder_fields = builders.iter().map(|(key, inter)| {
-        let inter_ident = &inter.default_generic_ident;
-        quote!(pub #key: builders::#inter_ident)
-    });
-
-    let init_builder_fields: Vec<TokenStream> = builders
-        .iter()
-        .map(|(key, inter)| {
-            let ident = &inter.ident;
-            quote!(#key: builders::#ident::new(_locale))
-        })
-        .collect();
-
     let default_locale = locales.first().unwrap();
-
-    let new_match_arms = locales.iter().enumerate().map(|(i, locale)| {
-        let filled_string_fields =
-            string_keys
-                .iter()
-                .filter_map(|&key| match locale.keys.get(key) {
-                    Some(ParsedValue::String(str_value)) => Some(quote!(#key: #str_value)),
-                    _ => {
-                        let str_value = default_locale
-                            .keys
-                            .get(key)
-                            .and_then(ParsedValue::is_string)?;
-                        Some(quote!(#key: #str_value))
-                    }
-                });
-
-        let ident = &locale.top_locale_name;
-        let pattern = (i != 0).then(|| quote!(Locale::#ident));
-        let pattern = pattern.as_ref().unwrap_or(&default_match);
-        quote! {
-            #pattern => #type_ident {
-                #(#filled_string_fields,)*
-                #(#init_builder_fields,)*
-                #(#subkeys_field_new,)*
-            }
-        }
-    });
 
     let builder_impls = builders.iter().map(|(_, inter)| &inter.imp);
 
@@ -448,61 +387,53 @@ fn create_locale_type_inner(
         }
     });
 
-    let (from_locale, const_values) = if !is_namespace {
-        let from_locale_match_arms = top_locales
-            .iter()
-            .map(|locale| quote!(Locale::#locale => &Self::#locale));
-
+    let from_locale = if !is_namespace {
         let from_locale = quote! {
             impl leptos_i18n::LocaleKeys for #type_ident {
                 type Locale = Locale;
-                fn from_locale(_locale: Locale) -> &'static Self {
-                    match _locale {
-                        #(
-                            #from_locale_match_arms,
-                        )*
-                    }
+                fn from_locale(locale: Locale) -> Self {
+                    #type_ident(locale)
                 }
             }
         };
-
-        let const_values = top_locales
-            .iter()
-            .map(|locale| quote!(pub const #locale: Self = Self::new(Locale::#locale);));
-
-        let const_values = quote! {
-            #(
-                #[allow(non_upper_case_globals)]
-                #const_values
-            )*
-        };
-
-        (Some(from_locale), Some(const_values))
+        Some(from_locale)
     } else {
-        (None, None)
+        None
     };
+
+    let string_accessors = string_keys
+        .iter()
+        .map(|key| create_string_accessor(type_ident, key, locales));
+
+    let builder_accessors = builders
+        .iter()
+        .map(|(key, builder)| create_builder_accessor(key, builder));
+
+    let subkeys_accessors = subkeys.iter().map(create_subkeys_accessor);
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
-        pub struct #type_ident {
-            #(#string_fields,)*
-            #(#builder_fields,)*
-            #(#subkeys_fields,)*
-        }
+        pub struct #type_ident(Locale);
 
         impl #type_ident {
+            #(
+                #string_accessors
+            )*
 
-            #const_values
+            #(
+                #builder_accessors
+            )*
 
-            pub const fn new(_locale: Locale) -> Self {
-                match _locale {
-                    #(
-                        #new_match_arms,
-                    )*
-                }
+            #(
+                #subkeys_accessors
+            )*
+
+            pub fn new(locale: Locale) -> Self {
+                #type_ident(locale)
             }
         }
+
 
         #(
             #translation_types
@@ -513,6 +444,44 @@ fn create_locale_type_inner(
         #builder_module
 
         #subkeys_module
+    }
+}
+
+fn create_string_accessor(type_ident: &Ident, key: &Key, locales: &[Locale]) -> TokenStream {
+    let translation_type = locales
+        .iter()
+        .map(|locale| format_ident!("{}_{}", type_ident, locale.top_locale_name.ident));
+    let locales = locales.iter().map(|locale| &locale.top_locale_name.ident);
+    quote! {
+        #[allow(non_snake_case)]
+        pub fn #key(self) -> &'static str {
+            match self.0 {
+                #(Locale::#locales => &#translation_type::get().#key,)*
+            }
+        }
+    }
+}
+
+fn create_builder_accessor(key: &Key, builder: &Interpolation) -> TokenStream {
+    let builder_ident = &builder.ident;
+    let generics = &builder.default_generic_ident;
+    quote! {
+        #[allow(non_snake_case)]
+        pub fn #key(self) -> builders::#generics {
+            builders::#builder_ident::new(self.0)
+        }
+    }
+}
+
+fn create_subkeys_accessor(sk: &Subkeys) -> TokenStream {
+    let original_key = &sk.original_key;
+    let key = &sk.key;
+    let mod_ident = &sk.mod_key;
+    quote! {
+        #[allow(non_snake_case)]
+        pub fn #original_key(self) -> subkeys::#mod_ident::#key {
+            subkeys::#mod_ident::#key::new(self.0)
+        }
     }
 }
 

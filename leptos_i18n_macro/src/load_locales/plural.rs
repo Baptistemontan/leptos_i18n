@@ -101,18 +101,18 @@ pub enum Plurals {
 
 impl Plurals {
     #[cfg(feature = "interpolate_display")]
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl(&self, index: &mut usize) -> TokenStream {
         match self {
-            Plurals::I8(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::I16(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::I32(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::I64(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::U8(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::U16(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::U32(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::U64(plurals) => Self::to_tokens_integers_string(plurals),
-            Plurals::F32(plurals) => Self::to_tokens_floats_string(plurals),
-            Plurals::F64(plurals) => Self::to_tokens_floats_string(plurals),
+            Plurals::I8(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::I16(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::I32(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::I64(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::U8(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::U16(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::U32(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::U64(plurals) => Self::to_tokens_integers_string(plurals, index),
+            Plurals::F32(plurals) => Self::to_tokens_floats_string(plurals, index),
+            Plurals::F64(plurals) => Self::to_tokens_floats_string(plurals, index),
         }
     }
 
@@ -260,9 +260,10 @@ impl Plurals {
     #[cfg(feature = "interpolate_display")]
     fn to_tokens_integers_string<T: PluralInteger>(
         plurals: &[(Plural<T>, ParsedValue)],
+        index: &mut usize,
     ) -> TokenStream {
         let match_arms = plurals.iter().map(|(plural, value)| {
-            let value = value.as_string_impl();
+            let value = value.as_string_impl_inner(index);
             quote!(#plural => #value)
         });
 
@@ -337,9 +338,10 @@ impl Plurals {
     #[cfg(feature = "interpolate_display")]
     fn to_tokens_floats_string<T: PluralFloats>(
         plurals: &[(Plural<T>, ParsedValue)],
+        index: &mut usize,
     ) -> TokenStream {
         let mut ifs = plurals.iter().map(|(plural, value)| {
-            let value = value.as_string_impl();
+            let value = value.as_string_impl_inner(index);
             match Self::to_condition(plural) {
                 None => quote!({ #value }),
                 Some(condition) => quote!(if #condition { #value }),

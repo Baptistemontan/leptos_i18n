@@ -586,7 +586,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_string_impl(key, locales, default_match);
+        let locales_impls = Self::create_locale_string_impl(key, locales, default_match, ident);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -737,6 +737,7 @@ impl Interpolation {
         key: &'a Key,
         locales: &'a [Locale],
         default_match: &TokenStream,
+        ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let mut default_match = default_match.clone();
         locales
@@ -754,12 +755,18 @@ impl Interpolation {
                     Some(value) => value,
                 };
 
+                let translations_ident = format_ident!("{}_{}", ident, locale_key.ident);
+
                 let value = value.as_string_impl();
 
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(Locale::#locale_key => { #value }),
+                let matc = match i == 0 {
+                    true => Cow::Borrowed(&default_match),
+                    false => Cow::Owned(quote!(Locale::#locale_key)),
                 };
+                let ts = quote!(#matc => {
+                    let __translations = #translations_ident::get();
+                    #value
+                });
                 Some(ts)
             })
     }

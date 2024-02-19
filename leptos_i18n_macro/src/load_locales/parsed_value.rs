@@ -229,13 +229,6 @@ impl ParsedValue {
         keys
     }
 
-    pub fn is_string(&self) -> Option<&str> {
-        match self {
-            ParsedValue::String(value) => Some(value),
-            _ => None,
-        }
-    }
-
     pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Self {
         // look for component
         if let Some(component) = Self::find_component(value, key_path, locale) {
@@ -571,41 +564,52 @@ impl ParsedValue {
     }
 
     #[cfg(feature = "interpolate_display")]
-    fn flatten_string(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten_string(&self, tokens: &mut Vec<TokenStream>, index: &mut usize) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
-            ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
+            ParsedValue::String(_) => {
+                let tuple_index = syn::Index::from(*index);
+                tokens.push(
+                    quote!(core::fmt::Display::fmt(&*__translations.#tuple_index, __formatter)),
+                );
+                *index += 1;
+            }
+            ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl(index)),
             ParsedValue::Variable(key) => {
                 tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter)))
             }
             ParsedValue::Component { key, inner } => {
-                let inner = inner.as_string_impl();
+                let inner = inner.as_string_impl_inner(index);
                 tokens.push(quote!(leptos_i18n::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten_string(tokens)
+                    value.flatten_string(tokens, index)
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten_string")
-                .flatten_string(tokens),
+                .flatten_string(tokens, index),
         }
     }
 
     #[cfg(feature = "interpolate_display")]
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl_inner(&self, index: &mut usize) -> TokenStream {
         let mut tokens = Vec::new();
-        self.flatten_string(&mut tokens);
+        self.flatten_string(&mut tokens, index);
 
         match &tokens[..] {
             [] => quote!(Ok(())),
             [value] => value.clone(),
             values => quote!({ #(#values?;)* Ok(()) }),
         }
+    }
+
+    #[cfg(feature = "interpolate_display")]
+    pub fn as_string_impl(&self) -> TokenStream {
+        self.as_string_impl_inner(&mut 0)
     }
 
     pub fn to_tokens_inner(&self, index: &mut usize) -> TokenStream {
