@@ -22,6 +22,7 @@ use key::Key;
 use locale::{Locale, LocaleValue};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
+use syn::Ident;
 
 use crate::load_locales::parsed_value::ParsedValue;
 
@@ -204,13 +205,16 @@ fn get_default_match(
     quote!(Locale::#default_locale #(| Locale::#missing_keys)*)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_locale_type_inner(
     default_locale: &Key,
-    type_ident: &syn::Ident,
+    type_ident: &Ident,
     top_locales: &HashSet<&Key>,
     locales: &[Locale],
     keys: &HashMap<Rc<Key>, LocaleValue>,
     is_namespace: bool,
+    parent_ident: Option<&Ident>,
+    original_name: &Ident,
 ) -> TokenStream {
     let default_match = get_default_match(default_locale, top_locales, locales);
 
@@ -242,6 +246,8 @@ fn create_locale_type_inner(
             sk.locales,
             &sk.keys.0,
             true,
+            Some(type_ident),
+            sk.original_key,
         );
         quote! {
             pub mod #subkey_mod_ident {
@@ -286,9 +292,10 @@ fn create_locale_type_inner(
         .iter()
         .filter_map(|(key, value)| match value {
             LocaleValue::Value(None) | LocaleValue::Subkeys { .. } => None,
-            LocaleValue::Value(Some(keys)) => {
-                Some((key, Interpolation::new(key, keys, locales, &default_match)))
-            }
+            LocaleValue::Value(Some(keys)) => Some((
+                key,
+                Interpolation::new(key, type_ident, keys, locales, &default_match),
+            )),
         })
         .collect::<Vec<_>>();
 
@@ -352,6 +359,95 @@ fn create_locale_type_inner(
         }
     });
 
+    let translation_types = locales.iter().map(|locale| {
+        let (fields, constructors): (Vec<_>, Vec<_>) = keys
+            .iter()
+            .filter_map(|(key, _)| {
+                let ts = match locale.keys.get(key)? {
+                    ParsedValue::String(s) => {
+                        let len = s.len();
+                        let field = quote!(pub #key: leptos_i18n::__private::SizedString<#len>);
+                        let constructor =
+                            quote!(#key: leptos_i18n::__private::SizedString::new(#s));
+                        (field, constructor)
+                    }
+                    ParsedValue::Subkeys(_) => {
+                        let mod_ident = format_ident!("sk_{}", key.ident);
+                        let type_key =
+                            format_ident!("{}_subkeys_{}", key.ident, locale.top_locale_name.ident);
+                        let field = quote!(pub #key: subkeys::#mod_ident::#type_key);
+                        let constructor = quote!(#key: subkeys::#mod_ident::#type_key::new());
+                        (field, constructor)
+                    }
+                    ParsedValue::Default => {
+                        // defaulted builder
+                        let builder_name = format_ident!(
+                            "{}_builder_{}",
+                            key.ident,
+                            default_locale.top_locale_name.ident
+                        );
+                        let field = quote!(pub #key: builders::#builder_name);
+                        let constructor = quote!(#key: builders::#builder_name::new());
+                        (field, constructor)
+                    }
+                    _ => {
+                        // builder
+                        let builder_name =
+                            format_ident!("{}_builder_{}", key.ident, locale.top_locale_name.ident);
+                        let field = quote!(pub #key: builders::#builder_name);
+                        let constructor = quote!(#key: builders::#builder_name::new());
+                        (field, constructor)
+                    }
+                };
+                Some(ts)
+            })
+            .unzip();
+
+        let translation_type_name =
+            format_ident!("{}_{}", type_ident, locale.top_locale_name.ident);
+
+        let get_method = match parent_ident {
+            Some(parent_ident) => {
+                let parent_ident =
+                    format_ident!("{}_{}", parent_ident, locale.top_locale_name.ident);
+                quote! {
+                    pub fn get() -> &'static Self {
+                        &super::super::#parent_ident::get().#original_name
+                    }
+                }
+            }
+            None => {
+                quote! {
+                    const THIS: Self = Self::new();
+                    pub fn get() -> &'static Self {
+                        &Self::THIS
+                    }
+                }
+            }
+        };
+
+        quote! {
+            #[allow(non_camel_case_types, non_snake_case)]
+            pub struct #translation_type_name {
+                #(
+                    #fields,
+                )*
+            }
+
+            impl #translation_type_name {
+                #get_method
+
+                pub const fn new() -> Self {
+                    #translation_type_name {
+                        #(
+                            #constructors,
+                        )*
+                    }
+                }
+            }
+        }
+    });
+
     let (from_locale, const_values) = if !is_namespace {
         let from_locale_match_arms = top_locales
             .iter()
@@ -408,6 +504,10 @@ fn create_locale_type_inner(
             }
         }
 
+        #(
+            #translation_types
+        )*
+
         #from_locale
 
         #builder_module
@@ -438,6 +538,8 @@ fn create_namespaces_types(
             &namespace.locales,
             &keys.0,
             true,
+            None,
+            namespace_ident,
         );
         quote! {
             pub mod #namespace_module_ident {
@@ -536,6 +638,8 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             locales,
             &keys.0,
             false,
+            None,
+            &i18n_keys_ident,
         ),
     }
 }

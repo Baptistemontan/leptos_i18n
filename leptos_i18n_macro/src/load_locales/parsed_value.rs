@@ -269,20 +269,25 @@ impl ParsedValue {
 
     pub fn merge(
         &mut self,
+        def: &Self,
         keys: &mut LocaleValue,
-        default_locale: &str,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, keys) {
-            // Default, do nothing
-            (ParsedValue::Default, _) => Ok(()),
+            (value @ ParsedValue::Default, _) => {
+                if let ParsedValue::String(s) = def {
+                    *value = ParsedValue::String(s.clone());
+                }
+                Ok(())
+            }
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
+                let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
                 loc.merge(keys, default_locale, top_locale, key_path)?;
                 locales.push(loc);
                 Ok(())
@@ -523,12 +528,16 @@ impl ParsedValue {
         }
     }
 
-    fn flatten(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten(&self, tokens: &mut Vec<TokenStream>, index: &mut usize) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
-            ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
+            ParsedValue::String(_) => {
+                let tuple_index = syn::Index::from(*index);
+                tokens.push(quote!(leptos::IntoView::into_view(&*__translations.#tuple_index)));
+                *index += 1;
+            }
+            ParsedValue::Plural(plurals) => tokens.push(plurals.to_tokens(index)),
             ParsedValue::Variable(key) => {
                 tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key))))
             }
@@ -540,21 +549,24 @@ impl ParsedValue {
                     quote!(#(#keys)*)
                 });
 
-                let f = quote!({
+                let inner = inner.to_tokens_inner(index);
+
+                let f = quote!(leptos::ToChildren::to_children({
                     #captured_keys
                     move || Into::into(#inner)
-                });
-                let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
+                }));
+                tokens
+                    .push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#f))))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens)
+                    value.flatten(tokens, index)
                 }
             }
-            ParsedValue::ForeignKey(foreign_key) => {
-                foreign_key.borrow().as_inner("flatten").flatten(tokens)
-            }
+            ParsedValue::ForeignKey(foreign_key) => foreign_key
+                .borrow()
+                .as_inner("flatten")
+                .flatten(tokens, index),
         }
     }
 
@@ -594,6 +606,43 @@ impl ParsedValue {
             [value] => value.clone(),
             values => quote!({ #(#values?;)* Ok(()) }),
         }
+    }
+
+    pub fn to_tokens_inner(&self, index: &mut usize) -> TokenStream {
+        let mut tokens = Vec::new();
+        self.flatten(&mut tokens, index);
+
+        match &tokens[..] {
+            [] => quote!(leptos::View::default()),
+            [value] => value.clone(),
+            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
+        }
+    }
+
+    pub fn get_strings_inner<'a>(&'a self, strings: &mut Vec<&'a str>) {
+        match self {
+            ParsedValue::Plural(plural) => plural.get_strings_length_inner(strings),
+            ParsedValue::Component { inner, .. } => {
+                inner.get_strings_inner(strings);
+            }
+            ParsedValue::Bloc(values) => {
+                for value in values {
+                    value.get_strings_inner(strings);
+                }
+            }
+            ParsedValue::String(s) if s.is_empty() => {}
+            ParsedValue::String(s) => strings.push(s),
+            ParsedValue::Default
+            | ParsedValue::ForeignKey(_)
+            | ParsedValue::Variable(_)
+            | ParsedValue::Subkeys(_) => {}
+        }
+    }
+
+    pub fn get_strings(&self) -> Vec<&str> {
+        let mut strings = Vec::new();
+        self.get_strings_inner(&mut strings);
+        strings
     }
 }
 
@@ -694,14 +743,7 @@ impl ToTokens for InterpolateKey {
 
 impl ToTokens for ParsedValue {
     fn to_token_stream(&self) -> TokenStream {
-        let mut tokens = Vec::new();
-        self.flatten(&mut tokens);
-
-        match &tokens[..] {
-            [] => quote!(leptos::View::default()),
-            [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
-        }
+        self.to_tokens_inner(&mut 0)
     }
 
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {

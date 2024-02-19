@@ -1,7 +1,6 @@
 #![cfg_attr(feature = "nightly", feature(fn_traits))]
 #![cfg_attr(feature = "nightly", feature(unboxed_closures))]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
 #![deny(warnings)]
 //! # About Leptos i18n
 //!
@@ -145,10 +144,8 @@ pub use leptos_i18n_macro::{load_locales, t, td};
 #[cfg(feature = "interpolate_display")]
 pub use leptos_i18n_macro::{t_display, t_string, td_display, td_string};
 
-#[doc(hidden)]
-pub mod __private {
-    pub use super::locale_traits::BuildStr;
-}
+#[path = "private/mod.rs"]
+pub mod __private;
 
 #[cfg(all(
     feature = "cookie",

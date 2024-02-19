@@ -217,10 +217,14 @@ impl Plurals {
         }
     }
 
-    fn to_tokens_integers<T: PluralInteger>(plurals: &[(Plural<T>, ParsedValue)]) -> TokenStream {
-        let match_arms = plurals
-            .iter()
-            .map(|(plural, value)| quote!(#plural => #value));
+    fn to_tokens_integers<T: PluralInteger>(
+        plurals: &[(Plural<T>, ParsedValue)],
+        index: &mut usize,
+    ) -> TokenStream {
+        let match_arms = plurals.iter().map(|(plural, value)| {
+            let value = value.to_tokens_inner(index);
+            quote!(#plural => #value)
+        });
 
         let mut captured_values = None;
 
@@ -286,13 +290,17 @@ impl Plurals {
         }
     }
 
-    fn to_tokens_floats<T: PluralFloats>(plurals: &[(Plural<T>, ParsedValue)]) -> TokenStream {
-        let mut ifs = plurals
-            .iter()
-            .map(|(plural, value)| match Self::to_condition(plural) {
+    fn to_tokens_floats<T: PluralFloats>(
+        plurals: &[(Plural<T>, ParsedValue)],
+        index: &mut usize,
+    ) -> TokenStream {
+        let mut ifs = plurals.iter().map(|(plural, value)| {
+            let value = value.to_tokens_inner(index);
+            match Self::to_condition(plural) {
                 None => quote!({ #value }),
                 Some(condition) => quote!(if #condition { #value }),
-            });
+            }
+        });
         let first = ifs.next();
         let ifs = quote! {
             #first
@@ -468,21 +476,42 @@ impl Plurals {
             Plurals::F64(plurals) => Self::check_de_inner(plurals),
         }
     }
-}
 
-impl ToTokens for Plurals {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    pub fn to_tokens(&self, index: &mut usize) -> TokenStream {
         match self {
-            Plurals::I8(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::I16(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::I32(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::I64(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::U8(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::U16(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::U32(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::U64(plurals) => Self::to_tokens_integers(plurals).to_tokens(tokens),
-            Plurals::F32(plurals) => Self::to_tokens_floats(plurals).to_tokens(tokens),
-            Plurals::F64(plurals) => Self::to_tokens_floats(plurals).to_tokens(tokens),
+            Plurals::I8(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::I16(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::I32(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::I64(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::U8(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::U16(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::U32(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::U64(plurals) => Self::to_tokens_integers(plurals, index),
+            Plurals::F32(plurals) => Self::to_tokens_floats(plurals, index),
+            Plurals::F64(plurals) => Self::to_tokens_floats(plurals, index),
+        }
+    }
+
+    pub fn get_strings_length_inner<'a>(&'a self, strings: &mut Vec<&'a str>) {
+        fn inner<'a, T: PluralNumber>(
+            plurals: &'a [(Plural<T>, ParsedValue)],
+            strings: &mut Vec<&'a str>,
+        ) {
+            for (_, value) in plurals {
+                value.get_strings_inner(strings);
+            }
+        }
+        match self {
+            Plurals::I8(plurals) => inner(plurals, strings),
+            Plurals::I16(plurals) => inner(plurals, strings),
+            Plurals::I32(plurals) => inner(plurals, strings),
+            Plurals::I64(plurals) => inner(plurals, strings),
+            Plurals::U8(plurals) => inner(plurals, strings),
+            Plurals::U16(plurals) => inner(plurals, strings),
+            Plurals::U32(plurals) => inner(plurals, strings),
+            Plurals::U64(plurals) => inner(plurals, strings),
+            Plurals::F32(plurals) => inner(plurals, strings),
+            Plurals::F64(plurals) => inner(plurals, strings),
         }
     }
 }

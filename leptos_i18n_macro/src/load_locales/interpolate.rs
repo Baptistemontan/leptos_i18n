@@ -1,10 +1,7 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
-use proc_macro2::{Span, TokenStream};
-use quote::quote;
-
-#[cfg(feature = "interpolate_display")]
-use quote::format_ident;
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{format_ident, quote};
 
 use super::{
     key::Key,
@@ -32,6 +29,7 @@ struct Field<'a> {
 impl Interpolation {
     pub fn new(
         key: &Key,
+        parent_ident: &Ident,
         keys_set: &HashSet<InterpolateKey>,
         locales: &[Locale],
         default_match: &TokenStream,
@@ -64,6 +62,7 @@ impl Interpolation {
             .collect::<Vec<_>>();
 
         let type_def = Self::create_type(&ident, &fields);
+        let translations_types = Self::create_translation_types(key, parent_ident, locales, &ident);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl =
             Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
@@ -83,6 +82,10 @@ impl Interpolation {
 
         let imp = quote! {
             #type_def
+
+            #(
+                #translations_types
+            )*
 
             #new_impl
 
@@ -623,7 +626,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, locales, default_match);
+        let locales_impls = Self::create_locale_impl(key, locales, default_match, ident);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -640,10 +643,64 @@ impl Interpolation {
         }
     }
 
+    fn create_translation_types<'a>(
+        key: &'a Key,
+        parent_ident: &'a Ident,
+        locales: &'a [Locale],
+        ident: &'a syn::Ident,
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        locales.iter().filter_map(move |locale| {
+            let value = locale.keys.get(key)?;
+            if matches!(value, ParsedValue::Default) {
+                return None;
+            }
+            let strings = value.get_strings();
+            let top_locale_name = &*locale.top_locale_name;
+            let translation_ident = format_ident!("{}_{}", ident, top_locale_name.ident);
+            let parent_ident = format_ident!("{}_{}", parent_ident, top_locale_name.ident);
+            let lengths = strings.iter().map(|s| s.len());
+            let lengths_clone = lengths.clone();
+            let ts = quote! {
+                #[allow(non_camel_case_types, non_snake_case)]
+                pub struct #translation_ident(
+                    #(
+                        leptos_i18n::__private::SizedString<#lengths>,
+                    )*
+                );
+
+                impl #translation_ident {
+                    pub fn get() -> &'static Self {
+                        &super::#parent_ident::get().#key
+                    }
+
+                    pub const fn new() -> Self {
+                        #translation_ident(
+                            #(
+                                leptos_i18n::__private::SizedString::new(#strings),
+                            )*
+                        )
+                    }
+                }
+
+                impl leptos_i18n::__private::ParseTranslation for #translation_ident {
+                    fn parse(buff: &mut &str) -> Option<Self> {
+                        Some(#translation_ident(
+                            #(
+                                <leptos_i18n::__private::SizedString<#lengths_clone> as leptos_i18n::__private::ParseTranslation>::parse(buff)?,
+                            )*
+                        ))
+                    }
+                }
+            };
+            Some(ts)
+        })
+    }
+
     fn create_locale_impl<'a>(
         key: &'a Key,
         locales: &'a [Locale],
         default_match: &TokenStream,
+        ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let mut default_match = default_match.clone();
         locales
@@ -661,10 +718,16 @@ impl Interpolation {
                     Some(value) => value,
                 };
 
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(Locale::#locale_key => { #value }),
+                let translations_ident = format_ident!("{}_{}", ident, locale_key.ident);
+
+                let matc = match i == 0 {
+                    true => Cow::Borrowed(&default_match),
+                    false => Cow::Owned(quote!(Locale::#locale_key)),
                 };
+                let ts = quote!(#matc => {
+                    let __translations = #translations_ident::get();
+                    #value
+                });
                 Some(ts)
             })
     }

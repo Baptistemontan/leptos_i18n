@@ -219,14 +219,14 @@ impl Locale {
     pub fn merge(
         &mut self,
         keys: &mut BuildersKeysInner,
-        default_locale: &str,
+        default_locale: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
-            if let Some(value) = self.keys.get_mut(key) {
-                value.merge(keys, default_locale, Rc::clone(&self.name), key_path)?;
+            if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
+                value.merge(def, keys, Rc::clone(&self.name), key_path)?;
             } else {
                 emit_warning(Warning::MissingKey {
                     locale: top_locale.clone(),
@@ -260,16 +260,9 @@ impl Locale {
 
         let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
 
-        let default_locale_name = &default_locale.name.name;
-
         for locale in locales {
             let top_locale = locale.name.clone();
-            locale.merge(
-                &mut default_keys,
-                default_locale_name,
-                top_locale,
-                &mut key_path,
-            )?;
+            locale.merge(&mut default_keys, default_locale, top_locale, &mut key_path)?;
         }
 
         default_keys.check_conflicts(&mut key_path)?;
