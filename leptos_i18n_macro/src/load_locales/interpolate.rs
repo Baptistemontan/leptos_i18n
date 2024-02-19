@@ -745,7 +745,7 @@ impl Interpolation {
             .filter_map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
-                let value = match locale.keys.get(key) {
+                let value = match locale.get(key) {
                     None | Some(ParsedValue::Default) => {
                         default_match.extend(quote!(| Locale::#locale_key));
                         return None;
