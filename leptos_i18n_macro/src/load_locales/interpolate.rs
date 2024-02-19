@@ -322,8 +322,6 @@ impl Interpolation {
     where
         I: Iterator<Item = (bool, &'a Field<'a>)> + Clone,
     {
-        use std::borrow::Cow;
-
         let right_generics = fields.clone().map(|(set, field)| {
             if set {
                 quote::ToTokens::to_token_stream(&field.generic)
