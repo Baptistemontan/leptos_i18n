@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fs::File,
     path::{Path, PathBuf},
     rc::Rc,
@@ -34,12 +34,12 @@ pub enum LocalesOrNamespaces {
 }
 
 #[derive(Default, Debug)]
-pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
+pub struct BuildersKeysInner(pub Vec<(Rc<Key>, LocaleValue)>);
 
 pub enum BuildersKeys<'a> {
     NameSpaces {
         namespaces: &'a [Namespace],
-        keys: HashMap<Rc<Key>, BuildersKeysInner>,
+        keys: Vec<(Rc<Key>, BuildersKeysInner)>,
     },
     Locales {
         locales: &'a [Locale],
@@ -139,16 +139,32 @@ impl LocalesOrNamespaces {
 pub struct Locale {
     pub top_locale_name: Rc<Key>,
     pub name: Rc<Key>,
-    pub keys: HashMap<Rc<Key>, ParsedValue>,
+    pub keys: Vec<(Rc<Key>, ParsedValue)>,
 }
 
 impl Locale {
+    pub fn get<'a>(&'a self, key: &Key) -> Option<&'a ParsedValue> {
+        self.keys
+            .iter()
+            .find_map(|(k, value)| (&**k == key).then_some(value))
+    }
+
+    pub fn get_mut<'a>(&'a mut self, key: &Key) -> Option<&'a mut ParsedValue> {
+        self.keys
+            .iter_mut()
+            .find_map(|(k, value)| (&**k == key).then_some(value))
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut ParsedValue> {
+        self.keys.iter_mut().map(|(_, v)| v)
+    }
+
     pub fn get_value_at(&self, path: &[Rc<Key>]) -> Option<&'_ ParsedValue> {
         match path {
             [] => None,
-            [key] => self.keys.get(key),
+            [key] => self.get(key),
             [key, path @ ..] => {
-                let value = self.keys.get(key)?;
+                let value = self.get(key)?;
                 let ParsedValue::Subkeys(subkeys) = value else {
                     return None;
                 };
@@ -211,7 +227,7 @@ impl Locale {
             let key = key_path
                 .pop_key()
                 .expect("Unexpected empty KeyPath in make_builder_keys. If you got this error please open an issue on github.");
-            keys.0.insert(key, locale_value);
+            keys.0.push((key, locale_value));
         }
         Ok(keys)
     }
@@ -225,8 +241,9 @@ impl Locale {
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
-            if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
-                value.merge(def, keys, Rc::clone(&self.name), key_path)?;
+            let top_locale = Rc::clone(&self.name);
+            if let Some((value, def)) = self.get_mut(key).zip(default_locale.get(key)) {
+                value.merge(def, keys, top_locale, key_path)?;
             } else {
                 emit_warning(Warning::MissingKey {
                     locale: top_locale.clone(),
@@ -237,8 +254,8 @@ impl Locale {
         }
 
         // reverse key comparaison
-        for key in self.keys.keys() {
-            if keys.0.get(key).is_none() {
+        for key in self.keys.iter().map(|(key, _)| key) {
+            if keys.get(key).is_none() {
                 key_path.push_key(Rc::clone(key));
                 emit_warning(Warning::SurplusKey {
                     locale: top_locale.clone(),
@@ -273,13 +290,13 @@ impl Locale {
     pub fn check_locales(locales: &mut LocalesOrNamespaces) -> Result<BuildersKeys> {
         match locales {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
-                let mut keys = HashMap::with_capacity(namespaces.len());
+                let mut keys = Vec::with_capacity(namespaces.len());
                 for namespace in &mut *namespaces {
                     let k = Self::check_locales_inner(
                         &mut namespace.locales,
                         Some(Rc::clone(&namespace.key)),
                     )?;
-                    keys.insert(Rc::clone(&namespace.key), k);
+                    keys.push((Rc::clone(&namespace.key), k));
                 }
                 Ok(BuildersKeys::NameSpaces { namespaces, keys })
             }
@@ -299,6 +316,12 @@ impl BuildersKeysInner {
             key_path.pop_key();
         }
         Ok(())
+    }
+
+    fn get<'a>(&'a self, key: &Key) -> Option<&'a LocaleValue> {
+        self.0
+            .iter()
+            .find_map(|(k, value)| (&**k == key).then_some(value))
     }
 }
 
@@ -358,13 +381,13 @@ pub struct LocaleSeed {
 }
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
-    type Value = HashMap<Rc<Key>, ParsedValue>;
+    type Value = Vec<(Rc<Key>, ParsedValue)>;
 
     fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
-        let mut keys = HashMap::new();
+        let mut keys = Vec::new();
 
         while let Some(locale_key) = map.next_key()? {
             self.key_path.push_key(Rc::clone(&locale_key));
@@ -375,7 +398,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed {
                 in_plural: false,
             })?;
             self.key_path.pop_key();
-            keys.insert(locale_key, value);
+            keys.push((locale_key, value));
         }
 
         Ok(keys)

@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     ops::{Deref, Not},
     path::PathBuf,
     rc::Rc,
@@ -212,7 +212,7 @@ fn create_locale_type_inner(
     type_ident: &Ident,
     top_locales: &HashSet<&Key>,
     locales: &[Locale],
-    keys: &HashMap<Rc<Key>, LocaleValue>,
+    keys: &[(Rc<Key>, LocaleValue)],
     is_namespace: bool,
     parent_ident: Option<&Ident>,
     original_name: &Ident,
@@ -302,7 +302,10 @@ fn create_locale_type_inner(
         let (fields, constructors): (Vec<_>, Vec<_>) = keys
             .iter()
             .filter_map(|(key, _)| {
-                let ts = match locale.keys.get(key).zip(keys.get(key))? {
+                let locale_value = keys
+                    .iter()
+                    .find_map(|(k, value)| (k == key).then_some(value));
+                let ts = match locale.get(key).zip(locale_value)? {
                     (ParsedValue::String(s), LocaleValue::Value(None)) => {
                         let len = s.len();
                         let field = quote!(pub #key: leptos_i18n::__private::SizedString<#len>);
@@ -494,12 +497,15 @@ fn create_namespaces_types(
     i18n_keys_ident: &syn::Ident,
     namespaces: &[Namespace],
     top_locales: &HashSet<&Key>,
-    keys: &HashMap<Rc<Key>, BuildersKeysInner>,
+    keys: &[(Rc<Key>, BuildersKeysInner)],
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
         let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
-        let keys = keys.get(&namespace.key).unwrap();
+        let keys = keys
+            .iter()
+            .find_map(|(key, value)| (key == &namespace.key).then_some(value))
+            .unwrap();
         let type_impl = create_locale_type_inner(
             default_locale,
             namespace_ident,

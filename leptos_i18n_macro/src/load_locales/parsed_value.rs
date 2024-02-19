@@ -466,7 +466,7 @@ impl ParsedValue {
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
             ParsedValue::Subkeys(Some(subkeys)) => {
-                for value in subkeys.keys.values_mut() {
+                for value in subkeys.values_mut() {
                     value.reduce();
                 }
             }

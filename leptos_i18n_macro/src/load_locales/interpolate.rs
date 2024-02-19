@@ -648,7 +648,7 @@ impl Interpolation {
         ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         locales.iter().filter_map(move |locale| {
-            let value = locale.keys.get(key)?;
+            let value = locale.get(key)?;
             if matches!(value, ParsedValue::Default) {
                 return None;
             }
@@ -708,7 +708,7 @@ impl Interpolation {
             .filter_map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
-                let value = match locale.keys.get(key) {
+                let value = match locale.get(key) {
                     None | Some(ParsedValue::Default) => {
                         default_match.extend(quote!(| Locale::#locale_key));
                         return None;
