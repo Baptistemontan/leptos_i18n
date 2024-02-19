@@ -302,15 +302,15 @@ fn create_locale_type_inner(
         let (fields, constructors): (Vec<_>, Vec<_>) = keys
             .iter()
             .filter_map(|(key, _)| {
-                let ts = match locale.keys.get(key)? {
-                    ParsedValue::String(s) => {
+                let ts = match locale.keys.get(key).zip(keys.get(key))? {
+                    (ParsedValue::String(s), LocaleValue::Value(None)) => {
                         let len = s.len();
                         let field = quote!(pub #key: leptos_i18n::__private::SizedString<#len>);
                         let constructor =
                             quote!(#key: leptos_i18n::__private::SizedString::new(#s));
                         (field, constructor)
                     }
-                    ParsedValue::Subkeys(_) => {
+                    (ParsedValue::Subkeys(_), _) => {
                         let mod_ident = format_ident!("sk_{}", key.ident);
                         let type_key =
                             format_ident!("{}_subkeys_{}", key.ident, locale.top_locale_name.ident);
@@ -318,7 +318,7 @@ fn create_locale_type_inner(
                         let constructor = quote!(#key: subkeys::#mod_ident::#type_key::new());
                         (field, constructor)
                     }
-                    ParsedValue::Default => {
+                    (ParsedValue::Default, _) => {
                         // defaulted builder
                         let builder_name = format_ident!(
                             "{}_builder_{}",
@@ -519,28 +519,15 @@ fn create_namespaces_types(
         }
     });
 
-    let namespaces_fields = namespaces.iter().map(|namespace| {
+    let translations_accessors = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
         let namespace_module_ident = create_namespace_mod_ident(&key.ident);
-        quote!(pub #key: namespaces::#namespace_module_ident::#key)
-    });
-
-    let namespaces_fields_new = namespaces.iter().map(|namespace| {
-        let key = &namespace.key;
-        let namespace_module_ident = create_namespace_mod_ident(&key.ident);
-        quote!(#key: namespaces::#namespace_module_ident::#key::new(_locale))
-    });
-
-    let locales = &namespaces.iter().next().unwrap().locales;
-
-    let const_values = locales.iter().map(|locale| {
-        let locale_ident = &locale.name;
-        quote!(pub const #locale_ident: Self = Self::new(Locale::#locale_ident);)
-    });
-
-    let from_locale_match_arms = locales.iter().map(|locale| {
-        let locale_ident = &locale.name;
-        quote!(Locale::#locale_ident => &Self::#locale_ident)
+        quote! {
+            #[allow(non_snake_case)]
+            pub fn #key(self) -> namespaces::#namespace_module_ident::#key {
+                namespaces::#namespace_module_ident::#key::new(self.0)
+            }
+        }
     });
 
     quote! {
@@ -555,33 +542,22 @@ fn create_namespaces_types(
 
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_snake_case)]
-        pub struct #i18n_keys_ident {
-            #(#namespaces_fields,)*
-        }
+        pub struct #i18n_keys_ident(Locale);
 
         impl #i18n_keys_ident {
-            #(
-                #[allow(non_upper_case_globals)]
-                #const_values
-            )*
-
-            pub const fn new(_locale: Locale) -> Self {
-                Self {
-                    #(
-                        #namespaces_fields_new,
-                    )*
-                }
+            pub const fn new(locale: Locale) -> #i18n_keys_ident {
+                #i18n_keys_ident(locale)
             }
+
+            #(
+                #translations_accessors
+            )*
         }
 
         impl leptos_i18n::LocaleKeys for #i18n_keys_ident {
             type Locale = Locale;
-            fn from_locale(_locale: Locale) -> &'static Self {
-                match _locale {
-                    #(
-                        #from_locale_match_arms,
-                    )*
-                }
+            fn from_locale(locale: Locale) -> Self {
+                Self::new(locale)
             }
         }
     }
