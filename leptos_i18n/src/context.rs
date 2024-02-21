@@ -97,6 +97,7 @@ pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
 ///
 /// Panics if the context is missing.
 #[inline]
+#[track_caller]
 pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }

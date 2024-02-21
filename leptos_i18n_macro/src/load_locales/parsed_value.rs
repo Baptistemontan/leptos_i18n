@@ -38,7 +38,7 @@ pub enum ParsedValue {
         inner: Box<Self>,
     },
     Bloc(Vec<Self>),
-    Subkeys(Option<Locale>),
+    Subkeys(Locale),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -49,6 +49,29 @@ pub enum InterpolateKey {
 }
 
 impl ParsedValue {
+    pub fn join_strings(&self, def: &Self, acc: &mut String) {
+        match self {
+            ParsedValue::Plural(plural) => plural.join_strings(def, acc),
+            ParsedValue::String(s) => acc.push_str(s),
+            ParsedValue::Component { inner, .. } => inner.join_strings(def, acc),
+            ParsedValue::Bloc(values) => {
+                for value in values {
+                    value.join_strings(def, acc);
+                }
+            }
+            ParsedValue::Subkeys(sk) => {
+                let ParsedValue::Subkeys(def) = def else {
+                    unreachable!();
+                };
+                sk.join_strings_inner(def, acc);
+            }
+            ParsedValue::Default => {
+                def.join_strings(def, acc);
+            }
+            ParsedValue::ForeignKey(_) | ParsedValue::Variable(_) => {}
+        }
+    }
+
     pub fn resolve_foreign_keys(
         values: &LocalesOrNamespaces,
         default_locale: &Rc<Key>,
@@ -246,13 +269,10 @@ impl ParsedValue {
     pub fn make_locale_value(&mut self, key_path: &mut KeyPath) -> Result<LocaleValue> {
         match self {
             ParsedValue::Subkeys(locale) => {
-                let Some(mut locale) = locale.take() else {
-                    unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
-                };
                 let keys = locale.make_builder_keys(key_path)?;
                 Ok(LocaleValue::Subkeys {
                     keys,
-                    locales: vec![locale],
+                    locales: vec![locale.clone()],
                 })
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
@@ -277,12 +297,9 @@ impl ParsedValue {
             }
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
-                let Some(mut loc) = loc.take() else {
-                    unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
-                };
                 let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
                 loc.merge(keys, default_locale, top_locale, key_path)?;
-                locales.push(loc);
+                locales.push(loc.clone());
                 Ok(())
             }
             // Both value
@@ -465,13 +482,10 @@ impl ParsedValue {
                 });
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
-            ParsedValue::Subkeys(Some(subkeys)) => {
+            ParsedValue::Subkeys(subkeys) => {
                 for value in subkeys.values_mut() {
                     value.reduce();
                 }
-            }
-            ParsedValue::Subkeys(None) => {
-                unreachable!("called reduce on empty subkeys. If you got this error please open an issue on github.")
             }
             ParsedValue::Bloc(values) => {
                 for value in std::mem::take(values) {
@@ -800,7 +814,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             key_path: self.key_path.to_owned(),
         };
 
-        seed.deserialize(map_de).map(Some).map(ParsedValue::Subkeys)
+        seed.deserialize(map_de).map(ParsedValue::Subkeys)
     }
 
     fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>

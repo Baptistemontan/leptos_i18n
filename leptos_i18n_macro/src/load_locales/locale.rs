@@ -168,10 +168,7 @@ impl Locale {
                 let ParsedValue::Subkeys(subkeys) = value else {
                     return None;
                 };
-                match subkeys {
-                    None => unreachable!("called get_value_at on empty subkeys. If you got this error please open an issue on github."),
-                    Some(subkeys) => subkeys.get_value_at(path)
-                }
+                subkeys.get_value_at(path)
             }
         }
     }
@@ -305,6 +302,19 @@ impl Locale {
                 Ok(BuildersKeys::Locales { locales, keys })
             }
         }
+    }
+
+    pub fn join_strings_inner(&self, def: &Self, acc: &mut String) {
+        for (key, value) in &self.keys {
+            let def = def.get(key).unwrap();
+            value.join_strings(def, acc);
+        }
+    }
+
+    pub fn join_strings(&self, def: &Self) -> String {
+        let mut acc = String::new();
+        self.join_strings_inner(def, &mut acc);
+        acc
     }
 }
 

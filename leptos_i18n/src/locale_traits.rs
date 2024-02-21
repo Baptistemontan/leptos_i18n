@@ -24,6 +24,11 @@ pub trait Locale: 'static + Default + Clone + Copy {
     fn get_keys(self) -> Self::Keys {
         LocaleKeys::from_locale(self)
     }
+
+    #[doc(hidden)]
+    #[cfg(feature = "hydrate")]
+    /// init the given translation
+    fn init_translation(path: &str, translations: &str);
 }
 
 /// Trait implemented the struct representing the translation keys

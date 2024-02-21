@@ -33,6 +33,9 @@ yaml_files = ["serde_yaml"]
 interpolate_display = []
 track_locale_files = []
 experimental-islands = []
+ssr = ["embed_translations"]
+hydrate = []
+embed_translations = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...

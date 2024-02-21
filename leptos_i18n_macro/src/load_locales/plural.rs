@@ -116,6 +116,26 @@ impl Plurals {
         }
     }
 
+    pub fn join_strings(&self, def: &ParsedValue, acc: &mut String) {
+        fn inner<T>(v: &PluralsInner<T>, def: &ParsedValue, acc: &mut String) {
+            for (_, value) in v {
+                value.join_strings(def, acc);
+            }
+        }
+        match self {
+            Plurals::I8(v) => inner(v, def, acc),
+            Plurals::I16(v) => inner(v, def, acc),
+            Plurals::I32(v) => inner(v, def, acc),
+            Plurals::I64(v) => inner(v, def, acc),
+            Plurals::U8(v) => inner(v, def, acc),
+            Plurals::U16(v) => inner(v, def, acc),
+            Plurals::U32(v) => inner(v, def, acc),
+            Plurals::U64(v) => inner(v, def, acc),
+            Plurals::F32(v) => inner(v, def, acc),
+            Plurals::F64(v) => inner(v, def, acc),
+        }
+    }
+
     pub fn resolve_foreign_keys(
         &self,
         values: &LocalesOrNamespaces,

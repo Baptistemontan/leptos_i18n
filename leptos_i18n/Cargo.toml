@@ -21,17 +21,31 @@ leptos_axum = { version = "0.6", optional = true }
 web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
 wasm-bindgen = { version = "0.2", optional = true }
 http = { version = "1", optional = true }
+js-sys = { version = "0.3", optional = false }
+serde = { version = "1", optional = true }
+serde-wasm-bindgen = { version = "0.6", optional = true }
 
 [features]
 default = ["cookie", "json_files"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 cookie = ["dep:web-sys", "dep:wasm-bindgen"]
-hydrate = ["leptos/hydrate", "leptos_meta/hydrate"]
-ssr = ["leptos/ssr", "leptos_meta/ssr"]
+hydrate = [
+    "leptos_i18n_macro/hydrate",
+    "leptos/hydrate",
+    "leptos_meta/hydrate",
+    "dep:serde",
+    "dep:serde-wasm-bindgen",
+]
+ssr = [
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos_i18n_macro/ssr",
+    "embed_translations",
+]
 actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum", "dep:http"]
 csr = ["leptos/csr", "leptos_meta/csr"]
-serde = ["leptos_i18n_macro/serde"]
+serde = ["leptos_i18n_macro/serde", "dep:serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
 json_files = ["leptos_i18n_macro/json_files"]
@@ -42,6 +56,7 @@ experimental-islands = [
     "leptos/experimental-islands",
     "leptos_i18n_macro/experimental-islands",
 ]
+embed_translations = ["leptos_i18n_macro/embed_translations"]
 
 
 [package.metadata.cargo-all-features]

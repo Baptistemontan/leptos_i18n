@@ -657,7 +657,38 @@ impl Interpolation {
             let translation_ident = format_ident!("{}_{}", ident, top_locale_name.ident);
             let parent_ident = format_ident!("{}_{}", parent_ident, top_locale_name.ident);
             let lengths = strings.iter().map(|s| s.len());
-            let lengths_clone = lengths.clone();
+            
+            let parse_translation_impl = if cfg!(not(feature = "embed_translations")) {
+                let lengths = lengths.clone();
+                Some(quote! {
+                    impl leptos_i18n::__private::ParseTranslation for #translation_ident {
+                        fn parse(buff: &mut &str) -> Option<Self> {
+                            Some(#translation_ident(
+                                #(
+                                    <leptos_i18n::__private::SizedString<#lengths> as leptos_i18n::__private::ParseTranslation>::parse(buff)?,
+                                )*
+                            ))
+                        }
+                    }
+                })
+            } else {
+                None
+            };
+
+            let new_fn = if cfg!(feature = "embed_translations") {
+                Some(quote! {
+                    pub const fn new() -> Self {
+                        #translation_ident(
+                            #(
+                                leptos_i18n::__private::SizedString::new(#strings),
+                            )*
+                        )
+                    }
+                })
+            } else {
+                None
+            };
+
             let ts = quote! {
                 #[allow(non_camel_case_types, non_snake_case)]
                 pub struct #translation_ident(
@@ -671,24 +702,10 @@ impl Interpolation {
                         &super::#parent_ident::get().#key
                     }
 
-                    pub const fn new() -> Self {
-                        #translation_ident(
-                            #(
-                                leptos_i18n::__private::SizedString::new(#strings),
-                            )*
-                        )
-                    }
+                    #new_fn
                 }
 
-                impl leptos_i18n::__private::ParseTranslation for #translation_ident {
-                    fn parse(buff: &mut &str) -> Option<Self> {
-                        Some(#translation_ident(
-                            #(
-                                <leptos_i18n::__private::SizedString<#lengths_clone> as leptos_i18n::__private::ParseTranslation>::parse(buff)?,
-                            )*
-                        ))
-                    }
-                }
+                #parse_translation_impl
             };
             Some(ts)
         })

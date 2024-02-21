@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashSet,
     ops::{Deref, Not},
     path::PathBuf,
@@ -89,6 +90,7 @@ pub fn load_locales() -> Result<TokenStream> {
             #locale_type
 
             #[inline]
+            #[track_caller]
             pub fn use_i18n() -> leptos_i18n::I18nContext<Locale> {
                 leptos_i18n::use_i18n_context()
             }
@@ -101,8 +103,7 @@ pub fn load_locales() -> Result<TokenStream> {
             mod provider {
                 #[leptos::#island_or_component]
                 pub fn i18n_context_provider(children: leptos::Children) -> impl leptos::IntoView {
-                    super::provide_i18n_context();
-                    children()
+                    leptos_i18n::__private::provider::<super::Locale>(children)
                 }
             }
 
@@ -134,9 +135,51 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
         .collect::<Vec<_>>();
 
     let derives = if cfg!(feature = "serde") {
-        quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)])
+        quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, leptos_i18n::__private::serde::Serialize, leptos_i18n::__private::serde::Deserialize)])
     } else {
         quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)])
+    };
+
+    let register_fn = if cfg!(feature = "hydrate") {
+        let paths: Vec<_> = match &cfg_file.name_spaces {
+            Some(namespaces) => namespaces
+                .iter()
+                .flat_map(|ns| {
+                    locales.iter().map(|loc| {
+                        let path = format!("{}/{}", ns.name, loc.name);
+                        let namespace_mod_ident = create_namespace_mod_ident(&ns.ident);
+                        let namespace_name = format_ident!("{}_{}", ns.ident, loc.ident);
+                        quote!(#path => namespaces::#namespace_mod_ident::#namespace_name::init(translations))
+                    })
+                })
+                .collect(),
+            None => locales
+                .iter()
+                .map(|loc| {
+                    let path = loc.name.as_str();
+                    let type_name = format_ident!("I18nKeys_{}", loc.ident);
+                    quote!(#path => #type_name::init(translations))
+                })
+                .collect(),
+        };
+        let ts = quote! {
+            fn init_translation(path: &str, translations: &str) {
+                #[cold]
+                #[inline(never)]
+                fn no_match(path: &str) -> ! {
+                    panic!("Invalid translation path: {:?}", path);
+                }
+                match path {
+                    #(
+                        #paths,
+                    )*
+                    _ => no_match(path)
+                }
+            }
+        };
+        Some(ts)
+    } else {
+        None
     };
 
     quote! {
@@ -166,6 +209,8 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
                     _ => None
                 }
             }
+
+            #register_fn
         }
     }
 }
@@ -213,9 +258,10 @@ fn create_locale_type_inner(
     top_locales: &HashSet<&Key>,
     locales: &[Locale],
     keys: &[(Rc<Key>, LocaleValue)],
-    is_namespace: bool,
+    is_subkeys: bool,
     parent_ident: Option<&Ident>,
     original_name: &Ident,
+    namespace_name: Option<&str>,
 ) -> TokenStream {
     let default_match = get_default_match(default_locale, top_locales, locales);
 
@@ -244,6 +290,7 @@ fn create_locale_type_inner(
             true,
             Some(type_ident),
             sk.original_key,
+            None,
         );
         quote! {
             pub mod #subkey_mod_ident {
@@ -359,14 +406,96 @@ fn create_locale_type_inner(
                 }
             }
             None => {
-                quote! {
-                    const THIS: Self = Self::new();
-                    pub fn get() -> &'static Self {
-                        &Self::THIS
+                if cfg!(feature = "ssr") {
+                    quote! {
+                        const THIS: Self = Self::new();
+                        pub fn get() -> &'static Self {
+                            leptos_i18n::__private::LoadingContext::register::<Self>();
+                            &Self::THIS
+                        }
+                    }
+                } else if cfg!(feature = "embed_translations") {
+                    quote! {
+                        const THIS: Self = Self::new();
+                        pub fn get() -> &'static Self {
+                            &Self::THIS
+                        }
+                    }
+                } else {
+                    quote! {
+                        thread_local! {
+                            static THIS: leptos_i18n::__private::TranslationCell<#translation_type_name> = leptos_i18n::__private::TranslationCell::new();
+                        }
+                        pub fn get() -> &'static Self {
+                            Self::THIS.with(leptos_i18n::__private::TranslationCell::get)
+                        }
+
+                        pub fn init(s: &str) {
+                            Self::THIS.with(|cell| cell.init_from_str(s));
+                        }
                     }
                 }
             }
         };
+
+        let translation_trait_impl = if parent_ident.is_none() {
+            let path: Cow<str> = match namespace_name {
+                Some(ns) => Cow::Owned(format!("{}/{}", ns, locale.top_locale_name.name)),
+                None => Cow::Borrowed(&locale.top_locale_name.name),
+            };
+            let ts = if cfg!(feature = "ssr") {
+                let stringified = locale.join_strings(default_locale);
+                quote! {
+                    impl leptos_i18n::__private::Translation for #translation_type_name {
+                        const PATH: &'static str = #path;
+                        const STRING: &'static str = #stringified;
+                    }
+                }
+            } else {
+                quote! {
+                    impl leptos_i18n::__private::Translation for #translation_type_name {
+                        const PATH: &'static str = #path;
+                    }
+                }
+            };
+            Some(ts)
+        } else {
+            None
+        };
+
+
+        let parse_translation_impl = if cfg!(not(feature = "embed_translations")) {
+            let fields_name = keys.iter().map(|(key, _)| key);
+            let ts = quote! {
+                impl leptos_i18n::__private::ParseTranslation for #translation_type_name {
+                    fn parse(buff: &mut &str) -> Option<#translation_type_name> {
+                        Some(#translation_type_name {
+                            #(
+                                #fields_name: leptos_i18n::__private::ParseTranslation::parse(buff)?,
+                            )*
+                        })
+                    }
+                }
+            };
+            Some(ts)
+        } else {
+            None
+        };
+
+        let new_fn = if cfg!(feature = "embed_translations") {
+            Some(quote! {
+                pub const fn new() -> Self {
+                    #translation_type_name {
+                        #(
+                            #constructors,
+                        )*
+                    }
+                }
+            })
+        } else {
+            None
+        };
+
 
         quote! {
             #[allow(non_camel_case_types, non_snake_case)]
@@ -379,18 +508,16 @@ fn create_locale_type_inner(
             impl #translation_type_name {
                 #get_method
 
-                pub const fn new() -> Self {
-                    #translation_type_name {
-                        #(
-                            #constructors,
-                        )*
-                    }
-                }
+                #new_fn
             }
+
+            #parse_translation_impl
+
+            #translation_trait_impl
         }
     });
 
-    let from_locale = if !is_namespace {
+    let from_locale = if !is_subkeys {
         let from_locale = quote! {
             impl leptos_i18n::LocaleKeys for #type_ident {
                 type Locale = Locale;
@@ -515,6 +642,7 @@ fn create_namespaces_types(
             true,
             None,
             namespace_ident,
+            Some(&namespace.key.name),
         );
         quote! {
             pub mod #namespace_module_ident {
@@ -591,6 +719,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             false,
             None,
             &i18n_keys_ident,
+            None,
         ),
     }
 }

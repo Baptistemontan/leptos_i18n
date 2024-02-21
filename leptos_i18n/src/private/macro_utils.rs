@@ -1,5 +1,15 @@
 use std::{borrow::Cow, ops::Deref};
 
+use leptos::IntoView;
+#[cfg(feature = "ssr")]
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
+    rc::Rc,
+};
+
+use crate::{provide_i18n_context, Locale};
+
 pub trait BuildStr: Sized {
     #[inline]
     fn build(self) -> Self {
@@ -64,6 +74,7 @@ impl<const N: usize> Deref for SizedString<N> {
     }
 }
 
+#[cfg(not(feature = "embed_translations"))]
 pub trait ParseTranslation: Sized {
     fn parse(buff: &mut &str) -> Option<Self>;
     fn pop_str<'a>(buff: &mut &'a str, size: usize) -> Option<&'a str> {
@@ -80,9 +91,148 @@ pub trait ParseTranslation: Sized {
     }
 }
 
+#[cfg(not(feature = "embed_translations"))]
 impl<const N: usize> ParseTranslation for SizedString<N> {
     fn parse(buff: &mut &str) -> Option<Self> {
         let s = Self::pop_str(buff, N)?;
         Self::try_new(s)
+    }
+}
+
+#[cfg(feature = "embed_translations")]
+pub trait ParseTranslation {}
+
+#[cfg(feature = "embed_translations")]
+impl<T> ParseTranslation for T {}
+
+#[cfg(not(feature = "embed_translations"))]
+fn load_translations<T: Translation>() -> Box<T> {
+    // let mut s = T::STRING;
+    // let Some(translations) = ParseTranslation::parse(&mut s) else {
+    //     panic!("failed to parse a translation. end of buff: {:?}", s);
+    // };
+    // Box::new(translations)
+    todo!()
+}
+
+#[cfg(not(feature = "embed_translations"))]
+pub struct TranslationCell<T: Translation>(std::cell::OnceCell<&'static T>);
+
+#[cfg(not(feature = "embed_translations"))]
+impl<T: Translation> TranslationCell<T> {
+    pub const fn new() -> Self {
+        TranslationCell(std::cell::OnceCell::new())
+    }
+
+    fn init() -> &'static T {
+        let translations: Box<T> = load_translations();
+        Box::leak(translations)
+    }
+
+    pub fn get(&self) -> &'static T {
+        self.0.get_or_init(Self::init)
+    }
+
+    pub fn init_from_str(&self, mut s: &str) {
+        // check if the cell is not already init
+        if self.0.get().is_some() {
+            return;
+        }
+        let Some(translations) = ParseTranslation::parse(&mut s) else {
+            panic!("failed to parse a translation. end of buff: {:?}", s)
+        };
+        let _ = self.0.set(Box::leak(Box::new(translations)));
+    }
+}
+
+pub trait Translation: ParseTranslation + 'static {
+    const PATH: &'static str;
+    #[cfg(feature = "ssr")]
+    const STRING: &'static str;
+}
+
+#[cfg(feature = "ssr")]
+#[derive(Debug, Default)]
+struct LoadingContextInner(HashMap<&'static str, &'static str>);
+
+#[cfg(feature = "ssr")]
+#[derive(Debug, Clone, Default)]
+pub struct LoadingContext(Rc<RefCell<LoadingContextInner>>);
+
+#[cfg(feature = "ssr")]
+impl LoadingContext {
+    fn inner_mut(&self) -> RefMut<HashMap<&'static str, &'static str>> {
+        RefMut::map(self.0.borrow_mut(), |inner| &mut inner.0)
+    }
+
+    fn inner(&self) -> Ref<HashMap<&'static str, &'static str>> {
+        Ref::map(self.0.borrow(), |inner| &inner.0)
+    }
+
+    fn register_inner<T: Translation>(&self) {
+        let mut inner = self.inner_mut();
+        inner.insert(T::PATH, T::STRING);
+    }
+
+    pub fn register<T: Translation>() {
+        if let Some(this) = leptos::use_context::<Self>() {
+            this.register_inner::<T>();
+        }
+    }
+
+    pub fn to_array(&self) -> String {
+        let inner = self.inner();
+        let translations: Vec<_> = inner
+            .iter()
+            .map(|(path, value)| format!("{{\"path\":{:?},\"value\":{:?}}}", path, value))
+            .collect();
+
+        translations.join(",")
+    }
+}
+
+#[cfg(all(feature = "hydrate", not(feature = "embed_translations")))]
+fn init_translations<T: Locale>() {
+    use wasm_bindgen::UnwrapThrowExt;
+    #[derive(serde::Deserialize)]
+    struct Trans {
+        path: String,
+        value: String,
+    }
+
+    let translations = js_sys::Reflect::get(
+        &web_sys::window().unwrap_throw(),
+        &wasm_bindgen::JsValue::from_str("__LEPTOS_I18N_TRANSLATIONS"),
+    )
+    .expect_throw("No __LEPTOS_I18N_TRANSLATIONS found in the JS global scope");
+
+    let translations: Vec<Trans> = serde_wasm_bindgen::from_value(translations)
+        .expect_throw("Failed parsing the translations.");
+
+    for Trans { path, value } in translations {
+        T::init_translation(&path, &value);
+    }
+}
+
+#[cfg(not(feature = "ssr"))]
+pub fn provider<T: Locale>(children: leptos::Children) -> impl IntoView {
+    #[cfg(all(feature = "hydrate", not(feature = "embed_translations")))]
+    init_translations::<T>();
+    provide_i18n_context::<T>();
+    children()
+}
+
+#[cfg(feature = "ssr")]
+pub fn provider<T: Locale>(children: leptos::Children) -> impl IntoView {
+    provide_i18n_context::<T>();
+    let loading_ctx = LoadingContext::default();
+    leptos::provide_context(loading_ctx.clone());
+    let children = children();
+    let translations = loading_ctx.to_array();
+    leptos::view! {
+        {children}
+        <script>
+            window.__LEPTOS_I18N_TRANSLATIONS = "[" {translations} "]";
+        </script>
     }
 }
