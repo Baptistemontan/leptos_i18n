@@ -34,6 +34,8 @@ hydrate = [
     "leptos/hydrate",
     "leptos_meta/hydrate",
     "dep:serde",
+    "dep:wasm-bindgen",
+    "dep:web-sys",
     "dep:serde-wasm-bindgen",
 ]
 ssr = [
