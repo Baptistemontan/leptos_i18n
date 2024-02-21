@@ -140,7 +140,10 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
         quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)])
     };
 
-    let register_fn = if cfg!(feature = "hydrate") {
+    let register_fn = if cfg!(all(
+        feature = "hydrate",
+        not(feature = "embed_translations")
+    )) {
         let paths: Vec<_> = match &cfg_file.name_spaces {
             Some(namespaces) => namespaces
                 .iter()
