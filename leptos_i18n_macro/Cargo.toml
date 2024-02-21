@@ -39,5 +39,6 @@ embed_translations = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
-denylist = ["nightly", "yaml_files"]
+denylist = ["nightly", "yaml_files", "experimental-islands"]
 always_include_features = ["json_files"]
+skip_feature_sets = [["ssr", "hydrate"], ["ssr", "embed_translations"]]
