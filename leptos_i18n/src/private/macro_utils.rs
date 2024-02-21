@@ -177,6 +177,11 @@ impl LoadingContext {
     pub fn register<T: Translation>() {
         if let Some(this) = leptos::use_context::<Self>() {
             this.register_inner::<T>();
+        } else if cfg!(debug_assertions) {
+            eprintln!(
+                "Warning: Tried to register a translation but the LoadingContext was not present, This is probably caused by not wrapping the application with the I18nContextProvider. \
+                This won't cause major problems but may indicate a logical error. This error is present only with debug_assertions."
+            );
         }
     }
 
