@@ -26,7 +26,7 @@ pub trait Locale: 'static + Default + Clone + Copy {
     }
 
     #[doc(hidden)]
-    #[cfg(feature = "hydrate")]
+    #[cfg(all(feature = "hydrate", not(feature = "embed_translations")))]
     /// init the given translation
     fn init_translation(path: &str, translations: &str);
 }
