@@ -33,6 +33,7 @@ impl Interpolation {
         keys_set: &HashSet<InterpolateKey>,
         locales: &[Locale],
         default_match: &TokenStream,
+        constant: Option<&TokenStream>
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
 
@@ -62,7 +63,7 @@ impl Interpolation {
             .collect::<Vec<_>>();
 
         let type_def = Self::create_type(&ident, &fields);
-        let translations_types = Self::create_translation_types(key, parent_ident, locales, &ident);
+        let translations_types = Self::create_translation_types(key, parent_ident, locales, &ident, constant);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl =
             Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
@@ -646,6 +647,7 @@ impl Interpolation {
         parent_ident: &'a Ident,
         locales: &'a [Locale],
         ident: &'a syn::Ident,
+        constant: Option<&'a TokenStream>
     ) -> impl Iterator<Item = TokenStream> + 'a {
         locales.iter().filter_map(move |locale| {
             let value = locale.get(key)?;
@@ -698,7 +700,7 @@ impl Interpolation {
                 );
 
                 impl #translation_ident {
-                    pub fn get() -> &'static Self {
+                    pub #constant fn get() -> &'static Self {
                         &super::#parent_ident::get().#key
                     }
 

@@ -61,16 +61,20 @@ impl<const N: usize> SizedString<N> {
             None => empty(),
         }
     }
+
+    pub const fn as_str(&self) -> &str {
+        // SAFETY:
+        // only way to create this type is through a valid str,
+        // so the internal buffer is a valid str.
+        unsafe { std::str::from_utf8_unchecked(&self.0) }
+    }
 }
 
 impl<const N: usize> Deref for SizedString<N> {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY:
-        // only way to create this type is through a valid str,
-        // so the internal buffer is a valid str.
-        unsafe { std::str::from_utf8_unchecked(&self.0) }
+        self.as_str()
     }
 }
 

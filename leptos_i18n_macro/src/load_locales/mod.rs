@@ -265,6 +265,7 @@ fn create_locale_type_inner(
     parent_ident: Option<&Ident>,
     original_name: &Ident,
     namespace_name: Option<&str>,
+    constant: Option<&TokenStream>,
 ) -> TokenStream {
     let default_match = get_default_match(default_locale, top_locales, locales);
 
@@ -294,6 +295,7 @@ fn create_locale_type_inner(
             Some(type_ident),
             sk.original_key,
             None,
+            constant,
         );
         quote! {
             pub mod #subkey_mod_ident {
@@ -323,7 +325,7 @@ fn create_locale_type_inner(
             LocaleValue::Value(None) | LocaleValue::Subkeys { .. } => None,
             LocaleValue::Value(Some(keys)) => Some((
                 key,
-                Interpolation::new(key, type_ident, keys, locales, &default_match),
+                Interpolation::new(key, type_ident, keys, locales, &default_match, constant),
             )),
         })
         .collect::<Vec<_>>();
@@ -403,7 +405,7 @@ fn create_locale_type_inner(
                 let parent_ident =
                     format_ident!("{}_{}", parent_ident, locale.top_locale_name.ident);
                 quote! {
-                    pub fn get() -> &'static Self {
+                    pub #constant fn get() -> &'static Self {
                         &super::super::#parent_ident::get().#original_name
                     }
                 }
@@ -420,7 +422,7 @@ fn create_locale_type_inner(
                 } else if cfg!(feature = "embed_translations") {
                     quote! {
                         const THIS: Self = Self::new();
-                        pub fn get() -> &'static Self {
+                        pub const fn get() -> &'static Self {
                             &Self::THIS
                         }
                     }
@@ -536,7 +538,7 @@ fn create_locale_type_inner(
 
     let string_accessors = string_keys
         .iter()
-        .map(|key| create_string_accessor(type_ident, key, locales));
+        .map(|key| create_string_accessor(type_ident, key, locales, constant));
 
     let builder_accessors = builders
         .iter()
@@ -562,7 +564,7 @@ fn create_locale_type_inner(
                 #subkeys_accessors
             )*
 
-            pub fn new(locale: Locale) -> Self {
+            pub const fn new(locale: Locale) -> Self {
                 #type_ident(locale)
             }
         }
@@ -580,16 +582,21 @@ fn create_locale_type_inner(
     }
 }
 
-fn create_string_accessor(type_ident: &Ident, key: &Key, locales: &[Locale]) -> TokenStream {
+fn create_string_accessor(
+    type_ident: &Ident,
+    key: &Key,
+    locales: &[Locale],
+    constant: Option<&TokenStream>,
+) -> TokenStream {
     let translation_type = locales
         .iter()
         .map(|locale| format_ident!("{}_{}", type_ident, locale.top_locale_name.ident));
     let locales = locales.iter().map(|locale| &locale.top_locale_name.ident);
     quote! {
         #[allow(non_snake_case)]
-        pub fn #key(self) -> &'static str {
+        pub #constant fn #key(self) -> &'static str {
             match self.0 {
-                #(Locale::#locales => &#translation_type::get().#key,)*
+                #(Locale::#locales => #translation_type::get().#key.as_str(),)*
             }
         }
     }
@@ -600,7 +607,7 @@ fn create_builder_accessor(key: &Key, builder: &Interpolation) -> TokenStream {
     let generics = &builder.default_generic_ident;
     quote! {
         #[allow(non_snake_case)]
-        pub fn #key(self) -> builders::#generics {
+        pub const fn #key(self) -> builders::#generics {
             builders::#builder_ident::new(self.0)
         }
     }
@@ -612,7 +619,7 @@ fn create_subkeys_accessor(sk: &Subkeys) -> TokenStream {
     let mod_ident = &sk.mod_key;
     quote! {
         #[allow(non_snake_case)]
-        pub fn #original_key(self) -> subkeys::#mod_ident::#key {
+        pub const fn #original_key(self) -> subkeys::#mod_ident::#key {
             subkeys::#mod_ident::#key::new(self.0)
         }
     }
@@ -628,6 +635,7 @@ fn create_namespaces_types(
     namespaces: &[Namespace],
     top_locales: &HashSet<&Key>,
     keys: &[(Rc<Key>, BuildersKeysInner)],
+    constant: Option<&TokenStream>,
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
@@ -646,6 +654,7 @@ fn create_namespaces_types(
             None,
             namespace_ident,
             Some(&namespace.key.name),
+            constant,
         );
         quote! {
             pub mod #namespace_module_ident {
@@ -704,6 +713,9 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
     let default_locale = cfg_file.default.as_ref();
 
+    let constant =
+        cfg!(all(feature = "embed_translations", not(feature = "ssr"))).then(|| quote!(const));
+
     let i18n_keys_ident = format_ident!("I18nKeys");
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
@@ -712,6 +724,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             namespaces,
             &top_locales,
             &keys,
+            constant.as_ref(),
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
             default_locale,
@@ -723,6 +736,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             None,
             &i18n_keys_ident,
             None,
+            constant.as_ref(),
         ),
     }
 }
