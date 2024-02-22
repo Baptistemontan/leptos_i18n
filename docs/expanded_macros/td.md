@@ -35,7 +35,7 @@ Expanded code:
     let ($variable,) = ($value_expr,);
     move || {
         let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.var_$variable($variable);
+        let _key = _key.var_$variable(Clone::clone(&$variable));
         #[deny(deprecated)]
         _key.build()
     }
@@ -55,7 +55,7 @@ Expanded code:
     let ($variable,) = ($variable,);
     move || {
         let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.var_$variable($variable);
+        let _key = _key.var_$variable(Clone::clone(&$variable));
         #[deny(deprecated)]
         _key.build()
     }
@@ -75,7 +75,7 @@ Expanded code:
     let ($component,) = ($component_expr,);
     move || {
         let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.comp_$component($component);
+        let _key = _key.comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
@@ -93,7 +93,7 @@ Expanded code:
     let ($component,) = ($component,);
     move || {
         let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.comp_$component($component);
+        let _key = _key.comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
@@ -114,8 +114,8 @@ Expanded code:
     let ($variable, $component,) = ($variable_expr, $component_expr,);
     move || {
         let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.var_$variable($variable);
-        let _key = _key.comp_$component($component);
+        let _key = _key.var_$variable(Clone::clone(&$variable));
+        let _key = _key.comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
@@ -135,7 +135,7 @@ Expanded code:
     let ($component,) = (move |__children: leptos::ChildrenFn| { leptos::view! { <$component_name $($attrs)* >{move || __children()}</$component_name> } },);
     move || {
         let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.comp_$component($component);
+        let _key = _key.comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
