@@ -37,4 +37,4 @@ You can mix them both without problem:
 
 ## Names
 
-Just like keys, names of variable/components must be valid Rust identifier, apart from `-` which will be converted to `_`
+Just like keys, names of variable/components can be anything as long as it is a valid Rust identifier, apart from `-` which will be converted to `_`.
