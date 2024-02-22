@@ -1,0 +1,294 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Plurals</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../02_getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../setting_up/index.html"><strong aria-hidden="true">3.</strong> Setting Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setting_up/01_configuration.html"><strong aria-hidden="true">3.1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../setting_up/02_file_structure.html"><strong aria-hidden="true">3.2.</strong> File structure</a></li><li class="chapter-item expanded "><a href="../setting_up/03_namespaces.html"><strong aria-hidden="true">3.3.</strong> Namespaces</a></li></ol></li><li class="chapter-item expanded "><a href="../declare/index.html"><strong aria-hidden="true">4.</strong> Declare Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../declare/01_key_value.html"><strong aria-hidden="true">4.1.</strong> Key-Value Pairs</a></li><li class="chapter-item expanded "><a href="../declare/02_interpolation.html"><strong aria-hidden="true">4.2.</strong> Interpolation</a></li><li class="chapter-item expanded "><a href="../declare/03_plurals.html" class="active"><strong aria-hidden="true">4.3.</strong> Plurals</a></li><li class="chapter-item expanded "><a href="../declare/04_subkeys.html"><strong aria-hidden="true">4.4.</strong> Subkeys</a></li><li class="chapter-item expanded "><a href="../declare/05_foreign_keys.html"><strong aria-hidden="true">4.5.</strong> Foreign keys</a></li><li class="chapter-item expanded "><a href="../declare/06_mix_kinds.html"><strong aria-hidden="true">4.6.</strong> Mixing Kinds</a></li></ol></li><li class="chapter-item expanded "><a href="../usage/index.html"><strong aria-hidden="true">5.</strong> Use Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/01_load.html"><strong aria-hidden="true">5.1.</strong> Load The Translations</a></li><li class="chapter-item expanded "><a href="../usage/02_context.html"><strong aria-hidden="true">5.2.</strong> I18nContext</a></li><li class="chapter-item expanded "><a href="../usage/03_t_macro.html"><strong aria-hidden="true">5.3.</strong> t! Macro</a></li><li class="chapter-item expanded "><a href="../usage/04_td_macro.html"><strong aria-hidden="true">5.4.</strong> td! Macro</a></li><li class="chapter-item expanded "><a href="../usage/05_td_string_macro.html"><strong aria-hidden="true">5.5.</strong> td_string! Macro</a></li></ol></li><li class="chapter-item expanded "><a href="../06_features.html"><strong aria-hidden="true">6.</strong> Features</a></li><li class="chapter-item expanded "><a href="../appendix_i18n_ally.html"><strong aria-hidden="true">7.</strong> Appendix: i18n Ally extension for VSC</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="plurals"><a class="header" href="#plurals">Plurals</a></h1>
+<p>What if your translation display a count, and thus you must handle the case where the count is zero, one, or multiple ? You could declare multiple translations and use some kind of switch-case, but again this is not elegant.</p>
+<p>To simplify this process you can declare plurals, they are based around a count and display different translations based on this count.</p>
+<p>To declare them the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;You have not clicked yet&quot;, 0],
+    [&quot;You clicked once&quot;, 1],
+    [&quot;You clicked {{ count }} times&quot;, &quot;_&quot;]
+  ]
+}
+</code></pre>
+<h2 id="multiple-exact-values"><a class="header" href="#multiple-exact-values">Multiple exact values</a></h2>
+<p>You can declare multiple counts to match against:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;0 or 5&quot;, 0, 5],
+    [&quot;1, 2, 3 or 4&quot;, 1, 2, 3, 4],
+    [&quot;You clicked {{ count }} times&quot;, &quot;_&quot;]
+  ]
+}
+</code></pre>
+<h2 id="ranges"><a class="header" href="#ranges">Ranges</a></h2>
+<p>You can also declare a range where the translations is used:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;0 or 5&quot;, 0, 5],
+    [&quot;1, 2, 3 or 4&quot;, &quot;1..=4&quot;],
+    [&quot;You clicked {{ count }} times&quot;, &quot;_&quot;]
+  ]
+}
+</code></pre>
+<p>You can use all Rust ranges syntax: <code>s..e</code>, <code>..e</code>, <code>s..</code>, <code>s..=e</code>, <code>..=e</code> or even <code>..</code> ( <code>..</code> will be considered fallback <code>_</code>)</p>
+<h2 id="number-type"><a class="header" href="#number-type">Number type</a></h2>
+<p>By default the count is expected to be an <code>i32</code>, but you can change that by specifying the type as the first element of the sequence:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    &quot;u32&quot;,
+    [&quot;You have not clicked yet&quot;, 0],
+    [&quot;You clicked once&quot;, 1],
+    [&quot;You clicked {{ count }} times&quot;, &quot;_&quot;]
+  ]
+}
+</code></pre>
+<p>Now you only have to cover the <code>u32</code> range.</p>
+<p>The supported types are <code>i8</code>, <code>i16</code>, <code>i32</code>, <code>i64</code>, <code>u8</code>, <code>u16</code>, <code>u32</code>, <code>u64</code>, <code>f32</code> and <code>f64</code>.</p>
+<h2 id="fallback"><a class="header" href="#fallback">Fallback</a></h2>
+<p>If all the given counts don't fill the range of the number type, you can use a fallback (<code>&quot;_&quot;</code> or <code>&quot;..&quot;</code>) as seen above, but it can be completely omitted on the last element of the sequence:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;You have not clicked yet&quot;, 0],
+    [&quot;You clicked once&quot;, 1],
+    [&quot;You clicked {{ count }} times&quot;]
+  ]
+}
+</code></pre>
+<p>Fallbacks are not required if you already cover the full number range:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    &quot;u8&quot;,
+    [&quot;You have not clicked yet&quot;, 0],
+    [&quot;1 to 254&quot;, &quot;1..=254&quot;],
+    [&quot;255&quot;, 255]
+  ]
+}
+</code></pre>
+<p>Fallbacks are always required for <code>f32</code> and <code>f64</code>.</p>
+<h2 id="order"><a class="header" href="#order">Order</a></h2>
+<p>The order of the plurals matter, for example:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;first&quot;, &quot;0..5&quot;],
+    [&quot;second&quot;, &quot;0..=5&quot;],
+    [&quot;You clicked {{ count }} times&quot;]
+  ]
+}
+</code></pre>
+<p>Here &quot;second&quot; will only be printed if count is 5, if <code>0 &lt;= count &lt; 5</code> then &quot;first&quot; will be printed.</p>
+<h2 id="mix-ranges-with-exact-values"><a class="header" href="#mix-ranges-with-exact-values">Mix ranges with exact values</a></h2>
+<p>You can totally mix them, this is valid:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;first&quot;, 0, &quot;3..5&quot;, &quot;10..=56&quot;],
+    [&quot;second&quot;, &quot;0..3&quot;, &quot;..78&quot;],
+    [&quot;You clicked {{ count }} times&quot;]
+  ]
+}
+</code></pre>
+<h2 id="use-interpolation"><a class="header" href="#use-interpolation">Use interpolation</a></h2>
+<p>The &quot;You clicked {{ count }} times&quot; kind of gave it away, but you can use interpolation in your plurals, this is valid:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: [
+    [&quot;&lt;b&gt;first&lt;/b&gt;&quot;, 0, &quot;3..5&quot;, &quot;10..=56&quot;],
+    [&quot;&lt;i&gt;second&lt;/i&gt;&quot;, &quot;0..3&quot;, &quot;..78&quot;],
+    [&quot;You clicked {{ count }} times and have {{ banana_count }} bananas&quot;]
+  ]
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../declare/02_interpolation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../declare/04_subkeys.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../declare/02_interpolation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../declare/04_subkeys.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
