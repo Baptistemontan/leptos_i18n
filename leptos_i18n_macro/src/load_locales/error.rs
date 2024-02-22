@@ -2,16 +2,10 @@ use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
 
 use super::{
     key::{Key, KeyPath},
+    locale::SerdeError,
     plural::PluralType,
 };
 use quote::quote;
-
-#[cfg(feature = "json_files")]
-pub type SerdeError = serde_json::Error;
-#[cfg(feature = "yaml_files")]
-pub type SerdeError = serde_yaml::Error;
-#[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-pub type SerdeError = &'static str; // whatever impl Display
 
 #[derive(Debug)]
 pub enum Error {
