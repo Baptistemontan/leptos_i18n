@@ -34,8 +34,9 @@ Expanded code:
     // it's done with a tuple to avoid name collisions, if multiple variables were passed we are sure to not shadow a variable used in a next expression.
     let ($variable,) = ($value_expr,);
     move || {
-        let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.var_$variable($variable);
+        let _key = leptos_i18n::Locale::get_keys(locale)
+            .$key()
+            .var_$variable($variable);
         #[deny(deprecated)]
         _key.build()
     }
@@ -54,8 +55,9 @@ Expanded code:
 {
     let ($variable,) = ($variable,);
     move || {
-        let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.var_$variable($variable);
+        let _key = leptos_i18n::Locale::get_keys(locale)
+            .$key()
+            .var_$variable($variable);
         #[deny(deprecated)]
         _key.build()
     }
@@ -74,8 +76,9 @@ Expanded code:
 {
     let ($component,) = ($component_expr,);
     move || {
-        let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.comp_$component($component);
+        let _key = leptos_i18n::Locale::get_keys(locale)
+            .$key()
+            .comp_$component($component);
         #[deny(deprecated)]
         _key.build()
     }
@@ -92,8 +95,9 @@ Expanded code:
 {
     let ($component,) = ($component,);
     move || {
-        let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.comp_$component($component);
+        let _key = leptos_i18n::Locale::get_keys(locale)
+            .$key()
+            .comp_$component($component);
         #[deny(deprecated)]
         _key.build()
     }
@@ -113,9 +117,10 @@ Expanded code:
     // as you can see here, if multiple expr are passed they can all execute before the new variables goes into scope, avoiding name collisions.
     let ($variable, $component,) = ($variable_expr, $component_expr,);
     move || {
-        let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.var_$variable($variable);
-        let _key = _key.comp_$component($component);
+        let _key = leptos_i18n::Locale::get_keys(locale)
+            .$key()
+            .var_$variable($variable)
+            .comp_$component($component);
         #[deny(deprecated)]
         _key.build()
     }
@@ -134,8 +139,9 @@ Expanded code:
 {
     let ($component,) = (move |__children: leptos::ChildrenFn| { leptos::view! { <$component_name $($attrs)* >{move || __children()}</$component_name> } },);
     move || {
-        let _key = leptos_i18n::Locale::get_keys(locale).$key;
-        let _key = _key.comp_$component($component);
+        let _key = leptos_i18n::Locale::get_keys(locale)
+            .$key()
+            .comp_$component($component);
         #[deny(deprecated)]
         _key.build()
     }
