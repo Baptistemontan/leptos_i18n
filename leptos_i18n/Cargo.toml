@@ -24,6 +24,8 @@ http = { version = "1", optional = true }
 js-sys = { version = "0.3", optional = false }
 serde = { version = "1", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+futures = { version = "0.3", optional = true }
 
 [features]
 default = ["cookie", "json_files"]
@@ -35,18 +37,24 @@ hydrate = [
     "leptos_meta/hydrate",
     "dep:serde",
     "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
     "dep:web-sys",
     "dep:serde-wasm-bindgen",
+    "dep:futures",
 ]
-ssr = [
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos_i18n_macro/ssr",
-    "embed_translations",
-]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos_i18n_macro/ssr"]
 actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum", "dep:http"]
-csr = ["leptos/csr", "leptos_meta/csr"]
+csr = [
+    "leptos/csr",
+    "leptos_meta/csr",
+    "leptos_i18n_macro/csr",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:web-sys",
+    "dep:serde-wasm-bindgen",
+    "dep:futures",
+]
 serde = ["leptos_i18n_macro/serde", "dep:serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]

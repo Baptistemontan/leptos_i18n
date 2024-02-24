@@ -32,8 +32,7 @@ impl Interpolation {
         parent_ident: &Ident,
         keys_set: &HashSet<InterpolateKey>,
         locales: &[Locale],
-        default_match: &TokenStream,
-        constant: Option<&TokenStream>
+        default_match: &TokenStream
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
 
@@ -63,7 +62,7 @@ impl Interpolation {
             .collect::<Vec<_>>();
 
         let type_def = Self::create_type(&ident, &fields);
-        let translations_types = Self::create_translation_types(key, parent_ident, locales, &ident, constant);
+        let translations_types = Self::create_translation_types(key, parent_ident, locales, &ident);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl =
             Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
@@ -646,8 +645,7 @@ impl Interpolation {
         key: &'a Key,
         parent_ident: &'a Ident,
         locales: &'a [Locale],
-        ident: &'a syn::Ident,
-        constant: Option<&'a TokenStream>
+        ident: &'a syn::Ident
     ) -> impl Iterator<Item = TokenStream> + 'a {
         locales.iter().filter_map(move |locale| {
             let value = locale.get(key)?;
@@ -660,7 +658,7 @@ impl Interpolation {
             let parent_ident = format_ident!("{}_{}", parent_ident, top_locale_name.ident);
             let lengths = strings.iter().map(|s| s.len());
             
-            let parse_translation_impl = if cfg!(not(feature = "embed_translations")) {
+            let parse_translation_impl = if cfg!(not(any(feature = "ssr", feature = "embed_translations"))) {
                 let lengths = lengths.clone();
                 Some(quote! {
                     impl leptos_i18n::__private::ParseTranslation for #translation_ident {
@@ -677,7 +675,7 @@ impl Interpolation {
                 None
             };
 
-            let new_fn = if cfg!(feature = "embed_translations") {
+            let new_fn = if cfg!(any(feature = "ssr", feature = "embed_translations")) {
                 Some(quote! {
                     pub const fn new() -> Self {
                         #translation_ident(
@@ -691,6 +689,27 @@ impl Interpolation {
                 None
             };
 
+            let get_fn = if cfg!(feature = "embed_translations") {
+                quote! {
+                    pub const fn get() -> &'static Self {
+                        &super::#parent_ident::get().#key
+                    }
+                }
+            } else if cfg!(feature = "ssr") {
+                quote! {
+                    pub fn get() -> &'static Self {
+                        &super::#parent_ident::get().#key
+                    }
+                }
+            } else {
+                quote! {
+                    pub fn get() -> leptos::Signal<Option<&'static Self>> {
+                        let sig = super::#parent_ident::get();
+                        leptos::Signal::derive(move || leptos::SignalGet::get(&sig).map(|t| &t.#key))
+                    }
+                }
+            };
+
             let ts = quote! {
                 #[allow(non_camel_case_types, non_snake_case)]
                 pub struct #translation_ident(
@@ -700,9 +719,8 @@ impl Interpolation {
                 );
 
                 impl #translation_ident {
-                    pub #constant fn get() -> &'static Self {
-                        &super::#parent_ident::get().#key
-                    }
+                    
+                    #get_fn
 
                     #new_fn
                 }
@@ -741,10 +759,26 @@ impl Interpolation {
                     true => Cow::Borrowed(&default_match),
                     false => Cow::Owned(quote!(Locale::#locale_key)),
                 };
-                let ts = quote!(#matc => {
-                    let __translations = #translations_ident::get();
-                    #value
-                });
+                let ts = if cfg!(any(feature = "ssr", feature = "embed_translations")) {
+                    quote! {
+                        #matc => {
+                            let __translations = #translations_ident::get();
+                            #value
+                        }
+                    }
+                } else {
+                    quote! {
+                        #matc => {
+                            let __translations = #translations_ident::get();
+                            let __sig = leptos::Signal::derive(move || {
+                                leptos::SignalGet::get(&__translations).map(|__translations| {
+                                    #value
+                                })
+                            });
+                            leptos::IntoView::into_view(__sig)
+                        }
+                    }
+                };
                 Some(ts)
             })
     }

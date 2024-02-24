@@ -541,7 +541,8 @@ impl ParsedValue {
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(_) => {
                 let tuple_index = syn::Index::from(*index);
-                tokens.push(quote!(leptos::IntoView::into_view(&*__translations.#tuple_index)));
+                let ts = quote!(leptos::IntoView::into_view(__translations.#tuple_index.as_str()));
+                tokens.push(ts);
                 *index += 1;
             }
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_tokens(index)),
@@ -585,7 +586,7 @@ impl ParsedValue {
             ParsedValue::String(_) => {
                 let tuple_index = syn::Index::from(*index);
                 tokens.push(
-                    quote!(core::fmt::Display::fmt(&*__translations.#tuple_index, __formatter)),
+                    quote!(core::fmt::Display::fmt(__translations.#tuple_index.as_str(), __formatter)),
                 );
                 *index += 1;
             }

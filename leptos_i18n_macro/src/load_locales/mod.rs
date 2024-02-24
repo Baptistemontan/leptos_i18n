@@ -1,6 +1,8 @@
 use std::{
     borrow::Cow,
     collections::HashSet,
+    fs::File,
+    io::Write,
     ops::{Deref, Not},
     path::PathBuf,
     rc::Rc,
@@ -265,7 +267,7 @@ fn create_locale_type_inner(
     parent_ident: Option<&Ident>,
     original_name: &Ident,
     namespace_name: Option<&str>,
-    constant: Option<&TokenStream>,
+    locales_output_dir_path: &str,
 ) -> TokenStream {
     let default_match = get_default_match(default_locale, top_locales, locales);
 
@@ -295,7 +297,7 @@ fn create_locale_type_inner(
             Some(type_ident),
             sk.original_key,
             None,
-            constant,
+            locales_output_dir_path,
         );
         quote! {
             pub mod #subkey_mod_ident {
@@ -325,7 +327,7 @@ fn create_locale_type_inner(
             LocaleValue::Value(None) | LocaleValue::Subkeys { .. } => None,
             LocaleValue::Value(Some(keys)) => Some((
                 key,
-                Interpolation::new(key, type_ident, keys, locales, &default_match, constant),
+                Interpolation::new(key, type_ident, keys, locales, &default_match),
             )),
         })
         .collect::<Vec<_>>();
@@ -404,14 +406,40 @@ fn create_locale_type_inner(
             Some(parent_ident) => {
                 let parent_ident =
                     format_ident!("{}_{}", parent_ident, locale.top_locale_name.ident);
-                quote! {
-                    pub #constant fn get() -> &'static Self {
-                        &super::super::#parent_ident::get().#original_name
+                if cfg!(feature = "embed_translations") {
+                    quote! {
+                        pub const fn get() -> &'static Self {
+                            &super::super::#parent_ident::get().#original_name
+                        }
+                    }
+                } else if cfg!(feature = "ssr") {
+                    quote! {
+                        pub fn get() -> &'static Self {
+                            &super::super::#parent_ident::get().#original_name
+                        }
+                    }
+                } else {
+                    quote! {
+                        pub fn get() -> leptos::Signal<Option<&'static Self>> {
+                            let parent_sig = super::super::#parent_ident::get();
+                            leptos::Signal::derive(move || {
+                                leptos::SignalGet::get(&parent_sig)
+                                    .map(|t| &t.#original_name)
+
+                            })
+                        }
                     }
                 }
             }
             None => {
-                if cfg!(feature = "ssr") {
+                if cfg!(feature = "embed_translations") {
+                    quote! {
+                        const THIS: Self = Self::new();
+                        pub const fn get() -> &'static Self {
+                            &Self::THIS
+                        }
+                    }
+                } else if cfg!(feature = "ssr") {
                     quote! {
                         const THIS: Self = Self::new();
                         pub fn get() -> &'static Self {
@@ -419,19 +447,12 @@ fn create_locale_type_inner(
                             &Self::THIS
                         }
                     }
-                } else if cfg!(feature = "embed_translations") {
-                    quote! {
-                        const THIS: Self = Self::new();
-                        pub const fn get() -> &'static Self {
-                            &Self::THIS
-                        }
-                    }
-                } else {
+                } else if cfg!(any(feature = "hydrate", feature = "csr")) {
                     quote! {
                         thread_local! {
                             static THIS: leptos_i18n::__private::TranslationCell<#translation_type_name> = leptos_i18n::__private::TranslationCell::new();
                         }
-                        pub fn get() -> &'static Self {
+                        pub fn get() -> leptos::Signal<Option<&'static Self>> {
                             Self::THIS.with(leptos_i18n::__private::TranslationCell::get)
                         }
 
@@ -439,37 +460,25 @@ fn create_locale_type_inner(
                             Self::THIS.with(|cell| cell.init_from_str(s));
                         }
                     }
+                } else {
+                    quote! {
+                        pub fn get() -> leptos::Signal<Option<&'static Self>> {
+                            panic!("no feature flag activated for leptos_i18n, is it hydrate mode? csr ? ssr ?");
+                        }
+                    }
                 }
             }
         };
 
         let translation_trait_impl = if parent_ident.is_none() {
-            let path: Cow<str> = match namespace_name {
-                Some(ns) => Cow::Owned(format!("{}/{}", ns, locale.top_locale_name.name)),
-                None => Cow::Borrowed(&locale.top_locale_name.name),
-            };
-            let ts = if cfg!(feature = "ssr") {
-                let stringified = locale.join_strings(default_locale);
-                quote! {
-                    impl leptos_i18n::__private::Translation for #translation_type_name {
-                        const PATH: &'static str = #path;
-                        const STRING: &'static str = #stringified;
-                    }
-                }
-            } else {
-                quote! {
-                    impl leptos_i18n::__private::Translation for #translation_type_name {
-                        const PATH: &'static str = #path;
-                    }
-                }
-            };
+            let ts = create_translation_trait_impl(namespace_name, locale, default_locale, &translation_type_name, locales_output_dir_path);
             Some(ts)
         } else {
             None
         };
 
 
-        let parse_translation_impl = if cfg!(not(feature = "embed_translations")) {
+        let parse_translation_impl = if cfg!(not(any(feature = "ssr", feature = "embed_translations"))) {
             let fields_name = keys.iter().map(|(key, _)| key);
             let ts = quote! {
                 impl leptos_i18n::__private::ParseTranslation for #translation_type_name {
@@ -487,7 +496,7 @@ fn create_locale_type_inner(
             None
         };
 
-        let new_fn = if cfg!(feature = "embed_translations") {
+        let new_fn = if cfg!(any(feature = "ssr", feature = "embed_translations")) {
             Some(quote! {
                 pub const fn new() -> Self {
                     #translation_type_name {
@@ -538,7 +547,7 @@ fn create_locale_type_inner(
 
     let string_accessors = string_keys
         .iter()
-        .map(|key| create_string_accessor(type_ident, key, locales, constant));
+        .map(|key| create_string_accessor(type_ident, key, locales));
 
     let builder_accessors = builders
         .iter()
@@ -582,21 +591,40 @@ fn create_locale_type_inner(
     }
 }
 
-fn create_string_accessor(
-    type_ident: &Ident,
-    key: &Key,
-    locales: &[Locale],
-    constant: Option<&TokenStream>,
-) -> TokenStream {
+fn create_string_accessor(type_ident: &Ident, key: &Key, locales: &[Locale]) -> TokenStream {
     let translation_type = locales
         .iter()
         .map(|locale| format_ident!("{}_{}", type_ident, locale.top_locale_name.ident));
     let locales = locales.iter().map(|locale| &locale.top_locale_name.ident);
-    quote! {
-        #[allow(non_snake_case)]
-        pub #constant fn #key(self) -> &'static str {
-            match self.0 {
-                #(Locale::#locales => #translation_type::get().#key.as_str(),)*
+    if cfg!(feature = "embed_translations") {
+        quote! {
+            pub const fn #key(self) -> &'static str {
+                match self.0 {
+                    #(Locale::#locales => #translation_type::get().#key.as_str(),)*
+                }
+            }
+        }
+    } else if cfg!(feature = "ssr") {
+        quote! {
+            pub fn #key(self) -> leptos::Signal<Option<&'static str>> {
+                let s = match self.0 {
+                    #(Locale::#locales => #translation_type::get().#key.as_str(),)*
+                };
+                leptos::Signal::from(move || Some(s))
+            }
+        }
+    } else {
+        quote! {
+            pub fn #key(self) -> leptos::Signal<Option<&'static str>> {
+                match self.0 {
+                    #(Locale::#locales => {
+                        let sig = #translation_type::get();
+                        leptos::Signal::derive(move || {
+                            leptos::SignalGet::get(&sig)
+                                .map(|t| t.#key.as_str())
+                        })
+                    },)*
+                }
             }
         }
     }
@@ -635,7 +663,7 @@ fn create_namespaces_types(
     namespaces: &[Namespace],
     top_locales: &HashSet<&Key>,
     keys: &[(Rc<Key>, BuildersKeysInner)],
-    constant: Option<&TokenStream>,
+    locales_output_dir_path: &str,
 ) -> TokenStream {
     let namespaces_ts = namespaces.iter().map(|namespace| {
         let namespace_ident = &namespace.key.ident;
@@ -654,7 +682,7 @@ fn create_namespaces_types(
             None,
             namespace_ident,
             Some(&namespace.key.name),
-            constant,
+            locales_output_dir_path,
         );
         quote! {
             pub mod #namespace_module_ident {
@@ -713,8 +741,12 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
     let default_locale = cfg_file.default.as_ref();
 
-    let constant =
-        cfg!(all(feature = "embed_translations", not(feature = "ssr"))).then(|| quote!(const));
+    let locales_output_dir_path = if cfg!(all(feature = "csr", not(feature = "embed_translations")))
+    {
+        "./dist/locales"
+    } else {
+        "./target/site/locales"
+    };
 
     let i18n_keys_ident = format_ident!("I18nKeys");
     match keys {
@@ -724,7 +756,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             namespaces,
             &top_locales,
             &keys,
-            constant.as_ref(),
+            locales_output_dir_path,
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
             default_locale,
@@ -736,7 +768,57 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
             None,
             &i18n_keys_ident,
             None,
-            constant.as_ref(),
+            locales_output_dir_path,
         ),
+    }
+}
+
+fn create_translation_trait_impl(
+    namespace_name: Option<&str>,
+    locale: &Locale,
+    default_locale: &Locale,
+    translation_type_name: &Ident,
+    locales_output_dir_path: &str,
+) -> TokenStream {
+    if cfg!(feature = "embed_translations") {
+        return quote!();
+    }
+    let path: Cow<str> = match namespace_name {
+        Some(ns) => Cow::Owned(format!("{}/{}", ns, locale.top_locale_name.name)),
+        None => Cow::Borrowed(&locale.top_locale_name.name),
+    };
+    if cfg!(feature = "hydrate") {
+        // csr need to generate the files
+        return quote! {
+            impl leptos_i18n::__private::Translation for #translation_type_name {
+                const PATH: &'static str = #path;
+            }
+        };
+    }
+    let stringified = locale.join_strings(default_locale);
+    std::fs::create_dir_all(locales_output_dir_path).unwrap();
+    let file_path = format!("{}/{}.txt", locales_output_dir_path, path);
+    let mut locale_string_file = File::options()
+        .write(true)
+        .create(true)
+        .open(file_path)
+        .unwrap();
+    locale_string_file
+        .write_all(stringified.as_bytes())
+        .unwrap();
+
+    if cfg!(feature = "ssr") {
+        quote! {
+            impl leptos_i18n::__private::Translation for #translation_type_name {
+                const PATH: &'static str = #path;
+                const STRING: &'static str = #stringified;
+            }
+        }
+    } else {
+        quote! {
+            impl leptos_i18n::__private::Translation for #translation_type_name {
+                const PATH: &'static str = #path;
+            }
+        }
     }
 }
