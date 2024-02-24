@@ -135,19 +135,19 @@ impl InterpolatedValue {
         match self {
             InterpolatedValue::Var(ident) => {
                 let var_ident = Self::format_ident(ident, true, string);
-                quote!(#var_ident(#ident))
+                quote!(#var_ident(Clone::clone(&#ident)))
             }
             InterpolatedValue::Comp(ident) => {
                 let comp_ident = Self::format_ident(ident, false, string);
-                quote!(#comp_ident(#ident))
+                quote!(#comp_ident(Clone::clone(&#ident)))
             }
             InterpolatedValue::AssignedVar { key, value } => {
                 let var_ident = Self::format_ident(key, true, string);
-                quote!(#var_ident(#value))
+                quote!(#var_ident(Clone::clone(&#value)))
             }
             InterpolatedValue::AssignedComp { key, value } => {
                 let comp_ident = Self::format_ident(key, false, string);
-                quote!(#comp_ident(#value))
+                quote!(#comp_ident(Clone::clone(&#value)))
             }
             InterpolatedValue::DirectComp {
                 key,

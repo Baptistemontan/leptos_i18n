@@ -73,3 +73,18 @@ fn interpolate_variable_and_comp() {
     let fr = tdbg!(Locale::fr, interpolate_variable_and_comp, <b> = <span/>, count = 34);
     assert_eq_rendered!(fr, "<span>34</span>");
 }
+
+#[test]
+fn non_copy_arg() {
+    fn check_impl_fn<T>(_: &impl Fn() -> T) {}
+
+    let count = String::from("count");
+    let en = td!(Locale::en, interpolate_variable_and_comp, <b> = <span attr:id="test"/>, count);
+    check_impl_fn(&en);
+    assert_eq_rendered!(en, "<span id=\"test\">count</span>");
+
+    let count = String::from("count");
+    let fr = td!(Locale::fr, interpolate_variable_and_comp, <b> = <span/>, count);
+    check_impl_fn(&fr);
+    assert_eq_rendered!(fr, "<span>count</span>");
+}

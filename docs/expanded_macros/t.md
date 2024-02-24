@@ -36,7 +36,7 @@ Expanded code:
     move || {
         let _key = leptos_i18n::I18nContext::get_keys(i18n)
             .$key()
-            .var_$variable($variable);
+            .var_$variable(Clone::clone(&$variable));
         #[deny(deprecated)]
         _key.build()
     }
@@ -57,7 +57,7 @@ Expanded code:
     move || {
         let _key = leptos_i18n::I18nContext::get_keys(i18n)
             .$key()
-            .var_$variable($variable);
+            .var_$variable(Clone::clone(&$variable));
         #[deny(deprecated)]
         _key.build()
     }
@@ -78,7 +78,7 @@ Expanded code:
     move || {
         let _key = leptos_i18n::I18nContext::get_keys(i18n)
             .$key()
-            .comp_$component($component);
+            .comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
@@ -97,7 +97,7 @@ Expanded code:
     move || {
         let _key = leptos_i18n::I18nContext::get_keys(i18n)
             .$key()
-            .comp_$component($component);
+            .comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
@@ -119,8 +119,8 @@ Expanded code:
     move || {
         let _key = leptos_i18n::I18nContext::get_keys(i18n)
             .$key()
-            .var_$variable($variable);
-            .comp_$component($component);
+            .var_$variable(Clone::clone(&$variable));
+            .comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }
@@ -141,7 +141,7 @@ Expanded code:
     move || {
         let _key = leptos_i18n::I18nContext::get_keys(i18n)
             .$key()
-            .comp_$component($component);
+            .comp_$component(Clone::clone(&$component));
         #[deny(deprecated)]
         _key.build()
     }

@@ -14,12 +14,60 @@ use super::{
     warning::{emit_warning, Warning},
 };
 
-#[cfg(feature = "yaml_files")]
-const FILE_EXTS: &[&str] = &["yaml", "yml"];
-#[cfg(feature = "json_files")]
-const FILE_EXTS: &[&str] = &["json"];
-#[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-const FILE_EXTS: &[&str] = &[];
+macro_rules! files_formats {
+    (json => $($tt:tt)*) => {
+        #[cfg(all(feature = "json_files", not(any(feature = "yaml_files"))))]
+        $($tt)*
+    };
+    (yaml => $($tt:tt)*) => {
+        #[cfg(all(feature = "yaml_files", not(any(feature = "json_files"))))]
+        $($tt)*
+    };
+    (none => $($tt:tt)*) => {
+        #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
+        $($tt)*
+    };
+    // for now use cfg(all(..)) but if any format is added found a better cfg.
+    (multiple => $($tt:tt)*) => {
+        #[cfg(all(feature = "json_files", feature = "yaml_files"))]
+        $($tt)*
+    }
+}
+
+files_formats!(json => pub type SerdeError = serde_json::Error;);
+files_formats!(yaml => pub type SerdeError = serde_yaml::Error;);
+files_formats!(none => pub type SerdeError = &'static str;); // whatever impl Display
+files_formats!(multiple => pub type SerdeError = &'static str;); // whatever impl Display
+
+files_formats!(json => const FILE_EXTS: &[&str] = &["json"];);
+files_formats!(yaml => const FILE_EXTS: &[&str] = &["yaml", "yml"];);
+files_formats!(none => const FILE_EXTS: &[&str] = &[];);
+files_formats!(multiple => const FILE_EXTS: &[&str] = &[];);
+
+files_formats!(json =>
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+        let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
+        serde::de::DeserializeSeed::deserialize(seed, &mut deserializer)
+    }
+);
+files_formats!(yaml =>
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+        let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
+        serde::de::DeserializeSeed::deserialize(seed, deserializer)
+    }
+);
+files_formats!(none =>
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+        let _ = (locale_file, seed);
+        compile_error!("No file format has been provided for leptos_i18n, supported formats are: json and yaml")
+    }
+);
+files_formats!(multiple =>
+    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+        let _ = (locale_file, seed);
+        compile_error!("Multiple file format have been provided for leptos_i18n, choose only one, supported formats are: json and yaml")
+    }
+);
 
 #[derive(Debug)]
 pub struct Namespace {
@@ -173,26 +221,8 @@ impl Locale {
         }
     }
 
-    #[cfg(feature = "yaml_files")]
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
-        let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
-        serde::de::DeserializeSeed::deserialize(seed, deserializer)
-    }
-
-    #[cfg(feature = "json_files")]
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
-        let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
-        serde::de::DeserializeSeed::deserialize(seed, &mut deserializer)
-    }
-
-    #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Self, super::error::SerdeError> {
-        let _ = (locale_file, seed);
-        compile_error!("No file format has been provided, supported formats are: json and yaml")
-    }
-
     fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
-        Self::de_inner(locale_file, seed).map_err(|err| Error::LocaleFileDeser {
+        de_inner(locale_file, seed).map_err(|err| Error::LocaleFileDeser {
             path: std::mem::take(path),
             err,
         })
