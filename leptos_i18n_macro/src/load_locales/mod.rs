@@ -57,7 +57,7 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let keys = Locale::check_locales(&mut locales)?;
 
-    let locale_type = create_locale_type(keys, &cfg_file);
+    let locale_type = create_locale_type(keys, &cfg_file)?;
     let locale_enum = create_locales_enum(&cfg_file);
 
     let warnings = generate_warnings();
@@ -268,7 +268,7 @@ fn create_locale_type_inner(
     original_name: &Ident,
     namespace_name: Option<&str>,
     locales_output_dir_path: &str,
-) -> TokenStream {
+) -> Result<TokenStream> {
     let default_match = get_default_match(default_locale, top_locales, locales);
 
     let string_keys = keys
@@ -298,7 +298,8 @@ fn create_locale_type_inner(
             sk.original_key,
             None,
             locales_output_dir_path,
-        );
+        )
+        .unwrap();
         quote! {
             pub mod #subkey_mod_ident {
                 use super::Locale;
@@ -471,7 +472,7 @@ fn create_locale_type_inner(
         };
 
         let translation_trait_impl = if parent_ident.is_none() {
-            let ts = create_translation_trait_impl(namespace_name, locale, default_locale, &translation_type_name, locales_output_dir_path);
+            let ts = create_translation_trait_impl(namespace_name, locale, default_locale, &translation_type_name, locales_output_dir_path).unwrap();
             Some(ts)
         } else {
             None
@@ -555,7 +556,7 @@ fn create_locale_type_inner(
 
     let subkeys_accessors = subkeys.iter().map(create_subkeys_accessor);
 
-    quote! {
+    let ts = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident(Locale);
@@ -588,7 +589,9 @@ fn create_locale_type_inner(
         #builder_module
 
         #subkeys_module
-    }
+    };
+
+    Ok(ts)
 }
 
 fn create_string_accessor(type_ident: &Ident, key: &Key, locales: &[Locale]) -> TokenStream {
@@ -664,34 +667,37 @@ fn create_namespaces_types(
     top_locales: &HashSet<&Key>,
     keys: &[(Rc<Key>, BuildersKeysInner)],
     locales_output_dir_path: &str,
-) -> TokenStream {
-    let namespaces_ts = namespaces.iter().map(|namespace| {
-        let namespace_ident = &namespace.key.ident;
-        let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
-        let keys = keys
-            .iter()
-            .find_map(|(key, value)| (key == &namespace.key).then_some(value))
-            .unwrap();
-        let type_impl = create_locale_type_inner(
-            default_locale,
-            namespace_ident,
-            top_locales,
-            &namespace.locales,
-            &keys.0,
-            true,
-            None,
-            namespace_ident,
-            Some(&namespace.key.name),
-            locales_output_dir_path,
-        );
-        quote! {
-            pub mod #namespace_module_ident {
-                use super::Locale;
+) -> Result<TokenStream> {
+    let namespaces_ts = namespaces
+        .iter()
+        .map(|namespace| {
+            let namespace_ident = &namespace.key.ident;
+            let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
+            let keys = keys
+                .iter()
+                .find_map(|(key, value)| (key == &namespace.key).then_some(value))
+                .unwrap();
+            let type_impl = create_locale_type_inner(
+                default_locale,
+                namespace_ident,
+                top_locales,
+                &namespace.locales,
+                &keys.0,
+                true,
+                None,
+                namespace_ident,
+                Some(&namespace.key.name),
+                locales_output_dir_path,
+            )?;
+            Ok(quote! {
+                pub mod #namespace_module_ident {
+                    use super::Locale;
 
-                #type_impl
-            }
-        }
-    });
+                    #type_impl
+                }
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
 
     let translations_accessors = namespaces.iter().map(|namespace| {
         let key = &namespace.key;
@@ -704,7 +710,7 @@ fn create_namespaces_types(
         }
     });
 
-    quote! {
+    let ts = quote! {
         pub mod namespaces {
             use super::Locale;
 
@@ -734,10 +740,11 @@ fn create_namespaces_types(
                 Self::new(locale)
             }
         }
-    }
+    };
+    Ok(ts)
 }
 
-fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream {
+fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> Result<TokenStream> {
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
     let default_locale = cfg_file.default.as_ref();
 
@@ -781,9 +788,9 @@ fn create_translation_trait_impl(
     default_locale: &Locale,
     translation_type_name: &Ident,
     locales_output_dir_path: &str,
-) -> TokenStream {
+) -> Result<TokenStream> {
     if cfg!(feature = "embed_translations") {
-        return quote!();
+        return Ok(quote!());
     }
     let path: Cow<str> = match namespace_name {
         Some(ns) => Cow::Owned(format!("{}/{}", ns, locale.top_locale_name.name)),
@@ -791,25 +798,45 @@ fn create_translation_trait_impl(
     };
     if cfg!(feature = "hydrate") {
         // csr need to generate the files
-        return quote! {
+        let ts = quote! {
             impl leptos_i18n::__private::Translation for #translation_type_name {
                 const PATH: &'static str = #path;
             }
         };
+        return Ok(ts);
     }
     let stringified = locale.join_strings(default_locale);
-    std::fs::create_dir_all(locales_output_dir_path).unwrap();
-    let file_path = format!("{}/{}.txt", locales_output_dir_path, path);
+    let locales_output_dir_path: Cow<str> = match namespace_name {
+        Some(ns) => Cow::Owned(format!("{}/{}", locales_output_dir_path, ns)),
+        None => Cow::Borrowed(locales_output_dir_path),
+    };
+
+    std::fs::create_dir_all(&*locales_output_dir_path).map_err(|err| {
+        Error::WritingLocaleFiles {
+            path: path.clone().into_owned(),
+            err,
+        }
+    })?;
+    let file_path = format!(
+        "{}/{}.txt",
+        locales_output_dir_path, locale.top_locale_name.name
+    );
     let mut locale_string_file = File::options()
         .write(true)
         .create(true)
         .open(file_path)
-        .unwrap();
+        .map_err(|err| Error::WritingLocaleFiles {
+            path: path.clone().into_owned(),
+            err,
+        })?;
     locale_string_file
         .write_all(stringified.as_bytes())
-        .unwrap();
+        .map_err(|err| Error::WritingLocaleFiles {
+            path: path.clone().into_owned(),
+            err,
+        })?;
 
-    if cfg!(feature = "ssr") {
+    let ts = if cfg!(feature = "ssr") {
         quote! {
             impl leptos_i18n::__private::Translation for #translation_type_name {
                 const PATH: &'static str = #path;
@@ -822,5 +849,6 @@ fn create_translation_trait_impl(
                 const PATH: &'static str = #path;
             }
         }
-    }
+    };
+    Ok(ts)
 }

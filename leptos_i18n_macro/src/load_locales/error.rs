@@ -70,6 +70,10 @@ pub enum Error {
         locale: Rc<Key>,
         key_path: KeyPath,
     },
+    WritingLocaleFiles {
+        path: String,
+        err: std::io::Error,
+    },
 }
 
 impl Display for Error {
@@ -154,6 +158,10 @@ impl Display for Error {
             Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key {} at key {} in locale {:?}, key don't exist.", foreign_key, key_path, locale),
             Error::Custom(s) => f.write_str(s),
             Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key {} at key {} in locale {:?}, foreign key to plurals or subkeys are not allowed.", foreign_key, key_path, locale),
+            Error::WritingLocaleFiles { path, err } => write!(f,
+                "Error while trying to write the static files of the locales: {:?}\nlocale: {:?}", err, path
+            )
+            ,
         }
     }
 }
