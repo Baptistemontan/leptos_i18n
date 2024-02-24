@@ -111,7 +111,7 @@ impl OutputType {
             OutputType::View => quote! {
                 {
                     #params
-                    move || #ts
+                    leptos_i18n::__private::cache_translations_for_loading(move || #ts)
                 }
             },
             #[cfg(feature = "interpolate_display")]

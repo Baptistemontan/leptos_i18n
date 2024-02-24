@@ -736,22 +736,6 @@ impl InterpolateKey {
             InterpolateKey::Component(_) => Ok(quote!(leptos_i18n::display::DisplayComponent)),
         }
     }
-
-    #[cfg(feature = "debug_interpolations")]
-    pub fn get_default(&self) -> TokenStream {
-        match self {
-            InterpolateKey::Variable(_) => {
-                quote!(())
-            }
-            InterpolateKey::Count(plural_type) => match plural_type {
-                PluralType::F32 | PluralType::F64 => quote!(|| 0.0),
-                _ => quote!(|| 0),
-            },
-            InterpolateKey::Component(_) => {
-                quote!(|_: leptos::ChildrenFn| core::default::Default::default())
-            }
-        }
-    }
 }
 
 impl ToTokens for InterpolateKey {

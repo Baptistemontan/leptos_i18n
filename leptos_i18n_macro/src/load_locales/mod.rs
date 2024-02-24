@@ -741,12 +741,14 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> TokenStream 
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
     let default_locale = cfg_file.default.as_ref();
 
-    let locales_output_dir_path = if cfg!(all(feature = "csr", not(feature = "embed_translations")))
-    {
-        "./dist/locales"
-    } else {
-        "./target/site/locales"
-    };
+    // let locales_output_dir_path = if cfg!(all(feature = "csr", not(feature = "embed_translations")))
+    // {
+    //     "./target/locales"
+    // } else {
+    //     "./target/locales"
+    // };
+
+    let locales_output_dir_path = "./target/locales";
 
     let i18n_keys_ident = format_ident!("I18nKeys");
     match keys {

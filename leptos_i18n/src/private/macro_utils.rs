@@ -142,7 +142,6 @@ async fn request_translations(path: &str) -> Result<String, wasm_bindgen::JsValu
 ))]
 async fn load_translations<T: Translation>() -> &'static T {
     let s = request_translations(T::PATH).await.unwrap();
-    leptos::logging::log!("{}", s);
     let mut s = s.as_str();
     let Some(translations) = <T as ParseTranslation>::parse(&mut s) else {
         panic!("failed to parse a translation. end of buff: {:?}", s);
@@ -323,4 +322,24 @@ pub fn provider<T: Locale>(children: leptos::Children) -> impl IntoView {
             window.__LEPTOS_I18N_TRANSLATIONS = "[" {translations} "]";
         </script>
     }
+}
+
+#[cfg(not(feature = "embed_translations"))]
+pub fn cache_translations_for_loading<V: IntoView + Clone + 'static>(
+    view_fn: impl Fn() -> leptos::Signal<Option<V>> + 'static,
+) -> impl IntoView {
+    leptos::create_memo(move |last: Option<&leptos::View>| {
+        match (leptos::SignalGet::get(&view_fn()), last) {
+            (None, None) => leptos::View::default(),
+            (None, Some(last)) => last.clone(),
+            (Some(new), _) => IntoView::into_view(new),
+        }
+    })
+}
+
+#[cfg(feature = "embed_translations")]
+pub fn cache_translations_for_loading<V: IntoView + 'static>(
+    view_fn: impl Fn() -> V + 'static,
+) -> impl IntoView {
+    view_fn
 }
