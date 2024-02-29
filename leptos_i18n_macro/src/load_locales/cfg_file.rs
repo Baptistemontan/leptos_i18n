@@ -6,12 +6,16 @@ use super::{
 };
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, rc::Rc};
 
+const DEFAULT_LOCALES_DIR: &str = "./locales";
+const DEFAULT_OUT_DIR: &str = "./target/i18n_translations";
+
 #[derive(Debug)]
 pub struct ConfigFile {
     pub default: Rc<Key>,
     pub locales: Vec<Rc<Key>>,
     pub name_spaces: Option<Vec<Rc<Key>>>,
     pub locales_dir: Cow<'static, str>,
+    pub locales_output_dir: Cow<'static, str>,
 }
 
 impl ConfigFile {
@@ -99,11 +103,18 @@ enum Field {
     Locales,
     Namespaces,
     LocalesDir,
+    LocalesOutputDir,
     Unknown,
 }
 
 impl Field {
-    const FIELDS: &'static [&'static str] = &["default", "locales", "namespaces", "locales-dir"];
+    const FIELDS: &'static [&'static str] = &[
+        "default",
+        "locales",
+        "namespaces",
+        "locales-dir",
+        "output-dir",
+    ];
 }
 
 struct FieldVisitor;
@@ -137,6 +148,7 @@ impl<'de> serde::de::Visitor<'de> for FieldVisitor {
             "locales" => Ok(Field::Locales),
             "namespaces" => Ok(Field::Namespaces),
             "locales-dir" => Ok(Field::LocalesDir),
+            "output-dir" => Ok(Field::LocalesOutputDir),
             _ => Ok(Field::Unknown), // skip unknown fields
         }
     }
@@ -168,12 +180,16 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
         let mut locales = None;
         let mut name_spaces = None;
         let mut locales_dir = None;
+        let mut locales_output_dir = None;
         while let Some(field) = map.next_key::<Field>()? {
             match field {
                 Field::Default => deser_field(&mut default, &mut map, "default")?,
                 Field::Locales => deser_field(&mut locales, &mut map, "locales")?,
                 Field::Namespaces => deser_field(&mut name_spaces, &mut map, "namespaces")?,
                 Field::LocalesDir => deser_field(&mut locales_dir, &mut map, "locales-dir")?,
+                Field::LocalesOutputDir => {
+                    deser_field(&mut locales_output_dir, &mut map, "output-dir")?
+                }
                 Field::Unknown => continue,
             }
         }
@@ -187,13 +203,18 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
 
         let locales_dir = locales_dir
             .map(Cow::Owned)
-            .unwrap_or(Cow::Borrowed("./locales"));
+            .unwrap_or(Cow::Borrowed(DEFAULT_LOCALES_DIR));
+
+        let locales_output_dir = locales_output_dir
+            .map(Cow::Owned)
+            .unwrap_or(Cow::Borrowed(DEFAULT_OUT_DIR));
 
         Ok(ConfigFile {
             default,
             locales,
             name_spaces,
             locales_dir,
+            locales_output_dir,
         })
     }
 

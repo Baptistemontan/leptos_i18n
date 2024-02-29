@@ -75,7 +75,7 @@ impl ToTokens for Keys {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             Keys::SingleKey(key) => tokens.append(key.clone()),
-            Keys::Subkeys(keys) => tokens.append_separated(keys, quote!(.)),
+            Keys::Subkeys(keys) => tokens.append_separated(keys, quote!(().)),
         }
     }
 }

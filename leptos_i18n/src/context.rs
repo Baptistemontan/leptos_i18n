@@ -14,6 +14,7 @@ pub struct I18nContext<T: Locale>(RwSignal<T>);
 impl<T: Locale> I18nContext<T> {
     /// Return the current locale subscribing to any changes.
     #[inline]
+    #[track_caller]
     pub fn get_locale(self) -> T {
         self.0.get()
     }
@@ -26,18 +27,20 @@ impl<T: Locale> I18nContext<T> {
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
-    pub fn get_keys(self) -> &'static T::Keys {
+    #[track_caller]
+    pub fn get_keys(self) -> T::Keys {
         self.get_locale().get_keys()
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_keys_untracked(self) -> &'static T::Keys {
+    pub fn get_keys_untracked(self) -> T::Keys {
         self.get_locale_untracked().get_keys()
     }
 
     /// Set the locale and notify all subscribers
     #[inline]
+    #[track_caller]
     pub fn set_locale(self, lang: T) {
         self.0.set(lang)
     }
@@ -87,6 +90,8 @@ fn init_context<T: Locale>() -> I18nContext<T> {
 /// It returns the newly created context.
 ///
 /// If called when a context is already present it will not overwrite it and just return the current context.
+#[inline]
+#[track_caller]
 pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().unwrap_or_else(init_context)
 }
@@ -97,6 +102,7 @@ pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
 ///
 /// Panics if the context is missing.
 #[inline]
+#[track_caller]
 pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }

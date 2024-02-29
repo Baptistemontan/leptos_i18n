@@ -1,10 +1,7 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
-use proc_macro2::{Span, TokenStream};
-use quote::quote;
-
-#[cfg(feature = "interpolate_display")]
-use quote::format_ident;
+use proc_macro2::{Ident, Span, TokenStream};
+use quote::{format_ident, quote};
 
 use super::{
     key::Key,
@@ -32,9 +29,10 @@ struct Field<'a> {
 impl Interpolation {
     pub fn new(
         key: &Key,
+        parent_ident: &Ident,
         keys_set: &HashSet<InterpolateKey>,
         locales: &[Locale],
-        default_match: &TokenStream,
+        default_match: &TokenStream
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
 
@@ -64,9 +62,8 @@ impl Interpolation {
             .collect::<Vec<_>>();
 
         let type_def = Self::create_type(&ident, &fields);
-        let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
-        let into_view_impl =
-            Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
+        let translations_types = Self::create_translation_types(key, parent_ident, locales, &ident);
+        let builder_impl = Self::builder_impl(key, &ident, &locale_field, &fields, locales, default_match);
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
         #[cfg(feature = "interpolate_display")]
@@ -84,9 +81,11 @@ impl Interpolation {
         let imp = quote! {
             #type_def
 
-            #new_impl
+            #(
+                #translations_types
+            )*
 
-            #into_view_impl
+            #new_impl
 
             #debug_impl
 
@@ -137,12 +136,30 @@ impl Interpolation {
     }
 
     #[cfg(feature = "debug_interpolations")]
-    fn generate_build_fns(ident: &syn::Ident, fields: &[Field], locale_field: &Key) -> TokenStream {
+    fn generate_build_fns(
+        key: &Key,
+        ident: &syn::Ident,
+        locale_field: &Key,
+        fields: &[Field],
+        locales: &[Locale],
+        default_match: &TokenStream,
+        output: &TokenStream
+    ) -> TokenStream {
+        let success_build = Self::generate_success_build_fn(
+            key,
+            ident,
+            locale_field,
+            fields,
+            locales,
+            default_match,
+            output
+        );
+
         if fields.len() > MAX_KEY_GENERATE_BUILD_DEBUG {
-            return Self::generate_success_build_fn(ident, fields);
+            return success_build
         }
-        let failing_builds = Self::generate_all_failing_build_fn(ident, fields, locale_field);
-        let success_build = Self::generate_success_build_fn(ident, fields);
+
+        let failing_builds = Self::generate_all_failing_build_fn(ident, fields, output);
 
         quote! {
             #(#failing_builds)*
@@ -182,7 +199,15 @@ impl Interpolation {
         }
     }
 
-    fn generate_success_build_fn(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+    fn generate_success_build_fn(
+        key: &Key,
+        ident: &syn::Ident,
+        locale_field: &Key,
+        fields: &[Field],
+        locales: &[Locale],
+        default_match: &TokenStream,
+        output: &TokenStream
+    ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
             let generic = field.kind.get_generic();
@@ -200,28 +225,65 @@ impl Interpolation {
         #[cfg(not(feature = "interpolate_display"))]
         let string_build = quote!();
 
-        quote! {
+        let fields_key = fields.iter().map(|f| f.kind);
 
+        let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
+
+        let locales_impls = Self::create_locale_impl(key, locales, default_match, ident);
+
+        quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                #[inline]
-                pub fn build(self) -> Self {
-                    self
+                pub fn build(self) -> #output {
+                    #destructure
+                    match #locale_field {
+                        #(
+                            #locales_impls,
+                        )*
+                    }
                 }
             }
-
             #string_build
 
         }
     }
 
-    fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
+    fn builder_impl(
+        key: &Key,
+        ident: &syn::Ident,
+        locale_field: &Key,
+        fields: &[Field],
+        locales: &[Locale],
+        default_match: &TokenStream,
+    ) -> TokenStream {
         let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
 
+        let output = if cfg!(feature = "embed_translations") {
+            quote!(leptos::View)
+        } else {
+            quote!(Option<leptos::View>)
+        };
+
         #[cfg(not(feature = "debug_interpolations"))]
-        let build_fns = Self::generate_success_build_fn(ident, fields);
+        let build_fns = Self::generate_success_build_fn(
+            key,
+            ident,
+            locale_field,
+            fields,
+            locales,
+            default_match,
+            &output
+        );
         #[cfg(feature = "debug_interpolations")]
-        let build_fns = Self::generate_build_fns(ident, fields, locale_field);
+        let build_fns = Self::generate_build_fns(
+            key,
+            ident,
+            locale_field,
+            fields,
+            locales,
+            default_match,
+            &output
+        );
 
         quote! {
             #set_fns
@@ -264,63 +326,30 @@ impl Interpolation {
     }
 
     #[cfg(feature = "debug_interpolations")]
-    fn generate_default_constructed(
-        ident: &syn::Ident,
-        fields: &[Field],
-        locale_field: &Key,
-    ) -> TokenStream {
-        let populated_fields = fields
-            .iter()
-            .map(|field| {
-                let field_ident = field.kind;
-                let default = field.kind.get_default();
-                quote!(#field_ident: #default)
-            })
-            .chain(std::iter::once(
-                quote!(#locale_field: core::default::Default::default()),
-            ));
-
-        quote! {
-            #ident {
-                #(#populated_fields,)*
-            }
-        }
-    }
-
-    #[cfg(feature = "debug_interpolations")]
     fn generate_all_failing_build_fn<'a>(
         ident: &'a syn::Ident,
         fields: &'a [Field],
-        locale_field: &Key,
+        output: &'a TokenStream
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        let default_constructed = Self::generate_default_constructed(ident, fields, locale_field);
-        let output_generics = fields.iter().map(|field| {
-            let generic = field.kind.get_generic();
-            quote!(impl #generic)
-        });
-        let output = quote!(#ident<#(#output_generics,)*>);
         let max = 1u64 << fields.len();
         (0..max - 1).map(move |states| {
             let fields_iter = fields.iter().enumerate().map(|(i, field)| {
                 let state = (states >> i & 1) == 1;
                 (state, field)
             });
-            Self::generate_failing_build_fn(ident, &default_constructed, &output, fields_iter)
+            Self::generate_failing_build_fn(ident, fields_iter, output)
         })
     }
 
     #[cfg(feature = "debug_interpolations")]
     fn generate_failing_build_fn<'a, I>(
         self_ident: &syn::Ident,
-        default_constructed: &TokenStream,
-        output: &TokenStream,
         fields: I,
+        output: &TokenStream
     ) -> TokenStream
     where
         I: Iterator<Item = (bool, &'a Field<'a>)> + Clone,
     {
-        use std::borrow::Cow;
-
         let right_generics = fields.clone().map(|(set, field)| {
             if set {
                 quote::ToTokens::to_token_stream(&field.generic)
@@ -348,9 +377,7 @@ impl Interpolation {
             impl<#(#left_generics,)*> #self_ident<#(#right_generics,)*> {
                 #[deprecated(note = #error_message)]
                 pub fn build(self) -> #output {
-                    panic!(#error_message);
-                    #[allow(unreachable_code)]
-                    #default_constructed
+                    panic!(#error_message)
                 }
             }
         }
@@ -583,7 +610,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_string_impl(key, locales, default_match);
+        let locales_impls = Self::create_locale_string_impl(key, locales, default_match, ident);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -600,50 +627,100 @@ impl Interpolation {
         }
     }
 
-    fn into_view_impl(
-        key: &Key,
-        ident: &syn::Ident,
-        locale_field: &Key,
-        fields: &[Field],
-        locales: &[Locale],
-        default_match: &TokenStream,
-    ) -> TokenStream {
-        let left_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            let generic = field.kind.get_generic();
-            quote!(#ident: #generic)
-        });
+    fn create_translation_types<'a>(
+        key: &'a Key,
+        parent_ident: &'a Ident,
+        locales: &'a [Locale],
+        ident: &'a syn::Ident
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        locales.iter().filter_map(move |locale| {
+            let value = locale.get(key)?;
+            if matches!(value, ParsedValue::Default) {
+                return None;
+            }
+            let strings = value.get_strings();
+            let top_locale_name = &*locale.top_locale_name;
+            let translation_ident = format_ident!("{}_{}", ident, top_locale_name.ident);
+            let parent_ident = format_ident!("{}_{}", parent_ident, top_locale_name.ident);
+            let lengths = strings.iter().map(|s| s.len());
+            
+            let parse_translation_impl = if cfg!(not(any(feature = "ssr", feature = "embed_translations"))) {
+                let lengths = lengths.clone();
+                Some(quote! {
+                    impl leptos_i18n::__private::ParseTranslation for #translation_ident {
+                        fn parse(buff: &mut &str) -> Option<Self> {
+                            Some(#translation_ident(
+                                #(
+                                    <leptos_i18n::__private::SizedString<#lengths> as leptos_i18n::__private::ParseTranslation>::parse(buff)?,
+                                )*
+                            ))
+                        }
+                    }
+                })
+            } else {
+                None
+            };
 
-        let right_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            quote!(#ident)
-        });
+            let new_fn = if cfg!(any(feature = "ssr", feature = "embed_translations")) {
+                Some(quote! {
+                    pub const fn new() -> Self {
+                        #translation_ident(
+                            #(
+                                leptos_i18n::__private::SizedString::new(#strings),
+                            )*
+                        )
+                    }
+                })
+            } else {
+                None
+            };
 
-        let fields_key = fields.iter().map(|f| f.kind);
-
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
-
-        let locales_impls = Self::create_locale_impl(key, locales, default_match);
-
-        quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
-                fn into_view(self) -> leptos::View {
-                    #destructure
-                    match #locale_field {
-                        #(
-                            #locales_impls,
-                        )*
+            let get_fn = if cfg!(feature = "embed_translations") {
+                quote! {
+                    pub const fn get() -> &'static Self {
+                        &super::#parent_ident::get().#key
                     }
                 }
-            }
-        }
+            } else if cfg!(feature = "ssr") {
+                quote! {
+                    pub fn get() -> &'static Self {
+                        &super::#parent_ident::get().#key
+                    }
+                }
+            } else {
+                quote! {
+                    pub fn get() -> Option<&'static Self> {
+                        super::#parent_ident::get().map(|t| &t.#key)
+                    }
+                }
+            };
+
+            let ts = quote! {
+                #[allow(non_camel_case_types, non_snake_case)]
+                pub struct #translation_ident(
+                    #(
+                        leptos_i18n::__private::SizedString<#lengths>,
+                    )*
+                );
+
+                impl #translation_ident {
+                    
+                    #get_fn
+
+                    #new_fn
+                }
+
+                #parse_translation_impl
+            };
+            Some(ts)
+        })
     }
 
     fn create_locale_impl<'a>(
         key: &'a Key,
         locales: &'a [Locale],
         default_match: &TokenStream,
+        ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let mut default_match = default_match.clone();
         locales
@@ -653,7 +730,7 @@ impl Interpolation {
             .filter_map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
-                let value = match locale.keys.get(key) {
+                let value = match locale.get(key) {
                     None | Some(ParsedValue::Default) => {
                         default_match.extend(quote!(| Locale::#locale_key));
                         return None;
@@ -661,9 +738,34 @@ impl Interpolation {
                     Some(value) => value,
                 };
 
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(Locale::#locale_key => { #value }),
+                let translations_ident = format_ident!("{}_{}", ident, locale_key.ident);
+
+                let matc = match i == 0 {
+                    true => Cow::Borrowed(&default_match),
+                    false => Cow::Owned(quote!(Locale::#locale_key)),
+                };
+                let ts = if cfg!(feature = "embed_translations") {
+                    quote! {
+                        #matc => {
+                            let __translations = #translations_ident::get();
+                            #value
+                        }
+                    }
+                } else if cfg!(feature = "ssr") {
+                    quote! {
+                        #matc => {
+                            let __translations = #translations_ident::get();
+                            Some(#value)
+                        }
+                    }
+                } else {
+                    quote! {
+                        #matc => {
+                            #translations_ident::get()
+                                .map(|__translations| { #value })
+                                .map(leptos::IntoView::into_view)
+                        }
+                    }
                 };
                 Some(ts)
             })
@@ -674,6 +776,7 @@ impl Interpolation {
         key: &'a Key,
         locales: &'a [Locale],
         default_match: &TokenStream,
+        ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let mut default_match = default_match.clone();
         locales
@@ -683,7 +786,7 @@ impl Interpolation {
             .filter_map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
-                let value = match locale.keys.get(key) {
+                let value = match locale.get(key) {
                     None | Some(ParsedValue::Default) => {
                         default_match.extend(quote!(| Locale::#locale_key));
                         return None;
@@ -691,12 +794,18 @@ impl Interpolation {
                     Some(value) => value,
                 };
 
+                let translations_ident = format_ident!("{}_{}", ident, locale_key.ident);
+
                 let value = value.as_string_impl();
 
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(Locale::#locale_key => { #value }),
+                let matc = match i == 0 {
+                    true => Cow::Borrowed(&default_match),
+                    false => Cow::Owned(quote!(Locale::#locale_key)),
                 };
+                let ts = quote!(#matc => {
+                    let __translations = #translations_ident::get();
+                    #value
+                });
                 Some(ts)
             })
     }

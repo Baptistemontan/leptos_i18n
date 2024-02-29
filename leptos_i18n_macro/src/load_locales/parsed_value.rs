@@ -38,7 +38,7 @@ pub enum ParsedValue {
         inner: Box<Self>,
     },
     Bloc(Vec<Self>),
-    Subkeys(Option<Locale>),
+    Subkeys(Locale),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
@@ -49,6 +49,29 @@ pub enum InterpolateKey {
 }
 
 impl ParsedValue {
+    pub fn join_strings(&self, def: &Self, acc: &mut String) {
+        match self {
+            ParsedValue::Plural(plural) => plural.join_strings(def, acc),
+            ParsedValue::String(s) => acc.push_str(s),
+            ParsedValue::Component { inner, .. } => inner.join_strings(def, acc),
+            ParsedValue::Bloc(values) => {
+                for value in values {
+                    value.join_strings(def, acc);
+                }
+            }
+            ParsedValue::Subkeys(sk) => {
+                let ParsedValue::Subkeys(def) = def else {
+                    unreachable!();
+                };
+                sk.join_strings_inner(def, acc);
+            }
+            ParsedValue::Default => {
+                def.join_strings(def, acc);
+            }
+            ParsedValue::ForeignKey(_) | ParsedValue::Variable(_) => {}
+        }
+    }
+
     pub fn resolve_foreign_keys(
         values: &LocalesOrNamespaces,
         default_locale: &Rc<Key>,
@@ -229,13 +252,6 @@ impl ParsedValue {
         keys
     }
 
-    pub fn is_string(&self) -> Option<&str> {
-        match self {
-            ParsedValue::String(value) => Some(value),
-            _ => None,
-        }
-    }
-
     pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Self {
         // look for component
         if let Some(component) = Self::find_component(value, key_path, locale) {
@@ -253,13 +269,10 @@ impl ParsedValue {
     pub fn make_locale_value(&mut self, key_path: &mut KeyPath) -> Result<LocaleValue> {
         match self {
             ParsedValue::Subkeys(locale) => {
-                let Some(mut locale) = locale.take() else {
-                    unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
-                };
                 let keys = locale.make_builder_keys(key_path)?;
                 Ok(LocaleValue::Subkeys {
                     keys,
-                    locales: vec![locale],
+                    locales: vec![locale.clone()],
                 })
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
@@ -269,22 +282,24 @@ impl ParsedValue {
 
     pub fn merge(
         &mut self,
+        def: &Self,
         keys: &mut LocaleValue,
-        default_locale: &str,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, keys) {
-            // Default, do nothing
-            (ParsedValue::Default, _) => Ok(()),
+            (value @ ParsedValue::Default, _) => {
+                if let ParsedValue::String(s) = def {
+                    *value = ParsedValue::String(s.clone());
+                }
+                Ok(())
+            }
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
-                let Some(mut loc) = loc.take() else {
-                    unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
-                };
+                let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
                 loc.merge(keys, default_locale, top_locale, key_path)?;
-                locales.push(loc);
+                locales.push(loc.clone());
                 Ok(())
             }
             // Both value
@@ -467,13 +482,10 @@ impl ParsedValue {
                 });
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
-            ParsedValue::Subkeys(Some(subkeys)) => {
-                for value in subkeys.keys.values_mut() {
+            ParsedValue::Subkeys(subkeys) => {
+                for value in subkeys.values_mut() {
                     value.reduce();
                 }
-            }
-            ParsedValue::Subkeys(None) => {
-                unreachable!("called reduce on empty subkeys. If you got this error please open an issue on github.")
             }
             ParsedValue::Bloc(values) => {
                 for value in std::mem::take(values) {
@@ -523,12 +535,17 @@ impl ParsedValue {
         }
     }
 
-    fn flatten(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten(&self, tokens: &mut Vec<TokenStream>, index: &mut usize) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
-            ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
+            ParsedValue::String(_) => {
+                let tuple_index = syn::Index::from(*index);
+                let ts = quote!(leptos::IntoView::into_view(__translations.#tuple_index.as_str()));
+                tokens.push(ts);
+                *index += 1;
+            }
+            ParsedValue::Plural(plurals) => tokens.push(plurals.to_tokens(index)),
             ParsedValue::Variable(key) => {
                 tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key))))
             }
@@ -540,60 +557,111 @@ impl ParsedValue {
                     quote!(#(#keys)*)
                 });
 
-                let f = quote!({
+                let inner = inner.to_tokens_inner(index);
+
+                let f = quote!(leptos::ToChildren::to_children({
                     #captured_keys
                     move || Into::into(#inner)
-                });
-                let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
+                }));
+                tokens
+                    .push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#f))))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens)
+                    value.flatten(tokens, index)
                 }
             }
-            ParsedValue::ForeignKey(foreign_key) => {
-                foreign_key.borrow().as_inner("flatten").flatten(tokens)
-            }
+            ParsedValue::ForeignKey(foreign_key) => foreign_key
+                .borrow()
+                .as_inner("flatten")
+                .flatten(tokens, index),
         }
     }
 
     #[cfg(feature = "interpolate_display")]
-    fn flatten_string(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten_string(&self, tokens: &mut Vec<TokenStream>, index: &mut usize) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
-            ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
+            ParsedValue::String(_) => {
+                let tuple_index = syn::Index::from(*index);
+                tokens.push(
+                    quote!(core::fmt::Display::fmt(__translations.#tuple_index.as_str(), __formatter)),
+                );
+                *index += 1;
+            }
+            ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl(index)),
             ParsedValue::Variable(key) => {
                 tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter)))
             }
             ParsedValue::Component { key, inner } => {
-                let inner = inner.as_string_impl();
+                let inner = inner.as_string_impl_inner(index);
                 tokens.push(quote!(leptos_i18n::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten_string(tokens)
+                    value.flatten_string(tokens, index)
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten_string")
-                .flatten_string(tokens),
+                .flatten_string(tokens, index),
         }
     }
 
     #[cfg(feature = "interpolate_display")]
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl_inner(&self, index: &mut usize) -> TokenStream {
         let mut tokens = Vec::new();
-        self.flatten_string(&mut tokens);
+        self.flatten_string(&mut tokens, index);
 
         match &tokens[..] {
             [] => quote!(Ok(())),
             [value] => value.clone(),
             values => quote!({ #(#values?;)* Ok(()) }),
         }
+    }
+
+    #[cfg(feature = "interpolate_display")]
+    pub fn as_string_impl(&self) -> TokenStream {
+        self.as_string_impl_inner(&mut 0)
+    }
+
+    pub fn to_tokens_inner(&self, index: &mut usize) -> TokenStream {
+        let mut tokens = Vec::new();
+        self.flatten(&mut tokens, index);
+
+        match &tokens[..] {
+            [] => quote!(leptos::View::default()),
+            [value] => value.clone(),
+            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
+        }
+    }
+
+    pub fn get_strings_inner<'a>(&'a self, strings: &mut Vec<&'a str>) {
+        match self {
+            ParsedValue::Plural(plural) => plural.get_strings_length_inner(strings),
+            ParsedValue::Component { inner, .. } => {
+                inner.get_strings_inner(strings);
+            }
+            ParsedValue::Bloc(values) => {
+                for value in values {
+                    value.get_strings_inner(strings);
+                }
+            }
+            ParsedValue::String(s) if s.is_empty() => {}
+            ParsedValue::String(s) => strings.push(s),
+            ParsedValue::Default
+            | ParsedValue::ForeignKey(_)
+            | ParsedValue::Variable(_)
+            | ParsedValue::Subkeys(_) => {}
+        }
+    }
+
+    pub fn get_strings(&self) -> Vec<&str> {
+        let mut strings = Vec::new();
+        self.get_strings_inner(&mut strings);
+        strings
     }
 }
 
@@ -668,22 +736,6 @@ impl InterpolateKey {
             InterpolateKey::Component(_) => Ok(quote!(leptos_i18n::display::DisplayComponent)),
         }
     }
-
-    #[cfg(feature = "debug_interpolations")]
-    pub fn get_default(&self) -> TokenStream {
-        match self {
-            InterpolateKey::Variable(_) => {
-                quote!(())
-            }
-            InterpolateKey::Count(plural_type) => match plural_type {
-                PluralType::F32 | PluralType::F64 => quote!(|| 0.0),
-                _ => quote!(|| 0),
-            },
-            InterpolateKey::Component(_) => {
-                quote!(|_: leptos::ChildrenFn| core::default::Default::default())
-            }
-        }
-    }
 }
 
 impl ToTokens for InterpolateKey {
@@ -694,14 +746,7 @@ impl ToTokens for InterpolateKey {
 
 impl ToTokens for ParsedValue {
     fn to_token_stream(&self) -> TokenStream {
-        let mut tokens = Vec::new();
-        self.flatten(&mut tokens);
-
-        match &tokens[..] {
-            [] => quote!(leptos::View::default()),
-            [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
-        }
+        self.to_tokens_inner(&mut 0)
     }
 
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -754,7 +799,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             key_path: self.key_path.to_owned(),
         };
 
-        seed.deserialize(map_de).map(Some).map(ParsedValue::Subkeys)
+        seed.deserialize(map_de).map(ParsedValue::Subkeys)
     }
 
     fn visit_unit<E>(self) -> std::result::Result<Self::Value, E>

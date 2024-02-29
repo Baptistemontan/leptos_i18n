@@ -111,7 +111,7 @@ impl OutputType {
             OutputType::View => quote! {
                 {
                     #params
-                    move || #ts
+                    leptos_i18n::__private::cache_translations_for_loading(move || #ts)
                 }
             },
             #[cfg(feature = "interpolate_display")]
@@ -128,8 +128,8 @@ impl OutputType {
 impl InputType {
     pub fn get_key<T: ToTokens>(self, input: T, keys: Keys) -> TokenStream {
         match self {
-            InputType::Context => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys),
-            InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys),
+            InputType::Context => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys()),
+            InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys()),
         }
     }
 }
