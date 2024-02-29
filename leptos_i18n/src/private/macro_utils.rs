@@ -30,7 +30,7 @@ impl BuildStr for &'static str {
     }
 }
 
-impl BuildStr for leptos::Signal<Option<&'static str>> {
+impl BuildStr for Option<&'static str> {
     fn build_string(self) -> Cow<'static, str> {
         todo!()
     }
@@ -155,7 +155,7 @@ async fn load_translations<T: Translation>() -> &'static T {
 ))]
 enum TranslationCellInner<T: 'static> {
     Empty,
-    Pending(leptos::Signal<Option<&'static T>>),
+    Pending(leptos::ReadSignal<Option<&'static T>>),
     Set(&'static T),
 }
 
@@ -188,7 +188,7 @@ impl<T: Translation> TranslationCell<T> {
         )))
     }
 
-    pub fn get(&self) -> leptos::Signal<Option<&'static T>> {
+    pub fn get(&self) -> Option<&'static T> {
         let mut inner = self.0.borrow_mut();
         match &*inner {
             TranslationCellInner::Empty => {
@@ -199,17 +199,12 @@ impl<T: Translation> TranslationCell<T> {
                     *inner = TranslationCellInner::Set(trans);
                     trans
                 };
-                let stream =
-                    leptos::create_signal_from_stream(futures::stream::once(Box::pin(fut)));
-                let sig = leptos::Signal::from(stream);
+                let sig = leptos::create_signal_from_stream(futures::stream::once(Box::pin(fut)));
                 *inner = TranslationCellInner::Pending(sig);
-                sig
+                leptos::SignalGet::get(&sig)
             }
-            TranslationCellInner::Set(trans) => {
-                let trans = *trans;
-                leptos::Signal::from(move || Some(trans))
-            }
-            TranslationCellInner::Pending(sig) => *sig,
+            TranslationCellInner::Set(trans) => Some(*trans),
+            TranslationCellInner::Pending(sig) => leptos::SignalGet::get(sig),
         }
     }
 
@@ -326,14 +321,12 @@ pub fn provider<T: Locale>(children: leptos::Children) -> impl IntoView {
 
 #[cfg(not(feature = "embed_translations"))]
 pub fn cache_translations_for_loading<V: IntoView + Clone + 'static>(
-    view_fn: impl Fn() -> leptos::Signal<Option<V>> + 'static,
+    view_fn: impl Fn() -> Option<V> + 'static,
 ) -> impl IntoView {
-    leptos::create_memo(move |last: Option<&leptos::View>| {
-        match (leptos::SignalGet::get(&view_fn()), last) {
-            (None, None) => leptos::View::default(),
-            (None, Some(last)) => last.clone(),
-            (Some(new), _) => IntoView::into_view(new),
-        }
+    leptos::create_memo(move |last: Option<&leptos::View>| match (view_fn(), last) {
+        (None, None) => leptos::View::default(),
+        (None, Some(last)) => last.clone(),
+        (Some(new), _) => IntoView::into_view(new),
     })
 }
 

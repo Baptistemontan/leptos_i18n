@@ -421,13 +421,8 @@ fn create_locale_type_inner(
                     }
                 } else {
                     quote! {
-                        pub fn get() -> leptos::Signal<Option<&'static Self>> {
-                            let parent_sig = super::super::#parent_ident::get();
-                            leptos::Signal::derive(move || {
-                                leptos::SignalGet::get(&parent_sig)
-                                    .map(|t| &t.#original_name)
-
-                            })
+                        pub fn get() -> Option<&'static Self> {
+                            super::super::#parent_ident::get().map(|t| &t.#original_name)
                         }
                     }
                 }
@@ -453,7 +448,7 @@ fn create_locale_type_inner(
                         thread_local! {
                             static THIS: leptos_i18n::__private::TranslationCell<#translation_type_name> = leptos_i18n::__private::TranslationCell::new();
                         }
-                        pub fn get() -> leptos::Signal<Option<&'static Self>> {
+                        pub fn get() -> Option<&'static Self> {
                             Self::THIS.with(leptos_i18n::__private::TranslationCell::get)
                         }
 
@@ -463,7 +458,7 @@ fn create_locale_type_inner(
                     }
                 } else {
                     quote! {
-                        pub fn get() -> leptos::Signal<Option<&'static Self>> {
+                        pub fn get() -> Option<&'static Self> {
                             panic!("no feature flag activated for leptos_i18n, is it hydrate mode? csr ? ssr ?");
                         }
                     }
@@ -609,24 +604,17 @@ fn create_string_accessor(type_ident: &Ident, key: &Key, locales: &[Locale]) -> 
         }
     } else if cfg!(feature = "ssr") {
         quote! {
-            pub fn #key(self) -> leptos::Signal<Option<&'static str>> {
-                let s = match self.0 {
-                    #(Locale::#locales => #translation_type::get().#key.as_str(),)*
-                };
-                leptos::Signal::from(move || Some(s))
+            pub fn #key(self) -> Option<&'static str> {
+                match self.0 {
+                    #(Locale::#locales => Some(#translation_type::get().#key.as_str()),)*
+                }
             }
         }
     } else {
         quote! {
-            pub fn #key(self) -> leptos::Signal<Option<&'static str>> {
+            pub fn #key(self) -> Option<&'static str> {
                 match self.0 {
-                    #(Locale::#locales => {
-                        let sig = #translation_type::get();
-                        leptos::Signal::derive(move || {
-                            leptos::SignalGet::get(&sig)
-                                .map(|t| t.#key.as_str())
-                        })
-                    },)*
+                    #(Locale::#locales => #translation_type::get().map(|t| t.#key.as_str()),)*
                 }
             }
         }
@@ -748,15 +736,6 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> Result<Token
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
     let default_locale = cfg_file.default.as_ref();
 
-    // let locales_output_dir_path = if cfg!(all(feature = "csr", not(feature = "embed_translations")))
-    // {
-    //     "./target/locales"
-    // } else {
-    //     "./target/locales"
-    // };
-
-    let locales_output_dir_path = "./target/locales";
-
     let i18n_keys_ident = format_ident!("I18nKeys");
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
@@ -765,7 +744,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> Result<Token
             namespaces,
             &top_locales,
             &keys,
-            locales_output_dir_path,
+            &cfg_file.locales_output_dir,
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
             default_locale,
@@ -777,7 +756,7 @@ fn create_locale_type(keys: BuildersKeys, cfg_file: &ConfigFile) -> Result<Token
             None,
             &i18n_keys_ident,
             None,
-            locales_output_dir_path,
+            &cfg_file.locales_output_dir,
         ),
     }
 }

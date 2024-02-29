@@ -261,7 +261,7 @@ impl Interpolation {
         let output = if cfg!(feature = "embed_translations") {
             quote!(leptos::View)
         } else {
-            quote!(leptos::Signal<Option<leptos::View>>)
+            quote!(Option<leptos::View>)
         };
 
         #[cfg(not(feature = "debug_interpolations"))]
@@ -689,9 +689,8 @@ impl Interpolation {
                 }
             } else {
                 quote! {
-                    pub fn get() -> leptos::Signal<Option<&'static Self>> {
-                        let sig = super::#parent_ident::get();
-                        leptos::Signal::derive(move || leptos::SignalGet::get(&sig).map(|t| &t.#key))
+                    pub fn get() -> Option<&'static Self> {
+                        super::#parent_ident::get().map(|t| &t.#key)
                     }
                 }
             };
@@ -756,18 +755,15 @@ impl Interpolation {
                     quote! {
                         #matc => {
                             let __translations = #translations_ident::get();
-                            leptos::Signal::derive(move || Some(#value))
+                            Some(#value)
                         }
                     }
                 } else {
                     quote! {
                         #matc => {
-                            let __translations = #translations_ident::get();
-                            leptos::Signal::derive(move || {
-                                leptos::SignalGet::get(&__translations)
-                                    .map(|__translations| { #value })
-                                    .map(leptos::IntoView::into_view)
-                            })
+                            #translations_ident::get()
+                                .map(|__translations| { #value })
+                                .map(leptos::IntoView::into_view)
                         }
                     }
                 };
