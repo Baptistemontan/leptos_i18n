@@ -27,7 +27,7 @@ jobs:
           cargo install cargo-all-features
           cargo test-all-features
 
-  compile_ssr_exemples:
+  compile_ssr_examples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
@@ -44,13 +44,13 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build ${{ matrix.examples }} exemple"
+      - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install cargo-leptos
           cargo leptos build
 
-  compile_csr_exemples:
+  compile_csr_examples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
@@ -76,7 +76,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build ${{ matrix.examples }} exemple"
+      - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install trunk
