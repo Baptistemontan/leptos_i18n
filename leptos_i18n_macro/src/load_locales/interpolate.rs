@@ -1,10 +1,8 @@
 use std::collections::HashSet;
 
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
-
-#[cfg(feature = "interpolate_display")]
 use quote::format_ident;
+use quote::quote;
 
 use super::{
     key::Key,
@@ -12,7 +10,6 @@ use super::{
     parsed_value::{InterpolateKey, ParsedValue},
 };
 
-#[cfg(feature = "debug_interpolations")]
 const MAX_KEY_GENERATE_BUILD_DEBUG: usize = 4;
 
 pub struct Interpolation {
@@ -25,7 +22,6 @@ struct Field<'a> {
     generic: syn::Ident,
     name: String,
     kind: &'a InterpolateKey,
-    #[cfg(feature = "debug_interpolations")]
     real_name: &'a str,
 }
 
@@ -45,7 +41,6 @@ impl Interpolation {
         let fields = keys_set
             .iter()
             .map(|kind| {
-                #[cfg(feature = "debug_interpolations")]
                 let real_name = kind.get_real_name();
                 let key = kind
                     .as_key()
@@ -57,7 +52,6 @@ impl Interpolation {
                     generic,
                     name,
                     kind,
-                    #[cfg(feature = "debug_interpolations")]
                     real_name,
                 }
             })
@@ -69,11 +63,11 @@ impl Interpolation {
             Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
-        #[cfg(feature = "interpolate_display")]
-        let display_impl =
-            Self::display_impl(key, &ident, &locale_field, &fields, locales, default_match);
-        #[cfg(not(feature = "interpolate_display"))]
-        let display_impl = quote!();
+        let display_impl = if cfg!(feature = "interpolate_display") {
+            Self::display_impl(key, &ident, &locale_field, &fields, locales, default_match)
+        } else {
+            quote!()
+        };
 
         let new_impl = Self::new_impl(&ident, &locale_field, &fields);
         let default_generics = fields
@@ -136,7 +130,6 @@ impl Interpolation {
             .collect()
     }
 
-    #[cfg(feature = "debug_interpolations")]
     fn generate_build_fns(ident: &syn::Ident, fields: &[Field], locale_field: &Key) -> TokenStream {
         if fields.len() > MAX_KEY_GENERATE_BUILD_DEBUG {
             return Self::generate_success_build_fn(ident, fields);
@@ -151,7 +144,6 @@ impl Interpolation {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     fn generate_string_build(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
         let left_generics_string = fields.iter().filter_map(|field| {
             let ident = &field.generic;
@@ -194,11 +186,11 @@ impl Interpolation {
             quote!(#ident)
         });
 
-        #[cfg(feature = "interpolate_display")]
-        let string_build = Self::generate_string_build(ident, fields);
-
-        #[cfg(not(feature = "interpolate_display"))]
-        let string_build = quote!();
+        let string_build = if cfg!(feature = "interpolate_display") {
+            Self::generate_string_build(ident, fields)
+        } else {
+            quote!()
+        };
 
         quote! {
 
@@ -218,10 +210,11 @@ impl Interpolation {
     fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
         let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
 
-        #[cfg(not(feature = "debug_interpolations"))]
-        let build_fns = Self::generate_success_build_fn(ident, fields);
-        #[cfg(feature = "debug_interpolations")]
-        let build_fns = Self::generate_build_fns(ident, fields, locale_field);
+        let build_fns = if cfg!(not(feature = "debug_interpolations")) {
+            Self::generate_success_build_fn(ident, fields)
+        } else {
+            Self::generate_build_fns(ident, fields, locale_field)
+        };
 
         quote! {
             #set_fns
@@ -263,7 +256,6 @@ impl Interpolation {
             .chain(right_fields.iter().map(other_field_map_fn))
     }
 
-    #[cfg(feature = "debug_interpolations")]
     fn generate_default_constructed(
         ident: &syn::Ident,
         fields: &[Field],
@@ -287,7 +279,6 @@ impl Interpolation {
         }
     }
 
-    #[cfg(feature = "debug_interpolations")]
     fn generate_all_failing_build_fn<'a>(
         ident: &'a syn::Ident,
         fields: &'a [Field],
@@ -309,7 +300,6 @@ impl Interpolation {
         })
     }
 
-    #[cfg(feature = "debug_interpolations")]
     fn generate_failing_build_fn<'a, I>(
         self_ident: &syn::Ident,
         default_constructed: &TokenStream,
@@ -375,18 +365,27 @@ impl Interpolation {
             quoted_gen,
         );
 
-        #[cfg(feature = "interpolate_display")]
-        let output_field_generic_string = match field.kind.get_string_generic() {
-            Ok(bounds) => quote!(impl #bounds),
-            Err(t) => quote!(#t),
-        };
-        #[cfg(feature = "interpolate_display")]
-        let output_generics_string = Self::generate_generics(
-            left_fields,
-            Some(output_field_generic_string.clone()),
-            right_fields,
-            quoted_gen,
-        );
+        let (output_field_generic_string, output_generics_string, bounds) =
+            if cfg!(feature = "interpolate_display") {
+                let (output_field_generic_string, bounds) = match field.kind.get_string_generic() {
+                    Ok(bounds) => (quote!(impl #bounds), bounds),
+                    Err(t) => (quote!(#t), quote!()),
+                };
+                let output_generics_string = Self::generate_generics(
+                    left_fields,
+                    Some(output_field_generic_string.clone()),
+                    right_fields,
+                    quoted_gen,
+                );
+                (
+                    output_field_generic_string,
+                    Some(output_generics_string),
+                    bounds,
+                )
+            } else {
+                (quote!(), None, quote!())
+            };
+
         let other_fields = Self::generate_generics(left_fields, None, right_fields, |field| {
             if let Some(key) = field.kind.as_key() {
                 quote!(#key)
@@ -404,7 +403,7 @@ impl Interpolation {
         };
         let restructure = quote!(#ident { #(#other_fields,)* #kind });
 
-        let fns = match kind {
+        let (set_function, set_str_function) = match kind {
             InterpolateKey::Variable(key) => (
                 quote! {
                     #[inline]
@@ -415,8 +414,7 @@ impl Interpolation {
                         #restructure
                     }
                 },
-                #[cfg(feature = "interpolate_display")]
-                {
+                if let Some(output_generics_string) = output_generics_string {
                     let string_key = format_ident!("{}_string", key.ident);
                     quote! {
                         #[inline]
@@ -426,6 +424,8 @@ impl Interpolation {
                             #restructure
                         }
                     }
+                } else {
+                    quote!()
                 },
             ),
             InterpolateKey::Component(key) => (
@@ -441,8 +441,7 @@ impl Interpolation {
                         #restructure
                     }
                 },
-                #[cfg(feature = "interpolate_display")]
-                {
+                if let Some(output_generics_string) = output_generics_string {
                     let string_key = format_ident!("{}_string", key.ident);
                     quote! {
                         #[inline]
@@ -452,6 +451,8 @@ impl Interpolation {
                             #restructure
                         }
                     }
+                } else {
+                    quote!()
                 },
             ),
             InterpolateKey::Count(plural_type) => (
@@ -464,22 +465,20 @@ impl Interpolation {
                         #restructure
                     }
                 },
-                #[cfg(feature = "interpolate_display")]
-                quote! {
-                    #[inline]
+                if let Some(output_generics_string) = output_generics_string {
+                    quote! {
+                        #[inline]
                     pub fn var_count_string(self, var_count: #plural_type) -> #ident<#(#output_generics_string,)*>
                     {
                         #destructure
                         #restructure
                     }
+                    }
+                } else {
+                    quote!()
                 },
             ),
         };
-
-        #[cfg(feature = "interpolate_display")]
-        let (set_function, set_str_function) = fns;
-        #[cfg(not(feature = "interpolate_display"))]
-        let (set_function, set_str_function) = (fns.0, quote!());
 
         if cfg!(feature = "debug_interpolations") {
             let left_generics_empty =
@@ -512,6 +511,35 @@ impl Interpolation {
                 }
             };
 
+            let string_impl = if cfg!(feature = "interpolate_display") {
+                let left_generics_empty_string = left_generics_empty.clone();
+                let right_generics_empty_string = right_generics_empty.clone();
+                let left_generics_already_set_string = Self::generate_generics(
+                    left_fields,
+                    Some({
+                        let field_gen = &field.generic;
+                        quote!(#field_gen: #bounds)
+                    }),
+                    right_fields,
+                    quoted_gen,
+                );
+                let right_generics_already_set_string = right_generics_already_set.clone();
+                quote! {
+                    #[allow(non_camel_case_types)]
+                    impl<#(#left_generics_empty_string,)*> #ident<#(#right_generics_empty_string,)*> {
+                        #set_str_function
+                    }
+
+                    #[allow(non_camel_case_types)]
+                    impl<#(#left_generics_already_set_string,)*> #ident<#(#right_generics_already_set_string,)*> {
+                        #[deprecated(note = #compile_warning)]
+                        #set_str_function
+                    }
+                }
+            } else {
+                quote!()
+            };
+
             quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics_empty,)*> #ident<#(#right_generics_empty,)*> {
@@ -522,6 +550,8 @@ impl Interpolation {
                     #[deprecated(note = #compile_warning)]
                     #set_function
                 }
+
+                #string_impl
             }
         } else {
             let left_generics =
@@ -556,7 +586,6 @@ impl Interpolation {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     fn display_impl(
         key: &Key,
         ident: &syn::Ident,
@@ -669,7 +698,6 @@ impl Interpolation {
             })
     }
 
-    #[cfg(feature = "interpolate_display")]
     fn create_locale_string_impl<'a>(
         key: &'a Key,
         locales: &'a [Locale],

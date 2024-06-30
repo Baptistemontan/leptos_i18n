@@ -60,11 +60,13 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let file_tracking = tracking::generate_file_tracking();
 
-    let mut macros_reexport = vec![quote!(t), quote!(td)];
+    let mut macros_reexport = vec![quote!(t), quote!(td), quote!(tu)];
     if cfg!(feature = "interpolate_display") {
         macros_reexport.extend([
             quote!(t_string),
+            quote!(tu_string),
             quote!(t_display),
+            quote!(tu_display),
             quote!(td_string),
             quote!(td_display),
         ]);
