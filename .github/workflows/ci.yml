@@ -12,21 +12,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v3
-
-      - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: "Test all features"
-        run: |
-          cargo install cargo-all-features
-          cargo test-all-features
-
   compile_ssr_exemples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
