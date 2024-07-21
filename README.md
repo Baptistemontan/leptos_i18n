@@ -604,6 +604,8 @@ Better compilation errors are generated for interpolations with 4 keys or less.
 This is a feature as this code is not "necessary" and could slow compile times,
 advice is to enable it for debug builds but disable it for release builds.
 
+The `show_keys_only` feature makes every translations to only display it's corresponding key, this is usefull to track untranslated strings in you application.
+
 The `suppress_key_warnings` feature remove the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
 
 The `json_files` feature tell the macro to expect JSON files for the locales, enabled by default
