@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build ${{ matrix.examples }} exemple"
+      - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install cargo-leptos
@@ -76,7 +76,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build ${{ matrix.examples }} exemple"
+      - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install trunk

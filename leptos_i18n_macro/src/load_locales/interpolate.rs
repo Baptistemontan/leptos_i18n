@@ -247,14 +247,14 @@ impl Interpolation {
         }
     }
 
-    fn generate_generics<'a, F: 'a, T: Clone + 'a>(
+    fn generate_generics<'a, F, T: Clone + 'a>(
         left_fields: &'a [Field],
         field_generic: Option<T>,
         right_fields: &'a [Field],
         other_field_map_fn: F,
     ) -> impl Iterator<Item = T> + 'a + Clone
     where
-        F: FnMut(&'a Field) -> T + Copy,
+        F: FnMut(&'a Field) -> T + Copy + 'a,
     {
         left_fields
             .iter()
