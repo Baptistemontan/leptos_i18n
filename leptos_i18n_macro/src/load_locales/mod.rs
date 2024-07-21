@@ -6,6 +6,7 @@ use std::{
 };
 
 pub mod cfg_file;
+pub mod declare_locales;
 pub mod error;
 pub mod interpolate;
 pub mod key;
