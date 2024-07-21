@@ -100,6 +100,8 @@ fn find_file(path: &mut PathBuf) -> Result<File> {
 
     for ext in FILE_EXTS {
         path.set_extension(ext);
+        #[allow(clippy::needless_borrows_for_generic_args)]
+        // see https://github.com/rust-lang/rust-clippy/issues/12856
         match File::open(&path) {
             Ok(file) => return Ok(file),
             Err(err) => {
@@ -268,7 +270,7 @@ impl Locale {
 
         // reverse key comparaison
         for key in self.keys.keys() {
-            if keys.0.get(key).is_none() {
+            if !keys.0.contains_key(key) {
                 key_path.push_key(Rc::clone(key));
                 emit_warning(Warning::SurplusKey {
                     locale: top_locale.clone(),
