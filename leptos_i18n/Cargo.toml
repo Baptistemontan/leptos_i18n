@@ -42,6 +42,7 @@ experimental-islands = [
     "leptos/experimental-islands",
     "leptos_i18n_macro/experimental-islands",
 ]
+show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
 
 [package.metadata.cargo-all-features]
@@ -56,6 +57,7 @@ denylist = [
     "debug_interpolations",
     "suppress_key_warnings",
     "track_locale_files",
+    "show_keys_only",
 ]
 skip_feature_sets = [
     # Axum and Actix features are incompatible with each other - see `./src/server/mod.rs`, always exclude:

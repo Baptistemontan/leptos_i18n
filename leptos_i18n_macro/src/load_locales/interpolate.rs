@@ -5,7 +5,7 @@ use quote::format_ident;
 use quote::quote;
 
 use super::{
-    key::Key,
+    key::{Key, KeyPath},
     locale::Locale,
     parsed_value::{InterpolateKey, ParsedValue},
 };
@@ -31,6 +31,7 @@ impl Interpolation {
         keys_set: &HashSet<InterpolateKey>,
         locales: &[Locale],
         default_match: &TokenStream,
+        key_path: &KeyPath,
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
 
@@ -59,8 +60,15 @@ impl Interpolation {
 
         let type_def = Self::create_type(&ident, &fields);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
-        let into_view_impl =
-            Self::into_view_impl(key, &ident, &locale_field, &fields, locales, default_match);
+        let into_view_impl = Self::into_view_impl(
+            key,
+            &ident,
+            &locale_field,
+            &fields,
+            locales,
+            default_match,
+            key_path,
+        );
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
         let display_impl = if cfg!(feature = "interpolate_display") {
@@ -636,6 +644,7 @@ impl Interpolation {
         fields: &[Field],
         locales: &[Locale],
         default_match: &TokenStream,
+        key_path: &KeyPath,
     ) -> TokenStream {
         let left_generics = fields.iter().map(|field| {
             let ident = &field.generic;
@@ -647,6 +656,19 @@ impl Interpolation {
             let ident = &field.generic;
             quote!(#ident)
         });
+
+        if cfg!(feature = "show_keys_only") {
+            let key = key_path.to_string_with_key(key);
+            return quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
+                    fn into_view(self) -> leptos::View {
+                        let _ = self;
+                        leptos::IntoView::into_view(#key)
+                    }
+                }
+            };
+        }
 
         let fields_key = fields.iter().map(|f| f.kind);
 

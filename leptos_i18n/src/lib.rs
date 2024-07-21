@@ -31,19 +31,20 @@
 //!
 //! # In depth documentation
 //!
-//! You can find the [book](https://github.com/Baptistemontan/leptos_i18n/tree/master/docs/book) on the github repo.
+//! You can find the [book](https://baptistemontan.github.io/leptos_i18n) on the github repo.
 //!
 //! # Feature Flags
-//! - `cookie` (*Default*): Enable this feature to set a cookie on the client to remember the last locale set.
-//! - `json_files` (*Default*): Enable this feature if you use JSON files for declaring your locales.
-//! - `hydrate`: Enable this feature when building for the client with hydratation.
 //! - `actix`: Enable this feature when building for the server with actix as the backend (can't be enabled with the `axum` feature).
 //! - `axum`: Enable this feature when building for the server with axum as the backend (can't be enabled with the `actix` feature).
+//! - `hydrate`: Enable this feature when building for the client with hydratation.
 //! - `csr`: Enable this feature when building for the client with CSR.
 //! - `serde`: Enabling this feature implement `serde::Serialize` and `serde::Deserialize` for the locale enum.
 //! - `debug_interpolations`: Enable the macros to generate code to emit a warning if a key is supplied twice in interpolations and a better compilation error when a key is missing.
+//! - `show_keys_only`: This feature makes every translations to only display it's corresponding key, this is usefull to track untranslated strings in you application.
 //! - `suppress_key_warnings`: Disable the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
+//! - `json_files` (*Default*): Enable this feature if you use JSON files for declaring your locales.
 //! - `yaml_files`: Enable this feature if you use YAML files for declaring your locales (can't be used with `json_files`).
+//! - `cookie` (*Default*): Enable this feature to set a cookie on the client to remember the last locale set.
 //! - `nightly`: On `nightly` Rust, enables the function-call syntax on the i18n context to get/set the locale.
 //! - `track_locale_files`: Enable the tracking of locale files as dependencies, usefull if you use some watcher. See the README for more infos.
 //!
