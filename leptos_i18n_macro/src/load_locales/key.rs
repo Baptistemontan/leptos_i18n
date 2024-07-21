@@ -60,7 +60,7 @@ pub struct KeyPath {
 }
 
 impl KeyPath {
-    pub fn new(namespace: Option<Rc<Key>>) -> Self {
+    pub const fn new(namespace: Option<Rc<Key>>) -> Self {
         KeyPath {
             namespace,
             path: vec![],
@@ -74,11 +74,22 @@ impl KeyPath {
     pub fn pop_key(&mut self) -> Option<Rc<Key>> {
         self.path.pop()
     }
+
+    pub fn to_string_with_key(&self, key: &Key) -> String {
+        if self.namespace.is_none() && self.path.is_empty() {
+            return key.name.to_string();
+        }
+        let mut s = self.to_string();
+        if self.namespace.is_none() || !self.path.is_empty() {
+            s.push('.');
+        }
+        s.push_str(&key.name);
+        s
+    }
 }
 
 impl Display for KeyPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("\"")?;
         if let Some(namespace) = &self.namespace {
             write!(f, "{}::", namespace.name)?;
         }
@@ -89,7 +100,7 @@ impl Display for KeyPath {
                 write!(f, ".{}", key.name)?;
             }
         }
-        f.write_str("\"")
+        Ok(())
     }
 }
 

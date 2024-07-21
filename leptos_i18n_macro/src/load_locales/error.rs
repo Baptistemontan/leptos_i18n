@@ -101,7 +101,7 @@ impl Display for Error {
                 path, err
             ),
             Error::MissingKeyInLocale { key_path, locale } => write!(f,
-                "Some keys are different beetween locale files, locale {:?} is missing key: {}",
+                "Some keys are different beetween locale files, locale {:?} is missing key: \"{}\"",
                 locale, key_path
             ),
             Error::PluralParse {
@@ -136,7 +136,7 @@ impl Display for Error {
                 "Found duplicates namespaces in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
-            Error::PluralTypeMissmatch { key_path, type1, type2 } => write!(f, "Conflicting plural value type at key {}, found type {} but also type {}.", key_path, type1, type2),
+            Error::PluralTypeMissmatch { key_path, type1, type2 } => write!(f, "Conflicting plural value type at key \"{}\", found type {} but also type {}.", key_path, type1, type2),
             Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters.", key),
             Error::EmptyPlural => write!(f, "empty plurals are not allowed"),
             Error::InvalidPluralType(t) => write!(f, "invalid plural type {:?}", t),
@@ -146,14 +146,14 @@ impl Display for Error {
             Error::MissingFallback(t) => write!(f, "plural type {} require a fallback (or a fullrange \"..\")", t),
             Error::PluralSubkeys => write!(f, "subkeys for plurals are not allowed"),
             Error::SubKeyMissmatch { locale, key_path } => {
-                write!(f, "Missmatch value type beetween locale {:?} and default at key {}: one has subkeys and the other has direct value.", locale, key_path)
+                write!(f, "Missmatch value type beetween locale {:?} and default at key \"{}\": one has subkeys and the other has direct value.", locale, key_path)
             },
             Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
-            Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key {}", key_path),
-            Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key {} in locale {:?}, check for recursive foreign key.", key_path, locale),
-            Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key {} at key {} in locale {:?}, key don't exist.", foreign_key, key_path, locale),
+            Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key \"{}\"", key_path),
+            Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key \"{}\" in locale {:?}, check for recursive foreign key.", key_path, locale),
+            Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, key don't exist.", foreign_key, key_path, locale),
             Error::Custom(s) => f.write_str(s),
-            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key {} at key {} in locale {:?}, foreign key to plurals or subkeys are not allowed.", foreign_key, key_path, locale),
+            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to plurals or subkeys are not allowed.", foreign_key, key_path, locale),
         }
     }
 }

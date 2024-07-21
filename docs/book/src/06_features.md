@@ -26,6 +26,10 @@ This feature implement `Serialize` and `Deserialize` for the `Locale` enum
 
 This features allow the `load_locales!` macro to generate more code for interpolations, allowing better error reporting when keys are missing.
 
+#### `show_keys_only`
+
+This feature makes every translations to only display it's corresponding key, this is usefull to track untranslated strings in you application.
+
 #### `suppress_key_warnings`
 
 This features disable the warnings when a key is missing or in surplus, we discourage its usage and highly encourage the use of explicit defaults, but if its what's you want, we won't stop you.
