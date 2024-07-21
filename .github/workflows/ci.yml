@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 
 on:
   push:
@@ -12,13 +12,28 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Load cargo toolchain"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Test all features"
+        run: |
+          cargo install cargo-all-features
+          cargo test-all-features
+
   compile_ssr_exemples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, workspace]
+        examples: [hello_world_actix, hello_world_axum, workspace, axum_island]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3
@@ -29,8 +44,60 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Build ${{ matrix.examples }} exemple"
+      - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install cargo-leptos
           cargo leptos build
+
+  compile_csr_exemples:
+    name: Compile ${{ matrix.examples }} example
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        examples:
+          [
+            csr,
+            counter,
+            counter_plurals,
+            interpolation,
+            namespaces,
+            subkeys,
+            yaml,
+          ]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Install wasm32-unknown-unknown"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+          targets: "wasm32-unknown-unknown"
+
+      - name: "Build ${{ matrix.examples }} example"
+        working-directory: examples/${{ matrix.examples }}
+        run: |
+          cargo install trunk
+          trunk build
+
+  test_suite:
+    name: Test suite ${{ matrix.tests_suites }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tests_suites: [json, yaml, namespaces]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v3
+
+      - name: "Install wasm32-unknown-unknown"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+
+      - name: Running test suite ${{ matrix.tests_suites }}
+        working-directory: tests/${{ matrix.tests_suites }}
+        run: cargo test
