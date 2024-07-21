@@ -558,7 +558,6 @@ impl ParsedValue {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     fn flatten_string(&self, tokens: &mut Vec<TokenStream>) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
@@ -584,7 +583,6 @@ impl ParsedValue {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     pub fn as_string_impl(&self) -> TokenStream {
         let mut tokens = Vec::new();
         self.flatten_string(&mut tokens);
@@ -635,7 +633,6 @@ impl InterpolateKey {
         }
     }
 
-    #[cfg(feature = "debug_interpolations")]
     pub fn get_real_name(&self) -> &str {
         match self {
             InterpolateKey::Count(_) => "count",
@@ -660,7 +657,6 @@ impl InterpolateKey {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     pub fn get_string_generic(&self) -> Result<TokenStream, PluralType> {
         match self {
             InterpolateKey::Count(t) => Err(*t),
@@ -669,7 +665,6 @@ impl InterpolateKey {
         }
     }
 
-    #[cfg(feature = "debug_interpolations")]
     pub fn get_default(&self) -> TokenStream {
         match self {
             InterpolateKey::Variable(_) => {

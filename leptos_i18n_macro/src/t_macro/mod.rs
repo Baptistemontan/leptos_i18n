@@ -12,9 +12,7 @@ pub mod parsed_input;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputType {
     View,
-    #[cfg(feature = "interpolate_display")]
     String,
-    #[cfg(feature = "interpolate_display")]
     Display,
 }
 
@@ -22,6 +20,7 @@ pub enum OutputType {
 pub enum InputType {
     Locale,
     Context,
+    Untracked,
 }
 
 pub fn t_macro(
@@ -91,9 +90,7 @@ impl OutputType {
     pub fn build_fn(self) -> TokenStream {
         match self {
             OutputType::View => quote!(build),
-            #[cfg(feature = "interpolate_display")]
             OutputType::String => quote!(build_string),
-            #[cfg(feature = "interpolate_display")]
             OutputType::Display => quote!(build_display),
         }
     }
@@ -101,7 +98,6 @@ impl OutputType {
     pub fn is_string(self) -> bool {
         match self {
             OutputType::View => false,
-            #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => true,
         }
     }
@@ -114,7 +110,6 @@ impl OutputType {
                     move || #ts
                 }
             },
-            #[cfg(feature = "interpolate_display")]
             OutputType::String | OutputType::Display => quote! {
                 {
                     #params
@@ -129,6 +124,9 @@ impl InputType {
     pub fn get_key<T: ToTokens>(self, input: T, keys: Keys) -> TokenStream {
         match self {
             InputType::Context => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys),
+            InputType::Untracked => {
+                quote!(leptos_i18n::I18nContext::get_keys_untracked(#input).#keys)
+            }
             InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys),
         }
     }

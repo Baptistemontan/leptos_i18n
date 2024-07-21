@@ -141,10 +141,10 @@ pub use locale_traits::*;
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
 
-pub use leptos_i18n_macro::{load_locales, t, td};
+pub use leptos_i18n_macro::{load_locales, t, td, tu};
 
 #[cfg(feature = "interpolate_display")]
-pub use leptos_i18n_macro::{t_display, t_string, td_display, td_string};
+pub use leptos_i18n_macro::{t_display, t_string, td_display, td_string, tu_display, tu_string};
 
 #[doc(hidden)]
 pub mod __private {

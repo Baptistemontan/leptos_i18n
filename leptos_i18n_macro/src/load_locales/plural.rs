@@ -100,7 +100,6 @@ pub enum Plurals {
 }
 
 impl Plurals {
-    #[cfg(feature = "interpolate_display")]
     pub fn as_string_impl(&self) -> TokenStream {
         match self {
             Plurals::I8(plurals) => Self::to_tokens_integers_string(plurals),
@@ -253,7 +252,6 @@ impl Plurals {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     fn to_tokens_integers_string<T: PluralInteger>(
         plurals: &[(Plural<T>, ParsedValue)],
     ) -> TokenStream {
@@ -326,7 +324,6 @@ impl Plurals {
         }
     }
 
-    #[cfg(feature = "interpolate_display")]
     fn to_tokens_floats_string<T: PluralFloats>(
         plurals: &[(Plural<T>, ParsedValue)],
     ) -> TokenStream {

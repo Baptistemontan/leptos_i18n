@@ -64,6 +64,12 @@ pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Context, OutputType::View)
 }
 
+/// Same as the `t!` macro but untracked.
+#[proc_macro]
+pub fn tu(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, InputType::Untracked, OutputType::View)
+}
+
 /// Just like the `t!` macro but instead of taking `I18nContext` as the first argument it takes the desired locale.
 ///
 /// Usage:
@@ -104,10 +110,15 @@ pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     "You clicked a lot of times"
 /// )
 /// ```
-#[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn t_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Context, OutputType::String)
+}
+
+/// Same as the `t_string!` macro but untracked.
+#[proc_macro]
+pub fn tu_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, InputType::Untracked, OutputType::String)
 }
 
 /// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
@@ -130,10 +141,15 @@ pub fn t_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// assert_eq!(t_str, "You clicked 10 times");
 /// ```
-#[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn t_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Context, OutputType::Display)
+}
+
+/// Same as the `t_display!` macro but untracked.
+#[proc_macro]
+pub fn tu_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_macro::t_macro(tokens, InputType::Untracked, OutputType::Display)
 }
 
 /// Just like the `t_string!` macro but takes the `Locale` as an argument instead of the context.
@@ -154,7 +170,6 @@ pub fn t_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///     "You clicked a lot of times"
 /// )
 /// ```
-#[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Locale, OutputType::String)
@@ -178,7 +193,6 @@ pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// assert_eq!(t_str, "You clicked 10 times");
 /// ```
-#[cfg(feature = "interpolate_display")]
 #[proc_macro]
 pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Locale, OutputType::Display)

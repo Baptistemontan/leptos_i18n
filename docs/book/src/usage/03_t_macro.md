@@ -201,3 +201,7 @@ To avoid confusion with subkeys you can use `::` to separate the namespace name 
 ```rust
 t!(i18n, my_namespace::hello_world)
 ```
+
+## `tu!`
+
+the `tu!` macro is the same as `t!` but untracked.
