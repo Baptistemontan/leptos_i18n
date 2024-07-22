@@ -149,6 +149,7 @@ pub use leptos_i18n_macro::{t_display, t_string, td_display, td_string};
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;
+    pub use leptos_i18n_macro::declare_locales;
 }
 
 #[cfg(all(

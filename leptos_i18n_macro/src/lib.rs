@@ -35,10 +35,7 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
 #[doc(hidden)]
 #[proc_macro]
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match load_locales::declare_locales::declare_locales(tokens) {
-        Ok(ts) => ts.into(),
-        Err(err) => err.into(),
-    }
+    load_locales::declare_locales::declare_locales(tokens)
 }
 
 /// Utility macro to easily put translation in your application.

@@ -50,12 +50,19 @@ pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
     let mut locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
 
-    ParsedValue::resolve_foreign_keys(&locales, &cfg_file.default)?;
+    load_locales_inner(&cfg_file, &mut locales)
+}
 
-    let keys = Locale::check_locales(&mut locales)?;
+fn load_locales_inner(
+    cfg_file: &ConfigFile,
+    locales: &mut LocalesOrNamespaces,
+) -> Result<TokenStream> {
+    ParsedValue::resolve_foreign_keys(locales, &cfg_file.default)?;
 
-    let locale_type = create_locale_type(keys, &cfg_file);
-    let locale_enum = create_locales_enum(&cfg_file);
+    let keys = Locale::check_locales(locales)?;
+
+    let locale_type = create_locale_type(keys, cfg_file);
+    let locale_enum = create_locales_enum(cfg_file);
 
     let warnings = generate_warnings();
 

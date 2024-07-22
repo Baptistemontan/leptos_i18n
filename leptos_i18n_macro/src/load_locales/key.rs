@@ -42,6 +42,13 @@ impl Key {
         })
     }
 
+    pub fn from_ident(ident: syn::Ident) -> Key {
+        Self {
+            name: ident.to_string(),
+            ident,
+        }
+    }
+
     pub fn try_new(name: &str) -> Result<Self> {
         Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()))
     }
