@@ -48,7 +48,7 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Install e2e deps"
-        working-directory: examples/${{ matrix.examples }}/end2end
+        working-directory: examples/${{ matrix.examples }}/e2e
         run: |
           npm ci
           npx playwright install --with-deps
@@ -62,7 +62,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
-          path: examples/${{ matrix.examples }}/end2end/playwright-report/
+          path: examples/${{ matrix.examples }}/e2e/playwright-report/
           retention-days: 30
 
   compile_csr_examples:
