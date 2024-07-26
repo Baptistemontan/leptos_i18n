@@ -83,7 +83,7 @@ jobs:
           ]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Install wasm32-unknown-unknown"
         uses: dtolnay/rust-toolchain@stable
@@ -106,7 +106,7 @@ jobs:
         tests_suites: [json, yaml, namespaces]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Install wasm32-unknown-unknown"
         uses: dtolnay/rust-toolchain@stable
