@@ -44,6 +44,11 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
+      - name: "Install Playwright"
+        working-directory: examples/${{ matrix.examples }}/end2end
+        run: |
+          npm install
+
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
