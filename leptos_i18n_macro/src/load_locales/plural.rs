@@ -8,6 +8,7 @@ use std::{
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use syn::parse::ParseBuffer;
 
 use crate::load_locales::{
     key::{Key, KeyPath},
@@ -15,6 +16,7 @@ use crate::load_locales::{
 };
 
 use super::{
+    declare_locales::parse_plural_pairs,
     error::{Error, Result},
     parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
 };
@@ -351,41 +353,21 @@ impl Plurals {
         }
     }
 
-    fn deserialize_all_pairs<'de, A, T>(
-        mut seq: A,
-        plurals: &mut PluralsInner<T>,
-        parsed_value_seed: ParsedValueSeed,
-    ) -> Result<(), A::Error>
+    pub fn deserialize_inner<'a, 'de, A>(&mut self, seq: A, seed: A::Seed) -> A::Result<()>
     where
-        A: serde::de::SeqAccess<'de>,
-        T: PluralNumber,
-    {
-        let plural_seed = PluralStructSeed::<T>(parsed_value_seed, PhantomData);
-        while let Some(pair) = seq.next_element_seed(plural_seed)? {
-            plurals.push(pair)
-        }
-        Ok(())
-    }
-
-    fn deserialize_inner<'de, A>(
-        &mut self,
-        seq: A,
-        parsed_value_seed: ParsedValueSeed,
-    ) -> Result<(), A::Error>
-    where
-        A: serde::de::SeqAccess<'de>,
+        A: ParsePlurals<'a, 'de>,
     {
         match self {
-            Plurals::I8(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::I16(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::I32(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::I64(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::U8(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::U16(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::U32(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::U64(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::F32(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
-            Plurals::F64(plurals) => Self::deserialize_all_pairs(seq, plurals, parsed_value_seed),
+            Plurals::I8(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::I16(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::I32(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::I64(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::U8(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::U16(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::U32(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::U64(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::F32(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
+            Plurals::F64(plurals) => ParsePlurals::deserialize_all_pairs(seq, plurals, seed),
         }
     }
 
@@ -830,12 +812,30 @@ impl<'de> serde::de::Visitor<'de> for PluralFieldVisitor {
     }
 }
 
-enum TypeOrPlural {
+pub enum TypeOrPlural {
     Type(PluralType),
     Plural((Plural<DefaultPluralType>, ParsedValue)),
 }
 
 struct TypeOrPluralSeed<'a>(pub ParsedValueSeed<'a>);
+
+impl TypeOrPlural {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim() {
+            "i8" => Some(TypeOrPlural::Type(PluralType::I8)),
+            "i16" => Some(TypeOrPlural::Type(PluralType::I16)),
+            "i32" => Some(TypeOrPlural::Type(PluralType::I32)),
+            "i64" => Some(TypeOrPlural::Type(PluralType::I64)),
+            "u8" => Some(TypeOrPlural::Type(PluralType::U8)),
+            "u16" => Some(TypeOrPlural::Type(PluralType::U16)),
+            "u32" => Some(TypeOrPlural::Type(PluralType::U32)),
+            "u64" => Some(TypeOrPlural::Type(PluralType::U64)),
+            "f32" => Some(TypeOrPlural::Type(PluralType::F32)),
+            "f64" => Some(TypeOrPlural::Type(PluralType::F64)),
+            _ => None,
+        }
+    }
+}
 
 impl<'de> serde::de::DeserializeSeed<'de> for TypeOrPluralSeed<'_> {
     type Value = TypeOrPlural;
@@ -862,21 +862,8 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     where
         E: serde::de::Error,
     {
-        match v.trim() {
-            "i8" => Ok(TypeOrPlural::Type(PluralType::I8)),
-            "i16" => Ok(TypeOrPlural::Type(PluralType::I16)),
-            "i32" => Ok(TypeOrPlural::Type(PluralType::I32)),
-            "i64" => Ok(TypeOrPlural::Type(PluralType::I64)),
-            "u8" => Ok(TypeOrPlural::Type(PluralType::U8)),
-            "u16" => Ok(TypeOrPlural::Type(PluralType::U16)),
-            "u32" => Ok(TypeOrPlural::Type(PluralType::U32)),
-            "u64" => Ok(TypeOrPlural::Type(PluralType::U64)),
-            "f32" => Ok(TypeOrPlural::Type(PluralType::F32)),
-            "f64" => Ok(TypeOrPlural::Type(PluralType::F64)),
-            _ => Err(serde::de::Error::custom(Error::InvalidPluralType(
-                v.to_string(),
-            ))),
-        }
+        TypeOrPlural::from_str(v)
+            .ok_or_else(|| serde::de::Error::custom(Error::InvalidPluralType(v.to_string())))
     }
 
     fn visit_map<A>(self, map: A) -> std::result::Result<Self::Value, A::Error>
@@ -893,6 +880,54 @@ impl<'de> serde::de::Visitor<'de> for TypeOrPluralSeed<'_> {
     {
         let plural_seed = PluralStructSeed::<DefaultPluralType>(self.0, PhantomData);
         plural_seed.visit_seq(seq).map(TypeOrPlural::Plural)
+    }
+}
+
+pub trait ParsePlurals<'a, 'de> {
+    type Result<O>
+    where
+        O: 'de + 'a;
+
+    type Seed;
+
+    fn deserialize_all_pairs<T: PluralNumber>(
+        self,
+        plurals: &mut PluralsInner<T>,
+        seed: Self::Seed,
+    ) -> Self::Result<()>;
+}
+
+impl<'a, 'de, A: serde::de::SeqAccess<'de>> ParsePlurals<'a, 'de> for A {
+    type Result<O> = Result<O, A::Error> where O: 'de + 'a;
+
+    type Seed = ParsedValueSeed<'a>;
+
+    fn deserialize_all_pairs<T: PluralNumber>(
+        mut self,
+        plurals: &mut PluralsInner<T>,
+        seed: Self::Seed,
+    ) -> Self::Result<()> {
+        let plural_seed = PluralStructSeed::<T>(seed, PhantomData);
+        while let Some(pair) = self.next_element_seed(plural_seed)? {
+            plurals.push(pair)
+        }
+        Ok(())
+    }
+}
+
+pub struct PluralParseBuffer<'de>(pub ParseBuffer<'de>);
+
+impl<'a, 'de> ParsePlurals<'a, 'de> for PluralParseBuffer<'de> {
+    type Result<O> = syn::Result<O> where O: 'de + 'a;
+
+    type Seed = super::declare_locales::ParsePluralSeed<'a>;
+
+    fn deserialize_all_pairs<T: PluralNumber>(
+        self,
+        plurals: &mut PluralsInner<T>,
+        seed: Self::Seed,
+    ) -> Self::Result<()> {
+        parse_plural_pairs(&self.0, plurals, seed)
     }
 }
 

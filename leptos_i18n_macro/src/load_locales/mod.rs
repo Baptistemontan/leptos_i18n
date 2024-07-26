@@ -107,6 +107,7 @@ fn load_locales_inner(
 
             mod provider {
                 #[leptos::#island_or_component]
+                #[allow(non_snake_case)]
                 pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
                     super::provide_i18n_context();
                     children()
