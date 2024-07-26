@@ -27,7 +27,7 @@ jobs:
           cargo install cargo-all-features
           cargo test-all-features
 
-  compile_ssr_examples:
+  test_ssr_examples:
     name: Test ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
@@ -64,14 +64,14 @@ jobs:
         working-directory: examples/${{ matrix.examples }}
         run: cargo leptos end-to-end
 
-      - uses: actions/upload-artifact@v4
+      - name: "Upload e2e report"
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/${{ matrix.examples }}/e2e/playwright-report/
-          retention-days: 30
 
-  compile_csr_examples:
+  test_csr_examples:
     name: Compile ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
@@ -107,12 +107,12 @@ jobs:
         working-directory: examples/${{ matrix.examples }}
         run: npx playwright test
 
-      - uses: actions/upload-artifact@v4
+      - name: "Upload e2e report"
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/${{ matrix.examples }}/playwright-report/
-          retention-days: 30
 
   test_suite:
     name: Test suite ${{ matrix.tests_suites }}
