@@ -28,7 +28,7 @@ jobs:
           cargo test-all-features
 
   compile_ssr_examples:
-    name: Compile ${{ matrix.examples }} example
+    name: Test ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,7 +48,7 @@ jobs:
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install cargo-leptos
-          cargo leptos build
+          cargo leptos end-to-end
 
   compile_csr_examples:
     name: Compile ${{ matrix.examples }} example
