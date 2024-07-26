@@ -37,11 +37,13 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      - name: "Install wasm32-unknown-unknown"
+      - name: "Setup Rust toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "stable"
@@ -83,7 +85,12 @@ jobs:
       - name: "Checkout repo"
         uses: actions/checkout@v4
 
-      - name: "Install wasm32-unknown-unknown"
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: "Setup Rust toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "stable"
