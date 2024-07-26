@@ -48,6 +48,7 @@ jobs:
         working-directory: examples/${{ matrix.examples }}/end2end
         run: |
           npm install
+          npx playwright install
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
