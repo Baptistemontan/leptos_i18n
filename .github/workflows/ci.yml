@@ -36,7 +36,10 @@ jobs:
         examples: [hello_world_actix, hello_world_axum, workspace, axum_island]
     steps:
       - name: "Checkout repo"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
       - name: "Install wasm32-unknown-unknown"
         uses: dtolnay/rust-toolchain@stable
@@ -44,17 +47,23 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
 
-      - name: "Install Playwright"
+      - name: "Install e2e deps"
         working-directory: examples/${{ matrix.examples }}/end2end
         run: |
-          npm install
-          npx playwright install
+          npm ci
+          npx playwright install --with-deps
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: |
           cargo install cargo-leptos
           cargo leptos end-to-end
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: examples/${{ matrix.examples }}/end2end/playwright-report/
+          retention-days: 30
 
   compile_csr_examples:
     name: Compile ${{ matrix.examples }} example
