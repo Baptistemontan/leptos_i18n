@@ -1,0 +1,14 @@
+{
+  "name": "counter_plurals",
+  "version": "1.0.0",
+  "description": "This example showcase how you can use plurals to display a different text based on a count.",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.45.3",
+    "@types/node": "^20.14.12"
+  }
+}
