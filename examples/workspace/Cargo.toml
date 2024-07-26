@@ -12,5 +12,9 @@ lib-package = "client"
 
 reload-port = 3001
 
+# [Optional] Command to use when running end2end tests. It will run in the end2end dir.
+end2end-cmd = "npx playwright test"
+end2end-dir = "end2end"
+
 # watch changes on the locales folder
 watch-additional-files = ["client/locales"]
