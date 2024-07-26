@@ -72,15 +72,7 @@ jobs:
       fail-fast: false
       matrix:
         examples:
-          [
-            csr,
-            counter,
-            counter_plurals,
-            interpolation,
-            namespaces,
-            subkeys,
-            yaml,
-          ]
+          [counter, counter_plurals, interpolation, namespaces, subkeys, yaml]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
