@@ -30,7 +30,7 @@ jobs:
         run: cargo install cargo-all-features
 
       - name: "Test all features"
-        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk ${{ strategy.job-index }}
+        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk $(expr ${{ strategy.job-index }} + 1)
 
   test_ssr_examples:
     name: Test ${{ matrix.examples }} example
