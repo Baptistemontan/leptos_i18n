@@ -12,13 +12,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  tests:
     name: Execute all lib tests (chunk ${{ matrix.chunk }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        chunk: [1, 2, 3]
+        chunk: [1, 2]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3
