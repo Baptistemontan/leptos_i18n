@@ -13,8 +13,12 @@ env:
 
 jobs:
   lib_test:
-    name: Test leptos_i18n package
+    name: Test ${{ matrix.package }} package
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ["leptos_i18n", "leptos_i18n_macro"]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -26,23 +30,7 @@ jobs:
         run: cargo install cargo-all-features
 
       - name: "Test all features"
-        run: cargo test-all-features --n-chunks 2 --chunk 1
-
-  macro_test:
-    name: Test leptos_i18n_macro package
-    runs-on: ubuntu-latest
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-
-      - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: "Install cargo-all-features"
-        run: cargo install cargo-all-features
-
-      - name: "Test all features"
-        run: cargo test-all-features --n-chunks 2 --chunk 2
+        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk ${{ strategy.job-index }}
 
   test_ssr_examples:
     name: Test ${{ matrix.examples }} example
