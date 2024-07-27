@@ -79,7 +79,7 @@ jobs:
           path: examples/${{ matrix.examples }}/e2e/playwright-report/
 
   test_csr_examples:
-    name: Compile ${{ matrix.examples }} example
+    name: Test ${{ matrix.examples }} example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

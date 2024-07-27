@@ -53,6 +53,6 @@ fn fetch_locale_csr<T: Locale>() -> T {
         .languages()
         .into_iter()
         .filter_map(|js_val| js_val.as_string())
-        .find_map(|pref_lang| T::from_str(&pref_lang))
+        .find_map(|pref_lang| T::from_str(pref_lang.trim()))
         .unwrap_or_default()
 }
