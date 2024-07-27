@@ -61,34 +61,34 @@ async function check_english({ page }: Input) {
 }
 
 async function check_french({ page }: Input) {
-  // await page.goto("/");
-  // const lngButton = page.getByRole("button", {
-  //   name: i18nFr.click_to_change_lang,
-  // });
-  // await expect(lngButton).toBeVisible();
-  // const incButton = page.getByRole("button", {
-  //   name: i18nFr.click_to_inc,
-  // });
-  // await expect(incButton).toBeVisible();
-  // await expect(
-  //   page.getByText(i18nFr.click_count.replace("{{ count }}", "0"))
-  // ).toBeVisible();
-  // await incButton.click();
-  // await expect(
-  //   page.getByText(i18nFr.click_count.replace("{{ count }}", "1"))
-  // ).toBeVisible();
-  // await lngButton.click();
-  // await expect(
-  //   page.getByRole("button", {
-  //     name: i18nEn.click_to_change_lang,
-  //   })
-  // ).toBeVisible();
-  // await expect(
-  //   page.getByRole("button", {
-  //     name: i18nEn.click_to_inc,
-  //   })
-  // ).toBeVisible();
-  // await expect(
-  //   page.getByText(i18nEn.click_count.replace("{{ count }}", "1"))
-  // ).toBeVisible();
+  await page.goto("/");
+  const lngButton = page.getByRole("button", {
+    name: i18nFr.click_to_change_lang,
+  });
+  await expect(lngButton).toBeVisible();
+  const incButton = page.getByRole("button", {
+    name: i18nFr.click_to_inc,
+  });
+  await expect(incButton).toBeVisible();
+  await expect(
+    page.getByText(i18nFr.click_count.replace("{{ count }}", "0"))
+  ).toBeVisible();
+  await incButton.click();
+  await expect(
+    page.getByText(i18nFr.click_count.replace("{{ count }}", "1"))
+  ).toBeVisible();
+  await lngButton.click();
+  await expect(
+    page.getByRole("button", {
+      name: i18nEn.click_to_change_lang,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: i18nEn.click_to_inc,
+    })
+  ).toBeVisible();
+  await expect(
+    page.getByText(i18nEn.click_count.replace("{{ count }}", "1"))
+  ).toBeVisible();
 }
