@@ -13,8 +13,12 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Execute all lib tests (chunk ${{ matrix.chunk }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [1, 2, 3]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v3
@@ -22,10 +26,11 @@ jobs:
       - name: "Load cargo toolchain"
         uses: dtolnay/rust-toolchain@stable
 
+      - name: "Install cargo-all-features"
+        run: cargo install cargo-all-features
+
       - name: "Test all features"
-        run: |
-          cargo install cargo-all-features
-          cargo test-all-features
+        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk ${{ matrix.chunk }}
 
   compile_ssr_examples:
     name: Compile ${{ matrix.examples }} example
