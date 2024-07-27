@@ -12,9 +12,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: Test
+  tests:
+    name: Execute all lib tests (chunk ${{ matrix.chunk }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk: [1, 2]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -22,10 +26,11 @@ jobs:
       - name: "Load cargo toolchain"
         uses: dtolnay/rust-toolchain@stable
 
+      - name: "Install cargo-all-features"
+        run: cargo install cargo-all-features
+
       - name: "Test all features"
-        run: |
-          cargo install cargo-all-features
-          cargo test-all-features
+        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk ${{ matrix.chunk }}
 
   test_ssr_examples:
     name: Test ${{ matrix.examples }} example

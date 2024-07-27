@@ -14,7 +14,7 @@ use super::{
     warning::{emit_warning, Warning},
 };
 
-macro_rules! files_formats {
+macro_rules! define_by_format {
     (json => $($tt:tt)*) => {
         #[cfg(all(feature = "json_files", not(any(feature = "yaml_files"))))]
         $($tt)*
@@ -34,35 +34,50 @@ macro_rules! files_formats {
     }
 }
 
-files_formats!(json => pub type SerdeError = serde_json::Error;);
-files_formats!(yaml => pub type SerdeError = serde_yaml::Error;);
-files_formats!(none => pub type SerdeError = &'static str;); // whatever impl Display
-files_formats!(multiple => pub type SerdeError = &'static str;); // whatever impl Display
+macro_rules! define_error {
+    ($ident:ident => $t:ty) => {
+        define_by_format!($ident => pub type SerdeError = $t;);
+    };
+}
 
-files_formats!(json => const FILE_EXTS: &[&str] = &["json"];);
-files_formats!(yaml => const FILE_EXTS: &[&str] = &["yaml", "yml"];);
-files_formats!(none => const FILE_EXTS: &[&str] = &[];);
-files_formats!(multiple => const FILE_EXTS: &[&str] = &[];);
+macro_rules! define_files_exts {
+    ($ident:ident => $($lit:literal),*) => {
+        define_by_format!($ident => const FILE_EXTS: &[&str] = &[$($lit,)*];);
+    };
+    ($ident:ident) => {
+        define_by_format!($ident => const FILE_EXTS: &[&str] = &[];);
+    };
+}
 
-files_formats!(json =>
+define_error!(json => serde_json::Error);
+define_error!(yaml => serde_yaml::Error);
+define_error!(none => &'static str); // whatever impl Display
+define_error!(multiple => &'static str); // whatever impl Display
+
+define_files_exts!(json => "json");
+define_files_exts!(yaml => "yaml", "yml");
+define_files_exts!(none);
+define_files_exts!(multiple);
+
+define_by_format!(json =>
     fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
         serde::de::DeserializeSeed::deserialize(seed, &mut deserializer)
     }
 );
-files_formats!(yaml =>
+define_by_format!(yaml =>
     fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
         serde::de::DeserializeSeed::deserialize(seed, deserializer)
     }
 );
-files_formats!(none =>
+define_by_format!(none =>
     fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let _ = (locale_file, seed);
         compile_error!("No file format has been provided for leptos_i18n, supported formats are: json and yaml")
     }
 );
-files_formats!(multiple =>
+define_by_format!(multiple =>
     fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let _ = (locale_file, seed);
         compile_error!("Multiple file format have been provided for leptos_i18n, choose only one, supported formats are: json and yaml")

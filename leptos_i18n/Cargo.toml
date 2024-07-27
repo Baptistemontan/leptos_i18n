@@ -11,23 +11,21 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cfg-if = "1.0.0"
 leptos_i18n_macro = { workspace = true }
 leptos = "0.6"
 leptos_meta = "0.6"
 actix-web = { version = "4", optional = true }
 axum = { version = "0.7", optional = true }
 leptos_axum = { version = "0.6", optional = true }
-web-sys = { version = "0.3", optional = true, features = ["HtmlDocument"] }
-wasm-bindgen = { version = "0.2", optional = true }
+web-sys = { version = "0.3", features = ["HtmlDocument", "Navigator"] }
+wasm-bindgen = { version = "0.2" }
 http = { version = "1", optional = true }
 
 [features]
 default = ["cookie", "json_files"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
-cookie = ["dep:web-sys", "dep:wasm-bindgen"]
+cookie = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate"]
-ssr = ["leptos/ssr", "leptos_meta/ssr"]
 actix = ["ssr", "dep:actix-web"]
 axum = ["ssr", "dep:axum", "dep:leptos_axum", "dep:http"]
 csr = ["leptos/csr", "leptos_meta/csr"]
@@ -43,6 +41,9 @@ experimental-islands = [
     "leptos_i18n_macro/experimental-islands",
 ]
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
+
+# internally used features, not meant to be manually enabled
+ssr = ["leptos/ssr", "leptos_meta/ssr"]
 
 
 [package.metadata.cargo-all-features]
