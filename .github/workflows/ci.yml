@@ -12,13 +12,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  tests:
-    name: Execute all lib tests (chunk ${{ matrix.chunk }}/${{ strategy.job-total }})
+  lib_test:
+    name: Test leptos_i18n package
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        chunk: [1, 2]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -30,7 +26,23 @@ jobs:
         run: cargo install cargo-all-features
 
       - name: "Test all features"
-        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk ${{ matrix.chunk }}
+        run: cargo test-all-features --n-chunks 2 --chunk 1
+
+  macro_test:
+    name: Test leptos_i18n_macro package
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+
+      - name: "Load cargo toolchain"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Install cargo-all-features"
+        run: cargo install cargo-all-features
+
+      - name: "Test all features"
+        run: cargo test-all-features --n-chunks 2 --chunk 2
 
   test_ssr_examples:
     name: Test ${{ matrix.examples }} example
