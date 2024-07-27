@@ -41,9 +41,18 @@ fn fetch_locale_csr<T: Locale>() -> T {
             }
         })
     }
+
     if cfg!(feature = "cookie") {
-        get_lang_cookie().unwrap_or_default()
-    } else {
-        Default::default()
+        if let Some(lang) = get_lang_cookie() {
+            return lang;
+        }
     }
+
+    leptos::window()
+        .navigator()
+        .languages()
+        .into_iter()
+        .filter_map(|js_val| js_val.as_string())
+        .find_map(|pref_lang| T::from_str(&pref_lang))
+        .unwrap_or_default()
 }
