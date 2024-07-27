@@ -11,9 +11,10 @@ pub fn fetch_locale_server<T: Locale>() -> T {
 }
 
 fn from_req<T: Locale>(req: &Parts) -> T {
-    #[cfg(feature = "cookie")]
-    if let Some(pref_lang_cookie) = get_prefered_lang_cookie::<T>(req) {
-        return pref_lang_cookie;
+    if cfg!(feature = "cookie") {
+        if let Some(pref_lang_cookie) = get_prefered_lang_cookie::<T>(req) {
+            return pref_lang_cookie;
+        }
     }
 
     let Some(header) = req
@@ -29,7 +30,6 @@ fn from_req<T: Locale>(req: &Parts) -> T {
     T::find_locale(&langs)
 }
 
-#[cfg(feature = "cookie")]
 fn get_prefered_lang_cookie<T: Locale>(req: &Parts) -> Option<T> {
     req.headers
         .get_all(header::COOKIE)
@@ -39,7 +39,6 @@ fn get_prefered_lang_cookie<T: Locale>(req: &Parts) -> Option<T> {
         .next()
 }
 
-#[cfg(feature = "cookie")]
 fn parse_cookie(cookie: &axum::http::HeaderValue) -> Option<&str> {
     std::str::from_utf8(cookie.as_bytes())
         .ok()?

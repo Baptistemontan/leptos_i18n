@@ -10,12 +10,13 @@ pub fn fetch_locale_server<T: Locale>() -> T {
 }
 
 fn from_req<T: Locale>(req: &actix_web::HttpRequest) -> T {
-    #[cfg(feature = "cookie")]
-    if let Some(pref) = req
-        .cookie(crate::COOKIE_PREFERED_LANG)
-        .and_then(|ck| T::from_str(ck.value()))
-    {
-        return pref;
+    if cfg!(feature = "cookie") {
+        if let Some(pref) = req
+            .cookie(crate::COOKIE_PREFERED_LANG)
+            .and_then(|ck| T::from_str(ck.value()))
+        {
+            return pref;
+        }
     }
 
     let Some(header) = req
