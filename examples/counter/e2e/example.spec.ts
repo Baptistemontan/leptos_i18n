@@ -15,6 +15,7 @@ test.describe("when locale is set to french (fr-FR)", () => {
 });
 
 type TestArgs = Parameters<Parameters<typeof test>[2]>[0]; // wonky
+const COOKIE_PREFERED_LANG = "i18n_pref_locale";
 
 async function check_cookie(
   context: TestArgs["context"],
@@ -28,7 +29,7 @@ async function check_cookie(
 async function check_english({ page, context }: TestArgs) {
   await page.goto("/");
 
-  await check_cookie(context, "COOKIE_PREFERED_LANG", "en");
+  await check_cookie(context, COOKIE_PREFERED_LANG, "en");
 
   const lngButton = page.getByRole("button", {
     name: i18nEn.click_to_change_lang,
@@ -70,13 +71,13 @@ async function check_english({ page, context }: TestArgs) {
     page.getByText(i18nFr.click_count.replace("{{ count }}", "1"))
   ).toBeVisible();
 
-  await check_cookie(context, "COOKIE_PREFERED_LANG", "fr");
+  await check_cookie(context, COOKIE_PREFERED_LANG, "fr");
 }
 
 async function check_french({ page, context }: TestArgs) {
   await page.goto("/");
 
-  await check_cookie(context, "COOKIE_PREFERED_LANG", "en");
+  await check_cookie(context, COOKIE_PREFERED_LANG, "en");
 
   const lngButton = page.getByRole("button", {
     name: i18nFr.click_to_change_lang,
@@ -117,5 +118,5 @@ async function check_french({ page, context }: TestArgs) {
     page.getByText(i18nEn.click_count.replace("{{ count }}", "1"))
   ).toBeVisible();
 
-  await check_cookie(context, "COOKIE_PREFERED_LANG", "fr");
+  await check_cookie(context, COOKIE_PREFERED_LANG, "fr");
 }
