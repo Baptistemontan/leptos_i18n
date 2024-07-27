@@ -35,21 +35,21 @@ function fail_windows_webkit({ browserName }: TestArgs): boolean {
 }
 
 test.describe("when locale is the default locale (en-GB)", () => {
-  test.fail(fail_windows_webkit, "webkit does not support wasm on windows");
+  test.skip(fail_windows_webkit, "webkit does not support wasm on windows");
 
-  test("simple test", ({ page, context }) =>
-    check(page, context, EN_LOCALE, FR_LOCALE));
+  test("check counter", ({ page }) => check_counter(page, EN_LOCALE));
+  test("check lang switch", ({ page }) => check_lang_switch(page, FR_LOCALE));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
-  test.fail(fail_windows_webkit, "webkit does not support wasm on windows");
+  test.skip(fail_windows_webkit, "webkit does not support wasm on windows");
 
   test.use({
     locale: "fr",
   });
 
-  test("simple test", ({ page, context }) =>
-    check(page, context, FR_LOCALE, EN_LOCALE));
+  test("check counter", ({ page }) => check_counter(page, FR_LOCALE));
+  test("check lang switch", ({ page }) => check_lang_switch(page, EN_LOCALE));
 });
 
 async function check_cookie(
@@ -61,47 +61,42 @@ async function check_cookie(
   await expect(cookies.find((c) => c.name == name)?.value).toBe(expected_value);
 }
 
-async function check(
+async function check_counter(
   page: Page,
-  context: BrowserContext,
-  first_locale: LocaleArg,
-  second_locale: LocaleArg
+  locale: LocaleArg,
+  load_page: boolean = true
 ) {
-  await page.goto("/");
-
-  const lngButton = page.locator(LNG_BUTTON_XPATH);
-
-  await expect(lngButton).toHaveText(first_locale.locale.click_to_change_lang);
-
-  const incButton = page.locator(INC_BUTTON_XPATH);
-
-  await expect(incButton).toHaveText(first_locale.locale.click_to_inc);
-
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    first_locale.locale.click_count.replace("{{ count }}", "0")
-  );
-
-  await incButton.click();
-
-  await check_cookie(context, COOKIE_PREFERED_LANG, first_locale.id);
-
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    first_locale.locale.click_count.replace("{{ count }}", "1")
-  );
-
-  // switch locales
-
-  await lngButton.click();
+  if (load_page) {
+    await page.goto("/");
+  }
 
   await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
-    second_locale.locale.click_to_change_lang
+    locale.locale.click_to_change_lang
   );
   await expect(page.locator(INC_BUTTON_XPATH)).toHaveText(
-    second_locale.locale.click_to_inc
+    locale.locale.click_to_inc
   );
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    second_locale.locale.click_count.replace("{{ count }}", "1")
+    locale.locale.click_count.replace("{{ count }}", "0")
   );
 
-  await check_cookie(context, COOKIE_PREFERED_LANG, second_locale.id);
+  for (let i = 1; i < 10; i++) {
+    await page.locator(INC_BUTTON_XPATH).click();
+
+    await expect(page.locator(COUNTER_XPATH)).toHaveText(
+      locale.locale.click_count.replace("{{ count }}", i.toString())
+    );
+  }
+}
+
+async function check_lang_switch(page: Page, locale: LocaleArg) {
+  await page.goto("/");
+
+  await page.locator(LNG_BUTTON_XPATH).click();
+
+  await check_counter(page, locale, false);
+
+  await page.reload();
+  // check if locale persist
+  await check_counter(page, locale, false);
 }
