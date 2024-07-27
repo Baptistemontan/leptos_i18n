@@ -29,8 +29,6 @@ async function check_cookie(
 async function check_english({ page, context }: TestArgs) {
   await page.goto("/");
 
-  await check_cookie(context, COOKIE_PREFERED_LANG, "en");
-
   const lngButton = page.getByRole("button", {
     name: i18nEn.click_to_change_lang,
   });
@@ -48,6 +46,8 @@ async function check_english({ page, context }: TestArgs) {
   ).toBeVisible();
 
   await incButton.click();
+
+  await check_cookie(context, COOKIE_PREFERED_LANG, "en");
 
   await expect(
     page.getByText(i18nEn.click_count.replace("{{ count }}", "1"))
@@ -77,8 +77,6 @@ async function check_english({ page, context }: TestArgs) {
 async function check_french({ page, context }: TestArgs) {
   await page.goto("/");
 
-  await check_cookie(context, COOKIE_PREFERED_LANG, "en");
-
   const lngButton = page.getByRole("button", {
     name: i18nFr.click_to_change_lang,
   });
@@ -96,6 +94,8 @@ async function check_french({ page, context }: TestArgs) {
   ).toBeVisible();
 
   await incButton.click();
+
+  await check_cookie(context, COOKIE_PREFERED_LANG, "fr");
 
   await expect(
     page.getByText(i18nFr.click_count.replace("{{ count }}", "1"))
@@ -118,5 +118,5 @@ async function check_french({ page, context }: TestArgs) {
     page.getByText(i18nEn.click_count.replace("{{ count }}", "1"))
   ).toBeVisible();
 
-  await check_cookie(context, COOKIE_PREFERED_LANG, "fr");
+  await check_cookie(context, COOKIE_PREFERED_LANG, "en");
 }
