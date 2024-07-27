@@ -1,12 +1,27 @@
 import { test, expect } from "@playwright/test";
-import i18nEn from "../locales/en.json";
-import i18nFr from "../locales/fr.json";
+import i18nEn from "#locales/en.json";
+import i18nFr from "#locales/fr.json";
+import * as os from "os";
+
+type TestArgs = Parameters<Parameters<typeof test>[2]>[0]; // wonky
+type BrowserContext = TestArgs["context"];
+const COOKIE_PREFERED_LANG = "i18n_pref_locale";
+const WIN = os.platform() == "win32";
+
+function fail_windows_webkit({ browserName }: TestArgs): boolean {
+  const WEBKIT = browserName === "webkit";
+  return WEBKIT && WIN;
+}
 
 test.describe("when locale is the default locale (en-GB)", () => {
+  test.fail(fail_windows_webkit, "webkit does not support wasm on windows");
+
   test("simple test", check_english);
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
+  test.fail(fail_windows_webkit, "webkit does not support wasm on windows");
+
   test.use({
     locale: "fr",
   });
@@ -14,16 +29,13 @@ test.describe("when locale is set to french (fr-FR)", () => {
   test("simple test", check_french);
 });
 
-type TestArgs = Parameters<Parameters<typeof test>[2]>[0]; // wonky
-const COOKIE_PREFERED_LANG = "i18n_pref_locale";
-
 async function check_cookie(
-  context: TestArgs["context"],
+  context: BrowserContext,
   name: string,
-  value: string
+  expected_value: string
 ) {
   const cookies = await context.cookies();
-  await expect(cookies.find((c) => c.name == name)?.value).toBe(value);
+  await expect(cookies.find((c) => c.name == name)?.value).toBe(expected_value);
 }
 
 async function check_english({ page, context }: TestArgs) {
