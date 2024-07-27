@@ -69,8 +69,12 @@ fn init_context<T: Locale>() -> I18nContext<T> {
     create_isomorphic_effect(move |_| {
         let new_lang = locale.get();
         set_html_lang_attr(new_lang.as_str());
-        #[cfg(all(feature = "cookie", any(feature = "hydrate", feature = "csr")))]
-        set_lang_cookie::<T>(new_lang);
+        if cfg!(all(
+            feature = "cookie",
+            any(feature = "hydrate", feature = "csr")
+        )) {
+            set_lang_cookie::<T>(new_lang);
+        }
     });
 
     let context = I18nContext::<T>(locale);
@@ -101,7 +105,6 @@ pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
-#[cfg(all(feature = "cookie", any(feature = "hydrate", feature = "csr")))]
 fn set_lang_cookie<T: Locale>(lang: T) -> Option<()> {
     use crate::COOKIE_PREFERED_LANG;
     let document = super::get_html_document()?;

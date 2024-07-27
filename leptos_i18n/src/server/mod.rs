@@ -10,8 +10,17 @@ use crate::Locale;
 use actix as backend;
 #[cfg(all(feature = "axum", not(feature = "actix")))]
 use axum as backend;
+#[cfg(any(
+    all(feature = "actix", feature = "axum"),
+    all(not(feature = "actix"), not(feature = "axum"))
+))]
+mod backend {
+    use super::Locale;
+    pub fn fetch_locale_server<T: Locale>() -> T {
+        unreachable!()
+    }
+}
 
-#[cfg(any(feature = "actix", feature = "axum"))]
 pub fn fetch_locale_server_side<T: Locale>() -> T {
     backend::fetch_locale_server::<T>()
 }
@@ -19,12 +28,10 @@ pub fn fetch_locale_server_side<T: Locale>() -> T {
 #[cfg(all(feature = "actix", feature = "axum"))]
 compile_error!("Can't enable \"actix\" and \"axum\" features together.");
 
-#[cfg(not(any(feature = "actix", feature = "axum")))]
-pub fn fetch_locale_server_side<T: Locale>() -> T {
-    compile_error!("Need either \"actix\" or \"axum\" feature to be enabled in ssr. Don't use the \"ssr\" feature, it is directly enable by the \"actix\" or \"axum\" feature.")
-}
+#[cfg(all(feature = "ssr", not(any(feature = "actix", feature = "axum"))))]
+compile_error!("Need either \"actix\" or \"axum\" feature to be enabled in ssr. Don't use the \"ssr\" feature, it is directly enable by the \"actix\" or \"axum\" feature.");
 
-#[cfg(any(feature = "actix", feature = "axum"))]
+#[allow(unused)]
 pub(crate) fn parse_header(header: &str) -> Vec<String> {
     let mut parsed_lang: Vec<_> = header
         .split(';')
@@ -52,7 +59,7 @@ pub(crate) fn parse_header(header: &str) -> Vec<String> {
         .collect()
 }
 
-#[cfg(all(test, any(feature = "actix", feature = "axum")))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
