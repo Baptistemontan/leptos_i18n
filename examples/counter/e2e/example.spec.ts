@@ -39,6 +39,8 @@ test.describe("when locale is the default locale (en-GB)", () => {
 
   test("check counter", ({ page }) => check_counter(page, EN_LOCALE));
   test("check lang switch", ({ page }) => check_lang_switch(page, FR_LOCALE));
+  test("check state keeping", ({ page }) =>
+    check_state_keeping(page, EN_LOCALE, FR_LOCALE));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
@@ -50,6 +52,8 @@ test.describe("when locale is set to french (fr-FR)", () => {
 
   test("check counter", ({ page }) => check_counter(page, FR_LOCALE));
   test("check lang switch", ({ page }) => check_lang_switch(page, EN_LOCALE));
+  test("check state keeping", ({ page }) =>
+    check_state_keeping(page, FR_LOCALE, EN_LOCALE));
 });
 
 async function check_cookie(
@@ -99,4 +103,26 @@ async function check_lang_switch(page: Page, locale: LocaleArg) {
   await page.reload();
   // check if locale persist
   await check_counter(page, locale, false);
+}
+
+async function check_state_keeping(
+  page: Page,
+  current_locale: LocaleArg,
+  target_locale: LocaleArg
+) {
+  await page.goto("/");
+
+  let i = 0;
+  for (; i < 3; i++) {
+    await page.locator(INC_BUTTON_XPATH).click();
+  }
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    current_locale.locale.click_count.replace("{{ count }}", i.toString())
+  );
+
+  await page.locator(LNG_BUTTON_XPATH).click();
+
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    target_locale.locale.click_count.replace("{{ count }}", i.toString())
+  );
 }
