@@ -57,6 +57,10 @@ jobs:
       - name: "Install cargo-leptos"
         run: cargo install cargo-leptos
 
+      - name: "Build utils"
+        working-directory: examples/utils
+        run: npm ci
+
       - name: "Install Playwright"
         working-directory: examples/${{ matrix.examples }}/e2e
         run: |
@@ -104,6 +108,10 @@ jobs:
 
       - name: "Install trunk"
         run: cargo install trunk
+
+      - name: "Build utils"
+        working-directory: examples/utils
+        run: npm ci
 
       - name: "Install Playwright"
         working-directory: examples/${{ matrix.examples }}

@@ -4,7 +4,9 @@
   "description": "This package is utils for developping the e2e tests of the examples",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "scripts": {},
+  "scripts": {
+    "postinstall": "npx tsc"
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
