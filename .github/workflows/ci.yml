@@ -73,7 +73,8 @@ jobs:
 
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        # upload artifact only if test failed
+        if: ${{ failure() && !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/${{ matrix.examples }}/e2e/playwright-report/
