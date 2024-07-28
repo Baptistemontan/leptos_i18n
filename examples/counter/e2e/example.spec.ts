@@ -4,8 +4,6 @@ import i18nFr from "#locales/fr.json";
 import * as os from "os";
 
 type TestArgs = Parameters<Parameters<typeof test>[2]>[0]; // wonky
-type BrowserContext = TestArgs["context"];
-const COOKIE_PREFERED_LANG = "i18n_pref_locale";
 const WIN = os.platform() == "win32";
 
 const LNG_BUTTON_XPATH = "xpath=//html/body/button[1]";
@@ -56,15 +54,6 @@ test.describe("when locale is set to french (fr-FR)", () => {
     check_state_keeping(page, FR_LOCALE, EN_LOCALE));
 });
 
-async function check_cookie(
-  context: BrowserContext,
-  name: string,
-  expected_value: string
-) {
-  const cookies = await context.cookies();
-  await expect(cookies.find((c) => c.name == name)?.value).toBe(expected_value);
-}
-
 async function check_counter(
   page: Page,
   locale: LocaleArg,
@@ -81,13 +70,21 @@ async function check_counter(
     locale.locale.click_to_inc
   );
 
-  for (let i = 0; i < 3; i++) {
-    await expect(page.locator(COUNTER_XPATH)).toHaveText(
-      locale.locale.click_count.replace("{{ count }}", i.toString())
-    );
-
-    await page.locator(INC_BUTTON_XPATH).click();
-  }
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    locale.locale.click_count.replace("{{ count }}", "0")
+  );
+  await page.locator(INC_BUTTON_XPATH).click();
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    locale.locale.click_count.replace("{{ count }}", "1")
+  );
+  await page.locator(INC_BUTTON_XPATH).click();
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    locale.locale.click_count.replace("{{ count }}", "2")
+  );
+  await page.locator(INC_BUTTON_XPATH).click();
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    locale.locale.click_count.replace("{{ count }}", "3")
+  );
 }
 
 async function check_lang_switch(page: Page, locale: LocaleArg) {
@@ -109,17 +106,22 @@ async function check_state_keeping(
 ) {
   await page.goto("/");
 
-  let i = 0;
-  for (; i < 3; i++) {
-    await page.locator(INC_BUTTON_XPATH).click();
-  }
+  await page.locator(INC_BUTTON_XPATH).click();
+  await page.locator(INC_BUTTON_XPATH).click();
+  await page.locator(INC_BUTTON_XPATH).click();
+
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    current_locale.locale.click_count.replace("{{ count }}", i.toString())
+    current_locale.locale.click_count.replace("{{ count }}", "3")
   );
 
   await page.locator(LNG_BUTTON_XPATH).click();
 
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    target_locale.locale.click_count.replace("{{ count }}", i.toString())
+    target_locale.locale.click_count.replace("{{ count }}", "3")
+  );
+
+  await page.locator(INC_BUTTON_XPATH).click();
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    target_locale.locale.click_count.replace("{{ count }}", "4")
   );
 }
