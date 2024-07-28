@@ -106,9 +106,7 @@ async function check_state_keeping(
 ) {
   await page.goto("/");
 
-  await page.locator(INC_BUTTON_XPATH).click();
-  await page.locator(INC_BUTTON_XPATH).click();
-  await page.locator(INC_BUTTON_XPATH).click();
+  await page.locator(INC_BUTTON_XPATH).click({ clickCount: 3 });
 
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
     current_locale.locale.click_count.replace("{{ count }}", "3")

@@ -77,7 +77,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "npm start",
+    command: "trunk serve --no-autoreload",
     url,
     reuseExistingServer: !process.env.CI,
   },
