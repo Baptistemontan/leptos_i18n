@@ -80,16 +80,13 @@ async function check_counter(
   await expect(page.locator(INC_BUTTON_XPATH)).toHaveText(
     locale.locale.click_to_inc
   );
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    locale.locale.click_count.replace("{{ count }}", "0")
-  );
 
-  for (let i = 1; i < 3; i++) {
-    await page.locator(INC_BUTTON_XPATH).click();
-
+  for (let i = 0; i < 3; i++) {
     await expect(page.locator(COUNTER_XPATH)).toHaveText(
       locale.locale.click_count.replace("{{ count }}", i.toString())
     );
+
+    await page.locator(INC_BUTTON_XPATH).click();
   }
 }
 
