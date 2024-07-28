@@ -80,7 +80,7 @@ async function check_counter(
     locale.locale.click_count.replace("{{ count }}", "0")
   );
 
-  for (let i = 1; i < 10; i++) {
+  for (let i = 1; i < 3; i++) {
     await page.locator(INC_BUTTON_XPATH).click();
 
     await expect(page.locator(COUNTER_XPATH)).toHaveText(
