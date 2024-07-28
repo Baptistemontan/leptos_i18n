@@ -111,7 +111,7 @@ jobs:
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
-        run: trunk build*
+        run: trunk build
 
       - name: "Build e2e utils"
         working-directory: examples/utils
