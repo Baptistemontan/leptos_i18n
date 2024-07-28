@@ -1,6 +1,5 @@
 use leptos::*;
 use leptos_meta::*;
-use wasm_bindgen::UnwrapThrowExt;
 
 use crate::{fetch_locale, locale_traits::*};
 
@@ -114,10 +113,7 @@ fn set_lang_cookie<T: Locale>(lang: T) -> Option<()> {
         COOKIE_PREFERED_LANG,
         lang.as_str()
     );
-    leptos::logging::log!("set cookie: {}", cookie);
-    document.set_cookie(&cookie).unwrap_throw();
-    leptos::logging::log!("cookies: {}", document.cookie().unwrap_throw());
-    Some(())
+    document.set_cookie(&cookie).ok()
 }
 
 // get locale
