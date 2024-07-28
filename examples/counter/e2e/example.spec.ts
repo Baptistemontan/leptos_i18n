@@ -1,11 +1,7 @@
 import { test, expect, Page } from "@playwright/test";
 import i18nEn from "#locales/en.json";
 import i18nFr from "#locales/fr.json";
-import * as os from "os";
-
-type TestArgs = Parameters<Parameters<typeof test>[2]>[0]; // wonky
-type BrowserName = TestArgs["browserName"];
-const WIN = os.platform() == "win32";
+import { fail_windows_webkit, TestArgs, BrowserName } from "../../utils";
 
 const LNG_BUTTON_XPATH = "xpath=//html/body/button[1]";
 const INC_BUTTON_XPATH = "xpath=//html/body/button[2]";
@@ -27,11 +23,6 @@ const FR_LOCALE: LocaleArg = {
   locale: i18nFr,
   id: "fr",
 };
-
-function fail_windows_webkit({ browserName }: TestArgs): boolean {
-  const WEBKIT = browserName === "webkit";
-  return WEBKIT && WIN;
-}
 
 test.describe("when locale is the default locale (en-GB)", () => {
   test.skip(fail_windows_webkit, "webkit does not support wasm on windows");
