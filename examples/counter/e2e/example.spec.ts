@@ -92,10 +92,10 @@ async function check_lang_switch(
 
   await check_counter(page, locale, false);
 
-  // cookies aren't working on webkit for some reason ?
-  if (browserName == "webkit") {
-    return;
-  }
+  // // cookies aren't working on webkit for some reason ?
+  // if (browserName == "webkit") {
+  //   return;
+  // }
 
   await page.reload();
   // check if locale persist
