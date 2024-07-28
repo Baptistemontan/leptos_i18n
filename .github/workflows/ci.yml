@@ -124,10 +124,6 @@ jobs:
           npx playwright install --with-deps
           cargo install trunk
 
-      - name: "Build ${{ matrix.examples }} example"
-        working-directory: examples/${{ matrix.examples }}
-        run: trunk build
-
       - name: "e2e testing ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
         run: npx playwright test
