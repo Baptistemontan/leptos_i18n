@@ -17,19 +17,17 @@ leptos_meta = "0.6"
 actix-web = { version = "4", optional = true }
 axum = { version = "0.7", optional = true }
 leptos_axum = { version = "0.6", optional = true }
-web-sys = { version = "0.3", features = ["HtmlDocument", "Navigator"] }
-wasm-bindgen = { version = "0.2" }
 http = { version = "1", optional = true }
-leptos-use = "0.11.0"
-codee = "0.1.2"
+leptos-use = "0.11"
+codee = "0.1"
 
 [features]
 default = ["cookie", "json_files"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 cookie = []
-hydrate = ["leptos/hydrate", "leptos_meta/hydrate"]
-actix = ["ssr", "dep:actix-web"]
-axum = ["ssr", "dep:axum", "dep:leptos_axum", "dep:http"]
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos-use/hydrate"]
+actix = ["ssr", "leptos-use/actix", "dep:actix-web"]
+axum = ["ssr", "leptos-use/axum", "dep:axum", "dep:leptos_axum", "dep:http"]
 csr = ["leptos/csr", "leptos_meta/csr"]
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
