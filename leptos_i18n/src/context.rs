@@ -100,8 +100,12 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
 ) -> I18nContext<T> {
     provide_meta_context();
 
-    let (lang_cookie, set_lang_cookie) =
-        leptos_use::use_cookie_with_options::<T, LocaleCodec>(cookie_name, cookie_options);
+    let (lang_cookie, set_lang_cookie) = if enable_cookie {
+        leptos_use::use_cookie_with_options::<T, LocaleCodec>(cookie_name, cookie_options)
+    } else {
+        let (lang_cookie, set_lang_cookie) = create_signal::<Option<T>>(None);
+        (lang_cookie.into(), set_lang_cookie)
+    };
 
     let locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
 
@@ -121,9 +125,7 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
         if let Some(el) = node_ref.get() {
             let _ = el.attr("lang", new_lang.as_str());
         }
-        if enable_cookie {
-            set_lang_cookie.set(Some(new_lang));
-        }
+        set_lang_cookie.set(Some(new_lang));
     });
 
     let context = I18nContext::<T>(locale);
@@ -133,10 +135,7 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
     context
 }
 
-const ENABLE_COOKIE: bool = cfg!(all(
-    feature = "cookie",
-    any(feature = "hydrate", feature = "csr")
-));
+const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 

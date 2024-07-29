@@ -43,7 +43,7 @@ experimental-islands = [
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
 # internally used features, not meant to be manually enabled
-ssr = ["leptos/ssr", "leptos_meta/ssr"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr"]
 
 
 [package.metadata.cargo-all-features]
