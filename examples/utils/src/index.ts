@@ -39,22 +39,34 @@ type TFuncArgs = {
 type TFunc = (key: string, args?: TFuncArgs) => string;
 type LangChangeCb<L extends Locales> = (new_locale: keyof L) => Promise<void>;
 
+function match_locale<L extends Locales>(
+  locale: string,
+  locales: L,
+  default_locale: keyof L
+): keyof L {
+  const parts = locale.split("-");
+  const keys = Object.keys(locales);
+
+  while (parts.length) {
+    const key = parts.join("-");
+    if (keys.includes(key)) {
+      return key as keyof L;
+    }
+    parts.pop();
+  }
+
+  return default_locale;
+}
+
 class I18n<L extends Locales> {
   private current_locale: keyof L;
   private locales: L;
   private locale_change_cb: LangChangeCb<L> | null;
 
   constructor(args: I18nFixtureArgs<L>, locale: string) {
-    function is_key_of<L extends Locales>(
-      locale: any,
-      locales: L
-    ): locale is keyof L {
-      return !!locales[locale];
-    }
-
     const { locales, default_locale } = args;
 
-    this.current_locale = is_key_of(locale, locales) ? locale : default_locale;
+    this.current_locale = match_locale(locale, locales, default_locale);
     this.locales = locales;
   }
 
