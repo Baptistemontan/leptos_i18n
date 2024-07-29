@@ -146,6 +146,7 @@ pub use leptos_i18n_macro::{
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;
+    pub use leptos_i18n_macro::declare_locales;
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.

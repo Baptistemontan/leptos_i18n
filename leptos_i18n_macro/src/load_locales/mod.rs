@@ -6,6 +6,7 @@ use std::{
 };
 
 pub mod cfg_file;
+pub mod declare_locales;
 pub mod error;
 pub mod interpolate;
 pub mod key;
@@ -49,14 +50,21 @@ pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
     let mut locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
 
-    ParsedValue::resolve_foreign_keys(&locales, &cfg_file.default)?;
+    load_locales_inner(&cfg_file, &mut locales)
+}
 
-    let keys = Locale::check_locales(&mut locales)?;
+fn load_locales_inner(
+    cfg_file: &ConfigFile,
+    locales: &mut LocalesOrNamespaces,
+) -> Result<TokenStream> {
+    ParsedValue::resolve_foreign_keys(locales, &cfg_file.default)?;
+
+    let keys = Locale::check_locales(locales)?;
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
 
-    let locale_type = create_locale_type(keys, &cfg_file, &keys_ident, &enum_ident);
+    let locale_type = create_locale_type(keys, cfg_file, &keys_ident, &enum_ident);
     let locale_enum = create_locales_enum(
         &enum_ident,
         &keys_ident,
@@ -109,6 +117,7 @@ pub fn load_locales() -> Result<TokenStream> {
 
             mod provider {
                 #[leptos::#island_or_component]
+                #[allow(non_snake_case)]
                 pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
                     super::provide_i18n_context();
                     children()

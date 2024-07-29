@@ -31,6 +31,13 @@ pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream
     }
 }
 
+/// This is for a private use writing tests.
+#[doc(hidden)]
+#[proc_macro]
+pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    load_locales::declare_locales::declare_locales(tokens)
+}
+
 /// Utility macro to easily put translation in your application.
 ///
 /// Usage:

@@ -278,6 +278,7 @@ pub mod i18n {
     mod provider {
         // #[leptos::island] if the `experimental-islands` feature is enabled
         #[leptos::component]
+        #[allow(non_snake_case)]
         pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
             super::provide_i18n_context();
             children()
