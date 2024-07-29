@@ -43,6 +43,8 @@ test.afterEach(async ({ context }) => {
 test.describe("when locale is the default locale (en-GB)", () => {
   test("check counter", ({ page, i18n }) => check_counter(page, i18n));
   test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
+  test("check state keeping", ({ page, i18n }) =>
+    check_state_keeping(page, i18n));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
@@ -52,6 +54,8 @@ test.describe("when locale is set to french (fr-FR)", () => {
 
   test("check counter", ({ page, i18n }) => check_counter(page, i18n));
   test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
+  test("check state keeping", ({ page, i18n }) =>
+    check_state_keeping(page, i18n));
 });
 
 async function check_counter(
@@ -97,4 +101,25 @@ async function check_lang_switch(page: Page, i18n: I18n) {
   // check if locale persist
   await page.reload();
   await check_counter(page, i18n, false);
+}
+
+async function check_state_keeping(page: Page, i18n: I18n) {
+  await page.goto("/");
+
+  await page.locator(INC_BUTTON_XPATH).click({ clickCount: 3 });
+
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    i18n.t("click_count", { count: 3 })
+  );
+
+  await switch_lang(i18n);
+
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    i18n.t("click_count", { count: 3 })
+  );
+
+  await page.locator(INC_BUTTON_XPATH).click();
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    i18n.t("click_count", { count: 4 })
+  );
 }
