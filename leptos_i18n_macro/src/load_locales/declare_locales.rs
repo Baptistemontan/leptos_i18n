@@ -13,6 +13,7 @@ use super::{
     parsed_value::ParsedValue,
     plural::{Plural, PluralNumber, PluralsInner, TypeOrPlural},
 };
+use proc_macro2::Span;
 use quote::ToTokens;
 use syn::{
     parse::ParseBuffer, parse_macro_input, punctuated::Punctuated, token::Comma, Ident, Lit,
@@ -23,8 +24,9 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     let ParsedInput {
         cfg_file,
         mut locales,
+        crate_path,
     } = parse_macro_input!(tokens as ParsedInput);
-    let result = load_locales_inner(&cfg_file, &mut locales);
+    let result = load_locales_inner(&crate_path, &cfg_file, &mut locales);
     match result {
         Ok(ts) => ts.into(),
         Err(err) => err.into(),
@@ -32,6 +34,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
 }
 
 pub struct ParsedInput {
+    crate_path: syn::Path,
     cfg_file: ConfigFile,
     locales: LocalesOrNamespaces,
 }
@@ -268,7 +271,7 @@ fn parse_block(
 
 fn parse_locale(input: syn::parse::ParseStream, locale_key: Rc<Key>) -> syn::Result<Locale> {
     let loc_name_ident: Ident = input.parse()?;
-    if loc_name_ident != locale_key.name {
+    if loc_name_ident != locale_key.ident {
         return emit_err(loc_name_ident, "unknown locale.");
     }
 
@@ -291,8 +294,22 @@ fn parse_locale(input: syn::parse::ParseStream, locale_key: Rc<Key>) -> syn::Res
 
 impl syn::parse::Parse for ParsedInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident: Ident = input.parse()?;
+        let crate_path = if ident == "path" {
+            input.parse::<Token![:]>()?;
+            let path = input.parse::<syn::Path>()?;
+            input.parse::<Token![,]>()?;
+            Some(path)
+        } else {
+            None
+        };
+
         // default: "defaultloc",
-        let def_ident: Ident = input.parse()?;
+        let def_ident: Ident = if crate_path.is_none() {
+            ident
+        } else {
+            input.parse()?
+        };
         if def_ident != "default" {
             return emit_err(def_ident, "not default");
         }
@@ -333,6 +350,9 @@ impl syn::parse::Parse for ParsedInput {
             return Err(input.error("expected end of stream."));
         }
 
+        let crate_path = crate_path
+            .unwrap_or_else(|| syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site())));
+
         Ok(ParsedInput {
             cfg_file: ConfigFile {
                 default,
@@ -341,6 +361,7 @@ impl syn::parse::Parse for ParsedInput {
                 locales_dir: "".into(),
             },
             locales: LocalesOrNamespaces::Locales(locales),
+            crate_path,
         })
     }
 }

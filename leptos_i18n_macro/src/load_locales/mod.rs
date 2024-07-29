@@ -50,10 +50,13 @@ pub fn load_locales() -> Result<TokenStream> {
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
     let mut locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
 
-    load_locales_inner(&cfg_file, &mut locales)
+    let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
+
+    load_locales_inner(&crate_path, &cfg_file, &mut locales)
 }
 
 fn load_locales_inner(
+    crate_path: &syn::Path,
     cfg_file: &ConfigFile,
     locales: &mut LocalesOrNamespaces,
 ) -> Result<TokenStream> {
@@ -95,10 +98,12 @@ fn load_locales_inner(
         quote!(component)
     };
 
-    let macros_reexport = quote!(pub use leptos_i18n::{#(#macros_reexport,)*};);
+    let macros_reexport = quote!(pub use #crate_path::{#(#macros_reexport,)*};);
 
     Ok(quote! {
         pub mod i18n {
+            use #crate_path as l_i18n_crate;
+
             #file_tracking
 
             #locale_enum
@@ -106,13 +111,13 @@ fn load_locales_inner(
             #locale_type
 
             #[inline]
-            pub fn use_i18n() -> leptos_i18n::I18nContext<#enum_ident> {
-                leptos_i18n::use_i18n_context()
+            pub fn use_i18n() -> l_i18n_crate::I18nContext<#enum_ident> {
+                l_i18n_crate::use_i18n_context()
             }
 
             #[inline]
-            pub fn provide_i18n_context() -> leptos_i18n::I18nContext<#enum_ident> {
-                leptos_i18n::provide_i18n_context()
+            pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<#enum_ident> {
+                l_i18n_crate::provide_i18n_context()
             }
 
             mod provider {
@@ -179,7 +184,7 @@ fn create_locales_enum(
             }
         }
 
-        impl leptos_i18n::Locale for #enum_ident {
+        impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
 
             fn as_str(self) -> &'static str {
@@ -291,7 +296,7 @@ fn create_locale_type_inner(
         key_path.pop_key();
         quote! {
             pub mod #subkey_mod_ident {
-                use super::#enum_ident;
+                use super::{#enum_ident, l_i18n_crate};
 
                 #subkey_impl
             }
@@ -319,7 +324,7 @@ fn create_locale_type_inner(
         quote! {
             #[doc(hidden)]
             pub mod subkeys {
-                use super::#enum_ident;
+                use super::{#enum_ident, l_i18n_crate};
 
                 #(
                     #subkeys_ts
@@ -391,7 +396,7 @@ fn create_locale_type_inner(
         quote! {
             #[doc(hidden)]
             pub mod builders {
-                use super::#enum_ident;
+                use super::{#enum_ident, l_i18n_crate};
 
                 #empty_type
 
@@ -408,7 +413,7 @@ fn create_locale_type_inner(
             .map(|locale| quote!(#enum_ident::#locale => &Self::#locale));
 
         let from_locale = quote! {
-            impl leptos_i18n::LocaleKeys for #type_ident {
+            impl l_i18n_crate::LocaleKeys for #type_ident {
                 type Locale = #enum_ident;
                 fn from_locale(_locale: #enum_ident) -> &'static Self {
                     match _locale {
@@ -495,7 +500,7 @@ fn create_namespaces_types(
         );
         quote! {
             pub mod #namespace_module_ident {
-                use super::#enum_ident;
+                use super::{#enum_ident, l_i18n_crate};
 
                 #type_impl
             }
@@ -528,7 +533,7 @@ fn create_namespaces_types(
 
     quote! {
         pub mod namespaces {
-            use super::#enum_ident;
+            use super::{#enum_ident, l_i18n_crate};
 
             #(
                 #namespaces_ts
@@ -557,7 +562,7 @@ fn create_namespaces_types(
             }
         }
 
-        impl leptos_i18n::LocaleKeys for #keys_ident {
+        impl l_i18n_crate::LocaleKeys for #keys_ident {
             type Locale = #enum_ident;
             fn from_locale(_locale: #enum_ident) -> &'static Self {
                 match _locale {

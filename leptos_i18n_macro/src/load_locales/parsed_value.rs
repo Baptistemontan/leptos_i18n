@@ -569,7 +569,7 @@ impl ParsedValue {
             }
             ParsedValue::Component { key, inner } => {
                 let inner = inner.as_string_impl();
-                tokens.push(quote!(leptos_i18n::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
+                tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
@@ -661,7 +661,7 @@ impl InterpolateKey {
         match self {
             InterpolateKey::Count(t) => Err(*t),
             InterpolateKey::Variable(_) => Ok(quote!(core::fmt::Display)),
-            InterpolateKey::Component(_) => Ok(quote!(leptos_i18n::display::DisplayComponent)),
+            InterpolateKey::Component(_) => Ok(quote!(l_i18n_crate::display::DisplayComponent)),
         }
     }
 
