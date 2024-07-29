@@ -73,7 +73,7 @@ jobs:
 
       - name: "e2e testing ${{ matrix.examples }} example"
         working-directory: examples/${{ matrix.examples }}
-        run: cargo leptos end-to-end
+        run: npx playwright test
 
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
