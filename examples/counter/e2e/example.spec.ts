@@ -35,6 +35,10 @@ test.beforeEach(async ({ i18n, page }) => {
   });
 });
 
+test.afterEach(async ({ context }) => {
+  await context.clearCookies();
+});
+
 test.describe("when locale is the default locale (en-GB)", () => {
   test("check counter", ({ page, i18n }) => check_counter(page, i18n));
   test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
