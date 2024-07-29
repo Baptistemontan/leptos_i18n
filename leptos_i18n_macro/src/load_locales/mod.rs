@@ -133,6 +133,15 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
         .map(|(variant, locale)| quote!(#locale => Some(Locale::#variant)))
         .collect::<Vec<_>>();
 
+    let from_parts_match_arms = locales
+        .iter()
+        .map(|key| (&key.ident, &key.name))
+        .map(|(variant, locale)| {
+            let parts = locale.split('-').map(str::trim);
+            quote!(&[#(#parts | "*",)* ref rest @ ..] if rest.iter().all(|p| *p == "*") => Some(Locale::#variant))
+        })
+        .collect::<Vec<_>>();
+
     let derives = if cfg!(feature = "serde") {
         quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)])
     } else {
@@ -160,6 +169,14 @@ fn create_locales_enum(cfg_file: &ConfigFile) -> TokenStream {
                     #(#as_str_match_arms,)*
                 }
             }
+
+            fn from_parts(s: &[&str]) -> Option<Self> {
+                match s {
+                    #(#from_parts_match_arms,)*
+                    _ => None
+                }
+            }
+
             fn from_str(s: &str) -> Option<Self> {
                 match s.trim() {
                     #(#from_str_match_arms,)*
