@@ -1,10 +1,6 @@
 import {
   test,
-  expect,
-  Page,
   Fixtures,
-  TestType,
-  TestFixture,
   PlaywrightWorkerArgs,
   PlaywrightWorkerOptions,
   PlaywrightTestOptions,
@@ -23,28 +19,99 @@ export function fail_windows_webkit({ browserName }: TestArgs): boolean {
   return WEBKIT && WIN;
 }
 
-class I18n {}
+type LocaleArg = {
+  [key: string]: string;
+};
 
-type TFunc = any;
+type Locales = {
+  [key: string]: LocaleArg;
+};
 
-export type I18nFixture = {
-  i18n: I18n;
+interface I18nFixtureArgs<L extends Locales> {
+  default_locale: keyof L;
+  locales: L;
+}
+
+type TFuncArgs = {
+  [key: string]: any;
+};
+
+type TFunc = (key: string, args?: TFuncArgs) => string;
+type LangChangeCb<L extends Locales> = (new_locale: keyof L) => Promise<void>;
+
+class I18n<L extends Locales> {
+  private current_locale: keyof L;
+  private locales: L;
+  private locale_change_cb: LangChangeCb<L> | null;
+
+  constructor(args: I18nFixtureArgs<L>, locale: string) {
+    function is_key_of<L extends Locales>(
+      locale: any,
+      locales: L
+    ): locale is keyof L {
+      return !!locales[locale];
+    }
+
+    const { locales, default_locale } = args;
+
+    this.current_locale = is_key_of(locale, locales) ? locale : default_locale;
+    this.locales = locales;
+  }
+
+  public t(key: string, args: TFuncArgs = {}): string {
+    let value = this.locales[this.current_locale][key];
+    if (!value) {
+      return key;
+    }
+
+    for (const [key, val] of Object.entries(args)) {
+      const regex = new RegExp(`{{\\s*${key}\\s*}}`, "gmi");
+      value = value.replace(regex, val);
+    }
+
+    return value;
+  }
+
+  public get_locale(): keyof L {
+    return this.current_locale;
+  }
+
+  get locale(): keyof L {
+    return this.current_locale;
+  }
+
+  public async set_locale(new_locale: keyof L) {
+    this.current_locale = new_locale;
+    if (this.locale_change_cb) {
+      await this.locale_change_cb(new_locale);
+    }
+  }
+
+  public on_locale_change(cb: LangChangeCb<L>) {
+    this.locale_change_cb = cb;
+  }
+}
+
+export type I18nFixture<L extends Locales> = {
+  i18n: I18n<L>;
   t: TFunc;
 };
 
-function createI18nFixture(): Fixtures<
-  I18nFixture,
+export function createI18nFixture<L extends Locales>(
+  args: I18nFixtureArgs<L>
+): Fixtures<
+  I18nFixture<L>,
   PlaywrightWorkerArgs & PlaywrightWorkerOptions,
   PlaywrightTestArgs & PlaywrightTestOptions,
   PlaywrightWorkerArgs & PlaywrightWorkerOptions
 > {
   return {
-    i18n: async ({}, use) => {
-      const i18n = new I18n();
+    i18n: async ({ locale }, use) => {
+      const i18n = new I18n(args, locale);
       await use(i18n);
     },
     t: async ({ i18n }, use) => {
-      await use({});
+      await use((key, args) => i18n.t(key, args));
     },
   };
 }

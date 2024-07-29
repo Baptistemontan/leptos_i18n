@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "postinstall": "npx tsc"
+    "postinstall": "npm run build",
+    "build": "npx tsc"
   },
   "author": "",
   "license": "ISC",
