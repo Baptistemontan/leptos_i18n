@@ -83,3 +83,35 @@ impl BuildStr for &'static str {
         Cow::Borrowed(self)
     }
 }
+
+#[cfg(test)]
+mod test {
+    leptos_i18n_macro::declare_locales! {
+        path: crate,
+        default: "en",
+        locales: ["en", "fr"],
+        en: {},
+        fr: {},
+    }
+
+    use super::Locale as _;
+    use i18n::Locale;
+
+    #[test]
+    fn test_find_locale() {
+        let res = Locale::find_locale(&["de"]);
+        assert_eq!(res, Locale::default());
+
+        let res = Locale::find_locale(&["fr"]);
+        assert_eq!(res, Locale::fr);
+
+        let res = Locale::find_locale(&["en"]);
+        assert_eq!(res, Locale::en);
+
+        let res = Locale::find_locale(&["fr-FR"]);
+        assert_eq!(res, Locale::fr);
+
+        let res = Locale::find_locale(&["de", "fr-FR", "fr"]);
+        assert_eq!(res, Locale::fr);
+    }
+}

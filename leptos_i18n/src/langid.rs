@@ -108,7 +108,8 @@ mod test {
         fr: {},
         fr_FR: {}
     }
-    use super::*;
+
+    use super::{filter_matches, find_match};
     use i18n::Locale;
     use unic_langid::langid;
 
@@ -133,17 +134,5 @@ mod test {
             &[Locale::de_DE, Locale::de, Locale::en_US, Locale::de_CH],
         );
         assert_eq!(res, Locale::de_DE);
-
-        let res = find_match(&[langid!("fr")], &[Locale::fr, Locale::en]);
-        assert_eq!(res, Locale::fr);
-
-        let res = find_match(&[langid!("fr-FR")], &[Locale::fr, Locale::en]);
-        assert_eq!(res, Locale::fr);
-
-        let res = find_match(&[langid!("en")], &[Locale::fr, Locale::en]);
-        assert_eq!(res, Locale::en);
-
-        let res = find_match(&[langid!("en-GB")], &[Locale::fr, Locale::en]);
-        assert_eq!(res, Locale::en);
     }
 }
