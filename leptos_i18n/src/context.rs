@@ -1,5 +1,6 @@
 use leptos::*;
 use leptos_meta::*;
+use leptos_use::UseCookieOptions;
 
 use crate::{fetch_locale, locale_traits::*};
 
@@ -59,7 +60,7 @@ fn set_html_lang_attr(lang: &'static str) {
     });
 }
 
-struct LocaleCodec;
+pub struct LocaleCodec;
 
 impl<T: Locale> codee::Encoder<T> for LocaleCodec {
     type Error = ();
@@ -80,23 +81,30 @@ impl<T: Locale> codee::Decoder<T> for LocaleCodec {
     }
 }
 
-fn init_context<T: Locale>() -> I18nContext<T> {
+pub type CookieOptions<T> = UseCookieOptions<
+    T,
+    <LocaleCodec as codee::Encoder<T>>::Error,
+    <LocaleCodec as codee::Decoder<T>>::Error,
+>;
+
+fn init_context_with_options<T: Locale>(
+    enable_cookie: bool,
+    cookie_name: &str,
+    cookie_options: CookieOptions<T>,
+) -> I18nContext<T> {
     provide_meta_context();
 
-    let locale = fetch_locale::fetch_locale::<T>();
+    let (lang_cookie, set_lang_cookie) =
+        leptos_use::use_cookie_with_options::<T, LocaleCodec>(cookie_name, cookie_options);
+
+    let locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
 
     let locale = create_rw_signal(locale);
-
-    let (_, set_lang_cookie) =
-        leptos_use::use_cookie::<T, LocaleCodec>(crate::COOKIE_PREFERED_LANG);
 
     create_isomorphic_effect(move |_| {
         let new_lang = locale.get();
         set_html_lang_attr(new_lang.as_str());
-        if cfg!(all(
-            feature = "cookie",
-            any(feature = "hydrate", feature = "csr")
-        )) {
+        if enable_cookie {
             set_lang_cookie.set(Some(new_lang));
         }
     });
@@ -106,6 +114,17 @@ fn init_context<T: Locale>() -> I18nContext<T> {
     provide_context(context);
 
     context
+}
+
+const ENABLE_COOKIE: bool = cfg!(all(
+    feature = "cookie",
+    any(feature = "hydrate", feature = "csr")
+));
+
+const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
+
+fn init_context<T: Locale>() -> I18nContext<T> {
+    init_context_with_options(ENABLE_COOKIE, COOKIE_PREFERED_LANG, Default::default())
 }
 
 /// Provide the `I18nContext` for the application.
@@ -119,6 +138,23 @@ pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().unwrap_or_else(init_context)
 }
 
+/// Same as `provide_i18n_context` but with more options, mostly about the cookies usage.
+///
+/// If called when a context is already present it will not overwrite it nor the options and just return the current one.
+pub fn provide_i18n_context_with_options<T: Locale>(
+    enable_cookie: Option<bool>,
+    cookie_name: Option<&str>,
+    cookie_options: Option<CookieOptions<T>>,
+) -> I18nContext<T> {
+    let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
+    let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
+    let cookie_options = cookie_options.unwrap_or_default();
+
+    use_context().unwrap_or_else(move || {
+        init_context_with_options(enable_cookie, cookie_name, cookie_options)
+    })
+}
+
 /// Return the `I18nContext` previously set.
 ///
 /// ## Panic
@@ -128,17 +164,6 @@ pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
 pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
-
-// fn set_lang_cookie<T: Locale>(lang: T) -> Option<()> {
-//     use crate::COOKIE_PREFERED_LANG;
-//     let document = super::get_html_document()?;
-//     let cookie = format!(
-//         "{}={}; SameSite=Lax; Secure; Path=/; Max-Age=31536000",
-//         COOKIE_PREFERED_LANG,
-//         lang.as_str()
-//     );
-//     document.set_cookie(&cookie).ok()
-// }
 
 // get locale
 #[cfg(feature = "nightly")]

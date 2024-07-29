@@ -16,13 +16,13 @@ use axum as backend;
 ))]
 mod backend {
     use super::Locale;
-    pub fn fetch_locale_server<T: Locale>() -> T {
-        unreachable!()
+    pub fn fetch_locale_server<T: Locale>(current_cookie: Option<T>) -> T {
+        current_cookie.unwrap_or_default()
     }
 }
 
-pub fn fetch_locale_server_side<T: Locale>() -> T {
-    backend::fetch_locale_server::<T>()
+pub fn fetch_locale_server_side<T: Locale>(current_cookie: Option<T>) -> T {
+    backend::fetch_locale_server(current_cookie)
 }
 
 #[cfg(all(feature = "actix", feature = "axum"))]
