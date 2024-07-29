@@ -1,3 +1,4 @@
+use html::{AnyElement, ElementDescriptor};
 use leptos::*;
 use leptos_meta::*;
 use leptos_use::UseCookieOptions;
@@ -50,8 +51,7 @@ impl<T: Locale> I18nContext<T> {
     }
 }
 
-fn set_html_lang_attr(lang: &'static str) {
-    let lang = || lang.to_string();
+fn set_html_lang_attr(lang: impl Into<TextProp>) {
     Html(HtmlProps {
         lang: Some(lang.into()),
         dir: None,
@@ -87,7 +87,13 @@ pub type CookieOptions<T> = UseCookieOptions<
     <LocaleCodec as codee::Decoder<T>>::Error,
 >;
 
-fn init_context_with_options<T: Locale>(
+pub enum HtmlOrNodeRef<El: ElementDescriptor + 'static> {
+    Html,
+    Custom(NodeRef<El>),
+}
+
+fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>(
+    root_element: Option<HtmlOrNodeRef<El>>,
     enable_cookie: bool,
     cookie_name: &str,
     cookie_options: CookieOptions<T>,
@@ -101,9 +107,20 @@ fn init_context_with_options<T: Locale>(
 
     let locale = create_rw_signal(locale);
 
+    let node_ref = match root_element {
+        Some(HtmlOrNodeRef::Html) => {
+            set_html_lang_attr(move || locale.get().as_str());
+            NodeRef::new()
+        }
+        Some(HtmlOrNodeRef::Custom(node_ref)) => node_ref,
+        None => NodeRef::new(),
+    };
+
     create_isomorphic_effect(move |_| {
         let new_lang = locale.get();
-        set_html_lang_attr(new_lang.as_str());
+        if let Some(el) = node_ref.get() {
+            let _ = el.attr("lang", new_lang.as_str());
+        }
         if enable_cookie {
             set_lang_cookie.set(Some(new_lang));
         }
@@ -123,9 +140,7 @@ const ENABLE_COOKIE: bool = cfg!(all(
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
-fn init_context<T: Locale>() -> I18nContext<T> {
-    init_context_with_options(ENABLE_COOKIE, COOKIE_PREFERED_LANG, Default::default())
-}
+const MAX_COOKIE_AGE_MS: i64 = 399 * 24 * 60 * 60 * 1000; // 399 days in millis
 
 /// Provide the `I18nContext` for the application.
 ///
@@ -135,10 +150,10 @@ fn init_context<T: Locale>() -> I18nContext<T> {
 ///
 /// If called when a context is already present it will not overwrite it and just return the current context.
 pub fn provide_i18n_context<T: Locale>() -> I18nContext<T> {
-    use_context().unwrap_or_else(init_context)
+    provide_i18n_context_with_options(None, None, None)
 }
 
-/// Same as `provide_i18n_context` but with more options, mostly about the cookies usage.
+/// Same as `provide_i18n_context` but with more options about the cookies usage.
 ///
 /// If called when a context is already present it will not overwrite it nor the options and just return the current one.
 pub fn provide_i18n_context_with_options<T: Locale>(
@@ -148,10 +163,45 @@ pub fn provide_i18n_context_with_options<T: Locale>(
 ) -> I18nContext<T> {
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
     let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
-    let cookie_options = cookie_options.unwrap_or_default();
+    let cookie_options =
+        cookie_options.unwrap_or_else(|| CookieOptions::default().max_age(MAX_COOKIE_AGE_MS));
 
     use_context().unwrap_or_else(move || {
-        init_context_with_options(enable_cookie, cookie_name, cookie_options)
+        init_context_with_options(
+            Some(HtmlOrNodeRef::<AnyElement>::Html),
+            enable_cookie,
+            cookie_name,
+            cookie_options,
+        )
+    })
+}
+
+/// Same as `provide_i18n_context_with_options` but with an additional argument for the root node
+///
+/// The root node is the one getting the `"lang"` attribute.
+///
+/// If called when a context is already present it will not overwrite it nor the options and just return the current one.
+pub fn provide_i18n_context_with_options_and_root_element<
+    T: Locale,
+    El: ElementDescriptor + 'static + Clone,
+>(
+    enable_cookie: Option<bool>,
+    cookie_name: Option<&str>,
+    cookie_options: Option<CookieOptions<T>>,
+    root_element: NodeRef<El>,
+) -> I18nContext<T> {
+    let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
+    let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
+    let cookie_options =
+        cookie_options.unwrap_or_else(|| CookieOptions::default().max_age(MAX_COOKIE_AGE_MS));
+
+    use_context().unwrap_or_else(move || {
+        init_context_with_options(
+            Some(HtmlOrNodeRef::Custom(root_element)),
+            enable_cookie,
+            cookie_name,
+            cookie_options,
+        )
     })
 }
 

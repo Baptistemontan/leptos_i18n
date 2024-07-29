@@ -135,7 +135,8 @@ pub mod display;
 pub use locale_traits::*;
 
 pub use context::{
-    provide_i18n_context, provide_i18n_context_with_options, use_i18n_context, I18nContext,
+    provide_i18n_context, provide_i18n_context_with_options,
+    provide_i18n_context_with_options_and_root_element, use_i18n_context, I18nContext,
 };
 
 pub use leptos_i18n_macro::{
