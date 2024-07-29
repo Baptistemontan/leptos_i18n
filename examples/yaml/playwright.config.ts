@@ -7,6 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
 // import dotenv from 'dotenv';
 // dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+const url = "http://127.0.0.1:8080";
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -25,10 +27,14 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    // baseURL: 'http://127.0.0.1:3000',
+    baseURL: url,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
+
+    // default locale
+    locale: "en-GB",
+    timezoneId: "Europe/Paris",
   },
 
   /* Configure projects for major browsers */
@@ -71,8 +77,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "trunk serve",
-    url: "http://127.0.0.1:8080",
+    command: "npm start",
+    url,
     reuseExistingServer: !process.env.CI,
   },
 });

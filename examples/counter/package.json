@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build": "trunk build",
-    "start": "trunk serve",
+    "start": "trunk serve --no-autoreload",
+    "watch": "trunk serve",
     "test": "npx playwright test",
     "prestart": "npm run build",
     "pretest": "npm run build"
