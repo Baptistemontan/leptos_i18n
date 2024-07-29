@@ -59,12 +59,36 @@ fn set_html_lang_attr(lang: &'static str) {
     });
 }
 
+struct LocaleCodec;
+
+impl<T: Locale> codee::Encoder<T> for LocaleCodec {
+    type Error = ();
+
+    type Encoded = String;
+
+    fn encode(val: &T) -> Result<Self::Encoded, Self::Error> {
+        Ok(val.as_str().to_string())
+    }
+}
+
+impl<T: Locale> codee::Decoder<T> for LocaleCodec {
+    type Error = ();
+    type Encoded = str;
+
+    fn decode(val: &Self::Encoded) -> Result<T, Self::Error> {
+        T::from_str(val).ok_or(())
+    }
+}
+
 fn init_context<T: Locale>() -> I18nContext<T> {
     provide_meta_context();
 
     let locale = fetch_locale::fetch_locale::<T>();
 
     let locale = create_rw_signal(locale);
+
+    let (_, set_lang_cookie) =
+        leptos_use::use_cookie::<T, LocaleCodec>(crate::COOKIE_PREFERED_LANG);
 
     create_isomorphic_effect(move |_| {
         let new_lang = locale.get();
@@ -73,7 +97,7 @@ fn init_context<T: Locale>() -> I18nContext<T> {
             feature = "cookie",
             any(feature = "hydrate", feature = "csr")
         )) {
-            set_lang_cookie::<T>(new_lang);
+            set_lang_cookie.set(Some(new_lang));
         }
     });
 
@@ -105,16 +129,16 @@ pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
-fn set_lang_cookie<T: Locale>(lang: T) -> Option<()> {
-    use crate::COOKIE_PREFERED_LANG;
-    let document = super::get_html_document()?;
-    let cookie = format!(
-        "{}={}; SameSite=Lax; Secure; Path=/; Max-Age=31536000",
-        COOKIE_PREFERED_LANG,
-        lang.as_str()
-    );
-    document.set_cookie(&cookie).ok()
-}
+// fn set_lang_cookie<T: Locale>(lang: T) -> Option<()> {
+//     use crate::COOKIE_PREFERED_LANG;
+//     let document = super::get_html_document()?;
+//     let cookie = format!(
+//         "{}={}; SameSite=Lax; Secure; Path=/; Max-Age=31536000",
+//         COOKIE_PREFERED_LANG,
+//         lang.as_str()
+//     );
+//     document.set_cookie(&cookie).ok()
+// }
 
 // get locale
 #[cfg(feature = "nightly")]
