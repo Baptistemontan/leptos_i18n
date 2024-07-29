@@ -44,7 +44,7 @@ test.describe("when locale is the default locale (en-GB)", () => {
 
 test.describe("when locale is set to french (fr-FR)", () => {
   test.use({
-    locale: "fr",
+    locale: "fr-FR",
   });
 
   test("check counter", ({ page, i18n }) => check_counter(page, i18n));
