@@ -20,6 +20,7 @@ leptos_axum = { version = "0.6", optional = true }
 http = { version = "1", optional = true }
 leptos-use = "0.11"
 codee = "0.1"
+unic-langid = { version = "0.9", features = ["macros"] }
 
 [features]
 default = ["cookie", "json_files"]

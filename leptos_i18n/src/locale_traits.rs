@@ -1,53 +1,40 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, str::FromStr};
+
+use unic_langid::LanguageIdentifier;
+
+use crate::langid::{convert_vec_str_to_langids_lossy, find_match};
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
 /// Most functions of this crate are generic of type implementing this trait
-pub trait Locale: 'static + Default + Clone + Copy {
+pub trait Locale:
+    'static
+    + Default
+    + Clone
+    + Copy
+    + FromStr
+    + AsRef<LanguageIdentifier>
+    + std::fmt::Display
+    + PartialEq
+{
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = Self>;
-
-    /// Try to exact match the given str to a locale and returns it.
-    fn from_str(s: &str) -> Option<Self>;
-
-    /// Try to match the given locale parts to a locale and returns it.
-    ///
-    /// The implentation should allow "*-FR" to match "fr-FR".
-    fn from_parts(s: &[&str]) -> Option<Self>;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
 
+    /// Return a static reference to a `LanguageIdentifier`
+    fn as_langid(self) -> &'static LanguageIdentifier;
+
+    /// Return a static reference to an array containing all variants of this enum
+    fn get_all() -> &'static [Self];
+
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     ///
-    /// This implementation should follows most of the section 3.4 of the best current practice of the "Matching of Language Tags" memo.
-    /// see: <https://datatracker.ietf.org/doc/html/rfc4647#section-3.4>
-    fn find_locale<T: AsRef<str>>(accepted_langs: &[T]) -> Self {
-        // FIXME: This implementation is not exactly complient.
-        let langs: Vec<Vec<_>> = accepted_langs
-            .iter()
-            .map(AsRef::as_ref)
-            .filter(|l| *l != "*")
-            .map(|s| s.split('-').map(str::trim).collect())
-            .collect();
-
-        Self::find_locale_from_parts(langs)
-    }
-
-    /// Same as `find_locale` but takes a Vec of locale identifier parts
-    fn find_locale_from_parts(mut langs: Vec<Vec<&str>>) -> Self {
-        while !langs.is_empty() {
-            for mut parts in std::mem::take(&mut langs) {
-                if let Some(locale) = Self::from_parts(&parts) {
-                    return locale;
-                }
-                parts.pop();
-                if !parts.is_empty() {
-                    langs.push(parts);
-                }
-            }
-        }
-        Default::default()
+    /// This implementation use the filtering mechanism defined in RFC 4647.
+    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
+        let langids = convert_vec_str_to_langids_lossy(accepted_languages);
+        find_match(&langids, Self::get_all())
     }
 
     /// Return the keys based on self

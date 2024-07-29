@@ -1,3 +1,4 @@
+use codee::string::FromToStringCodec;
 use html::{AnyElement, ElementDescriptor};
 use leptos::*;
 use leptos_meta::*;
@@ -60,31 +61,10 @@ fn set_html_lang_attr(lang: impl Into<TextProp>) {
     });
 }
 
-pub struct LocaleCodec;
-
-impl<T: Locale> codee::Encoder<T> for LocaleCodec {
-    type Error = ();
-
-    type Encoded = String;
-
-    fn encode(val: &T) -> Result<Self::Encoded, Self::Error> {
-        Ok(val.as_str().to_string())
-    }
-}
-
-impl<T: Locale> codee::Decoder<T> for LocaleCodec {
-    type Error = ();
-    type Encoded = str;
-
-    fn decode(val: &Self::Encoded) -> Result<T, Self::Error> {
-        T::from_str(val).ok_or(())
-    }
-}
-
 pub type CookieOptions<T> = UseCookieOptions<
     T,
-    <LocaleCodec as codee::Encoder<T>>::Error,
-    <LocaleCodec as codee::Decoder<T>>::Error,
+    <FromToStringCodec as codee::Encoder<T>>::Error,
+    <FromToStringCodec as codee::Decoder<T>>::Error,
 >;
 
 pub enum HtmlOrNodeRef<El: ElementDescriptor + 'static> {
@@ -101,7 +81,7 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
     provide_meta_context();
 
     let (lang_cookie, set_lang_cookie) = if enable_cookie {
-        leptos_use::use_cookie_with_options::<T, LocaleCodec>(cookie_name, cookie_options)
+        leptos_use::use_cookie_with_options::<T, FromToStringCodec>(cookie_name, cookie_options)
     } else {
         let (lang_cookie, set_lang_cookie) = create_signal::<Option<T>>(None);
         (lang_cookie.into(), set_lang_cookie)

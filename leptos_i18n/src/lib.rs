@@ -127,6 +127,7 @@
 
 mod context;
 mod fetch_locale;
+mod langid;
 mod locale_traits;
 mod server;
 
@@ -147,6 +148,7 @@ pub use leptos_i18n_macro::{
 pub mod __private {
     pub use super::locale_traits::BuildStr;
     pub use leptos_i18n_macro::declare_locales;
+    pub use unic_langid;
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.

@@ -23,7 +23,7 @@ fn fetch_locale_hydrate<T: Locale>(current_cookie: Option<T>) -> T {
     leptos::document()
         .document_element()
         .and_then(|el| el.get_attribute("lang"))
-        .and_then(|lang| T::from_str(&lang))
+        .and_then(|lang| T::from_str(&lang).ok())
         .unwrap_or(current_cookie.unwrap_or_default())
 }
 
@@ -33,11 +33,12 @@ fn fetch_locale_csr<T: Locale>(current_cookie: Option<T>) -> T {
         return lang;
     }
 
-    leptos::window()
+    let accepted_langs = leptos::window()
         .navigator()
         .languages()
         .into_iter()
         .filter_map(|js_val| js_val.as_string())
-        .find_map(|pref_lang| T::from_str(pref_lang.trim()))
-        .unwrap_or_default()
+        .collect::<Vec<_>>();
+
+    T::find_locale(&accepted_langs)
 }

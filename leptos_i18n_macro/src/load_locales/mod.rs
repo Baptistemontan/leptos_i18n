@@ -153,16 +153,30 @@ fn create_locales_enum(
     let from_str_match_arms = locales
         .iter()
         .map(|key| (&key.ident, &key.name))
-        .map(|(variant, locale)| quote!(#locale => Some(#enum_ident::#variant)))
+        .map(|(variant, locale)| quote!(#locale => Ok(#enum_ident::#variant)))
         .collect::<Vec<_>>();
 
-    let from_parts_match_arms = locales
+    let constant_names_ident = locales
         .iter()
-        .map(|key| (&key.ident, &key.name))
-        .map(|(variant, locale)| {
-            let parts = locale.split('-').map(str::trim);
-            quote!(&[#(#parts | "*",)* ref rest @ ..] if rest.iter().all(|p| *p == "*") => Some(#enum_ident::#variant))
+        .map(|key| {
+            (
+                key,
+                format_ident!("{}_LANGID", key.name.to_uppercase().replace('-', "_")),
+            )
         })
+        .collect::<Vec<_>>();
+
+    let const_langids = constant_names_ident
+        .iter()
+        .map(|(key, ident)| {
+            let locale = &key.name;
+            quote!(const #ident: &'static l_i18n_crate::__private::unic_langid::LanguageIdentifier = &l_i18n_crate::__private::unic_langid::langid!(#locale);)
+        })
+        .collect::<Vec<_>>();
+
+    let as_langid_match_arms = constant_names_ident
+        .iter()
+        .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
 
     let derives = if cfg!(feature = "serde") {
@@ -193,18 +207,40 @@ fn create_locales_enum(
                 }
             }
 
-            fn from_parts(s: &[&str]) -> Option<Self> {
-                match s {
-                    #(#from_parts_match_arms,)*
-                    _ => None
+            fn as_langid(self) -> &'static l_i18n_crate::__private::unic_langid::LanguageIdentifier {
+                #(
+                    #const_langids;
+                )*
+                match self {
+                    #(#as_langid_match_arms,)*
                 }
             }
 
-            fn from_str(s: &str) -> Option<Self> {
+            fn get_all() -> &'static [Self] {
+                &[#(#enum_ident::#locales,)*]
+            }
+        }
+
+        impl core::str::FromStr for #enum_ident {
+            type Err = ();
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
                 match s.trim() {
                     #(#from_str_match_arms,)*
-                    _ => None
+                    _ => Err(())
                 }
+            }
+        }
+
+        impl core::convert::AsRef<l_i18n_crate::__private::unic_langid::LanguageIdentifier> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::__private::unic_langid::LanguageIdentifier {
+                l_i18n_crate::Locale::as_langid(*self)
+            }
+        }
+
+        impl core::fmt::Display for #enum_ident {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                core::fmt::Display::fmt(l_i18n_crate::Locale::as_str(*self), f)
             }
         }
     }
