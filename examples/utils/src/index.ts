@@ -32,11 +32,15 @@ interface I18nFixtureArgs<L extends Locales> {
   locales: L;
 }
 
-type TFuncArgs = {
+type TFuncVars = {
   [key: string]: any;
 };
 
-type TFunc = (key: string, args?: TFuncArgs) => string;
+type TFuncComp = {
+  [key: string]: (inner: string) => string;
+};
+
+type TFunc = (key: string, vars?: TFuncVars, comps?: TFuncComp) => string;
 type LangChangeCb<L extends Locales> = (new_locale: keyof L) => Promise<void>;
 
 function match_locale<L extends Locales>(
@@ -70,18 +74,24 @@ class I18n<L extends Locales> {
     this.locales = locales;
   }
 
-  public t(key: string, args: TFuncArgs = {}): string {
+  public t(
+    key: string,
+    vars: TFuncVars = {},
+    components: TFuncComp = {}
+  ): string {
     let value = this.locales[this.current_locale][key];
     if (!value) {
       return key;
     }
 
-    for (const [key, val] of Object.entries(args)) {
+    for (const [key, val] of Object.entries(vars)) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, "gmi");
       value = value.replace(regex, val);
     }
 
-    return value;
+    const pairs = getPairs(value);
+
+    return formatElements(components, pairs).join("");
   }
 
   public get_locale(): keyof L {
@@ -123,7 +133,56 @@ export function createI18nFixture<L extends Locales>(
       await use(i18n);
     },
     t: async ({ i18n }, use) => {
-      await use((key, args) => i18n.t(key, args));
+      await use((...args) => i18n.t(...args));
     },
   };
+}
+
+type RegexResult = [string, string, RegexResult[]]; // before, tag, content
+const openTagRegex = /(<\s*?[^/>]+\s*?>)/g;
+const closeTagRegex = (str: string) => new RegExp(`(</\\s*?${str}\\s*?>)`, "g");
+const matchingOpenTagRegex = (str: string) =>
+  new RegExp(`<\\s*?${str}\\s*?>`, "g");
+
+function getPairs(str: string): RegexResult[] {
+  const [beforeSplit, tagSplit, ...afterSplitArray] = str.split(openTagRegex);
+  if (!tagSplit) {
+    return [[str, "", []]];
+  }
+  let after = afterSplitArray?.join("") || "";
+  let depth = 1;
+  let content = "";
+  const tag = tagSplit.slice(1, -1).trim();
+  while (depth > 0) {
+    const [before, _tag, ..._after] = after.split(closeTagRegex(tag));
+    if (!_tag) {
+      // error
+      return [
+        [beforeSplit + tagSplit, "", getPairs(afterSplitArray?.join("") || "")],
+      ];
+    }
+    depth -= 1;
+    depth += before.match(matchingOpenTagRegex(tag))?.length || 0;
+    after = _after?.join("") || "";
+    content += before;
+    if (depth) {
+      content += _tag;
+    }
+  }
+
+  return [[beforeSplit, tag, getPairs(content)], ...getPairs(after)];
+}
+
+function join_results(results: RegexResult[]): string {
+  return results.reduce((acc, result) => {
+    const [a, b, rest] = result;
+    return acc + a + b + join_results(rest);
+  }, "");
+}
+
+function formatElements(elements: TFuncComp, parts: RegexResult[]): string[] {
+  return parts.flatMap(([before, key, content]) => {
+    const element = (key && elements[key]) || ((s) => s);
+    return [before, element(join_results(content))];
+  });
 }
