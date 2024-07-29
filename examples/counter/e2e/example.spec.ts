@@ -1,7 +1,7 @@
 import { test, expect, Page } from "@playwright/test";
 import i18nEn from "#locales/en.json";
 import i18nFr from "#locales/fr.json";
-import { fail_windows_webkit, TestArgs, BrowserName } from "../../utils";
+import { fail_windows_webkit } from "../../utils";
 
 const LNG_BUTTON_XPATH = "xpath=//html/body/button[1]";
 const INC_BUTTON_XPATH = "xpath=//html/body/button[2]";
@@ -28,8 +28,7 @@ test.describe("when locale is the default locale (en-GB)", () => {
   test.skip(fail_windows_webkit, "webkit does not support wasm on windows");
 
   test("check counter", ({ page }) => check_counter(page, EN_LOCALE));
-  test("check lang switch", ({ page, browserName }) =>
-    check_lang_switch(page, browserName, FR_LOCALE));
+  test("check lang switch", ({ page }) => check_lang_switch(page, FR_LOCALE));
   test("check state keeping", ({ page }) =>
     check_state_keeping(page, EN_LOCALE, FR_LOCALE));
 });
@@ -42,8 +41,7 @@ test.describe("when locale is set to french (fr-FR)", () => {
   });
 
   test("check counter", ({ page }) => check_counter(page, FR_LOCALE));
-  test("check lang switch", ({ page, browserName }) =>
-    check_lang_switch(page, browserName, EN_LOCALE));
+  test("check lang switch", ({ page }) => check_lang_switch(page, EN_LOCALE));
   test("check state keeping", ({ page }) =>
     check_state_keeping(page, FR_LOCALE, EN_LOCALE));
 });
@@ -81,24 +79,15 @@ async function check_counter(
   );
 }
 
-async function check_lang_switch(
-  page: Page,
-  browserName: BrowserName,
-  locale: LocaleArg
-) {
+async function check_lang_switch(page: Page, locale: LocaleArg) {
   await page.goto("/");
 
   await page.locator(LNG_BUTTON_XPATH).click();
 
   await check_counter(page, locale, false);
 
-  // FIXME: cookies aren't working on webkit for some reason ?
-  // if (browserName == "webkit") {
-  //   return;
-  // }
-
-  await page.reload();
   // check if locale persist
+  await page.reload();
   await check_counter(page, locale, false);
 }
 
