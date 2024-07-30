@@ -67,7 +67,7 @@ pub type CookieOptions<T> = UseCookieOptions<
     <FromToStringCodec as codee::Decoder<T>>::Error,
 >;
 
-pub enum HtmlOrNodeRef<El: ElementDescriptor + 'static> {
+enum HtmlOrNodeRef<El: ElementDescriptor + 'static> {
     Html,
     Custom(NodeRef<El>),
 }
@@ -80,7 +80,7 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
 ) -> I18nContext<T> {
     provide_meta_context();
 
-    let (lang_cookie, set_lang_cookie) = if enable_cookie {
+    let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<T, FromToStringCodec>(cookie_name, cookie_options)
     } else {
         let (lang_cookie, set_lang_cookie) = create_signal::<Option<T>>(None);

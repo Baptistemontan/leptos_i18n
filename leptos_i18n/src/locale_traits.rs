@@ -2,7 +2,7 @@ use std::{borrow::Cow, str::FromStr};
 
 use unic_langid::LanguageIdentifier;
 
-use crate::langid::{convert_vec_str_to_langids_lossy, find_match};
+use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
@@ -30,11 +30,16 @@ pub trait Locale:
     fn get_all() -> &'static [Self];
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
-    ///
-    /// This implementation use the filtering mechanism defined in RFC 4647.
     fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
         let langids = convert_vec_str_to_langids_lossy(accepted_languages);
         find_match(&langids, Self::get_all())
+    }
+
+    /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
+    ///
+    /// This function does not fallback to default if no match is found.
+    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
+        filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all())
     }
 
     /// Return the keys based on self

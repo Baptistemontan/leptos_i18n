@@ -133,12 +133,17 @@ mod server;
 
 pub mod display;
 
-pub use locale_traits::*;
+pub use locale_traits::{Locale, LocaleKeys};
 
-pub use context::{
-    provide_i18n_context, provide_i18n_context_with_options,
-    provide_i18n_context_with_options_and_root_element, use_i18n_context, I18nContext,
-};
+pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
+
+/// re-export module for provider functions, such as `provide_i18n_context` and other variants with more options.
+pub mod providers {
+    pub use crate::context::{
+        provide_i18n_context, provide_i18n_context_with_options,
+        provide_i18n_context_with_options_and_root_element,
+    };
+}
 
 pub use leptos_i18n_macro::{
     load_locales, t, t_display, t_string, td, td_display, td_string, tu, tu_display, tu_string,
@@ -149,6 +154,13 @@ pub mod __private {
     pub use super::locale_traits::BuildStr;
     pub use leptos_i18n_macro::declare_locales;
     pub use unic_langid;
+}
+
+#[doc(hidden)]
+pub mod reexports {
+    pub use leptos_i18n_macro::{
+        load_locales, t, t_display, t_string, td, td_display, td_string, tu, tu_display, tu_string,
+    };
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.

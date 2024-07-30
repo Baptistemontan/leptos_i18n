@@ -1,27 +1,22 @@
-//! This whole module is taken from `fluent-template`, I would have used there crate directly if those implementations where public.
+//! A lot of the code in this module is shamefully taken from `fluent-template`, I would have used there crate directly if those implementations where public.
 //! see <https://github.com/XAMPPRocky/fluent-templates>
+//!
+//! I then specialized it for the use case of this crate.
 use unic_langid::LanguageIdentifier;
 
 use crate::Locale;
 
-pub fn filter_matches<'a, L: Locale, R: 'a + AsRef<LanguageIdentifier>>(
-    requested: &[R],
-    available: &[L],
-) -> Vec<L> {
+pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> Vec<L> {
     let mut supported_locales = vec![];
 
     let mut available_locales: Vec<L> = available.to_vec();
 
-    for req in requested {
-        let req = req.as_ref().to_owned();
+    for req in requested.iter().cloned() {
         macro_rules! test_strategy {
-            ($self_as_range:expr, $other_as_range:expr) => {{
+            ($self_as_range:expr) => {{
                 let mut match_found = false;
                 available_locales.retain(|locale| {
-                    if locale
-                        .as_ref()
-                        .matches(&req, $self_as_range, $other_as_range)
-                    {
+                    if locale.as_ref().matches(&req, $self_as_range, false) {
                         match_found = true;
                         supported_locales.push(*locale);
                         return false;
@@ -32,10 +27,10 @@ pub fn filter_matches<'a, L: Locale, R: 'a + AsRef<LanguageIdentifier>>(
         }
 
         // 1) Try to find a simple (case-insensitive) string match for the request.
-        test_strategy!(false, false);
+        test_strategy!(false);
 
         // 2) Try to match against the available locales treated as ranges.
-        test_strategy!(true, false);
+        test_strategy!(true);
 
         // Per Unicode TR35, 4.4 Locale Matching, we don't add likely subtags to
         // requested locales, so we'll skip it from the rest of the steps.
@@ -71,18 +66,17 @@ fn into_specificity(lang: &LanguageIdentifier) -> usize {
     specificity
 }
 
-pub fn find_match<'a, L: Locale, R: 'a + AsRef<LanguageIdentifier>>(
-    requested: &[R],
-    available: &[L],
-) -> L {
+pub fn find_match<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
     filter_matches(requested, available)
         .first()
         .copied()
         .unwrap_or_default()
 }
 
-/// except this function, taken from `fluent-langneg`.
+/// This function is taken from `fluent-langneg`.
 /// see <https://github.com/projectfluent/fluent-langneg-rs>
+///
+/// Yes I could have imported the crate as this is public, but well we are already far into the strealing process anyway
 pub fn convert_vec_str_to_langids_lossy<'a, I, J>(input: I) -> Vec<LanguageIdentifier>
 where
     I: IntoIterator<Item = J>,
