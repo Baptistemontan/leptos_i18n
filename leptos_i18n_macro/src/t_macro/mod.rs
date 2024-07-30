@@ -4,10 +4,11 @@ use syn::parse_macro_input;
 
 use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
 
-use self::parsed_input::{Keys, ParsedInput};
-
 pub mod interpolate;
 pub mod parsed_input;
+
+use crate::utils::Keys;
+use parsed_input::ParsedInput;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputType {

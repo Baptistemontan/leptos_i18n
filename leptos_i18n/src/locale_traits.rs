@@ -17,8 +17,8 @@ pub trait Locale:
     + std::fmt::Display
     + PartialEq
 {
-    /// The associated struct containing the translations
-    type Keys: LocaleKeys<Locale = Self>;
+    /// The associated type containing the entire translations
+    type RootKeys: LocaleKeys<Locale = Self>;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -42,9 +42,15 @@ pub trait Locale:
         filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all())
     }
 
-    /// Return the keys based on self
+    /// Return the root keys
     #[inline]
-    fn get_keys(self) -> &'static Self::Keys {
+    fn get_root_keys(self) -> &'static Self::RootKeys {
+        LocaleKeys::from_locale(self)
+    }
+
+    /// Return the values of the given Keys
+    #[inline]
+    fn get_keys<K: LocaleKeys<Locale = Self>>(self) -> &'static K {
         LocaleKeys::from_locale(self)
     }
 }
@@ -54,7 +60,7 @@ pub trait Locale:
 /// You will probably never need to use it has it only serves the internals of the library.
 pub trait LocaleKeys: 'static + Clone + Copy {
     /// The associated enum representing the supported locales
-    type Locale: Locale<Keys = Self>;
+    type Locale: Locale;
 
     /// Return a static ref to Self containing the translations for the given locale
     fn from_locale(locale: Self::Locale) -> &'static Self;

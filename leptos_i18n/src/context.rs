@@ -1,4 +1,5 @@
 use codee::string::FromToStringCodec;
+use core::marker::PhantomData;
 use html::{AnyElement, ElementDescriptor};
 use leptos::*;
 use leptos_meta::*;
@@ -11,44 +12,64 @@ use crate::{fetch_locale, locale_traits::*};
 /// It servers as a signal to the the current locale and enable reactivity to locale change.
 ///
 /// You access the translations and read/update the current locale through it.
-#[derive(Debug, Clone, Copy)]
-pub struct I18nContext<T: Locale>(RwSignal<T>);
+#[derive(Debug)]
+pub struct I18nContext<L: Locale, K: LocaleKeys<Locale = L> = <L as Locale>::RootKeys> {
+    locale_signal: RwSignal<L>,
+    keys_marker: PhantomData<K>,
+}
 
-impl<T: Locale> I18nContext<T> {
+impl<L: Locale, K: LocaleKeys<Locale = L>> Clone for I18nContext<L, K> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<L: Locale, K: LocaleKeys<Locale = L>> Copy for I18nContext<L, K> {}
+
+impl<L: Locale, K: LocaleKeys<Locale = L>> I18nContext<L, K> {
     /// Return the current locale subscribing to any changes.
     #[inline]
-    pub fn get_locale(self) -> T {
-        self.0.get()
+    pub fn get_locale(self) -> L {
+        self.locale_signal.get()
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_locale_untracked(self) -> T {
-        self.0.get_untracked()
+    pub fn get_locale_untracked(self) -> L {
+        self.locale_signal.get_untracked()
     }
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
-    pub fn get_keys(self) -> &'static T::Keys {
-        self.get_locale().get_keys()
+    pub fn get_keys(self) -> &'static K {
+        K::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_keys_untracked(self) -> &'static T::Keys {
-        self.get_locale_untracked().get_keys()
+    pub fn get_keys_untracked(self) -> &'static K {
+        K::from_locale(self.get_locale_untracked())
     }
 
     /// Set the locale and notify all subscribers
     #[inline]
-    pub fn set_locale(self, lang: T) {
-        self.0.set(lang)
+    pub fn set_locale(self, lang: L) {
+        self.locale_signal.set(lang)
     }
 
     /// Set the locale but does not notify the subscribers
     #[inline]
-    pub fn set_locale_untracked(self, lang: T) {
-        self.0.set_untracked(lang)
+    pub fn set_locale_untracked(self, lang: L) {
+        self.locale_signal.set_untracked(lang)
+    }
+
+    /// Return a context scoped to the given Keys.
+    #[inline]
+    pub fn scope<S: LocaleKeys<Locale = L>>(self) -> I18nContext<L, S> {
+        I18nContext {
+            locale_signal: self.locale_signal,
+            keys_marker: PhantomData,
+        }
     }
 }
 
@@ -89,11 +110,11 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
 
     let locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
 
-    let locale = create_rw_signal(locale);
+    let locale_signal = create_rw_signal(locale);
 
     let node_ref = match root_element {
         Some(HtmlOrNodeRef::Html) => {
-            set_html_lang_attr(move || locale.get().as_str());
+            set_html_lang_attr(move || locale_signal.get().as_str());
             NodeRef::new()
         }
         Some(HtmlOrNodeRef::Custom(node_ref)) => node_ref,
@@ -101,14 +122,17 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
     };
 
     create_isomorphic_effect(move |_| {
-        let new_lang = locale.get();
+        let new_lang = locale_signal.get();
         if let Some(el) = node_ref.get() {
             let _ = el.attr("lang", new_lang.as_str());
         }
         set_lang_cookie.set(Some(new_lang));
     });
 
-    let context = I18nContext::<T>(locale);
+    let context = I18nContext::<T> {
+        locale_signal,
+        keys_marker: PhantomData,
+    };
 
     provide_context(context);
 
@@ -192,6 +216,15 @@ pub fn provide_i18n_context_with_options_and_root_element<
 #[inline]
 pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
+}
+
+#[doc(hidden)]
+#[inline]
+pub fn scope_util<L: Locale, P: LocaleKeys<Locale = L>, S: LocaleKeys<Locale = L>>(
+    ctx: I18nContext<L, P>,
+    _: impl FnOnce(&P) -> &S,
+) -> I18nContext<L, S> {
+    ctx.scope()
 }
 
 // get locale

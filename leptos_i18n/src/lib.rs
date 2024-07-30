@@ -146,12 +146,14 @@ pub mod providers {
 }
 
 pub use leptos_i18n_macro::{
-    load_locales, t, t_display, t_string, td, td_display, td_string, tu, tu_display, tu_string,
+    load_locales, scope_i18n, t, t_display, t_string, td, td_display, td_string, tu, tu_display,
+    tu_string, use_i18n_scoped,
 };
 
 #[doc(hidden)]
 pub mod __private {
-    pub use super::locale_traits::BuildStr;
+    pub use crate::context::scope_util;
+    pub use crate::locale_traits::BuildStr;
     pub use leptos_i18n_macro::declare_locales;
     pub use unic_langid;
 }

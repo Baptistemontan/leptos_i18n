@@ -23,10 +23,10 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn Subkeys() -> impl IntoView {
-    let i18n = use_i18n();
+    let i18n = use_i18n_scoped!(subkeys);
 
     view! {
-        <p>{t!(i18n, subkeys.subkey)}</p>
-        <p>{t!(i18n, subkeys.subsubkeys.subsubkey)}</p>
+        <p>{t!(i18n, subkey)}</p>
+        <p>{t!(i18n, subsubkeys.subsubkey)}</p>
     }
 }
