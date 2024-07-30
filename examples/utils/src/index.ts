@@ -138,19 +138,18 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
     components: TFuncComp = {},
     plural_count?: number
   ): string {
+    if (typeof plural_count !== "undefined") {
+      vars["count"] = plural_count;
+    }
     let value = key
       .split(".")
       .reduce<LocaleValue | undefined>(
         (vals, key) => (vals ? vals[key] : undefined),
         this.locales[this.current_locale]
       );
-
     if (typeof value === "string") {
       return handle_string(value, vars, components);
     } else if (Array.isArray(value)) {
-      if (typeof plural_count !== "undefined") {
-        vars["count"] = plural_count;
-      }
       return handle_plurals(
         value as RealPlurals,
         vars,
