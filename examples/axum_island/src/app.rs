@@ -6,9 +6,9 @@ pub fn App() -> impl IntoView {
     // use the `I18nContextProvider` instead of `provide_i18n_context` to provide the context to all island in the application.
     view! {
         <I18nContextProvider>
-            <p>
+            <h1>
                 {ti!(HelloWorld, hello_world)}
-            </p>
+            </h1>
             <Counter />
             <ChangeLang />
         </I18nContextProvider>
@@ -34,7 +34,7 @@ fn Counter() -> impl IntoView {
                 <b> = <b />,
             }}
         </p>
-        <button on:click=inc>{t!(i18n, inc)}</button>
+        <button on:click=inc>{t!(i18n, click_to_inc)}</button>
     }
 }
 
