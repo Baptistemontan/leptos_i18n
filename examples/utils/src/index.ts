@@ -31,14 +31,15 @@ type PluralType =
   | "f32"
   | "f64";
 type Plural = [string, ...(number | string)[]];
-type Plurals = [PluralType | Plural, ...Plural[]];
+type RealPlurals = [PluralType | Plural, ...Plural[]];
+type InferedPlurals = (number | string)[][];
 
 type LocaleValue =
   | {
       [key: string]: LocaleValue;
     }
   | string
-  | Plurals;
+  | InferedPlurals;
 
 type Locales = {
   [key: string]: LocaleValue;
@@ -108,7 +109,15 @@ class I18n<L extends Locales> {
     if (typeof value === "string") {
       return handle_string(value, vars, components);
     } else if (Array.isArray(value)) {
-      return handle_plurals(value, vars, components, plural_count);
+      if (typeof plural_count !== "undefined") {
+        vars["count"] = plural_count;
+      }
+      return handle_plurals(
+        value as RealPlurals,
+        vars,
+        components,
+        plural_count
+      );
     } else {
       throw new Error(`invalid key \"${key}\",\nvalue: ${value}`);
     }
@@ -224,35 +233,35 @@ function handle_string(
 
 function string_plural_match(plural: string, plural_count: number): boolean {
   const counts = plural.split("|").map((s) => s.trim());
-  for (const count in counts) {
-    const parseNum = Number.parseFloat(count);
-    if (parseNum == plural_count) {
-      return true;
-    }
-    if (!isNaN(parseNum)) {
-      continue;
-    }
-    // range
-    let [before, after] = count.split("..", 2);
-    const included = after.startsWith("=");
-    if (included) {
-      after = after.slice(1);
-    }
-    let min = Number.parseFloat(before);
-    let max = Number.parseFloat(after);
+  for (const count of counts) {
+    if (count.includes("..")) {
+      // range
+      let [before, after] = count.split("..", 2);
+      const included = after.startsWith("=");
+      if (included) {
+        after = after.slice(1);
+      }
+      let min = Number.parseFloat(before);
+      let max = Number.parseFloat(after);
 
-    if (isNaN(min)) {
-      min = -Infinity;
-    }
-    if (isNaN(max)) {
-      max = Infinity;
-    }
+      if (isNaN(min)) {
+        min = -Infinity;
+      }
+      if (isNaN(max)) {
+        max = Infinity;
+      }
 
-    if (
-      (plural_count >= min && included && plural_count <= max) ||
-      (!included && plural_count < max)
-    ) {
-      return true;
+      if (
+        (plural_count >= min && included && plural_count <= max) ||
+        (!included && plural_count < max)
+      ) {
+        return true;
+      }
+    } else {
+      const parseNum = Number.parseFloat(count);
+      if (parseNum == plural_count) {
+        return true;
+      }
     }
   }
   return false;
@@ -277,7 +286,7 @@ function plural_match(plural: Plural, plural_count?: number): boolean {
 }
 
 function handle_plurals(
-  value: Plurals,
+  value: RealPlurals,
   vars: TFuncVars,
   components: TFuncComp,
   plural_count?: number
@@ -294,5 +303,9 @@ function handle_plurals(
     }
   }
 
-  throw new Error("plurals should match");
+  throw new Error(
+    `plurals should match.\ncount: ${plural_count}\nplurals: ${JSON.stringify(
+      value
+    )}`
+  );
 }
