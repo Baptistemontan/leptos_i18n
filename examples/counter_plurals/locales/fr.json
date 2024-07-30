@@ -1,20 +1,11 @@
 {
-    "click_to_change_lang": "Cliquez pour changez de langue",
-    "click_count": [
-        {
-            "count": "0",
-            "value": "Vous n'avez pas cliqué"
-        },
-        ["Vous avez cliqué une fois", "1"],
-        {
-            "count": "2..20",
-            "value": "You clicked {{ count }} times"
-        },
-        {
-            "count": "20..",
-            "value": "You clicked a lot"
-        },
-        ["You clicked a negative amount ??"]
-    ],
-    "click_to_inc": "Cliquez pour incrémenter le compteur"
+  "click_to_change_lang": "Cliquez pour changez de langue",
+  "click_count": [
+    ["Vous n'avez pas cliqué", "0"],
+    ["Vous avez cliqué une fois", 1],
+    ["You clicked {{ count }} times", "2..20"],
+    ["You clicked a lot", "20.."],
+    ["You clicked a negative amount ??"]
+  ],
+  "click_to_inc": "Cliquez pour incrémenter le compteur"
 }
