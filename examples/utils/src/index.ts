@@ -19,12 +19,29 @@ export function fail_windows_webkit({ browserName }: TestArgs): boolean {
   return WEBKIT && WIN;
 }
 
-type LocaleArg = {
-  [key: string]: string;
-};
+type PluralType =
+  | "i8"
+  | "i16"
+  | "i32"
+  | "i64"
+  | "u8"
+  | "u16"
+  | "u32"
+  | "u64"
+  | "f32"
+  | "f64";
+type Plural = [string, ...(number | string)[]];
+type Plurals = [PluralType | Plural, ...Plural[]];
+
+type LocaleValue =
+  | {
+      [key: string]: LocaleValue;
+    }
+  | string
+  | Plurals;
 
 type Locales = {
-  [key: string]: LocaleArg;
+  [key: string]: LocaleValue;
 };
 
 interface I18nFixtureArgs<L extends Locales> {
@@ -40,7 +57,8 @@ type TFuncComp = {
   [key: string]: (inner: string) => string;
 };
 
-type TFunc = (key: string, vars?: TFuncVars, comps?: TFuncComp) => string;
+type TFunc = typeof I18n.prototype.t;
+
 type LangChangeCb<L extends Locales> = (new_locale: keyof L) => Promise<void>;
 
 function match_locale<L extends Locales>(
@@ -77,21 +95,23 @@ class I18n<L extends Locales> {
   public t(
     key: string,
     vars: TFuncVars = {},
-    components: TFuncComp = {}
+    components: TFuncComp = {},
+    plural_count?: number
   ): string {
-    let value = this.locales[this.current_locale][key];
-    if (!value) {
-      return key;
+    let value = key
+      .split(".")
+      .reduce<LocaleValue | undefined>(
+        (vals, key) => (vals ? vals[key] : undefined),
+        this.locales[this.current_locale]
+      );
+
+    if (typeof value === "string") {
+      return handle_string(value, vars, components);
+    } else if (Array.isArray(value)) {
+      return handle_plurals(value, vars, components, plural_count);
+    } else {
+      throw new Error(`invalid key \"${key}\",\nvalue: ${value}`);
     }
-
-    for (const [key, val] of Object.entries(vars)) {
-      const regex = new RegExp(`{{\\s*${key}\\s*}}`, "gmi");
-      value = value.replace(regex, val);
-    }
-
-    const pairs = getPairs(value);
-
-    return formatElements(components, pairs).join("");
   }
 
   public get_locale(): keyof L {
@@ -185,4 +205,94 @@ function formatElements(elements: TFuncComp, parts: RegexResult[]): string[] {
     const element = (key && elements[key]) || ((s) => s);
     return [before, element(join_results(content))];
   });
+}
+
+function handle_string(
+  value: string,
+  vars: TFuncVars,
+  components: TFuncComp
+): string {
+  for (const [key, val] of Object.entries(vars)) {
+    const regex = new RegExp(`{{\\s*${key}\\s*}}`, "gmi");
+    value = value.replace(regex, val);
+  }
+
+  const pairs = getPairs(value);
+
+  return formatElements(components, pairs).join("");
+}
+
+function string_plural_match(plural: string, plural_count: number): boolean {
+  const counts = plural.split("|").map((s) => s.trim());
+  for (const count in counts) {
+    const parseNum = Number.parseFloat(count);
+    if (parseNum == plural_count) {
+      return true;
+    }
+    if (!isNaN(parseNum)) {
+      continue;
+    }
+    // range
+    let [before, after] = count.split("..", 2);
+    const included = after.startsWith("=");
+    if (included) {
+      after = after.slice(1);
+    }
+    let min = Number.parseFloat(before);
+    let max = Number.parseFloat(after);
+
+    if (isNaN(min)) {
+      min = -Infinity;
+    }
+    if (isNaN(max)) {
+      max = Infinity;
+    }
+
+    if (
+      (plural_count >= min && included && plural_count <= max) ||
+      (!included && plural_count < max)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function plural_match(plural: Plural, plural_count?: number): boolean {
+  let [, ...counts] = plural;
+  if (!counts.length || typeof plural_count !== "number") {
+    return !counts.length;
+  }
+
+  for (const count of counts) {
+    if (
+      count == plural_count ||
+      (typeof count === "string" && string_plural_match(count, plural_count))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function handle_plurals(
+  value: Plurals,
+  vars: TFuncVars,
+  components: TFuncComp,
+  plural_count?: number
+): string {
+  const [first, ...rest] = value;
+
+  if (typeof first !== "string") {
+    rest.unshift(first);
+  }
+
+  for (const plural of rest) {
+    if (plural_match(plural, plural_count)) {
+      return handle_string(plural[0], vars, components);
+    }
+  }
+
+  throw new Error("plurals should match");
 }
