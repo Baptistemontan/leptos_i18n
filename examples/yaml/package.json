@@ -16,9 +16,7 @@
   "license": "ISC",
   "devDependencies": {
     "@playwright/test": "^1.45.3",
-    "@types/node": "^20.14.12"
-  },
-  "imports": {
-    "#locales/*": "./locales/*"
+    "@types/node": "^20.14.12",
+    "yaml": "^2.5.0"
   }
 }
