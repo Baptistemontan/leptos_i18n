@@ -45,10 +45,23 @@ type Locales = {
   [key: string]: LocaleValue;
 };
 
-interface I18nFixtureArgs<L extends Locales> {
+interface I18nFixtureArgsNoNs<L extends Locales> {
   default_locale: keyof L;
   locales: L;
 }
+
+type Namespaces<L extends Locales> = {
+  [key: string]: L;
+};
+
+interface I18nFixtureArgsWithNs<L extends Locales, N extends Namespaces<L>> {
+  default_locale: keyof L;
+  namespaces: N;
+}
+
+type I18nFixtureArgs<L extends Locales, N extends Namespaces<L>> =
+  | I18nFixtureArgsNoNs<L>
+  | I18nFixtureArgsWithNs<L, N>;
 
 type TFuncVars = {
   [key: string]: any;
@@ -81,13 +94,39 @@ function match_locale<L extends Locales>(
   return default_locale;
 }
 
-class I18n<L extends Locales> {
+function is_namespace_args<L extends Locales, N extends Namespaces<L>>(
+  args: I18nFixtureArgs<L, N>
+): args is I18nFixtureArgsWithNs<L, N> {
+  return Object.keys(args).includes("namespaces");
+}
+
+class I18n<L extends Locales, N extends Namespaces<L>> {
   private current_locale: keyof L;
   private locales: L;
   private locale_change_cb: LangChangeCb<L> | null;
 
-  constructor(args: I18nFixtureArgs<L>, locale: string) {
-    const { locales, default_locale } = args;
+  constructor(args: I18nFixtureArgs<L, N>, locale: string) {
+    let updated_args: I18nFixtureArgsNoNs<L>;
+    if (is_namespace_args(args)) {
+      const locales = {};
+      for (const nkey of Object.keys(args.namespaces)) {
+        const ns = args.namespaces[nkey];
+        for (const lkey of Object.keys(ns)) {
+          if (!locales[lkey]) {
+            locales[lkey] = {};
+          }
+          locales[lkey][nkey] = ns[lkey];
+        }
+      }
+      updated_args = {
+        default_locale: args.default_locale,
+        locales: locales as L,
+      };
+    } else {
+      updated_args = args;
+    }
+
+    const { locales, default_locale } = updated_args;
 
     this.current_locale = match_locale(locale, locales, default_locale);
     this.locales = locales;
@@ -143,15 +182,15 @@ class I18n<L extends Locales> {
   }
 }
 
-export type I18nFixture<L extends Locales> = {
-  i18n: I18n<L>;
+export type I18nFixture<L extends Locales, N extends Namespaces<L>> = {
+  i18n: I18n<L, N>;
   t: TFunc;
 };
 
-export function createI18nFixture<L extends Locales>(
-  args: I18nFixtureArgs<L>
+export function createI18nFixture<L extends Locales, N extends Namespaces<L>>(
+  args: I18nFixtureArgs<L, N>
 ): Fixtures<
-  I18nFixture<L>,
+  I18nFixture<L, N>,
   PlaywrightWorkerArgs & PlaywrightWorkerOptions,
   PlaywrightTestArgs & PlaywrightTestOptions,
   PlaywrightWorkerArgs & PlaywrightWorkerOptions
