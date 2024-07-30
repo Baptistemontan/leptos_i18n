@@ -8,7 +8,9 @@ leptos_i18n = { path = "../../leptos_i18n" }
 [[workspace.metadata.leptos]]
 name = "counter"
 bin-package = "server"
+
 lib-package = "client"
+lib-features = ["hydrate"]
 
 reload-port = 3001
 
