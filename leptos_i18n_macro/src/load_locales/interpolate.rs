@@ -28,6 +28,7 @@ struct Field<'a> {
 impl Interpolation {
     pub fn new(
         key: &Key,
+        enum_ident: &syn::Ident,
         keys_set: &HashSet<InterpolateKey>,
         locales: &[Locale],
         default_match: &TokenStream,
@@ -58,11 +59,12 @@ impl Interpolation {
             })
             .collect::<Vec<_>>();
 
-        let type_def = Self::create_type(&ident, &fields);
+        let type_def = Self::create_type(&ident, enum_ident, &fields);
         let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
         let into_view_impl = Self::into_view_impl(
             key,
             &ident,
+            enum_ident,
             &locale_field,
             &fields,
             locales,
@@ -72,12 +74,20 @@ impl Interpolation {
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
         let display_impl = if cfg!(feature = "interpolate_display") {
-            Self::display_impl(key, &ident, &locale_field, &fields, locales, default_match)
+            Self::display_impl(
+                key,
+                &ident,
+                enum_ident,
+                &locale_field,
+                &fields,
+                locales,
+                default_match,
+            )
         } else {
             quote!()
         };
 
-        let new_impl = Self::new_impl(&ident, &locale_field, &fields);
+        let new_impl = Self::new_impl(&ident, enum_ident, &locale_field, &fields);
         let default_generics = fields
             .iter()
             .map(|_| quote!(builders::EmptyInterpolateValue));
@@ -104,7 +114,12 @@ impl Interpolation {
         }
     }
 
-    fn new_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
+    fn new_impl(
+        ident: &syn::Ident,
+        enum_ident: &syn::Ident,
+        locale_field: &Key,
+        fields: &[Field],
+    ) -> TokenStream {
         let generics = fields.iter().map(|_| quote!(EmptyInterpolateValue));
 
         let fields = fields.iter().map(|field| {
@@ -114,7 +129,7 @@ impl Interpolation {
 
         quote! {
             impl #ident<#(#generics,)*> {
-                pub const fn new(#locale_field: Locale) -> Self {
+                pub const fn new(#locale_field: #enum_ident) -> Self {
                     Self {
                         #(#fields,)*
                         #locale_field
@@ -230,7 +245,7 @@ impl Interpolation {
         }
     }
 
-    fn create_type(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+    fn create_type(ident: &syn::Ident, enum_ident: &syn::Ident, fields: &[Field]) -> TokenStream {
         let generics = fields.iter().map(|field| &field.generic);
         let fields = fields.iter().map(|field| {
             let key = field.kind;
@@ -242,7 +257,7 @@ impl Interpolation {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Clone, Copy, Hash, PartialEq, Eq)]
             pub struct #ident<#(#generics,)*> {
-                _locale: Locale,
+                _locale: #enum_ident,
                 #(#fields,)*
             }
         }
@@ -597,6 +612,7 @@ impl Interpolation {
     fn display_impl(
         key: &Key,
         ident: &syn::Ident,
+        enum_ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
@@ -620,7 +636,8 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_string_impl(key, locales, default_match);
+        let locales_impls =
+            Self::create_locale_string_impl(key, enum_ident, locales, default_match);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -637,9 +654,11 @@ impl Interpolation {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn into_view_impl(
         key: &Key,
         ident: &syn::Ident,
+        enum_ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
@@ -674,7 +693,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, locales, default_match);
+        let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -693,6 +712,7 @@ impl Interpolation {
 
     fn create_locale_impl<'a>(
         key: &'a Key,
+        enum_ident: &'a syn::Ident,
         locales: &'a [Locale],
         default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
@@ -706,7 +726,7 @@ impl Interpolation {
 
                 let value = match locale.keys.get(key) {
                     None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| Locale::#locale_key));
+                        default_match.extend(quote!(| #enum_ident::#locale_key));
                         return None;
                     }
                     Some(value) => value,
@@ -714,7 +734,7 @@ impl Interpolation {
 
                 let ts = match i == 0 {
                     true => quote!(#default_match => { #value }),
-                    false => quote!(Locale::#locale_key => { #value }),
+                    false => quote!(#enum_ident::#locale_key => { #value }),
                 };
                 Some(ts)
             })
@@ -722,6 +742,7 @@ impl Interpolation {
 
     fn create_locale_string_impl<'a>(
         key: &'a Key,
+        enum_ident: &'a syn::Ident,
         locales: &'a [Locale],
         default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
@@ -735,7 +756,7 @@ impl Interpolation {
 
                 let value = match locale.keys.get(key) {
                     None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| Locale::#locale_key));
+                        default_match.extend(quote!(| #enum_ident::#locale_key));
                         return None;
                     }
                     Some(value) => value,
@@ -745,7 +766,7 @@ impl Interpolation {
 
                 let ts = match i == 0 {
                     true => quote!(#default_match => { #value }),
-                    false => quote!(Locale::#locale_key => { #value }),
+                    false => quote!(#enum_ident::#locale_key => { #value }),
                 };
                 Some(ts)
             })
