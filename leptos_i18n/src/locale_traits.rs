@@ -60,7 +60,7 @@ pub trait Locale<L: Locale = Self>:
     /// Returns the underlying locale, this for wrappers implementing `Locale` to return the base value, such as `ScopedLocale`
     fn to_underlying_locale(self) -> L;
 
-    /// Scope the locale to rthe given keys.
+    /// Scope the locale to the given keys.
     fn scope<K: LocaleKeys<Locale = L>>(self) -> ScopedLocale<L, K> {
         ScopedLocale::new(self.to_underlying_locale())
     }
