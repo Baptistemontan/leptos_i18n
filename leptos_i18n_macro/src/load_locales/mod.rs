@@ -85,6 +85,7 @@ fn load_locales_inner(
         quote!(tu),
         quote!(use_i18n_scoped),
         quote!(scope_i18n),
+        quote!(scope_locale),
     ];
     if cfg!(feature = "interpolate_display") {
         macros_reexport.extend([

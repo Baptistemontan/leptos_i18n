@@ -147,8 +147,8 @@ pub mod providers {
 }
 
 pub use leptos_i18n_macro::{
-    load_locales, scope_i18n, t, t_display, t_string, td, td_display, td_string, tu, tu_display,
-    tu_string, use_i18n_scoped,
+    load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,
+    tu_display, tu_string, use_i18n_scoped,
 };
 
 #[doc(hidden)]
