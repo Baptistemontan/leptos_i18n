@@ -5,7 +5,7 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_use::UseCookieOptions;
 
-use crate::{fetch_locale, locale_traits::*};
+use crate::{fetch_locale, locale_traits::*, Scope};
 
 /// This context is the heart of the i18n system:
 ///
@@ -13,20 +13,20 @@ use crate::{fetch_locale, locale_traits::*};
 ///
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug)]
-pub struct I18nContext<L: Locale, K: LocaleKeys<Locale = L> = <L as Locale>::RootKeys> {
+pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::RootKeys> {
     locale_signal: RwSignal<L>,
-    keys_marker: PhantomData<K>,
+    scope_marker: PhantomData<S>,
 }
 
-impl<L: Locale, K: LocaleKeys<Locale = L>> Clone for I18nContext<L, K> {
+impl<L: Locale, S: Scope<L>> Clone for I18nContext<L, S> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<L: Locale, K: LocaleKeys<Locale = L>> Copy for I18nContext<L, K> {}
+impl<L: Locale, S: Scope<L>> Copy for I18nContext<L, S> {}
 
-impl<L: Locale, K: LocaleKeys<Locale = L>> I18nContext<L, K> {
+impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale subscribing to any changes.
     #[inline]
     pub fn get_locale(self) -> L {
@@ -41,14 +41,14 @@ impl<L: Locale, K: LocaleKeys<Locale = L>> I18nContext<L, K> {
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
-    pub fn get_keys(self) -> &'static K {
-        K::from_locale(self.get_locale())
+    pub fn get_keys(self) -> &'static S::Keys {
+        LocaleKeys::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_keys_untracked(self) -> &'static K {
-        K::from_locale(self.get_locale_untracked())
+    pub fn get_keys_untracked(self) -> &'static S::Keys {
+        LocaleKeys::from_locale(self.get_locale_untracked())
     }
 
     /// Set the locale and notify all subscribers
@@ -65,10 +65,10 @@ impl<L: Locale, K: LocaleKeys<Locale = L>> I18nContext<L, K> {
 
     /// Return a context scoped to the given Keys.
     #[inline]
-    pub fn scope<S: LocaleKeys<Locale = L>>(self) -> I18nContext<L, S> {
+    pub fn scope<NS: Scope<L>>(self) -> I18nContext<L, NS> {
         I18nContext {
             locale_signal: self.locale_signal,
-            keys_marker: PhantomData,
+            scope_marker: PhantomData,
         }
     }
 }
@@ -131,7 +131,7 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
 
     let context = I18nContext::<T> {
         locale_signal,
-        keys_marker: PhantomData,
+        scope_marker: PhantomData,
     };
 
     provide_context(context);

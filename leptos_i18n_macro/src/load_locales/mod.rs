@@ -227,7 +227,11 @@ fn create_locales_enum(
                 &[#(#enum_ident::#locales,)*]
             }
 
-            fn to_underlying_locale(self) -> Self {
+            fn get_all_base() -> &'static [Self] {
+                l_i18n_crate::Locale::get_all()
+            }
+
+            fn to_base_locale(self) -> Self {
                 self
             }
         }
@@ -456,7 +460,7 @@ fn create_locale_type_inner(
         }
     });
 
-    let from_locale = if let Some(parent_ident) = parent_ident {
+    let loc_keys_impl = if let Some(parent_ident) = parent_ident {
         quote! {
             impl l_i18n_crate::LocaleKeys for #type_ident {
                 type Locale = #enum_ident;
@@ -522,7 +526,11 @@ fn create_locale_type_inner(
             }
         }
 
-        #from_locale
+        #loc_keys_impl
+
+        impl l_i18n_crate::Scope<#enum_ident> for #type_ident {
+            type Keys = Self;
+        }
 
         #builder_module
 
@@ -631,6 +639,10 @@ fn create_namespaces_types(
                     )*
                 }
             }
+        }
+
+        impl l_i18n_crate::Scope<#enum_ident> for #keys_ident {
+            type Keys = Self;
         }
     }
 }

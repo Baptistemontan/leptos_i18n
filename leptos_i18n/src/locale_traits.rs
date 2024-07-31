@@ -4,13 +4,13 @@ use unic_langid::LanguageIdentifier;
 
 use crate::{
     langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match},
-    scoped::ScopedLocale,
+    scoped::{Scope, ScopedLocale},
 };
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
 /// Most functions of this crate are generic of type implementing this trait
-pub trait Locale<L: Locale = Self>:
+pub trait Locale<BL: Locale = Self>:
     'static
     + Default
     + Clone
@@ -21,7 +21,7 @@ pub trait Locale<L: Locale = Self>:
     + PartialEq
 {
     /// The associated type containing the entire translations
-    type RootKeys: LocaleKeys<Locale = L>;
+    type RootKeys: LocaleKeys<Locale = BL>;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -29,11 +29,17 @@ pub trait Locale<L: Locale = Self>:
     /// Return a static reference to a `LanguageIdentifier`
     fn as_langid(self) -> &'static LanguageIdentifier;
 
-    /// Return a static reference to an array containing all variants of this enum
-    fn get_all() -> &'static [L];
+    /// Return a static reference to an array containing all variants of this base locale
+    fn get_all_base() -> &'static [BL];
+
+    /// Return a static reference to an array containing all variants of this base locale
+    fn get_all() -> &'static [Self];
+
+    /// Returns the underlying locale, this for wrappers implementing `Locale` to return the base value, such as `ScopedLocale`
+    fn to_base_locale(self) -> BL;
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
-    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> L {
+    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
         let langids = convert_vec_str_to_langids_lossy(accepted_languages);
         find_match(&langids, Self::get_all())
     }
@@ -41,35 +47,32 @@ pub trait Locale<L: Locale = Self>:
     /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
     ///
     /// This function does not fallback to default if no match is found.
-    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<L> {
+    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
         filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all())
     }
 
-    /// Return the values of the given Keys
+    /// Return the keys of the given scope.
     #[inline]
-    fn get_keys<K: LocaleKeys<Locale = L>>(self) -> &'static K {
-        LocaleKeys::from_locale(self.to_underlying_locale())
+    fn get_scope_keys<S: Scope<BL>>(self) -> &'static S::Keys {
+        LocaleKeys::from_locale(self.to_base_locale())
     }
 
     /// Return the root keys
     #[inline]
-    fn get_root_keys(self) -> &'static Self::RootKeys {
-        Self::get_keys(self)
+    fn get_keys(self) -> &'static Self::RootKeys {
+        LocaleKeys::from_locale(self.to_base_locale())
     }
 
-    /// Returns the underlying locale, this for wrappers implementing `Locale` to return the base value, such as `ScopedLocale`
-    fn to_underlying_locale(self) -> L;
-
-    /// Scope the locale to the given keys.
-    fn scope<K: LocaleKeys<Locale = L>>(self) -> ScopedLocale<L, K> {
-        ScopedLocale::new(self.to_underlying_locale())
+    /// Scope the locale to the given scope.
+    fn scope<S: Scope<BL>>(self) -> ScopedLocale<BL, S> {
+        ScopedLocale::new(self.to_base_locale())
     }
 }
 
 /// Trait implemented the struct representing the translation keys
 ///
 /// You will probably never need to use it has it only serves the internals of the library.
-pub trait LocaleKeys: 'static + Clone + Copy {
+pub trait LocaleKeys: 'static + Clone + Copy + Scope<Self::Locale> {
     /// The associated enum representing the supported locales
     type Locale: Locale;
 

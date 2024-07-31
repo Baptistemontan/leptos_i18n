@@ -6,7 +6,10 @@ use unic_langid::LanguageIdentifier;
 
 use crate::Locale;
 
-pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> Vec<L> {
+pub fn filter_matches<BL: Locale, L: Locale<BL>>(
+    requested: &[LanguageIdentifier],
+    available: &[L],
+) -> Vec<L> {
     let mut supported_locales = vec![];
 
     let mut available_locales: Vec<L> = available.to_vec();
@@ -66,7 +69,10 @@ fn into_specificity(lang: &LanguageIdentifier) -> usize {
     specificity
 }
 
-pub fn find_match<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
+pub fn find_match<BL: Locale, L: Locale<BL>>(
+    requested: &[LanguageIdentifier],
+    available: &[L],
+) -> L {
     filter_matches(requested, available)
         .first()
         .copied()

@@ -138,6 +138,8 @@ pub use locale_traits::{Locale, LocaleKeys};
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
 
+pub use scoped::{Scope, ScopedLocale};
+
 /// re-export module for provider functions, such as `provide_i18n_context` and other variants with more options.
 pub mod providers {
     pub use crate::context::{
