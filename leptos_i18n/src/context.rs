@@ -218,15 +218,6 @@ pub fn use_i18n_context<T: Locale>() -> I18nContext<T> {
     use_context().expect("I18nContext is missing, use provide_i18n_context() to provide it.")
 }
 
-#[doc(hidden)]
-#[inline]
-pub fn scope_util<L: Locale, P: LocaleKeys<Locale = L>, S: LocaleKeys<Locale = L>>(
-    ctx: I18nContext<L, P>,
-    _: impl FnOnce(&P) -> &S,
-) -> I18nContext<L, S> {
-    ctx.scope()
-}
-
 // get locale
 #[cfg(feature = "nightly")]
 impl<T: Locale> FnOnce<()> for I18nContext<T> {

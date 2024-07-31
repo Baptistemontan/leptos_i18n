@@ -128,7 +128,7 @@ impl InputType {
             InputType::Untracked => {
                 quote!(leptos_i18n::I18nContext::get_keys_untracked(#input).#keys)
             }
-            InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys),
+            InputType::Locale => quote!(leptos_i18n::Locale::get_root_keys(#input).#keys),
         }
     }
 }

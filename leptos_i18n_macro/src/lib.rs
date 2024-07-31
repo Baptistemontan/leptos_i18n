@@ -266,3 +266,30 @@ pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
 pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     utils::scoped::scope_i18n(tokens)
 }
+
+/// Scope a locale to the given keys
+///
+/// Instead of
+///
+/// ```rust, ignore
+/// let i18n = use_i18n;
+/// t!(i18n, namespace.subkeys.value);
+/// ```
+///
+/// You can do
+///
+/// ```rust, ignore
+/// let i18n = use_i18n();
+/// let namespace_i18n = scope_i18n!(i18n, namespace);
+///
+/// t!(namespace_i18n, subkeys.value);
+///
+/// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
+/// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
+
+/// t!(subkeys_i18n, value);
+/// ```
+#[proc_macro]
+pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    utils::scoped::scope_locale(tokens)
+}

@@ -225,6 +225,10 @@ fn create_locales_enum(
             fn get_all() -> &'static [Self] {
                 &[#(#enum_ident::#locales,)*]
             }
+
+            fn to_underlying_locale(self) -> Self {
+                self
+            }
         }
 
         impl core::str::FromStr for #enum_ident {

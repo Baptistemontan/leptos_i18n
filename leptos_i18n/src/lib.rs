@@ -129,6 +129,7 @@ mod context;
 mod fetch_locale;
 mod langid;
 mod locale_traits;
+mod scoped;
 mod server;
 
 pub mod display;
@@ -152,8 +153,8 @@ pub use leptos_i18n_macro::{
 
 #[doc(hidden)]
 pub mod __private {
-    pub use crate::context::scope_util;
     pub use crate::locale_traits::BuildStr;
+    pub use crate::scoped::{scope_ctx_util, scope_locale_util};
     pub use leptos_i18n_macro::declare_locales;
     pub use unic_langid;
 }
