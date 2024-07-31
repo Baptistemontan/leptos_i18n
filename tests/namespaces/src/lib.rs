@@ -5,3 +5,6 @@ leptos_i18n::load_locales!();
 mod first_ns;
 #[cfg(test)]
 mod second_ns;
+
+#[cfg(scoped)]
+mod second_ns;
