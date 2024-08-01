@@ -54,7 +54,7 @@ pub trait Locale:
 /// You will probably never need to use it has it only serves the internals of the library.
 pub trait LocaleKeys: 'static + Clone + Copy {
     /// The associated enum representing the supported locales
-    type Locale: Locale<Keys = Self>;
+    type Locale: Locale;
 
     /// Return a static ref to Self containing the translations for the given locale
     fn from_locale(locale: Self::Locale) -> &'static Self;
@@ -95,8 +95,16 @@ mod test {
         path: crate,
         default: "en",
         locales: ["en", "fr"],
-        en: {},
-        fr: {},
+        en: {
+            sk: {
+                ssk: "test",
+            },
+        },
+        fr: {
+            sk: {
+                ssk: "test",
+            },
+        },
     }
 
     use super::Locale as _;

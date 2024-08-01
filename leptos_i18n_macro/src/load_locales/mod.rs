@@ -79,7 +79,14 @@ fn load_locales_inner(
 
     let file_tracking = tracking::generate_file_tracking();
 
-    let mut macros_reexport = vec![quote!(t), quote!(td), quote!(tu)];
+    let mut macros_reexport = vec![
+        quote!(t),
+        quote!(td),
+        quote!(tu),
+        quote!(use_i18n_scoped),
+        quote!(scope_i18n),
+        quote!(scope_locale),
+    ];
     if cfg!(feature = "interpolate_display") {
         macros_reexport.extend([
             quote!(t_string),
@@ -286,12 +293,13 @@ fn get_default_match(
 fn create_locale_type_inner(
     default_locale: &Key,
     type_ident: &syn::Ident,
+    parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
     top_locales: &HashSet<&Key>,
     locales: &[Locale],
     keys: &HashMap<Rc<Key>, LocaleValue>,
-    is_namespace: bool,
     key_path: &mut KeyPath,
+    original_ident: &syn::Ident,
 ) -> TokenStream {
     let default_match = get_default_match(default_locale, top_locales, locales, enum_ident);
 
@@ -322,12 +330,13 @@ fn create_locale_type_inner(
         let subkey_impl = create_locale_type_inner(
             default_locale,
             &sk.key,
+            Some(type_ident),
             enum_ident,
             top_locales,
             sk.locales,
             &sk.keys.0,
-            true,
             key_path,
+            &sk.original_key.ident,
         );
         key_path.pop_key();
         quote! {
@@ -443,12 +452,20 @@ fn create_locale_type_inner(
         }
     });
 
-    let (from_locale, const_values) = if !is_namespace {
+    let locale_keys_impl = if let Some(parent_ident) = parent_ident {
+        quote! {
+            impl l_i18n_crate::LocaleKeys for #type_ident {
+                type Locale = #enum_ident;
+                fn from_locale(_locale: #enum_ident) -> &'static Self {
+                    &<super::super::#parent_ident as l_i18n_crate::LocaleKeys>::from_locale(_locale).#original_ident
+                }
+            }
+        }
+    } else {
         let from_locale_match_arms = top_locales
             .iter()
             .map(|locale| quote!(#enum_ident::#locale => &Self::#locale));
-
-        let from_locale = quote! {
+        quote! {
             impl l_i18n_crate::LocaleKeys for #type_ident {
                 type Locale = #enum_ident;
                 fn from_locale(_locale: #enum_ident) -> &'static Self {
@@ -459,8 +476,10 @@ fn create_locale_type_inner(
                     }
                 }
             }
-        };
+        }
+    };
 
+    let const_values = if parent_ident.is_none() {
         let const_values = top_locales
             .iter()
             .map(|locale| quote!(pub const #locale: Self = Self::new(#enum_ident::#locale);));
@@ -472,9 +491,9 @@ fn create_locale_type_inner(
             )*
         };
 
-        (Some(from_locale), Some(const_values))
+        Some(const_values)
     } else {
-        (None, None)
+        None
     };
 
     quote! {
@@ -499,11 +518,12 @@ fn create_locale_type_inner(
             }
         }
 
-        #from_locale
+        #locale_keys_impl
 
         #builder_module
 
         #subkeys_module
+
     }
 }
 
@@ -519,43 +539,55 @@ fn create_namespaces_types(
     top_locales: &HashSet<&Key>,
     keys: &HashMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
-    let namespaces_ts = namespaces.iter().map(|namespace| {
-        let namespace_ident = &namespace.key.ident;
-        let namespace_module_ident = create_namespace_mod_ident(namespace_ident);
-        let keys = keys.get(&namespace.key).unwrap();
-        let mut key_path = KeyPath::new(Some(namespace.key.clone()));
-        let type_impl = create_locale_type_inner(
-            default_locale,
-            namespace_ident,
-            enum_ident,
-            top_locales,
-            &namespace.locales,
-            &keys.0,
-            true,
-            &mut key_path,
-        );
-        quote! {
-            pub mod #namespace_module_ident {
-                use super::{#enum_ident, l_i18n_crate};
+    let namespaces = namespaces
+        .iter()
+        .map(|ns| {
+            let namespace_module_ident = create_namespace_mod_ident(&ns.key.ident);
+            (ns, namespace_module_ident)
+        })
+        .collect::<Vec<_>>();
 
-                #type_impl
+    let namespaces_ts = namespaces
+        .iter()
+        .map(|(namespace, namespace_module_ident)| {
+            let keys = keys.get(&namespace.key).unwrap();
+            let mut key_path = KeyPath::new(Some(namespace.key.clone()));
+            let type_impl = create_locale_type_inner(
+                default_locale,
+                &namespace.key.ident,
+                Some(keys_ident),
+                enum_ident,
+                top_locales,
+                &namespace.locales,
+                &keys.0,
+                &mut key_path,
+                &namespace.key.ident,
+            );
+
+            quote! {
+                pub mod #namespace_module_ident {
+                    use super::{#enum_ident, l_i18n_crate};
+
+                    #type_impl
+                }
             }
-        }
-    });
+        });
 
-    let namespaces_fields = namespaces.iter().map(|namespace| {
-        let key = &namespace.key;
-        let namespace_module_ident = create_namespace_mod_ident(&key.ident);
-        quote!(pub #key: namespaces::#namespace_module_ident::#key)
-    });
+    let namespaces_fields = namespaces
+        .iter()
+        .map(|(namespace, namespace_module_ident)| {
+            let key = &namespace.key;
+            quote!(pub #key: namespaces::#namespace_module_ident::#key)
+        });
 
-    let namespaces_fields_new = namespaces.iter().map(|namespace| {
-        let key = &namespace.key;
-        let namespace_module_ident = create_namespace_mod_ident(&key.ident);
-        quote!(#key: namespaces::#namespace_module_ident::#key::new(_locale))
-    });
+    let namespaces_fields_new = namespaces
+        .iter()
+        .map(|(namespace, namespace_module_ident)| {
+            let key = &namespace.key;
+            quote!(#key: namespaces::#namespace_module_ident::#key::new(_locale))
+        });
 
-    let locales = &namespaces.iter().next().unwrap().locales;
+    let locales = &namespaces.first().unwrap().0.locales;
 
     let const_values = locales.iter().map(|locale| {
         let locale_ident = &locale.name;
@@ -568,6 +600,7 @@ fn create_namespaces_types(
     });
 
     quote! {
+        #[doc(hidden)]
         pub mod namespaces {
             use super::{#enum_ident, l_i18n_crate};
 
@@ -631,12 +664,13 @@ fn create_locale_type(
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
             default_locale,
             keys_ident,
+            None,
             enum_ident,
             &top_locales,
             locales,
             &keys.0,
-            false,
             &mut KeyPath::new(None),
+            keys_ident,
         ),
     }
 }

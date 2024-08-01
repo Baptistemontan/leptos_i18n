@@ -129,6 +129,7 @@ mod context;
 mod fetch_locale;
 mod langid;
 mod locale_traits;
+mod scopes;
 mod server;
 
 pub mod display;
@@ -146,21 +147,16 @@ pub mod providers {
 }
 
 pub use leptos_i18n_macro::{
-    load_locales, t, t_display, t_string, td, td_display, td_string, tu, tu_display, tu_string,
+    load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,
+    tu_display, tu_string, use_i18n_scoped,
 };
+pub use scopes::{ConstScope, Scope};
 
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;
     pub use leptos_i18n_macro::declare_locales;
     pub use unic_langid;
-}
-
-#[doc(hidden)]
-pub mod reexports {
-    pub use leptos_i18n_macro::{
-        load_locales, t, t_display, t_string, td, td_display, td_string, tu, tu_display, tu_string,
-    };
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.
