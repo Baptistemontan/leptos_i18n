@@ -4,7 +4,7 @@ use common::*;
 #[test]
 fn subkey_3() {
     let en_scope = scope_locale!(Locale::en, subkeys);
-    let fr_scope = scope_locale!(Locale::en, subkeys);
+    let fr_scope = scope_locale!(Locale::fr, subkeys);
 
     let count = || 0;
     let en = tdbg!(en_scope, subkey_3, count);

@@ -50,7 +50,8 @@ fn scoped_plurals() {
         let en = tdbg!(en_scope, plural_only_en, count);
         assert_eq_rendered!(en, "fallback");
     }
-    let fr = tdbg!(Locale::fr, first_namespace.plural_only_en, count);
+
+    let fr = tdbg!(fr_scope, count);
     assert_eq_rendered!(fr, "pas de plurals en français");
 }
 
@@ -72,6 +73,6 @@ fn scoped_sub_subkeys() {
     let count = || 3;
     let en = tdbg!(en_scope, subkey_3, count);
     assert_eq_rendered!(en, "3");
-    let fr = tdbg!(en_scope, subkey_3, count);
+    let fr = tdbg!(fr_scope, subkey_3, count);
     assert_eq_rendered!(fr, "3");
 }
