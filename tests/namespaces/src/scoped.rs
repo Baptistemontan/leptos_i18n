@@ -51,7 +51,7 @@ fn scoped_plurals() {
         assert_eq_rendered!(en, "fallback");
     }
 
-    let fr = tdbg!(fr_scope, count);
+    let fr = tdbg!(fr_scope, plural_only_en, count);
     assert_eq_rendered!(fr, "pas de plurals en français");
 }
 
