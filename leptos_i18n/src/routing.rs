@@ -16,7 +16,10 @@ fn outlet_wrapper<L: Locale>(locale: Option<L>, base_path: &'static str) -> impl
         if new_locale == locale {
             return;
         }
-        let mut new_path = base_path.to_string() + new_locale.as_str();
+        let mut new_path = base_path.to_string();
+        if new_locale != L::default() {
+            new_path.push_str(new_locale.as_str());
+        }
         location.pathname.with_untracked(|path_name| {
             if let Some(path_rest) = path_name
                 .strip_prefix(base_path)
