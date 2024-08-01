@@ -14,6 +14,7 @@ readme = "../README.md"
 leptos_i18n_macro = { workspace = true }
 leptos = "0.6"
 leptos_meta = "0.6"
+leptos_router = "0.6"
 actix-web = { version = "4", optional = true }
 axum = { version = "0.7", optional = true }
 leptos_axum = { version = "0.6", optional = true }
@@ -26,10 +27,10 @@ unic-langid = { version = "0.9", features = ["macros"] }
 default = ["cookie", "json_files"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 cookie = []
-hydrate = ["leptos/hydrate", "leptos_meta/hydrate"]
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 actix = ["ssr", "leptos-use/actix", "dep:actix-web"]
 axum = ["ssr", "leptos-use/axum", "dep:axum", "dep:leptos_axum", "dep:http"]
-csr = ["leptos/csr", "leptos_meta/csr"]
+csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
@@ -44,7 +45,7 @@ experimental-islands = [
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
 # internally used features, not meant to be manually enabled
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
 
 
 [package.metadata.cargo-all-features]

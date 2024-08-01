@@ -129,6 +129,7 @@ mod context;
 mod fetch_locale;
 mod langid;
 mod locale_traits;
+mod routing;
 mod scopes;
 mod server;
 
@@ -154,9 +155,11 @@ pub use scopes::{ConstScope, Scope};
 
 #[doc(hidden)]
 pub mod __private {
-    pub use super::locale_traits::BuildStr;
+    pub use crate::locale_traits::BuildStr;
+    pub use crate::routing::i18n_routing;
     pub use crate::scopes::{scope_ctx_util, scope_locale_util};
     pub use leptos_i18n_macro::declare_locales;
+    pub use leptos_router;
     pub use unic_langid;
 }
 
