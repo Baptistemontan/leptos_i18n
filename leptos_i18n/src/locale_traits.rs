@@ -7,7 +7,7 @@ use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match
 /// Trait implemented the enum representing the supported locales of the application
 ///
 /// Most functions of this crate are generic of type implementing this trait
-pub trait Locale:
+pub trait Locale<L: Locale = Self>:
     'static
     + Default
     + Clone
@@ -18,7 +18,7 @@ pub trait Locale:
     + PartialEq
 {
     /// The associated struct containing the translations
-    type Keys: LocaleKeys<Locale = Self>;
+    type Keys: LocaleKeys<Locale = L>;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -27,26 +27,35 @@ pub trait Locale:
     fn as_langid(self) -> &'static LanguageIdentifier;
 
     /// Return a static reference to an array containing all variants of this enum
-    fn get_all() -> &'static [Self];
+    fn get_all() -> &'static [L];
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
         let langids = convert_vec_str_to_langids_lossy(accepted_languages);
-        find_match(&langids, Self::get_all())
+        let l = find_match(&langids, Self::get_all());
+        Self::from_base_locale(l)
     }
 
     /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
     ///
     /// This function does not fallback to default if no match is found.
     fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
-        filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all())
+        let matches: Vec<L> =
+            filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all());
+        matches.into_iter().map(Self::from_base_locale).collect()
     }
 
     /// Return the keys based on self
     #[inline]
     fn get_keys(self) -> &'static Self::Keys {
-        LocaleKeys::from_locale(self)
+        LocaleKeys::from_locale(self.to_base_locale())
     }
+
+    /// Convert this type to the base locale, this is used for wrappers around a locale such as scopes.
+    fn to_base_locale(self) -> L;
+
+    /// Create this type from a base locale, this is used for wrappers around a locale such as scopes.
+    fn from_base_locale(locale: L) -> Self;
 }
 
 /// Trait implemented the struct representing the translation keys

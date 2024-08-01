@@ -1,9 +1,11 @@
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData, str::FromStr};
+
+use unic_langid::LanguageIdentifier;
 
 use crate::{I18nContext, Locale, LocaleKeys};
 
 /// Represent a scope in a locale.
-pub trait Scope<L: Locale> {
+pub trait Scope<L: Locale>: 'static {
     /// The keys of the scopes
     type Keys: LocaleKeys<Locale = L>;
 }
@@ -43,7 +45,114 @@ impl<L: Locale, S: Scope<L>> ConstScope<L, S> {
     }
 
     #[doc(hidden)]
-    pub const fn map<NS: Scope<L>>(self, _: fn(&S::Keys) -> &NS::Keys) -> ConstScope<L, NS> {
+    pub const fn map<NS: Scope<L>>(self, map_fn: fn(&S::Keys) -> &NS::Keys) -> ConstScope<L, NS> {
+        let _ = map_fn;
         ConstScope(PhantomData)
+    }
+}
+
+#[doc(hidden)]
+pub const fn scope_ctx_util<L: Locale, OS: Scope<L>, NS: Scope<L>>(
+    ctx: I18nContext<L, OS>,
+    map_fn: fn(&OS::Keys) -> &NS::Keys,
+) -> I18nContext<L, NS> {
+    let old_scope = ConstScope::<L, OS>::new();
+    let new_scope = old_scope.map(map_fn);
+    ctx.scope(new_scope)
+}
+
+#[doc(hidden)]
+pub fn scope_locale_util<
+    BL: Locale,
+    L: Locale<BL, Keys = OS::Keys>,
+    OS: Scope<BL>,
+    NS: Scope<BL>,
+>(
+    locale: L,
+    map_fn: fn(&OS::Keys) -> &NS::Keys,
+) -> ScopedLocale<BL, NS> {
+    let _ = map_fn;
+    ScopedLocale {
+        locale: locale.to_base_locale(),
+        scope_marker: PhantomData,
+    }
+}
+
+pub struct ScopedLocale<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
+    locale: L,
+    scope_marker: PhantomData<S>,
+}
+
+impl<L: Locale, S: Scope<L>> Default for ScopedLocale<L, S> {
+    fn default() -> Self {
+        ScopedLocale {
+            locale: Default::default(),
+            scope_marker: PhantomData,
+        }
+    }
+}
+
+impl<L: Locale, S: Scope<L>> PartialEq for ScopedLocale<L, S> {
+    fn eq(&self, other: &Self) -> bool {
+        self.locale == other.locale
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Clone for ScopedLocale<L, S> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Copy for ScopedLocale<L, S> {}
+
+impl<L: Locale, S: Scope<L>> fmt::Display for ScopedLocale<L, S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.locale.fmt(f)
+    }
+}
+
+impl<L: Locale, S: Scope<L>> AsRef<LanguageIdentifier> for ScopedLocale<L, S> {
+    fn as_ref(&self) -> &LanguageIdentifier {
+        self.locale.as_ref()
+    }
+}
+
+impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
+    type Err = <L as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let locale = <L as FromStr>::from_str(s)?;
+        Ok(ScopedLocale {
+            locale,
+            scope_marker: PhantomData,
+        })
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
+    type Keys = S::Keys;
+
+    fn as_str(self) -> &'static str {
+        todo!()
+    }
+
+    fn as_langid(self) -> &'static LanguageIdentifier {
+        todo!()
+    }
+
+    fn get_all() -> &'static [L] {
+        <L as Locale>::get_all()
+    }
+
+    fn to_base_locale(self) -> L {
+        self.locale
+    }
+
+    fn from_base_locale(locale: L) -> Self {
+        ScopedLocale {
+            locale,
+            scope_marker: PhantomData,
+        }
     }
 }

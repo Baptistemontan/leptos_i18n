@@ -155,6 +155,7 @@ pub use scopes::{ConstScope, Scope};
 #[doc(hidden)]
 pub mod __private {
     pub use super::locale_traits::BuildStr;
+    pub use crate::scopes::{scope_ctx_util, scope_locale_util};
     pub use leptos_i18n_macro::declare_locales;
     pub use unic_langid;
 }

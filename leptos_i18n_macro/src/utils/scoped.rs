@@ -25,11 +25,8 @@ pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 fn scope_i18n_inner(input: ScopeParsedInput) -> TokenStream {
     let ScopeParsedInput { context, keys } = input;
-    quote! { {
-
-        let scope =
+    quote! {
         leptos_i18n::__private::scope_ctx_util(#context, |_k| &_k.#keys)
-    }
     }
 }
 
