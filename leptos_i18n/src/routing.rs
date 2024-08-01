@@ -3,6 +3,22 @@ use leptos_router::*;
 
 use crate::{provide_i18n_context, use_i18n_context, Locale};
 
+#[derive(Debug, Default)]
+struct PathBuilder<'a>(Vec<&'a str>);
+
+impl<'a> PathBuilder<'a> {
+    pub fn push(&mut self, s: &'a str) {
+        let s = s.trim_matches('/');
+        if !s.is_empty() {
+            self.0.push(s);
+        }
+    }
+
+    pub fn build(&self) -> String {
+        self.0.join("/")
+    }
+}
+
 fn outlet_wrapper<L: Locale>(locale: Option<L>, base_path: &'static str) -> impl IntoView {
     let locale = locale.unwrap_or_default();
     let i18n = use_i18n_context::<L>();
@@ -16,17 +32,22 @@ fn outlet_wrapper<L: Locale>(locale: Option<L>, base_path: &'static str) -> impl
         if new_locale == locale {
             return;
         }
-        let mut new_path = base_path.to_string();
-        if new_locale != L::default() {
-            new_path.push_str(new_locale.as_str());
-        }
-        location.pathname.with_untracked(|path_name| {
-            if let Some(path_rest) = path_name
-                .strip_prefix(base_path)
-                .and_then(|s| s.strip_prefix(locale.as_str()))
-            {
-                new_path.push_str(path_rest)
+
+        let mut new_path = location.pathname.with_untracked(|path_name| {
+            let mut path_builder = PathBuilder::default();
+            path_builder.push(base_path);
+            if new_locale != L::default() {
+                path_builder.push(new_locale.as_str());
             }
+            if let Some(path_rest) = path_name.strip_prefix(base_path) {
+                if let Some(path_rest) = path_rest.strip_prefix(locale.as_str()) {
+                    path_builder.push(path_rest)
+                } else if locale == L::default() {
+                    path_builder.push(path_rest)
+                }
+                // else ?
+            }
+            path_builder.build()
         });
         location.search.with_untracked(|search| {
             new_path.push_str(search);
@@ -34,6 +55,7 @@ fn outlet_wrapper<L: Locale>(locale: Option<L>, base_path: &'static str) -> impl
         location.hash.with_untracked(|hash| {
             new_path.push_str(hash);
         });
+
         navigate(
             &new_path,
             NavigateOptions {
