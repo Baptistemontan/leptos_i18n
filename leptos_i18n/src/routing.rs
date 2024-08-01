@@ -1,12 +1,22 @@
 use leptos::*;
 use leptos_router::*;
 
-use crate::{provide_i18n_context, use_i18n_context, Locale};
+use crate::{provide_i18n_context, use_i18n_context, I18nContext, Locale};
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct PathBuilder<'a>(Vec<&'a str>);
 
+impl<'a> Default for PathBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> PathBuilder<'a> {
+    pub fn new() -> Self {
+        PathBuilder(vec![""])
+    }
+
     pub fn push(&mut self, s: &'a str) {
         let s = s.trim_matches('/');
         if !s.is_empty() {
@@ -15,46 +25,59 @@ impl<'a> PathBuilder<'a> {
     }
 
     pub fn build(&self) -> String {
-        self.0.join("/")
+        let s = self.0.join("/");
+        if s.is_empty() {
+            "/".to_owned()
+        } else {
+            s
+        }
     }
 }
 
-fn outlet_wrapper<L: Locale>(locale: Option<L>, base_path: &'static str) -> impl IntoView {
-    let locale = locale.unwrap_or_default();
-    let i18n = use_i18n_context::<L>();
-    i18n.set_locale(locale);
+fn get_new_path<L: Locale>(
+    location: &Location,
+    base_path: &str,
+    new_locale: L,
+    locale: L,
+) -> String {
+    let mut new_path = location.pathname.with_untracked(|path_name| {
+        let mut path_builder = PathBuilder::default();
+        path_builder.push(base_path);
+        if new_locale != L::default() {
+            path_builder.push(new_locale.as_str());
+        }
+        if let Some(path_rest) = path_name.strip_prefix(base_path) {
+            if let Some(path_rest) = path_rest.strip_prefix(locale.as_str()) {
+                path_builder.push(path_rest)
+            } else if locale == L::default() {
+                path_builder.push(path_rest)
+            }
+            // else ?
+        }
+        path_builder.build()
+    });
+    location.search.with_untracked(|search| {
+        new_path.push_str(search);
+    });
+    location.hash.with_untracked(|hash| {
+        new_path.push_str(hash);
+    });
+    new_path
+}
 
+fn navigate_effect<L: Locale>(
+    i18n: I18nContext<L>,
+    locale: L,
+    base_path: &'static str,
+) -> impl Fn(Option<()>) + 'static {
     let location = use_location();
     let navigate = use_navigate();
-
-    create_effect(move |_| {
+    move |_| {
         let new_locale = i18n.get_locale();
         if new_locale == locale {
             return;
         }
-
-        let mut new_path = location.pathname.with_untracked(|path_name| {
-            let mut path_builder = PathBuilder::default();
-            path_builder.push(base_path);
-            if new_locale != L::default() {
-                path_builder.push(new_locale.as_str());
-            }
-            if let Some(path_rest) = path_name.strip_prefix(base_path) {
-                if let Some(path_rest) = path_rest.strip_prefix(locale.as_str()) {
-                    path_builder.push(path_rest)
-                } else if locale == L::default() {
-                    path_builder.push(path_rest)
-                }
-                // else ?
-            }
-            path_builder.build()
-        });
-        location.search.with_untracked(|search| {
-            new_path.push_str(search);
-        });
-        location.hash.with_untracked(|hash| {
-            new_path.push_str(hash);
-        });
+        let new_path = get_new_path(&location, base_path, new_locale, locale);
 
         navigate(
             &new_path,
@@ -64,10 +87,33 @@ fn outlet_wrapper<L: Locale>(locale: Option<L>, base_path: &'static str) -> impl
                 ..Default::default()
             },
         )
-    });
+    }
+}
 
-    view! {
-        <Outlet />
+fn ssr_redirection<L: Locale>(i18n: I18nContext<L>, locale: L, base_path: &str) -> Option<String> {
+    let current_locale = i18n.get_locale_untracked();
+    if cfg!(not(feature = "ssr")) || current_locale == locale {
+        return None;
+    }
+    let location = use_location();
+    let new_path = get_new_path(&location, base_path, current_locale, locale);
+    Some(new_path)
+}
+
+fn outlet_wrapper<L: Locale>(locale: L, base_path: &'static str) -> impl IntoView {
+    let i18n = use_i18n_context::<L>();
+
+    let redir = ssr_redirection(i18n, locale, base_path);
+
+    if cfg!(not(feature = "ssr")) {
+        i18n.set_locale(locale);
+    }
+
+    create_effect(navigate_effect(i18n, locale, base_path));
+
+    match redir {
+        None => view! { <Outlet /> },
+        Some(path) => view! { <Redirect path=path/>},
     }
 }
 
@@ -128,7 +174,7 @@ pub fn i18n_routing<L: Locale>(
     let default_route = make_route(
         "",
         get_children(),
-        move || outlet_wrapper::<L>(None, base_path),
+        move || outlet_wrapper::<L>(L::default(), base_path),
         ssr,
         methods,
         data.clone(),
@@ -142,7 +188,7 @@ pub fn i18n_routing<L: Locale>(
             make_route(
                 l.as_str(),
                 get_children(),
-                move || outlet_wrapper(Some(l), base_path),
+                move || outlet_wrapper(l, base_path),
                 ssr,
                 methods,
                 data.clone(),

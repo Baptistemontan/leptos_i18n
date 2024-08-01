@@ -3,8 +3,8 @@ import i18nEn from "#locales/en.json";
 import i18nFr from "#locales/fr.json";
 import { fail_windows_webkit, createI18nFixture } from "../../utils";
 
-const LNG_BUTTON_XPATH = "xpath=//html/body/button[1]";
 const TITLE_XPATH = "xpath=//html/body/h1";
+const LNG_BUTTON_XPATH = "xpath=//html/body/button";
 const INC_BUTTON_XPATH = "xpath=//html/body/button[2]";
 const COUNTER_XPATH = "xpath=//html/body/p";
 

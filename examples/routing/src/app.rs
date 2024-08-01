@@ -48,15 +48,17 @@ fn Counter() -> impl IntoView {
     let count = move || counter.get();
 
     view! {
-        <p>
-        {t!{ i18n,
-            click_count,
-            count,
-            <b> = |children| view!{ <b>{children}</b> },
-        }}
-        </p>
-        <button on:click=inc>{t!(i18n, click_to_inc)}</button>
-        <br />
-        <A href="..">{t!(i18n, go_home)}</A>
+        <div>
+            <p>
+                {t!{ i18n,
+                    click_count,
+                    count,
+                    <b> = |children| view!{ <b>{children}</b> },
+                }}
+            </p>
+            <button on:click=inc>{t!(i18n, click_to_inc)}</button>
+            <br />
+            <A href="..">{t!(i18n, go_home)}</A>
+        </div>
     }
 }
