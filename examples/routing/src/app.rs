@@ -17,9 +17,9 @@ pub fn App() -> impl IntoView {
     view! {
         <Router>
             <Routes>
-                <I18nRoute trailing_slash=TrailingSlash::Drop>
-                    <Route path="" view=Home trailing_slash=TrailingSlash::Drop/>
-                    <Route path="counter" view=Counter trailing_slash=TrailingSlash::Drop/>
+                <I18nRoute>
+                    <Route path="" view=Home />
+                    <Route path="counter" view=Counter />
                 </I18nRoute>
             </Routes>
             <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
@@ -55,6 +55,6 @@ fn Counter() -> impl IntoView {
         }}
         </p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>
-        <A href="..">{t!(i18n, go_home)}</A>
+        <A href="/">{t!(i18n, go_home)}</A>
     }
 }
