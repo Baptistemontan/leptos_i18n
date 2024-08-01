@@ -56,6 +56,11 @@ pub trait Locale<L: Locale = Self>:
 
     /// Create this type from a base locale, this is used for wrappers around a locale such as scopes.
     fn from_base_locale(locale: L) -> Self;
+
+    /// Map the locale with another value, this is usefull to change the locale of a scope.
+    fn map_locale(self, locale: L) -> Self {
+        Self::from_base_locale(locale)
+    }
 }
 
 /// Trait implemented the struct representing the translation keys
@@ -106,17 +111,17 @@ mod test {
         locales: ["en", "fr"],
         en: {
             sk: {
-                ssk: "test",
+                ssk: "test en",
             },
         },
         fr: {
             sk: {
-                ssk: "test",
+                ssk: "test fr",
             },
         },
     }
 
-    use super::Locale as _;
+    use crate::{self as leptos_i18n, scope_locale, Locale as _};
     use i18n::Locale;
 
     #[test]
@@ -135,5 +140,13 @@ mod test {
 
         let res = Locale::find_locale(&["de", "fr-FR", "fr"]);
         assert_eq!(res, Locale::fr);
+    }
+
+    #[test]
+    fn test_scope() {
+        let en_sk = scope_locale!(Locale::en, sk);
+        assert_eq!(en_sk.get_keys().ssk, "test en");
+        let fr_sk = en_sk.map_locale(Locale::fr);
+        assert_eq!(fr_sk.get_keys().ssk, "test fr");
     }
 }

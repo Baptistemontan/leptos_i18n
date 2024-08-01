@@ -62,14 +62,9 @@ pub const fn scope_ctx_util<L: Locale, OS: Scope<L>, NS: Scope<L>>(
 }
 
 #[doc(hidden)]
-pub fn scope_locale_util<
-    BL: Locale,
-    L: Locale<BL, Keys = OS::Keys>,
-    OS: Scope<BL>,
-    NS: Scope<BL>,
->(
+pub fn scope_locale_util<BL: Locale, L: Locale<BL>, NS: Scope<BL>>(
     locale: L,
-    map_fn: fn(&OS) -> &NS,
+    map_fn: fn(&<L as Locale<BL>>::Keys) -> &NS,
 ) -> ScopedLocale<BL, NS> {
     let _ = map_fn;
     ScopedLocale {
