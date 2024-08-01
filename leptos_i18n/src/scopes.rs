@@ -45,7 +45,7 @@ impl<L: Locale, S: Scope<L>> ConstScope<L, S> {
     }
 
     #[doc(hidden)]
-    pub const fn map<NS: Scope<L>>(self, map_fn: fn(&S::Keys) -> &NS::Keys) -> ConstScope<L, NS> {
+    pub const fn map<NS: Scope<L>>(self, map_fn: fn(&S) -> &NS) -> ConstScope<L, NS> {
         let _ = map_fn;
         ConstScope(PhantomData)
     }
@@ -54,7 +54,7 @@ impl<L: Locale, S: Scope<L>> ConstScope<L, S> {
 #[doc(hidden)]
 pub const fn scope_ctx_util<L: Locale, OS: Scope<L>, NS: Scope<L>>(
     ctx: I18nContext<L, OS>,
-    map_fn: fn(&OS::Keys) -> &NS::Keys,
+    map_fn: fn(&OS) -> &NS,
 ) -> I18nContext<L, NS> {
     let old_scope = ConstScope::<L, OS>::new();
     let new_scope = old_scope.map(map_fn);
@@ -69,7 +69,7 @@ pub fn scope_locale_util<
     NS: Scope<BL>,
 >(
     locale: L,
-    map_fn: fn(&OS::Keys) -> &NS::Keys,
+    map_fn: fn(&OS) -> &NS,
 ) -> ScopedLocale<BL, NS> {
     let _ = map_fn;
     ScopedLocale {
