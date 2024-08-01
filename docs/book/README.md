@@ -1,4 +1,4 @@
-This project contains the core of a new introductory guide to Leptos.
+This book is a documentation on how to setup and use the `leptos_i18` lib.
 
 It is built using `mdbook`. You can view a local copy by installing `mdbook`
 
