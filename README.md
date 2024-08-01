@@ -419,7 +419,7 @@ match N::from(count()) {
 
 Because it expand to a match statement, a compilation error will be produced if the full range of `N` is not covered.
 
-But floats (`f32` and `f64`) are not accepted in match statements it expand to a `if-else` chain, therefore must and by a `else` block, so a fallback `_` or `..` is required.
+But floats (`f32` and `f64`) are not accepted in match statements it expand to a `if-else` chain, therefore must end by a `else` block, so a fallback `_` or `..` is required.
 
 The plural above would generate code similar to this:
 
@@ -434,7 +434,7 @@ if plural_count == 0.0 {
 }
 ```
 
-If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> Into<N> + Clone + 'static`.
+If one locale use plurals for a key, another locale does not need to use it, but the `count` variable will still be reserved, but it still can access it as a variable, it will just be constrained to a `T: Fn() -> N + Clone + 'static`.
 
 You are not required to use the `count` variable in the locale, but it must be provided.
 
