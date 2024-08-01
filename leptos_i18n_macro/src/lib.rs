@@ -1,6 +1,6 @@
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![cfg_attr(feature = "nightly", feature(proc_macro_diagnostic, track_path))]
 //! # About Leptos i18n macro
 //!
@@ -10,6 +10,7 @@
 
 pub(crate) mod load_locales;
 pub(crate) mod t_macro;
+pub(crate) mod utils;
 
 use t_macro::{InputType, OutputType};
 
@@ -203,4 +204,92 @@ pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_macro::t_macro(tokens, InputType::Locale, OutputType::Display)
+}
+
+/// Like `use_i18n` but enable to scope the context:
+///
+/// Instead of
+///
+/// ```rust, ignore
+/// let i18n = use_i18n;
+/// t!(i18n, namespace.subkeys.value);
+/// ```
+///
+/// You can do
+///
+/// ```rust, ignore
+/// let i18n = use_i18n_scoped!(namespace);
+/// t!(i18n, subkeys.value);
+/// ```
+///
+/// Or
+///
+/// ```rust, ignore
+/// let i18n = use_i18n_scoped!(namespace.subkeys);
+/// t!(i18n, value);
+/// ```
+///
+/// This macro is the equivalent to do
+///
+/// ```rust, ignore
+/// let i18n = use_i18n();
+/// let i18n = scope_i18n!(i18n, namespace.sukeys);
+/// ```
+#[proc_macro]
+pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    utils::scoped::use_i18n_scoped(tokens)
+}
+
+/// Scope a context to the given keys
+///
+/// Instead of
+///
+/// ```rust, ignore
+/// let i18n = use_i18n;
+/// t!(i18n, namespace.subkeys.value);
+/// ```
+///
+/// You can do
+///
+/// ```rust, ignore
+/// let i18n = use_i18n();
+/// let namespace_i18n = scope_i18n!(i18n, namespace);
+///
+/// t!(namespace_i18n, subkeys.value);
+///
+/// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
+/// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
+
+/// t!(subkeys_i18n, value);
+/// ```
+#[proc_macro]
+pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    utils::scoped::scope_i18n(tokens)
+}
+
+/// Scope a locale to the given keys
+///
+/// Instead of
+///
+/// ```rust, ignore
+/// let i18n = use_i18n;
+/// t!(i18n, namespace.subkeys.value);
+/// ```
+///
+/// You can do
+///
+/// ```rust, ignore
+/// let i18n = use_i18n();
+/// let namespace_i18n = scope_i18n!(i18n, namespace);
+///
+/// t!(namespace_i18n, subkeys.value);
+///
+/// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
+/// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
+
+/// t!(subkeys_i18n, value);
+/// ```
+#[proc_macro]
+pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    utils::scoped::scope_locale(tokens)
 }

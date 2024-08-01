@@ -4,7 +4,8 @@ use syn::parse_macro_input;
 
 use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
 
-use self::parsed_input::{Keys, ParsedInput};
+use self::parsed_input::ParsedInput;
+use crate::utils::Keys;
 
 pub mod interpolate;
 pub mod parsed_input;

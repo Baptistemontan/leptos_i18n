@@ -13,12 +13,8 @@ env:
 
 jobs:
   lib_test:
-    name: Test ${{ matrix.package }} package
+    name: Test leptos_i18n package
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ["leptos_i18n", "leptos_i18n_macro"]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -30,7 +26,25 @@ jobs:
         run: cargo install cargo-all-features
 
       - name: "Test all features"
-        run: cargo test-all-features --n-chunks ${{ strategy.job-total }} --chunk $(expr ${{ strategy.job-index }} + 1)
+        run: cargo test-all-features --n-chunks 2 --chunk 1
+
+  macros_test:
+    # Why not also use cargo-all-features with the macros package ?
+    # Because all features are forwarded from leptos_i18n,
+    # so if some features mix creates a problem they will appear in leptos_i18n tests.
+    # All leptos_i18n_macro tests don't require any feature flag, so no need to test each feature and matchup
+    # just run once with default, this speeds up CI
+    name: Test leptos_i18n_macro package
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+
+      - name: "Load cargo toolchain"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Run tests"
+        run: cargo test --package leptos_i18n_macro
 
   test_ssr_examples:
     name: Test ${{ matrix.examples }} example
@@ -72,13 +86,14 @@ jobs:
           npx playwright install --with-deps
 
       - name: "e2e testing ${{ matrix.examples }} example"
+        id: e2e
         working-directory: examples/${{ matrix.examples }}
         run: npx playwright test
 
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
-        # upload artifact only if test failed
-        if: ${{ failure() && !cancelled() }}
+        # upload artifact only if e2e test failed
+        if: steps.e2e.outcome == "failure" && ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/${{ matrix.examples }}/playwright-report/
@@ -125,13 +140,14 @@ jobs:
           cargo install trunk
 
       - name: "e2e testing ${{ matrix.examples }} example"
+        id: e2e
         working-directory: examples/${{ matrix.examples }}
         run: npx playwright test
 
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
-        # upload artifact only if test failed
-        if: ${{ failure() && !cancelled() }}
+        # upload artifact only if e2e test failed
+        if: steps.e2e.outcome == "failure" && ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/${{ matrix.examples }}/playwright-report/

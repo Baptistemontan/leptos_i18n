@@ -1,10 +1,11 @@
 use codee::string::FromToStringCodec;
+use core::marker::PhantomData;
 use html::{AnyElement, ElementDescriptor};
 use leptos::*;
 use leptos_meta::*;
 use leptos_use::UseCookieOptions;
 
-use crate::{fetch_locale, locale_traits::*};
+use crate::{fetch_locale, locale_traits::*, scopes::ConstScope, Scope};
 
 /// This context is the heart of the i18n system:
 ///
@@ -12,43 +13,56 @@ use crate::{fetch_locale, locale_traits::*};
 ///
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug, Clone, Copy)]
-pub struct I18nContext<T: Locale>(RwSignal<T>);
+pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
+    locale_signal: RwSignal<L>,
+    scope_marker: PhantomData<S>,
+}
 
-impl<T: Locale> I18nContext<T> {
+impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale subscribing to any changes.
     #[inline]
-    pub fn get_locale(self) -> T {
-        self.0.get()
+    pub fn get_locale(self) -> L {
+        self.locale_signal.get()
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_locale_untracked(self) -> T {
-        self.0.get_untracked()
+    pub fn get_locale_untracked(self) -> L {
+        self.locale_signal.get_untracked()
     }
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
-    pub fn get_keys(self) -> &'static T::Keys {
-        self.get_locale().get_keys()
+    pub fn get_keys(self) -> &'static S::Keys {
+        LocaleKeys::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
-    pub fn get_keys_untracked(self) -> &'static T::Keys {
-        self.get_locale_untracked().get_keys()
+    pub fn get_keys_untracked(self) -> &'static S::Keys {
+        LocaleKeys::from_locale(self.get_locale_untracked())
     }
 
     /// Set the locale and notify all subscribers
     #[inline]
-    pub fn set_locale(self, lang: T) {
-        self.0.set(lang)
+    pub fn set_locale(self, lang: L) {
+        self.locale_signal.set(lang)
     }
 
     /// Set the locale but does not notify the subscribers
     #[inline]
-    pub fn set_locale_untracked(self, lang: T) {
-        self.0.set_untracked(lang)
+    pub fn set_locale_untracked(self, lang: L) {
+        self.locale_signal.set_untracked(lang)
+    }
+
+    /// Map the context to a new scope
+    #[inline]
+    pub const fn scope<NS: Scope<L>>(self, scope: ConstScope<L, NS>) -> I18nContext<L, NS> {
+        let _ = scope;
+        I18nContext {
+            locale_signal: self.locale_signal,
+            scope_marker: PhantomData,
+        }
     }
 }
 
@@ -108,7 +122,10 @@ fn init_context_with_options<T: Locale, El: ElementDescriptor + 'static + Clone>
         set_lang_cookie.set(Some(new_lang));
     });
 
-    let context = I18nContext::<T>(locale);
+    let context = I18nContext::<T> {
+        locale_signal: locale,
+        scope_marker: PhantomData,
+    };
 
     provide_context(context);
 
