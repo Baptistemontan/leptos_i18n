@@ -15,6 +15,7 @@ pub trait Locale<L: Locale = Self>:
     + FromStr
     + AsRef<LanguageIdentifier>
     + std::fmt::Display
+    + std::fmt::Debug
     + PartialEq
 {
     /// The associated struct containing the translations

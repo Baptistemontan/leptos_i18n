@@ -102,6 +102,7 @@ function is_namespace_args<L extends Locales, N extends Namespaces<L>>(
 
 class I18n<L extends Locales, N extends Namespaces<L>> {
   private current_locale: keyof L;
+  private default_locale: keyof L;
   private locales: L;
   private locale_change_cb: LangChangeCb<L> | null;
 
@@ -129,6 +130,7 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
     const { locales, default_locale } = updated_args;
 
     this.current_locale = match_locale(locale, locales, default_locale);
+    this.default_locale = default_locale;
     this.locales = locales;
   }
 
@@ -176,8 +178,26 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
     }
   }
 
+  public set_locale_untracked(new_locale: keyof L) {
+    this.current_locale = new_locale;
+  }
+
   public on_locale_change(cb: LangChangeCb<L>) {
     this.locale_change_cb = cb;
+  }
+
+  public get_url(path?: string): string {
+    let stripped_path = path || "";
+    while (stripped_path.startsWith("/")) {
+      stripped_path = stripped_path.substring(1);
+    }
+    stripped_path = stripped_path ? "/" + stripped_path : "";
+    if (this.current_locale == this.default_locale) {
+      return stripped_path;
+    } else {
+      const locale_part = "/" + (this.current_locale as string);
+      return locale_part + stripped_path;
+    }
   }
 }
 

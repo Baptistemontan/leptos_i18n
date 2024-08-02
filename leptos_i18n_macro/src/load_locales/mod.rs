@@ -136,7 +136,52 @@ fn load_locales_inner(
                 }
             }
 
+            mod routing {
+                use super::{l_i18n_crate, #enum_ident};
+                use l_i18n_crate::__private as l_i18n_crate_priv;
+                use l_i18n_crate_priv::leptos_router;
+                #[leptos::component(transparent)]
+                #[allow(non_snake_case)]
+                pub fn I18nRoute<E, F>(
+                    /// The base path of this application.
+                    /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
+                    /// the expected base path is `/foo/`.
+                    /// Defaults to `"/"``.
+                    #[prop(default = "/")]
+                    base_path: &'static str,
+                    /// The view that should be shown when this route is matched. This can be any function
+                    /// that returns a type that implements [`IntoView`] (like `|| view! { <p>"Show this"</p> })`
+                    /// or `|| view! { <MyComponent/>` } or even, for a component with no props, `MyComponent`).
+                    /// If you use nested routes you can just set it to `view=Outlet`
+                    view: F,
+                    /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming.
+                    #[prop(optional)]
+                    ssr: leptos_router::SsrMode,
+                    /// The HTTP methods that this route can handle (defaults to only `GET`).
+                    #[prop(default = &[leptos_router::Method::Get])]
+                    methods: &'static [leptos_router::Method],
+                    /// A data-loading function that will be called when the route is matched. Its results can be
+                    /// accessed with [`use_route_data`](crate::use_route_data).
+                    #[prop(optional, into)]
+                    data: Option<leptos_router::Loader>,
+                    /// How this route should handle trailing slashes in its path.
+                    /// Overrides any setting applied to [`crate::components::Router`].
+                    /// Serves as a default for any inner Routes.
+                    #[prop(optional)]
+                    trailing_slash: Option<leptos_router::TrailingSlash>,
+                    /// `children` may be empty or include nested routes.
+                    #[prop(optional)]
+                    children: Option<leptos::Children>,
+                ) -> impl leptos::IntoView
+                    where E: leptos::IntoView,
+                    F: Fn() -> E + 'static
+                {
+                    l_i18n_crate_priv::i18n_routing::<#enum_ident, E, F>(base_path, children, ssr, methods, data, trailing_slash, view)
+                }
+            }
+
             pub use provider::I18nContextProvider;
+            pub use routing::I18nRoute;
 
             #macros_reexport
 

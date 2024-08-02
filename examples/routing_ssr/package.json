@@ -1,0 +1,23 @@
+{
+  "name": "routing_ssr",
+  "version": "1.0.0",
+  "description": "This example showcase how to use routing with SSR",
+  "main": "index.js",
+  "scripts": {
+    "build": "cargo leptos build",
+    "start": "cargo leptos serve",
+    "test": "npx playwright test",
+    "prestart": "npm run build",
+    "pretest": "npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.45.3",
+    "@types/node": "^20.14.12"
+  },
+  "imports": {
+    "#locales/*": "./locales/*"
+  }
+}
