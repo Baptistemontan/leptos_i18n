@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use leptos::*;
 use leptos_router::*;
 
@@ -38,7 +40,7 @@ fn get_new_path<L: Locale>(
     location: &Location,
     base_path: &str,
     new_locale: L,
-    locale: L,
+    locale: Option<L>,
 ) -> String {
     let mut new_path = location.pathname.with_untracked(|path_name| {
         let mut path_builder = PathBuilder::default();
@@ -47,10 +49,16 @@ fn get_new_path<L: Locale>(
             path_builder.push(new_locale.as_str());
         }
         if let Some(path_rest) = path_name.strip_prefix(base_path) {
-            if let Some(path_rest) = path_rest.strip_prefix(locale.as_str()) {
-                path_builder.push(path_rest)
-            } else if locale == L::default() {
-                path_builder.push(path_rest)
+            match locale {
+                None => path_builder.push(path_rest),
+                Some(l) if l == L::default() => path_builder.push(path_rest),
+                Some(l) => {
+                    if let Some(path_rest) = path_rest.strip_prefix(l.as_str()) {
+                        path_builder.push(path_rest)
+                    } else {
+                        path_builder.push(path_rest) //? Should'nt happen tho
+                    }
+                }
             }
             // else ?
         }
@@ -68,19 +76,23 @@ fn get_new_path<L: Locale>(
 fn navigate_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
-) -> impl Fn(Option<L>) -> L + 'static {
+    sync: StoredValue<Option<L>>,
+) -> impl Fn(Option<()>) + 'static {
     let location = use_location();
     let navigate = use_navigate();
-    move |prev_loc: Option<L>| {
+    move |_| {
+        let prev_loc = sync.get_value();
         let new_locale = i18n.get_locale();
         let Some(prev_loc) = prev_loc else {
-            return new_locale;
+            sync.set_value(Some(new_locale));
+            return;
         };
         if new_locale == prev_loc {
-            return new_locale;
+            sync.set_value(Some(new_locale));
+            return;
         }
 
-        let new_path = get_new_path(&location, base_path, new_locale, prev_loc);
+        let new_path = get_new_path(&location, base_path, new_locale, Some(prev_loc));
 
         navigate(
             &new_path,
@@ -91,46 +103,69 @@ fn navigate_effect<L: Locale>(
             },
         );
 
-        new_locale
+        sync.set_value(Some(new_locale));
     }
 }
 
-fn get_locale_from_path<L: Locale>(base_path: &'static str) -> L {
-    use_location()
-        .pathname
-        .with_untracked(|path| {
-            let stripped_path = path.strip_prefix(base_path)?;
-            L::get_all()
-                .iter()
-                .copied()
-                .find(|l| stripped_path.starts_with(l.as_str()))
-        })
-        .unwrap_or_default()
+fn check_history_change<L: Locale>(
+    i18n: I18nContext<L>,
+    base_path: &'static str,
+    sync: StoredValue<Option<L>>,
+) -> impl Fn(Option<()>) + 'static {
+    let location = use_location();
+
+    move |_| {
+        let path_locale = location
+            .pathname
+            .with(|path| {
+                let stripped_path = path.strip_prefix(base_path)?;
+                L::get_all()
+                    .iter()
+                    .copied()
+                    .find(|l| stripped_path.starts_with(l.as_str()))
+            })
+            .unwrap_or_default();
+
+        if i18n.get_locale_untracked() != path_locale {
+            sync.set_value(Some(path_locale));
+            i18n.set_locale(path_locale);
+        }
+    }
 }
 
-fn ssr_redirection<L: Locale>(base_locale: L, path_locale: L, base_path: &str) -> Option<String> {
-    if cfg!(not(feature = "ssr")) || base_locale == path_locale {
+fn maybe_redirect<L: Locale>(previously_resolved_locale: L, base_path: &str) -> Option<String> {
+    if previously_resolved_locale == L::default() {
         return None;
     }
     let location = use_location();
-    let new_path = get_new_path(&location, base_path, base_locale, path_locale);
+    let new_path = get_new_path(&location, base_path, previously_resolved_locale, None);
     Some(new_path)
 }
 
-fn outlet_wrapper<L: Locale>(base_path: &'static str) -> impl IntoView {
+fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -> impl IntoView {
     let i18n = use_i18n_context::<L>();
 
-    let base_locale = i18n.get_locale_untracked();
+    let previously_resolved_locale = i18n.get_locale_untracked();
 
-    let path_locale = get_locale_from_path::<L>(base_path);
+    // By precedence if there is a locale prefix in the URL it takes priority.
+    // if there is none, use the one computed beforehand.
 
-    let redir = ssr_redirection(base_locale, path_locale, base_path);
+    let redir = if let Some(locale) = route_locale {
+        i18n.set_locale(locale);
+        None
+    } else {
+        maybe_redirect(previously_resolved_locale, base_path)
+    };
 
-    if cfg!(not(feature = "ssr")) {
-        i18n.set_locale(path_locale);
-    }
+    // This variable is there to sync history changes, because we step out of the Leptos routes reactivity we don't get forward and backward history changes triggers
+    // So we have to do it manually
+    // but chnaging the locale on history change will trigger the locale change effect, causing to change the URL again but with a wrong previous locale
+    // so this variable sync them together on what is the locale currently in the URL.
+    // it starts at None such that on the first render the effect don't change the locale instantly.
+    let sync = StoredValue::new(None);
 
-    create_effect(navigate_effect(i18n, base_path));
+    create_effect(navigate_effect(i18n, base_path, sync));
+    create_effect(check_history_change(i18n, base_path, sync));
 
     match redir {
         None => view! { <Outlet /> },
@@ -190,7 +225,7 @@ where
     let default_route = make_route(
         "",
         children,
-        move || outlet_wrapper::<L>(base_path),
+        move || outlet_wrapper::<L>(None, base_path),
         ssr,
         methods,
         data.clone(),
@@ -200,10 +235,10 @@ where
     let mut locale_routes: Vec<RouteDefinition> = L::get_all()
         .iter()
         .copied()
-        .map(|l| {
-            let mut route = default_route.clone();
-            route.path = l.to_string();
-            route
+        .map(|l| RouteDefinition {
+            path: l.to_string(),
+            view: Rc::new(move || outlet_wrapper::<L>(Some(l), base_path).into_view()),
+            ..default_route.clone()
         })
         .collect();
 

@@ -1,4 +1,8 @@
-use std::{fmt, marker::PhantomData, str::FromStr};
+use std::{
+    fmt::{self, Debug},
+    marker::PhantomData,
+    str::FromStr,
+};
 
 use unic_langid::LanguageIdentifier;
 
@@ -78,6 +82,12 @@ pub struct ScopedLocale<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
     scope_marker: PhantomData<S>,
 }
 
+impl<L: Locale, S: Scope<L>> Debug for ScopedLocale<L, S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        <L as Debug>::fmt(&self.locale, f)
+    }
+}
+
 impl<L: Locale, S: Scope<L>> Default for ScopedLocale<L, S> {
     fn default() -> Self {
         ScopedLocale {
@@ -103,7 +113,7 @@ impl<L: Locale, S: Scope<L>> Copy for ScopedLocale<L, S> {}
 
 impl<L: Locale, S: Scope<L>> fmt::Display for ScopedLocale<L, S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.locale.fmt(f)
+        <L as fmt::Display>::fmt(&self.locale, f)
     }
 }
 
