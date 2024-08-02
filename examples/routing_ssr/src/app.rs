@@ -19,8 +19,8 @@ pub fn App() -> impl IntoView {
         <Router>
             <Routes>
                 <I18nRoute view=Outlet >
-                    <Route path="" view=Home />
-                    <Route path="counter" view=Counter />
+                    <Route path="/" view=Home />
+                    <Route path="/counter" view=Counter />
                 </I18nRoute>
             </Routes>
             <br/>
@@ -35,7 +35,7 @@ fn Home() -> impl IntoView {
     let i18n = use_i18n();
     view! {
         <h1>{t!(i18n, hello_world)}</h1>
-        <A href="counter">{t!(i18n, go_counter)}</A>
+        <A href="/counter">{t!(i18n, go_counter)}</A>
     }
 }
 
@@ -61,7 +61,7 @@ fn Counter() -> impl IntoView {
             </p>
             <button on:click=inc>{t!(i18n, click_to_inc)}</button>
             <br />
-            <A href="..">{t!(i18n, go_home)}</A>
+            <A href="/">{t!(i18n, go_home)}</A>
         </div>
     }
 }

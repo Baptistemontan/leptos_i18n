@@ -73,23 +73,26 @@ fn get_new_path<L: Locale>(
     new_path
 }
 
-fn navigate_effect<L: Locale>(
+/// navigate to a new path when the locale changes
+fn update_path_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
-    sync: StoredValue<Option<L>>,
-) -> impl Fn(Option<()>) + 'static {
+    history_changed_locale: StoredValue<Option<L>>,
+) -> impl Fn(Option<L>) -> L + 'static {
     let location = use_location();
     let navigate = use_navigate();
-    move |_| {
-        let prev_loc = sync.get_value();
+    move |prev_loc: Option<L>| {
         let new_locale = i18n.get_locale();
+        // don't react on history change.
+        if let Some(new_locale) = history_changed_locale.get_value() {
+            history_changed_locale.set_value(None);
+            return new_locale;
+        }
         let Some(prev_loc) = prev_loc else {
-            sync.set_value(Some(new_locale));
-            return;
+            return new_locale;
         };
         if new_locale == prev_loc {
-            sync.set_value(Some(new_locale));
-            return;
+            return new_locale;
         }
 
         let new_path = get_new_path(&location, base_path, new_locale, Some(prev_loc));
@@ -103,31 +106,61 @@ fn navigate_effect<L: Locale>(
             },
         );
 
-        sync.set_value(Some(new_locale));
+        new_locale
     }
+}
+
+fn correct_locale_prefix_effet<L: Locale>(
+    i18n: I18nContext<L>,
+    base_path: &'static str,
+) -> impl Fn(Option<()>) + 'static {
+    let location = use_location();
+    let navigate = use_navigate();
+    move |_| {
+        let path_locale = get_locale_from_path::<L>(&location, base_path);
+        let current_locale = i18n.get_locale_untracked();
+
+        if current_locale == path_locale.unwrap_or_default() {
+            return;
+        }
+
+        let new_path = get_new_path(&location, base_path, current_locale, path_locale);
+
+        navigate(
+            &new_path,
+            NavigateOptions {
+                resolve: false,
+                replace: true,
+                scroll: false,
+                ..Default::default()
+            },
+        )
+    }
+}
+
+fn get_locale_from_path<L: Locale>(location: &Location, base_path: &'static str) -> Option<L> {
+    location.pathname.with(|path| {
+        let stripped_path = path.strip_prefix(base_path)?;
+        L::get_all()
+            .iter()
+            .copied()
+            .find(|l| stripped_path.starts_with(l.as_str()))
+    })
 }
 
 fn check_history_change<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     sync: StoredValue<Option<L>>,
-) -> impl Fn(Option<()>) + 'static {
+) -> impl Fn(ev::PopStateEvent) + 'static {
     let location = use_location();
 
     move |_| {
-        let path_locale = location
-            .pathname
-            .with(|path| {
-                let stripped_path = path.strip_prefix(base_path)?;
-                L::get_all()
-                    .iter()
-                    .copied()
-                    .find(|l| stripped_path.starts_with(l.as_str()))
-            })
-            .unwrap_or_default();
+        let path_locale = get_locale_from_path::<L>(&location, base_path).unwrap_or_default();
+
+        sync.set_value(Some(path_locale));
 
         if i18n.get_locale_untracked() != path_locale {
-            sync.set_value(Some(path_locale));
             i18n.set_locale(path_locale);
         }
     }
@@ -162,10 +195,16 @@ fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -
     // but chnaging the locale on history change will trigger the locale change effect, causing to change the URL again but with a wrong previous locale
     // so this variable sync them together on what is the locale currently in the URL.
     // it starts at None such that on the first render the effect don't change the locale instantly.
-    let sync = StoredValue::new(None);
+    let history_changed_locale = StoredValue::new(None);
 
-    create_effect(navigate_effect(i18n, base_path, sync));
-    create_effect(check_history_change(i18n, base_path, sync));
+    create_effect(update_path_effect(i18n, base_path, history_changed_locale));
+    // listen for history changes
+    leptos::window_event_listener(
+        ev::popstate,
+        check_history_change(i18n, base_path, history_changed_locale),
+    );
+    // correct the url when using <a> that removes the locale prefix
+    create_effect(correct_locale_prefix_effet(i18n, base_path));
 
     match redir {
         None => view! { <Outlet /> },
