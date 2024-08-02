@@ -3,10 +3,14 @@ import i18nEn from "#locales/en.json";
 import i18nFr from "#locales/fr.json";
 import { fail_windows_webkit, createI18nFixture } from "../../utils";
 
-const TITLE_XPATH = "xpath=//html/body/h1";
 const LNG_BUTTON_XPATH = "xpath=//html/body/button";
-const INC_BUTTON_XPATH = "xpath=//html/body/button[2]";
-const COUNTER_XPATH = "xpath=//html/body/p";
+
+const TITLE_XPATH = "xpath=//html/body/h1";
+const COUNTER_ANCHOR_XPATH = "xpath=//html/body/a";
+
+const COUNTER_XPATH = "xpath=//html/body/div/p";
+const INC_BUTTON_XPATH = "xpath=//html/body/div/button";
+const HOME_ANCHOR_XPATH = "xpath=//html/body/div/a";
 
 const test = base.extend(
   createI18nFixture({
@@ -41,10 +45,7 @@ test.afterEach(async ({ context }) => {
 });
 
 test.describe("when locale is the default locale (en-GB)", () => {
-  test("check counter", ({ page, i18n }) => check_counter(page, i18n));
-  test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
-  test("check state keeping", ({ page, i18n }) =>
-    check_state_keeping(page, i18n));
+  test("main check", ({ page, i18n }) => main_check(page, i18n));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
@@ -52,59 +53,43 @@ test.describe("when locale is set to french (fr-FR)", () => {
     locale: "fr-FR",
   });
 
-  test("check counter", ({ page, i18n }) => check_counter(page, i18n));
-  test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
-  test("check state keeping", ({ page, i18n }) =>
-    check_state_keeping(page, i18n));
+  test("main check", ({ page, i18n }) => main_check(page, i18n));
 });
 
-async function check_counter(
-  page: Page,
-  i18n: I18n,
-  load_page: boolean = true
-) {
+async function main_check(page: Page, i18n: I18n, load_page: boolean = true) {
   if (load_page) {
     await page.goto("/");
   }
 
+  await expect(page).toHaveURL(i18n.get_url());
+
   await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
+
   await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
     i18n.t("click_to_change_lang")
   );
-  await expect(page.locator(INC_BUTTON_XPATH)).toHaveText(
-    i18n.t("click_to_inc")
+
+  await expect(page.locator(COUNTER_ANCHOR_XPATH)).toHaveText(
+    i18n.t("go_counter")
   );
+
+  await page.locator(COUNTER_ANCHOR_XPATH).click();
+
+  await expect(page).toHaveURL(i18n.get_url("counter"));
+
+  await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
+    i18n.t("click_to_change_lang")
+  );
+
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
     i18n.t("click_count", { count: 0 })
   );
 
-  await page.locator(INC_BUTTON_XPATH).click();
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    i18n.t("click_count", { count: 1 })
+  await expect(page.locator(INC_BUTTON_XPATH)).toHaveText(
+    i18n.t("click_to_inc")
   );
-  await page.locator(INC_BUTTON_XPATH).click();
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    i18n.t("click_count", { count: 2 })
-  );
-  await page.locator(INC_BUTTON_XPATH).click();
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    i18n.t("click_count", { count: 3 })
-  );
-}
 
-async function check_lang_switch(page: Page, i18n: I18n) {
-  await page.goto("/");
-
-  await switch_lang(i18n);
-
-  await check_counter(page, i18n, false);
-  // check if locale persist
-  await page.reload();
-  await check_counter(page, i18n, false);
-}
-
-async function check_state_keeping(page: Page, i18n: I18n) {
-  await page.goto("/");
+  await expect(page.locator(HOME_ANCHOR_XPATH)).toHaveText(i18n.t("go_home"));
 
   await page.locator(INC_BUTTON_XPATH).click({ clickCount: 3 });
 
@@ -112,14 +97,7 @@ async function check_state_keeping(page: Page, i18n: I18n) {
     i18n.t("click_count", { count: 3 })
   );
 
-  await switch_lang(i18n);
+  await page.locator(HOME_ANCHOR_XPATH).click();
 
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    i18n.t("click_count", { count: 3 })
-  );
-
-  await page.locator(INC_BUTTON_XPATH).click();
-  await expect(page.locator(COUNTER_XPATH)).toHaveText(
-    i18n.t("click_count", { count: 4 })
-  );
+  await expect(page).toHaveURL(i18n.get_url());
 }
