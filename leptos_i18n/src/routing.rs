@@ -5,6 +5,8 @@ use leptos_router::*;
 
 use crate::{use_i18n_context, I18nContext, Locale};
 
+// this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
+
 #[derive(Debug)]
 struct PathBuilder<'a>(Vec<&'a str>);
 
@@ -271,6 +273,12 @@ where
         trailing_slash.clone(),
     );
 
+    // probably the worst hack here:
+    // leptos_router swap routes base on the id,
+    // so if we want to keep the state of the page when the locale change we just give all routes the same id.
+    // we can just clone the default route and swap the path, then when roots resolution is done it sees all the different routes
+    // but in execution only one route will be active and will never be swapped out.
+    // the whole file is about keeping track of the locale suffix ourselves and fixing the URL every changes
     let mut locale_routes: Vec<RouteDefinition> = L::get_all()
         .iter()
         .copied()
