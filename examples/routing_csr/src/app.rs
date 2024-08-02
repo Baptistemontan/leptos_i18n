@@ -23,6 +23,8 @@ pub fn App() -> impl IntoView {
                     <Route path="/counter" view=Counter />
                 </I18nRoute>
             </Routes>
+            <br/>
+            <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
         </Router>
     }
 }
