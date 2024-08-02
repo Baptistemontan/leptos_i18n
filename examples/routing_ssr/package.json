@@ -1,7 +1,7 @@
 {
-  "name": "routing",
+  "name": "routing_ssr",
   "version": "1.0.0",
-  "description": "This example showcase how to use routing",
+  "description": "This example showcase how to use routing with SSR",
   "main": "index.js",
   "scripts": {
     "build": "cargo leptos build",

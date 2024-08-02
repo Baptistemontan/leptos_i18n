@@ -1,6 +1,6 @@
-# Hello World Example
+# Routing SSR
 
-This example showcase how to setup the router using `leptos_i18n`.
+This example showcase how to setup the router using `leptos_i18n` in a SSR project.
 
 ## How to run
 
