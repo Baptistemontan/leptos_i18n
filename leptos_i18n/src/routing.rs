@@ -167,10 +167,10 @@ fn check_history_change<L: Locale>(
 }
 
 fn maybe_redirect<L: Locale>(previously_resolved_locale: L, base_path: &str) -> Option<String> {
-    if previously_resolved_locale == L::default() {
+    let location = use_location();
+    if cfg!(not(feature = "ssr")) || previously_resolved_locale == L::default() {
         return None;
     }
-    let location = use_location();
     let new_path = get_new_path(&location, base_path, previously_resolved_locale, None);
     Some(new_path)
 }
@@ -208,7 +208,7 @@ fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -
 
     match redir {
         None => view! { <Outlet /> },
-        Some(path) => view! { <Redirect path=path/>},
+        Some(path) => view! { <Redirect path=path/> },
     }
 }
 
