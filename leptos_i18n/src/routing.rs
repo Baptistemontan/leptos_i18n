@@ -67,17 +67,20 @@ fn get_new_path<L: Locale>(
 
 fn navigate_effect<L: Locale>(
     i18n: I18nContext<L>,
-    locale: L,
     base_path: &'static str,
-) -> impl Fn(Option<()>) + 'static {
+) -> impl Fn(Option<L>) -> L + 'static {
     let location = use_location();
     let navigate = use_navigate();
-    move |_| {
+    move |prev_loc: Option<L>| {
         let new_locale = i18n.get_locale();
-        if new_locale == locale {
-            return;
+        let Some(prev_loc) = prev_loc else {
+            return new_locale;
+        };
+        if new_locale == prev_loc {
+            return new_locale;
         }
-        let new_path = get_new_path(&location, base_path, new_locale, locale);
+
+        let new_path = get_new_path(&location, base_path, new_locale, prev_loc);
 
         navigate(
             &new_path,
@@ -86,30 +89,48 @@ fn navigate_effect<L: Locale>(
                 scroll: false,
                 ..Default::default()
             },
-        )
+        );
+
+        new_locale
     }
 }
 
-fn ssr_redirection<L: Locale>(i18n: I18nContext<L>, locale: L, base_path: &str) -> Option<String> {
-    let current_locale = i18n.get_locale_untracked();
-    if cfg!(not(feature = "ssr")) || current_locale == locale {
+fn get_locale_from_path<L: Locale>(base_path: &'static str) -> L {
+    use_location()
+        .pathname
+        .with_untracked(|path| {
+            let stripped_path = path.strip_prefix(base_path)?;
+            L::get_all()
+                .iter()
+                .copied()
+                .find(|l| stripped_path.starts_with(l.as_str()))
+        })
+        .unwrap_or_default()
+}
+
+fn ssr_redirection<L: Locale>(base_locale: L, path_locale: L, base_path: &str) -> Option<String> {
+    if cfg!(not(feature = "ssr")) || base_locale == path_locale {
         return None;
     }
     let location = use_location();
-    let new_path = get_new_path(&location, base_path, current_locale, locale);
+    let new_path = get_new_path(&location, base_path, base_locale, path_locale);
     Some(new_path)
 }
 
-fn outlet_wrapper<L: Locale>(locale: L, base_path: &'static str) -> impl IntoView {
+fn outlet_wrapper<L: Locale>(base_path: &'static str) -> impl IntoView {
     let i18n = use_i18n_context::<L>();
 
-    let redir = ssr_redirection(i18n, locale, base_path);
+    let base_locale = i18n.get_locale_untracked();
+
+    let path_locale = get_locale_from_path::<L>(base_path);
+
+    let redir = ssr_redirection(base_locale, path_locale, base_path);
 
     if cfg!(not(feature = "ssr")) {
-        i18n.set_locale(locale);
+        i18n.set_locale(path_locale);
     }
 
-    create_effect(navigate_effect(i18n, locale, base_path));
+    create_effect(navigate_effect(i18n, base_path));
 
     match redir {
         None => view! { <Outlet /> },
@@ -145,7 +166,7 @@ fn make_route<V: IntoView>(
 #[doc(hidden)]
 pub fn i18n_routing<L: Locale, E, F>(
     base_path: &'static str,
-    children: Option<ChildrenFn>,
+    children: Option<Children>,
     ssr: SsrMode,
     methods: &'static [Method],
     data: Option<Loader>,
@@ -156,8 +177,6 @@ where
     E: IntoView,
     F: Fn() -> E + 'static,
 {
-    let get_children = move || children.clone().map(|c| Box::from(move || c()) as Children);
-
     let mut root_route: RouteDefinition = make_route(
         "",
         None,
@@ -170,8 +189,8 @@ where
 
     let default_route = make_route(
         "",
-        get_children(),
-        move || outlet_wrapper::<L>(L::default(), base_path),
+        children,
+        move || outlet_wrapper::<L>(base_path),
         ssr,
         methods,
         data.clone(),
@@ -181,16 +200,10 @@ where
     let mut locale_routes: Vec<RouteDefinition> = L::get_all()
         .iter()
         .copied()
-        .map(move |l| {
-            make_route(
-                l.as_str(),
-                get_children(),
-                move || outlet_wrapper::<L>(l, base_path),
-                ssr,
-                methods,
-                data.clone(),
-                trailing_slash.clone(),
-            )
+        .map(|l| {
+            let mut route = default_route.clone();
+            route.path = l.to_string();
+            route
         })
         .collect();
 

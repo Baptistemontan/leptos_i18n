@@ -171,7 +171,7 @@ fn load_locales_inner(
                     trailing_slash: Option<leptos_router::TrailingSlash>,
                     /// `children` may be empty or include nested routes.
                     #[prop(optional)]
-                    children: Option<leptos::ChildrenFn>,
+                    children: Option<leptos::Children>,
                 ) -> impl leptos::IntoView
                     where E: leptos::IntoView,
                     F: Fn() -> E + 'static
