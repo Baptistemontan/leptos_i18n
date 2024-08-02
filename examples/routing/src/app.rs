@@ -3,6 +3,7 @@ use leptos::*;
 use leptos_router::*;
 
 #[component]
+#[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     let i18n = provide_i18n_context();
 
@@ -17,9 +18,9 @@ pub fn App() -> impl IntoView {
     view! {
         <Router>
             <Routes>
-                <I18nRoute>
-                    <Route path="" view=Home trailing_slash=TrailingSlash::Drop/>
-                    <Route path="counter" view=Counter trailing_slash=TrailingSlash::Drop/>
+                <I18nRoute view=Outlet >
+                    <Route path="" view=Home />
+                    <Route path="counter" view=Counter />
                 </I18nRoute>
             </Routes>
             <br/>
@@ -29,6 +30,7 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
+#[allow(non_snake_case)]
 fn Home() -> impl IntoView {
     let i18n = use_i18n();
     view! {
@@ -38,6 +40,7 @@ fn Home() -> impl IntoView {
 }
 
 #[component]
+#[allow(non_snake_case)]
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 

@@ -1,7 +1,7 @@
 use leptos::*;
 use leptos_router::*;
 
-use crate::{provide_i18n_context, use_i18n_context, I18nContext, Locale};
+use crate::{use_i18n_context, I18nContext, Locale};
 
 #[derive(Debug)]
 struct PathBuilder<'a>(Vec<&'a str>);
@@ -117,14 +117,6 @@ fn outlet_wrapper<L: Locale>(locale: L, base_path: &'static str) -> impl IntoVie
     }
 }
 
-fn root_outlet_wrapper<L: Locale>() -> impl IntoView {
-    provide_i18n_context::<L>();
-
-    view! {
-        <Outlet />
-    }
-}
-
 fn make_route<V: IntoView>(
     path: &str,
     children: Option<Children>,
@@ -151,24 +143,29 @@ fn make_route<V: IntoView>(
 }
 
 #[doc(hidden)]
-pub fn i18n_routing<L: Locale>(
+pub fn i18n_routing<L: Locale, E, F>(
     base_path: &'static str,
     children: Option<ChildrenFn>,
     ssr: SsrMode,
     methods: &'static [Method],
     data: Option<Loader>,
     trailing_slash: Option<TrailingSlash>,
-) -> RouteDefinition {
+    view: F,
+) -> RouteDefinition
+where
+    E: IntoView,
+    F: Fn() -> E + 'static,
+{
     let get_children = move || children.clone().map(|c| Box::from(move || c()) as Children);
 
     let mut root_route: RouteDefinition = make_route(
         "",
         None,
-        root_outlet_wrapper::<L>,
+        view,
         ssr,
         methods,
         data.clone(),
-        trailing_slash.clone(),
+        Some(TrailingSlash::Drop),
     );
 
     let default_route = make_route(
@@ -188,7 +185,7 @@ pub fn i18n_routing<L: Locale>(
             make_route(
                 l.as_str(),
                 get_children(),
-                move || outlet_wrapper(l, base_path),
+                move || outlet_wrapper::<L>(l, base_path),
                 ssr,
                 methods,
                 data.clone(),
