@@ -20,5 +20,7 @@
   - [`td!` Macro](./usage/04_td_macro.md)
   - [`td_string!` Macro](./usage/05_td_string_macro.md)
   - [Scoping](./usage/06_scoping.md)
+- [More Informations](./infos/README.md)
+  - [Locale Resolution](./infos/01_locale_resolv.md)
 - [Features](./06_features.md)
 - [Appendix: `i18n Ally` extension for VSC](./appendix_i18n_ally.md)
