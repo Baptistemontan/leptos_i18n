@@ -178,6 +178,10 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
     }
   }
 
+  public set_locale_untracked(new_locale: keyof L) {
+    this.current_locale = new_locale;
+  }
+
   public on_locale_change(cb: LangChangeCb<L>) {
     this.locale_change_cb = cb;
   }

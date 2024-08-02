@@ -23,12 +23,15 @@ const test = base.extend(
 );
 
 type I18n = Parameters<Parameters<typeof test>[2]>[0]["i18n"];
+type Locale = Parameters<I18n["set_locale"]>[0];
 
-async function switch_lang(i18n: I18n) {
+async function switch_lang(i18n: I18n): Promise<Locale> {
   if (i18n.locale == "en") {
     await i18n.set_locale("fr");
+    return "fr";
   } else {
     await i18n.set_locale("en");
+    return "en";
   }
 }
 
@@ -46,6 +49,8 @@ test.afterEach(async ({ context }) => {
 
 test.describe("when locale is the default locale (en-GB)", () => {
   test("main check", ({ page, i18n }) => main_check(page, i18n));
+  test("history check", ({ page, i18n }) => history_check(page, i18n));
+  test("counter check", ({ page, i18n }) => counter_check(page, i18n));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
@@ -54,12 +59,12 @@ test.describe("when locale is set to french (fr-FR)", () => {
   });
 
   test("main check", ({ page, i18n }) => main_check(page, i18n));
+  test("history check", ({ page, i18n }) => history_check(page, i18n));
+  test("counter check", ({ page, i18n }) => counter_check(page, i18n));
 });
 
-async function main_check(page: Page, i18n: I18n, load_page: boolean = true) {
-  if (load_page) {
-    await page.goto("/");
-  }
+async function main_check(page: Page, i18n: I18n) {
+  await page.goto("/");
 
   await expect(page).toHaveURL(i18n.get_url());
 
@@ -100,4 +105,55 @@ async function main_check(page: Page, i18n: I18n, load_page: boolean = true) {
   await page.locator(HOME_ANCHOR_XPATH).click();
 
   await expect(page).toHaveURL(i18n.get_url());
+}
+
+async function history_check(page: Page, i18n: I18n) {
+  await page.goto("/");
+
+  await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
+
+  await expect(page).toHaveURL(i18n.get_url());
+  const prev_locale = i18n.locale;
+
+  const next_locale = await switch_lang(i18n);
+  await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
+  await expect(page).toHaveURL(i18n.get_url());
+
+  await page.goBack();
+  i18n.set_locale_untracked(prev_locale);
+  await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
+  await expect(page).toHaveURL(i18n.get_url());
+
+  await page.goForward();
+  i18n.set_locale_untracked(next_locale);
+  await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
+  await expect(page).toHaveURL(i18n.get_url());
+}
+
+async function counter_check(page: Page, i18n: I18n) {
+  await page.goto("/counter");
+
+  await expect(page).toHaveURL(i18n.get_url("counter"));
+
+  await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
+    i18n.t("click_to_change_lang")
+  );
+
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    i18n.t("click_count", { count: 0 })
+  );
+
+  await page.locator(INC_BUTTON_XPATH).click({ clickCount: 3 });
+
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    i18n.t("click_count", { count: 3 })
+  );
+
+  await switch_lang(i18n);
+
+  await expect(page).toHaveURL(i18n.get_url("counter"));
+
+  await expect(page.locator(COUNTER_XPATH)).toHaveText(
+    i18n.t("click_count", { count: 3 })
+  );
 }
