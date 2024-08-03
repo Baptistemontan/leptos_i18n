@@ -120,6 +120,7 @@ jobs:
             subkeys,
             yaml,
             routing_csr,
+            subcontext,
           ]
     steps:
       - name: "Checkout repo"
