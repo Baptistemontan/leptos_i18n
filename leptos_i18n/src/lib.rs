@@ -125,7 +125,7 @@
 //! }
 //! ```
 
-pub mod context;
+mod context;
 mod fetch_locale;
 mod langid;
 mod locale_traits;
@@ -138,6 +138,14 @@ pub mod display;
 pub use locale_traits::{Locale, LocaleKeys};
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
+
+/// re-export module for provider functions, such as `provide_i18n_context` and other variants with more options.
+pub mod providers {
+    pub use crate::context::{
+        provide_i18n_context, provide_i18n_context_with_options,
+        provide_i18n_context_with_options_and_root_element,
+    };
+}
 
 pub use leptos_i18n_macro::{
     load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,
