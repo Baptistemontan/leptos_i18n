@@ -167,6 +167,13 @@ pub fn init_i18n_context_with_options<L: Locale>(
     )
 }
 
+/// Same as `init_i18n_context` but takes a root element to bind the `"lang"` HTML attribute.
+pub fn init_i18n_context_with_root<L: Locale, El: ElementDescriptor + 'static + Clone>(
+    root_element: NodeRef<El>,
+) -> I18nContext<L> {
+    init_i18n_context_with_options_and_root(None, None, None, root_element)
+}
+
 /// Same as `init_i18n_context` but with some cookies options and a root element to bind the `"lang"` HTML attribute.
 pub fn init_i18n_context_with_options_and_root<
     L: Locale,
@@ -215,6 +222,17 @@ pub fn provide_i18n_context_with_options<L: Locale>(
 ) -> I18nContext<L> {
     use_context().unwrap_or_else(move || {
         let ctx = init_i18n_context_with_options(enable_cookie, cookie_name, cookie_options);
+        provide_context(ctx);
+        ctx
+    })
+}
+
+/// Same as `provide_i18n_context`  but takes a root element to bind the `"lang"` HTML attribute.
+pub fn provide_i18n_context_with_root<L: Locale, El: ElementDescriptor + 'static + Clone>(
+    root_element: NodeRef<El>,
+) -> I18nContext<L> {
+    use_context().unwrap_or_else(move || {
+        let ctx = init_i18n_context_with_root(root_element);
         provide_context(ctx);
         ctx
     })
@@ -296,7 +314,7 @@ fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) ->
 ///
 /// The locale to init the subcontext with is determined in this order:
 /// - locale in the cookie
-/// - `initial_cookie` if set
+/// - `initial_locale` if set
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 pub fn init_i18n_subcontext_with_options<L: Locale>(
@@ -323,7 +341,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 ///
 /// The locale to init the subcontext with is determined in this order:
 /// - locale in the cookie
-/// - `initial_cookie` if set
+/// - `initial_locale` if set
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 pub fn init_i18n_subcontext_with_options_and_root<
@@ -345,12 +363,27 @@ pub fn init_i18n_subcontext_with_options_and_root<
     )
 }
 
+/// Same as `init_i18n_subcontext` but with some options
+///
+/// The `root_element` is a `NodeRef` to an element that will receive the HTML `"lang"` attribute.
+///
+/// The locale to init the subcontext with is determined in this order:
+/// - `initial_locale` if set
+/// - locale of the parent context
+/// - if no parent context, use the same resolution used by a main context.
+pub fn init_i18n_subcontext_with_root<L: Locale, El: ElementDescriptor + 'static + Clone>(
+    initial_locale: Option<Signal<L>>,
+    root_element: NodeRef<El>,
+) -> I18nContext<L> {
+    init_i18n_subcontext_with_options_and_root(initial_locale, None, None, root_element)
+}
+
 /// Initialize a `I18nContext` subcontext without providing it.
 ///
 /// Can be supplied with a initial locale to use for this subcontext
 ///
 /// The locale to init the subcontext with is determined in this order:
-/// - `initial_cookie` if set
+/// - `initial_locale` if set
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
