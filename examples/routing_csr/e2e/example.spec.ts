@@ -35,6 +35,16 @@ async function switch_lang(i18n: I18n): Promise<Locale> {
   }
 }
 
+function switch_lang_untracked(i18n: I18n): Locale {
+  if (i18n.locale == "en") {
+    i18n.set_locale_untracked("fr");
+    return "fr";
+  } else {
+    i18n.set_locale_untracked("en");
+    return "en";
+  }
+}
+
 test.skip(fail_windows_webkit, "webkit does not support wasm on windows");
 
 test.beforeEach(async ({ i18n, page }) => {
@@ -113,19 +123,18 @@ async function history_check(page: Page, i18n: I18n) {
   await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
 
   await expect(page).toHaveURL(i18n.get_url());
-  const prev_locale = i18n.locale;
 
-  const next_locale = await switch_lang(i18n);
+  await switch_lang(i18n);
   await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
   await expect(page).toHaveURL(i18n.get_url());
 
   await page.goBack();
-  i18n.set_locale_untracked(prev_locale);
+  switch_lang_untracked(i18n);
   await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
   await expect(page).toHaveURL(i18n.get_url());
 
   await page.goForward();
-  i18n.set_locale_untracked(next_locale);
+  switch_lang_untracked(i18n);
   await expect(page.locator(TITLE_XPATH)).toHaveText(i18n.t("hello_world"));
   await expect(page).toHaveURL(i18n.get_url());
 }
