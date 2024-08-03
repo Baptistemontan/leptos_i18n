@@ -365,7 +365,7 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 /// There is a section on `leptos::provide_context` about shadowing, it is easy to screw it up.
 /// This is why you should be carefull about using this function.
 ///
-/// The recommanded way is to use the `I18nSubContextProvider` generated with the `i18n` module.
+/// The recommanded way is to use the `I18nSubContextProvider`.
 ///
 /// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with `Provider` or `provide_context`.
 #[deprecated = "see function documentation"]
