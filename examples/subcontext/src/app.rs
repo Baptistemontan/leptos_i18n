@@ -1,5 +1,6 @@
 use crate::i18n::*;
 use leptos::*;
+use leptos_i18n::context::{I18nSubContextProvider, I18nSubContextProviderWithRoot};
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;
 
@@ -72,9 +73,9 @@ fn LangAttr() -> impl IntoView {
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
         <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot root_element=div_ref>
+            <I18nSubContextProviderWithRoot<Locale, _> root_element=div_ref>
                 <Counter />
-            </I18nSubContextProviderWithRoot>
+            </I18nSubContextProviderWithRoot<Locale, _>>
         </div>
     }
 }

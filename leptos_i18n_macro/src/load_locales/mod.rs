@@ -136,65 +136,6 @@ fn load_locales_inner(
                     super::provide_i18n_context();
                     children()
                 }
-
-                #[leptos::component]
-                #[allow(non_snake_case)]
-                pub fn I18nSubContextProvider(
-                    children: leptos::Children,
-                    /// The initial locale for this subcontext.
-                    /// Default to the locale set in the cookie if set and some,
-                    /// if not use the parent context locale.
-                    /// if no parent context, use the default locale.
-                    #[prop(optional, into)]
-                    initial_locale: Option<leptos::Signal<#enum_ident>>,
-                    /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-                    #[prop(optional)]
-                    cookie_name: Option<&'static str>,
-                    /// Options for the cookie.
-                    #[prop(optional)]
-                    cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>
-                ) -> impl leptos::IntoView {
-                    let ctx = l_i18n_crate::context::init_i18n_subcontext_with_options::<#enum_ident>(
-                        initial_locale,
-                        cookie_name,
-                        cookie_options
-                    );
-                    leptos::run_as_child(move || {
-                        leptos::provide_context(ctx);
-                        children()
-                    })
-                }
-
-                #[leptos::component]
-                #[allow(non_snake_case)]
-                pub fn I18nSubContextProviderWithRoot<El: leptos::html::ElementDescriptor + 'static + Clone>(
-                    children: leptos::Children,
-                    /// The initial locale for this subcontext.
-                    /// Default to the locale set in the cookie if set and some,
-                    /// if not use the parent context locale.
-                    /// if no parent context, use the default locale.
-                    #[prop(optional, into)]
-                    initial_locale: Option<leptos::Signal<#enum_ident>>,
-                    /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-                    #[prop(optional)]
-                    cookie_name: Option<&'static str>,
-                    /// Options for the cookie.
-                    #[prop(optional)]
-                    cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
-                    /// A `NodeRef` to an element that will receive the HTML `"lang"` attribute.
-                    root_element: leptos::NodeRef<El>
-                ) -> impl leptos::IntoView {
-                    let ctx = l_i18n_crate::context::init_i18n_subcontext_with_options_and_root::<#enum_ident, El>(
-                        initial_locale,
-                        cookie_name,
-                        cookie_options,
-                        root_element
-                    );
-                    leptos::run_as_child(move || {
-                        leptos::provide_context(ctx);
-                        children()
-                    })
-                }
             }
 
             mod routing {
@@ -241,7 +182,7 @@ fn load_locales_inner(
                 }
             }
 
-            pub use provider::{I18nContextProvider, I18nSubContextProvider, I18nSubContextProviderWithRoot};
+            pub use provider::I18nContextProvider;
             pub use routing::I18nRoute;
 
             #macros_reexport

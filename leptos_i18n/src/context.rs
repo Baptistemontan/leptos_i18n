@@ -375,6 +375,65 @@ pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> 
     ctx
 }
 
+#[component]
+#[allow(non_snake_case)]
+pub fn I18nSubContextProvider<L: Locale>(
+    children: Children,
+    /// The initial locale for this subcontext.
+    /// Default to the locale set in the cookie if set and some,
+    /// if not use the parent context locale.
+    /// if no parent context, use the default locale.
+    #[prop(optional, into)]
+    initial_locale: Option<Signal<L>>,
+    /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
+    #[prop(optional)]
+    cookie_name: Option<&'static str>,
+    /// Options for the cookie.
+    #[prop(optional)]
+    cookie_options: Option<CookieOptions<L>>,
+) -> impl IntoView {
+    let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
+    leptos::run_as_child(move || {
+        provide_context(ctx);
+        children()
+    })
+}
+
+#[leptos::component]
+#[allow(non_snake_case)]
+pub fn I18nSubContextProviderWithRoot<L, El>(
+    children: Children,
+    /// The initial locale for this subcontext.
+    /// Default to the locale set in the cookie if set and some,
+    /// if not use the parent context locale.
+    /// if no parent context, use the default locale.
+    #[prop(optional, into)]
+    initial_locale: Option<Signal<L>>,
+    /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
+    #[prop(optional)]
+    cookie_name: Option<&'static str>,
+    /// Options for the cookie.
+    #[prop(optional)]
+    cookie_options: Option<CookieOptions<L>>,
+    /// A `NodeRef` to an element that will receive the HTML `"lang"` attribute.
+    root_element: NodeRef<El>,
+) -> impl IntoView
+where
+    L: Locale,
+    El: ElementDescriptor + 'static + Clone,
+{
+    let ctx = init_i18n_subcontext_with_options_and_root::<L, El>(
+        initial_locale,
+        cookie_name,
+        cookie_options,
+        root_element,
+    );
+    leptos::run_as_child(move || {
+        provide_context(ctx);
+        children()
+    })
+}
+
 /// Return the `I18nContext` previously set.
 ///
 /// ## Panic
