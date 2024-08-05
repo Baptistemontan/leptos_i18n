@@ -7,7 +7,7 @@ import {
   TDFunc,
   GetL,
   MaybeTd,
-} from "../../utils";
+} from "../../../utils";
 
 type XPaths = {
   main: string;

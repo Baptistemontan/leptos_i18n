@@ -13,7 +13,7 @@ axum = { version = "0.7", optional = true }
 leptos = "0.6"
 leptos_meta = "0.6"
 leptos_axum = { version = "0.6", optional = true }
-leptos_i18n = { path = "../../leptos_i18n", features = [
+leptos_i18n = { path = "../../../leptos_i18n", features = [
     "debug_interpolations",
     "track_locale_files",
 ] }

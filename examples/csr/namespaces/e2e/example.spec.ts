@@ -3,7 +3,7 @@ import i18nClEn from "#locales/en/change_locale.json";
 import i18nClFr from "#locales/fr/change_locale.json";
 import i18nCounterEn from "#locales/en/counter.json";
 import i18nCounterFr from "#locales/fr/counter.json";
-import { fail_windows_webkit, createI18nFixture } from "../../utils";
+import { fail_windows_webkit, createI18nFixture } from "../../../utils";
 
 const LNG_BUTTON_XPATH = "xpath=//html/body/button[1]";
 const INC_BUTTON_XPATH = "xpath=//html/body/button[2]";

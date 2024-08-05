@@ -1,7 +1,7 @@
 import { test as base, expect, Page } from "@playwright/test";
 import i18nEn from "#locales/en.json";
 import i18nFr from "#locales/fr.json";
-import { fail_windows_webkit, createI18nFixture } from "../../utils";
+import { fail_windows_webkit, createI18nFixture } from "../../../utils";
 
 const TITLE_XPATH = "xpath=//html/body/leptos-island/leptos-children/h1";
 const COUNTER_XPATH =

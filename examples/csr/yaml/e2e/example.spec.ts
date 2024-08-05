@@ -1,5 +1,5 @@
 import { test as base, expect, Page } from "@playwright/test";
-import { fail_windows_webkit, createI18nFixture } from "../../utils";
+import { fail_windows_webkit, createI18nFixture } from "../../../utils";
 import fs from "fs";
 import YAML from "yaml";
 

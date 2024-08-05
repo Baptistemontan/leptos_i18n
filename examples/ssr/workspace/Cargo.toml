@@ -3,7 +3,7 @@ resolver = "2"
 members = ["client", "server"]
 
 [workspace.dependencies]
-leptos_i18n = { path = "../../leptos_i18n" }
+leptos_i18n = { path = "../../../leptos_i18n" }
 
 [[workspace.metadata.leptos]]
 name = "counter"
