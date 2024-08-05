@@ -71,7 +71,28 @@ type TFuncComp = {
   [key: string]: (inner: string) => string;
 };
 
-type TFunc = typeof I18n.prototype.t;
+type ShiftTuple<T extends any[]> = T extends [T[0], ...infer R] ? R : never;
+
+export type TDFuncParams<L extends Locales> = [
+  locale: keyof L,
+  key: string,
+  vars?: TFuncVars,
+  components?: TFuncComp,
+  plural_count?: number
+];
+
+export type TDFunc<L extends Locales> = (...args: TDFuncParams<L>) => string;
+
+export type TFuncParams<L extends Locales> = ShiftTuple<TDFuncParams<L>>;
+
+export type TFunc<L extends Locales> = (...args: TFuncParams<L>) => string;
+
+export type MaybeTd<L extends Locales> = (
+  locale: keyof L | undefined,
+  ...args: TFuncParams<L>
+) => string;
+
+export type GetL<T> = T extends I18n<infer L, any> ? L : never;
 
 type LangChangeCb<L extends Locales> = (new_locale: keyof L) => Promise<void>;
 
@@ -134,7 +155,12 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
     this.locales = locales;
   }
 
-  public t(
+  public t(...args: TFuncParams<L>): string {
+    return this.td(this.current_locale, ...args);
+  }
+
+  public td(
+    locale: keyof L,
     key: string,
     vars: TFuncVars = {},
     components: TFuncComp = {},
@@ -147,7 +173,7 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
       .split(".")
       .reduce<LocaleValue | undefined>(
         (vals, key) => (vals ? vals[key] : undefined),
-        this.locales[this.current_locale]
+        this.locales[locale]
       );
     if (typeof value === "string") {
       return handle_string(value, vars, components);
@@ -203,7 +229,8 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
 
 export type I18nFixture<L extends Locales, N extends Namespaces<L>> = {
   i18n: I18n<L, N>;
-  t: TFunc;
+  t: TFunc<L>;
+  maybe_td: MaybeTd<L>;
 };
 
 export function createI18nFixture<L extends Locales, N extends Namespaces<L>>(
@@ -221,6 +248,11 @@ export function createI18nFixture<L extends Locales, N extends Namespaces<L>>(
     },
     t: async ({ i18n }, use) => {
       await use((...args) => i18n.t(...args));
+    },
+    maybe_td: async ({ i18n }, use) => {
+      await use((locale, ...args) =>
+        locale ? i18n.td(locale, ...args) : i18n.t(...args)
+      );
     },
   };
 }
