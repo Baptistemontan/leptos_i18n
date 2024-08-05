@@ -22,6 +22,7 @@ http = { version = "1", optional = true }
 leptos-use = "0.11"
 codee = "0.1"
 unic-langid = { version = "0.9", features = ["macros"] }
+typed-builder = "0.19"
 
 [features]
 default = ["cookie", "json_files"]

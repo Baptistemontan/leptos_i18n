@@ -633,6 +633,13 @@ impl InterpolateKey {
         }
     }
 
+    pub fn as_comp(&self) -> Option<&Rc<Key>> {
+        match self {
+            InterpolateKey::Component(k) => Some(k),
+            _ => None,
+        }
+    }
+
     pub fn get_real_name(&self) -> &str {
         match self {
             InterpolateKey::Count(_) => "count",
@@ -644,16 +651,14 @@ impl InterpolateKey {
     pub fn get_generic(&self) -> TokenStream {
         match self {
             InterpolateKey::Variable(_) => {
-                quote!(leptos::IntoView + core::clone::Clone + 'static)
+                quote!(l_i18n_crate::__private::InterpolateVar)
             }
             InterpolateKey::Count(plural_type) => {
-                quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
+                quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>)
             }
-            InterpolateKey::Component(_) => quote!(
-                Fn(leptos::ChildrenFn) -> leptos::View
-                    + core::clone::Clone
-                    + 'static
-            ),
+            InterpolateKey::Component(_) => {
+                quote!(l_i18n_crate::__private::InterpolateComp)
+            }
         }
     }
 

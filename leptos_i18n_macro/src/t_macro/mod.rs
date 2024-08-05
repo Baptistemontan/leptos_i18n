@@ -62,12 +62,12 @@ pub fn t_macro_inner(
 
         let inner = quote! {
             {
-                let _key = #get_key;
+                let _builder = #get_key.new_builder();
                 #(
-                    let _key = _key.#interpolations;
+                    let _builder = _builder.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _key.#build_fn()
+                _builder.#build_fn()
             }
         };
 

@@ -1,6 +1,6 @@
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 #![forbid(unsafe_code)]
-// #![deny(warnings)]
+#![deny(warnings)]
 #![cfg_attr(feature = "nightly", feature(proc_macro_diagnostic, track_path))]
 //! # About Leptos i18n macro
 //!

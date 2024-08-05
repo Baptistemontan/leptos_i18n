@@ -1,4 +1,4 @@
-use std::{borrow::Cow, str::FromStr};
+use std::str::FromStr;
 
 use unic_langid::LanguageIdentifier;
 
@@ -73,35 +73,6 @@ pub trait LocaleKeys: 'static + Clone + Copy {
 
     /// Return a static ref to Self containing the translations for the given locale
     fn from_locale(locale: Self::Locale) -> &'static Self;
-}
-
-/// This is used to call `.build` on `&str` when building interpolations.
-///
-/// If it's a `&str` it will just return the str,
-/// but if it's a builder `.build` will either emit an error for a missing key or if all keys
-/// are supplied it will return the correct value
-///
-/// It has no uses outside of the internals of the `t!` macro.
-#[doc(hidden)]
-pub trait BuildStr: Sized {
-    #[inline]
-    fn build(self) -> Self {
-        self
-    }
-
-    #[inline]
-    fn build_display(self) -> Self {
-        self
-    }
-
-    fn build_string(self) -> Cow<'static, str>;
-}
-
-impl BuildStr for &'static str {
-    #[inline]
-    fn build_string(self) -> Cow<'static, str> {
-        Cow::Borrowed(self)
-    }
 }
 
 #[cfg(test)]
