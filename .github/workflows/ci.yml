@@ -79,7 +79,7 @@ jobs:
         run: cargo install cargo-leptos
 
       - name: "Build ${{ matrix.examples }} example"
-        working-directory: examples/${{ matrix.examples }}
+        working-directory: examples/ssr/${{ matrix.examples }}
         run: cargo leptos build
 
       - name: "Build e2e utils"
@@ -87,14 +87,14 @@ jobs:
         run: npm ci
 
       - name: "Install Playwright"
-        working-directory: examples/${{ matrix.examples }}
+        working-directory: examples/ssr/${{ matrix.examples }}
         run: |
           npm ci
           npx playwright install --with-deps
 
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
-        working-directory: examples/${{ matrix.examples }}
+        working-directory: examples/ssr/${{ matrix.examples }}
         run: npx playwright test
 
       - name: "Upload e2e report"
@@ -103,7 +103,7 @@ jobs:
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
-          path: examples/${{ matrix.examples }}/playwright-report/
+          path: examples/ssr/${{ matrix.examples }}/playwright-report/
 
   test_csr_examples:
     name: Test ${{ matrix.examples }} example
@@ -141,7 +141,7 @@ jobs:
         run: cargo install trunk
 
       - name: "Build ${{ matrix.examples }} example"
-        working-directory: examples/${{ matrix.examples }}
+        working-directory: examples/csr/${{ matrix.examples }}
         run: trunk build
 
       - name: "Build e2e utils"
@@ -149,7 +149,7 @@ jobs:
         run: npm ci
 
       - name: "Install Playwright"
-        working-directory: examples/${{ matrix.examples }}
+        working-directory: examples/csr/${{ matrix.examples }}
         run: |
           npm ci
           npx playwright install --with-deps
@@ -157,7 +157,7 @@ jobs:
 
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
-        working-directory: examples/${{ matrix.examples }}
+        working-directory: examples/csr/${{ matrix.examples }}
         run: npx playwright test
 
       - name: "Upload e2e report"
@@ -166,7 +166,7 @@ jobs:
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
         with:
           name: playwright-report-${{ matrix.examples }}
-          path: examples/${{ matrix.examples }}/playwright-report/
+          path: examples/csr/${{ matrix.examples }}/playwright-report/
 
   test_suite:
     name: Test suite ${{ matrix.tests_suites }}
