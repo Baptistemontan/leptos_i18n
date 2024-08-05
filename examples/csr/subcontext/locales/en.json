@@ -1,0 +1,12 @@
+{
+  "click_to_change_lang": "Click to change language",
+  "click_count": "You clicked {{ count }} times",
+  "click_to_inc": "Click to increment the counter",
+  "examples": {
+    "opposite": "This section takes the opposite locale to the parent context when the later changes.",
+    "cookie": "This section start with it's own default locale and saves it in a cookie.",
+    "lang_attr": "This section update the \"lang\" HTML attribute of the parent div.",
+    "all": "This section is reversed, has a cookie, and update the \"lang\" attribute.",
+    "main": "This section follows the main context."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "click_to_change_lang": "Cliquez pour changez de langue",
+  "click_count": "Vous avez cliqué {{ count }} fois",
+  "click_to_inc": "Cliquez pour incrémenter le compteur",
+  "examples": {
+    "opposite": "Cette section prendra la locale opposée à celle du context parent lorsque celle ci change.",
+    "cookie": "Cette section commence avec sa propre locale par défaut et sauvegarde les changements dans un cookie.",
+    "lang_attr": "Cette section maintient à jour l'attribut HTML \"lang\" de l'élément <div> parent.",
+    "all": "Cette section est inversé, a son cookie, et met l'attribut \"lang\".",
+    "main": "Ce compteur utilise le context principal."
+  }
+}

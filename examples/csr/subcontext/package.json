@@ -1,0 +1,24 @@
+{
+  "name": "subcontext",
+  "version": "1.0.0",
+  "description": "This example showcase how you can introduce subcontexts in you application.",
+  "main": "index.js",
+  "scripts": {
+    "build": "trunk build",
+    "start": "trunk serve --no-autoreload",
+    "watch": "trunk serve",
+    "test": "npx playwright test",
+    "prestart": "npm run build",
+    "pretest": "npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.45.3",
+    "@types/node": "^20.14.12"
+  },
+  "imports": {
+    "#locales/*": "./locales/*"
+  }
+}

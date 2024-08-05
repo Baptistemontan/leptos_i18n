@@ -108,6 +108,16 @@ If you enable the `nightly` feature you can directly call the context`i18n(new_l
 
 A non-reactive counterpart to `set_locale` exist: `set_locale_untracked`.
 
+## `"lang"` HTML attribute
+
+When creating a context, it listens to any changes to the locale and update the `<html>` element `"lang"` attribute according to the set locale.
+
+## `cookie` feature
+
+When using the `cookie` feature the context will set a cookie whenever the locale changes,
+this cookie will be used to decide what locale to use on the page load in CSR,
+and on request to the server in SSR by looking at the request headers.
+
 ## Note on island
 
 If you use the `experimental-islands` feature from Leptos this will not work and cause an error on the client:
@@ -143,5 +153,30 @@ fn App() -> impl IntoView {
             <HomePage />
         </I18nContextProvider>
     }
+}
+```
+
+## Context options
+
+You may want to customize the context behavior, such as how the cookie is set or what element should receive the `"lang"` attribute,
+for this you can use some helpers in the `leptos_i18n::context` module:
+
+`provide_i18n_context_with_options` takes options for the cookie, such as the name, if the cookie should be enabled (will always be `false` if the `cookie` feature is not enabled), and some options about how the cookie is set.
+
+`provide_i18n_context_with_root` takes a `leptos::NodeRef` to an element to set the `"lang"` HTML attribute on.
+
+`provide_i18n_context_with_options_and_root` is a combination of both the above.
+
+There are variants of those with `init_*` instead of `provide_*` that returns the context without providing it.
+
+`provide_*` functions are basically:
+
+```rust
+fn provide_*(..args) -> I18nContext<Locale> {
+    use_contex().unwrap_or_else(move || {
+        let ctx = init_*(..args);
+        leptos::provide_context(ctx);
+        ctx
+    })
 }
 ```
