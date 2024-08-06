@@ -23,7 +23,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: "Install cargo-all-features"
-        run: cargo install cargo-all-features
+        run: cargo install cargo-all-features --locked
 
       - name: "Test all features"
         run: cargo test-all-features --n-chunks 2 --chunk 1
@@ -76,7 +76,7 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos
+        run: cargo install cargo-leptos --locked
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}
@@ -138,7 +138,7 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Install trunk"
-        run: cargo install trunk
+        run: cargo install trunk --locked
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/csr/${{ matrix.examples }}
@@ -153,7 +153,6 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps
-          cargo install trunk
 
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
