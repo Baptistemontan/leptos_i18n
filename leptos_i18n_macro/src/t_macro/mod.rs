@@ -1,8 +1,9 @@
+use interpolate::InterpolatedValueTokenizer;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
 
-use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
+use crate::t_macro::interpolate::InterpolatedValue;
 
 use self::parsed_input::ParsedInput;
 use crate::utils::Keys;
@@ -45,7 +46,7 @@ pub fn t_macro_inner(
     } = input;
 
     let get_key = input_type.get_key(context, keys);
-    let builder_fn = output_type.builder_fn();
+    let (builder_fn, build_fn) = output_type.build_fns();
 
     let (inner, params) = if let Some(mut interpolations) = interpolations {
         let (keys, values): (Vec<_>, Vec<_>) = interpolations
@@ -55,10 +56,9 @@ pub fn t_macro_inner(
         let params = quote! {
             let (#(#keys,)*) = (#(#values,)*);
         };
-        let string = output_type.is_string();
         let interpolations = interpolations
             .iter()
-            .map(|inter| InterpolatedValueTokenizer::new(inter, string));
+            .map(|inter| InterpolatedValueTokenizer::new(inter, output_type));
 
         let inner = quote! {
             {
@@ -67,7 +67,7 @@ pub fn t_macro_inner(
                     let _builder = _builder.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _builder.build()
+                _builder.#build_fn()
             }
         };
 
@@ -78,7 +78,7 @@ pub fn t_macro_inner(
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
-                _key.#builder_fn().build()
+                _key.#builder_fn().#build_fn()
             }
         };
         (inner, None)
@@ -88,11 +88,11 @@ pub fn t_macro_inner(
 }
 
 impl OutputType {
-    pub fn builder_fn(self) -> TokenStream {
+    pub fn build_fns(self) -> (TokenStream, TokenStream) {
         match self {
-            OutputType::View => quote!(view_builder),
-            OutputType::String => quote!(string_builder),
-            OutputType::Display => quote!(display_builder),
+            OutputType::View => (quote!(builder), quote!(build)),
+            OutputType::String => (quote!(display_builder), quote!(build_string)),
+            OutputType::Display => (quote!(display_builder), quote!(build_display)),
         }
     }
 
@@ -100,6 +100,33 @@ impl OutputType {
         match self {
             OutputType::View => false,
             OutputType::String | OutputType::Display => true,
+        }
+    }
+
+    pub fn comp_check_fn(self) -> TokenStream {
+        match self {
+            OutputType::View => quote!(leptos_i18n::__private::check_comp),
+            OutputType::Display | OutputType::String => {
+                quote!(leptos_i18n::__private::check_comp_string)
+            }
+        }
+    }
+
+    pub fn count_check_fn(self) -> TokenStream {
+        match self {
+            OutputType::View => quote!(leptos_i18n::__private::check_count),
+            OutputType::Display | OutputType::String => {
+                quote!(leptos_i18n::__private::check_count_string)
+            }
+        }
+    }
+
+    pub fn var_check_fn(self) -> TokenStream {
+        match self {
+            OutputType::View => quote!(leptos_i18n::__private::check_var),
+            OutputType::Display | OutputType::String => {
+                quote!(leptos_i18n::__private::check_var_string)
+            }
         }
     }
 

@@ -2,6 +2,8 @@ use proc_macro2::{TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use syn::{buffer::Cursor, parse::ParseBuffer, Expr, Ident, Token};
 
+use super::OutputType;
+
 pub enum InterpolatedValue {
     // form t!(i18n, key, count)
     Var(Ident),
@@ -23,6 +25,7 @@ pub enum InterpolatedValue {
         comp_name: Ident,
         attrs: TokenStream,
     },
+    Count(Expr),
 }
 
 fn check_component_end(input: Cursor) -> bool {
@@ -61,7 +64,14 @@ impl syn::parse::Parse for InterpolatedValue {
         if is_comp {
             input.parse::<Token![<]>()?;
         }
-        let key = input.parse()?;
+        let is_count = !is_comp && input.peek(Token![$]);
+        if is_count {
+            input.parse::<Token![$]>()?;
+            input.parse::<Token![=]>()?;
+            let value = input.parse::<Expr>()?;
+            return Ok(InterpolatedValue::Count(value));
+        }
+        let key = input.parse::<Ident>()?;
         if is_comp {
             input.parse::<Token![>]>()?;
         }
@@ -92,12 +102,11 @@ impl syn::parse::Parse for InterpolatedValue {
 }
 
 impl InterpolatedValue {
-    fn format_ident(ident: &Ident, variable: bool, string: bool) -> Ident {
-        match (variable, string) {
-            (true, true) => format_ident!("var_{}_string", ident),
-            (true, false) => format_ident!("var_{}", ident),
-            (false, true) => format_ident!("comp_{}_string", ident),
-            (false, false) => format_ident!("comp_{}", ident),
+    fn format_ident(ident: &Ident, variable: bool) -> Ident {
+        if variable {
+            format_ident!("var_{}", ident)
+        } else {
+            format_ident!("comp_{}", ident)
         }
     }
 
@@ -128,53 +137,65 @@ impl InterpolatedValue {
                 *self = InterpolatedValue::Comp(key.clone());
                 ts
             }
+            InterpolatedValue::Count(expr) => {
+                (format_ident!("__plural_count__"), quote!({ #expr }))
+            }
         }
     }
 
-    fn to_token_stream(&self, string: bool) -> TokenStream {
+    fn to_token_stream(&self, output_type: OutputType) -> TokenStream {
         match self {
             InterpolatedValue::Var(ident) => {
-                let var_ident = Self::format_ident(ident, true, string);
-                quote!(#var_ident(Clone::clone(&#ident)))
+                let var_check_fn = output_type.var_check_fn();
+                let var_ident = Self::format_ident(ident, true);
+                quote!(#var_ident(#var_check_fn(Clone::clone(&#ident))))
             }
             InterpolatedValue::Comp(ident) => {
-                let comp_ident = Self::format_ident(ident, false, string);
-                quote!(#comp_ident(Clone::clone(&#ident)))
+                let comp_check_fn = output_type.comp_check_fn();
+                let comp_ident = Self::format_ident(ident, false);
+                quote!(#comp_ident(#comp_check_fn(Clone::clone(&#ident))))
             }
             InterpolatedValue::AssignedVar { key, value } => {
-                let var_ident = Self::format_ident(key, true, string);
-                quote!(#var_ident(Clone::clone(&#value)))
+                let var_check_fn = output_type.var_check_fn();
+                let var_ident = Self::format_ident(key, true);
+                quote!(#var_ident(#var_check_fn(Clone::clone(&#value))))
             }
             InterpolatedValue::AssignedComp { key, value } => {
-                let comp_ident = Self::format_ident(key, false, string);
-                quote!(#comp_ident(Clone::clone(&#value)))
+                let comp_check_fn = output_type.comp_check_fn();
+                let comp_ident = Self::format_ident(key, false);
+                quote!(#comp_ident(#comp_check_fn(Clone::clone(&#value))))
             }
             InterpolatedValue::DirectComp {
                 key,
                 comp_name,
                 attrs,
             } => {
-                let comp_ident = Self::format_ident(key, false, string);
-                quote!(#comp_ident(move |__children:leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }))
+                let comp_check_fn = output_type.comp_check_fn();
+                let comp_ident = Self::format_ident(key, false);
+                quote!(#comp_ident(#comp_check_fn(move |__children:leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } })))
+            }
+            InterpolatedValue::Count(_) => {
+                let count_check_fn = output_type.count_check_fn();
+                quote!(plural_count(#count_check_fn(Clone::clone(&__plural_count__))))
             }
         }
     }
 }
 
 pub struct InterpolatedValueTokenizer<'a> {
-    string: bool,
+    output_type: OutputType,
     value: &'a InterpolatedValue,
 }
 
 impl<'a> InterpolatedValueTokenizer<'a> {
-    pub fn new(value: &'a InterpolatedValue, string: bool) -> Self {
-        Self { string, value }
+    pub fn new(value: &'a InterpolatedValue, output_type: OutputType) -> Self {
+        Self { output_type, value }
     }
 }
 
 impl ToTokens for InterpolatedValueTokenizer<'_> {
     fn to_token_stream(&self) -> proc_macro2::TokenStream {
-        self.value.to_token_stream(self.string)
+        self.value.to_token_stream(self.output_type)
     }
 
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {

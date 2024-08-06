@@ -39,13 +39,15 @@ impl Interpolation {
         let locale_field = Key::new("_locale").unwrap();
         let into_view_field = Key::new("_into_views_marker").unwrap();
 
+        let typed_builder_name = format_ident!("{}Builder", ident);
+
         let fields = keys_set
             .iter()
             .map(|kind| {
                 let key = kind
                     .as_key()
                     .map(|key| key.name.as_str())
-                    .unwrap_or("var_count");
+                    .unwrap_or("plural_count");
                 let name = format!("__{}__", key);
                 let generic = syn::Ident::new(&name, Span::call_site());
                 let into_view = kind
@@ -78,6 +80,7 @@ impl Interpolation {
             &ident,
             &dummy_ident,
             enum_ident,
+            &typed_builder_name,
             &locale_field,
             &into_view_field,
             &fields,
@@ -98,8 +101,8 @@ impl Interpolation {
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields, &into_views);
 
-        let display_impl = if cfg!(feature = "interpolate_display") {
-            Self::display_impl(
+        let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
+            let display_impl = Self::display_impl(
                 key,
                 &ident,
                 enum_ident,
@@ -107,9 +110,17 @@ impl Interpolation {
                 &fields,
                 locales,
                 default_match,
-            )
+                &into_views,
+            );
+            let builder_display = Self::builder_string_build_fns(
+                enum_ident,
+                &typed_builder_name,
+                &fields,
+                &into_views,
+            );
+            (display_impl, builder_display)
         } else {
-            quote!()
+            (quote!(), quote!())
         };
 
         let imp = quote! {
@@ -121,12 +132,75 @@ impl Interpolation {
 
             #display_impl
 
+            #builder_display
+
             #dummy_impl
         };
 
         Self {
             imp,
             ident: dummy_ident,
+        }
+    }
+
+    fn get_string_bounded_left_generics<'a>(
+        fields: &'a [Field],
+    ) -> impl Iterator<Item = TokenStream> + Clone + 'a {
+        fields.iter().filter_map(|field| {
+            let ident = &field.generic;
+            let generic = field.kind.get_string_generic().ok()?;
+            Some(quote!(#ident: #generic))
+        })
+    }
+    fn get_string_bounded_right_generics<'a>(
+        fields: &'a [Field],
+        into_views: &'a [&syn::Ident],
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        let into_views = into_views.iter().map(|_| quote!(()));
+
+        fields
+            .iter()
+            .map(|field| match field.kind {
+                InterpolateKey::Count(t) => quote!(#t),
+                _ => {
+                    let ident = &field.generic;
+                    quote!(#ident)
+                }
+            })
+            .chain(into_views)
+    }
+
+    fn builder_string_build_fns(
+        enum_ident: &syn::Ident,
+        typed_builder_name: &syn::Ident,
+        fields: &[Field],
+        into_views: &[&syn::Ident],
+    ) -> TokenStream {
+        let left_generics = Self::get_string_bounded_left_generics(fields);
+        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+
+        let into_views = into_views.iter().map(|_| quote!(()));
+        let marker = fields.iter().map(|field| match field.kind {
+            InterpolateKey::Count(plural_type) => quote!(#plural_type),
+            _ => {
+                let ident = &field.generic;
+                quote!(#ident)
+            }
+        });
+
+        quote! {
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics,)*> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #((#marker,),)*)> {
+                #[inline]
+                pub fn build_display(self) -> impl std::fmt::Display {
+                    self.build()
+                }
+
+                #[inline]
+                pub fn build_string(self) -> std::borrow::Cow<'static, str> {
+                    std::borrow::Cow::Owned(self.build().to_string())
+                }
+            }
         }
     }
 
@@ -152,17 +226,38 @@ impl Interpolation {
             .chain(into_view_generics)
     }
 
-    fn dummy_impl(
+    fn display_builder_fn(
         ident: &syn::Ident,
-        dummy_ident: &syn::Ident,
         enum_ident: &syn::Ident,
+        typed_builder_name: &syn::Ident,
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
         into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let type_builder_name = format_ident!("{}Builder", ident);
+        let left_generics = Self::get_string_bounded_left_generics(fields);
+        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+        let builder_marker = fields.iter().map(|_| quote!(()));
+        let into_views = into_views.iter().map(|_| quote!(()));
 
+        quote! {
+            pub fn display_builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn dummy_impl(
+        ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
+        enum_ident: &syn::Ident,
+        typed_builder_name: &syn::Ident,
+        locale_field: &Key,
+        into_view_field: &Key,
+        fields: &[Field],
+        into_views: &[&syn::Ident],
+    ) -> TokenStream {
         let left_generics = Self::bounded_generics(fields, into_views);
 
         let right_generics = fields
@@ -172,6 +267,20 @@ impl Interpolation {
 
         let builder_marker = fields.iter().map(|_| quote!(()));
 
+        let display_builder_fn = if cfg!(feature = "interpolate_display") {
+            Self::display_builder_fn(
+                ident,
+                enum_ident,
+                typed_builder_name,
+                locale_field,
+                into_view_field,
+                fields,
+                into_views,
+            )
+        } else {
+            quote!()
+        };
+
         quote! {
             impl #dummy_ident {
                 pub const fn new(#locale_field: #enum_ident) -> Self {
@@ -180,9 +289,11 @@ impl Interpolation {
                     }
                 }
 
-                pub fn view_builder<#(#left_generics,)*>(self) -> #type_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
                     #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
                 }
+
+                #display_builder_fn
             }
         }
     }
@@ -252,6 +363,7 @@ impl Interpolation {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn display_impl(
         key: &Key,
         ident: &syn::Ident,
@@ -260,24 +372,14 @@ impl Interpolation {
         fields: &[Field],
         locales: &[Locale],
         default_match: &TokenStream,
+        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(|field| {
-            let ident = &field.generic;
-            let generic = field.kind.get_string_generic().ok()?;
-            Some(quote!(#ident: #generic))
-        });
-
-        let right_generics = fields.iter().map(|field| match field.kind {
-            InterpolateKey::Count(t) => quote!(#t),
-            _ => {
-                let ident = &field.generic;
-                quote!(#ident)
-            }
-        });
+        let left_generics = Self::get_string_bounded_left_generics(fields);
+        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
 
         let fields_key = fields.iter().map(|f| f.kind);
 
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
+        let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, default_match);

@@ -622,7 +622,7 @@ impl InterpolateKey {
     pub fn as_ident(&self) -> syn::Ident {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
-            InterpolateKey::Count(_) => format_ident!("var_count"),
+            InterpolateKey::Count(_) => format_ident!("plural_count"),
         }
     }
 
@@ -642,7 +642,7 @@ impl InterpolateKey {
 
     pub fn get_real_name(&self) -> &str {
         match self {
-            InterpolateKey::Count(_) => "count",
+            InterpolateKey::Count(_) => "plural_count",
             InterpolateKey::Variable(key) => key.name.strip_prefix("var_").unwrap(),
             InterpolateKey::Component(key) => key.name.strip_prefix("comp_").unwrap(),
         }

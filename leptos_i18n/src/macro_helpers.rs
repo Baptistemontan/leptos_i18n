@@ -1,9 +1,11 @@
 #![doc(hidden)]
 
 use leptos::IntoView;
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt::Display};
 
-use crate::{scopes::ScopedLocale, ConstScope, I18nContext, Locale, Scope};
+use crate::{
+    display::DisplayComponent, scopes::ScopedLocale, ConstScope, I18nContext, Locale, Scope,
+};
 
 // Interpolation
 
@@ -11,20 +13,44 @@ pub trait InterpolateVar: IntoView + Clone + 'static {}
 
 impl<T: IntoView + Clone + 'static> InterpolateVar for T {}
 
+pub fn check_var(var: impl InterpolateVar) -> impl InterpolateVar {
+    var
+}
+
+pub fn check_var_string(var: impl Display) -> impl Display {
+    var
+}
+
 pub trait InterpolateComp<O: IntoView>: Fn(leptos::ChildrenFn) -> O + Clone + 'static {}
 
 impl<O: IntoView, T: Fn(leptos::ChildrenFn) -> O + Clone + 'static> InterpolateComp<O> for T {}
 
+pub fn check_comp<V: IntoView>(comp: impl InterpolateComp<V>) -> impl InterpolateComp<V> {
+    comp
+}
+
+pub fn check_comp_string(comp: impl DisplayComponent) -> impl DisplayComponent {
+    comp
+}
+
 pub trait InterpolateCount<T>: Fn() -> T + Clone + 'static {}
 
 impl<T, F: Fn() -> T + Clone + 'static> InterpolateCount<T> for F {}
+
+pub fn check_count<T>(count: impl InterpolateCount<T>) -> impl InterpolateCount<T> {
+    count
+}
+
+pub fn check_count_string<T>(count: T) -> T {
+    count
+}
 
 #[doc(hidden)]
 pub struct DisplayBuilder(Cow<'static, str>);
 
 impl DisplayBuilder {
     #[inline]
-    pub fn build(self) -> Cow<'static, str> {
+    pub fn build_display(self) -> Cow<'static, str> {
         self.0
     }
 }
@@ -39,7 +65,7 @@ impl DisplayBuilder {
 #[doc(hidden)]
 pub trait BuildStr: Sized {
     #[inline]
-    fn view_builder(self) -> Self {
+    fn builder(self) -> Self {
         self
     }
 
@@ -52,6 +78,11 @@ pub trait BuildStr: Sized {
 
     #[inline]
     fn build(self) -> Self {
+        self
+    }
+
+    #[inline]
+    fn build_string(self) -> Self {
         self
     }
 }
