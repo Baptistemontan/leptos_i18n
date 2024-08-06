@@ -23,7 +23,7 @@ fn scoped_plurals() {
     let fr_scope = scope_locale!(Locale::fr, first_namespace);
 
     let count = move || 0;
-    let en = tdbg!(en_scope, plural_only_en, count);
+    let en = tdbg!(en_scope, plural_only_en, $ = count);
     assert_eq_rendered!(en, "exact");
     for i in -3..0 {
         let count = move || i;
