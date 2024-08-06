@@ -45,7 +45,7 @@ pub fn t_macro_inner(
     } = input;
 
     let get_key = input_type.get_key(context, keys);
-    let build_fn = output_type.build_fn();
+    let builder_fn = output_type.builder_fn();
 
     let (inner, params) = if let Some(mut interpolations) = interpolations {
         let (keys, values): (Vec<_>, Vec<_>) = interpolations
@@ -62,12 +62,12 @@ pub fn t_macro_inner(
 
         let inner = quote! {
             {
-                let _builder = #get_key.new_builder();
+                let _builder = #get_key.#builder_fn();
                 #(
                     let _builder = _builder.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _builder.#build_fn()
+                _builder.build()
             }
         };
 
@@ -78,7 +78,7 @@ pub fn t_macro_inner(
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
-                _key.#build_fn()
+                _key.#builder_fn().build()
             }
         };
         (inner, None)
@@ -88,11 +88,11 @@ pub fn t_macro_inner(
 }
 
 impl OutputType {
-    pub fn build_fn(self) -> TokenStream {
+    pub fn builder_fn(self) -> TokenStream {
         match self {
-            OutputType::View => quote!(build),
-            OutputType::String => quote!(build_string),
-            OutputType::Display => quote!(build_display),
+            OutputType::View => quote!(view_builder),
+            OutputType::String => quote!(string_builder),
+            OutputType::Display => quote!(display_builder),
         }
     }
 

@@ -19,6 +19,16 @@ pub trait InterpolateCount<T>: Fn() -> T + Clone + 'static {}
 
 impl<T, F: Fn() -> T + Clone + 'static> InterpolateCount<T> for F {}
 
+#[doc(hidden)]
+pub struct DisplayBuilder(Cow<'static, str>);
+
+impl DisplayBuilder {
+    #[inline]
+    pub fn build(self) -> Cow<'static, str> {
+        self.0
+    }
+}
+
 /// This is used to call `.build` on `&str` when building interpolations.
 ///
 /// If it's a `&str` it will just return the str,
@@ -29,22 +39,27 @@ impl<T, F: Fn() -> T + Clone + 'static> InterpolateCount<T> for F {}
 #[doc(hidden)]
 pub trait BuildStr: Sized {
     #[inline]
-    fn build(self) -> Self {
+    fn view_builder(self) -> Self {
         self
     }
 
     #[inline]
-    fn build_display(self) -> Self {
+    fn string_builder(self) -> Self {
         self
     }
 
-    fn build_string(self) -> Cow<'static, str>;
+    fn display_builder(self) -> DisplayBuilder;
+
+    #[inline]
+    fn build(self) -> Self {
+        self
+    }
 }
 
 impl BuildStr for &'static str {
     #[inline]
-    fn build_string(self) -> Cow<'static, str> {
-        Cow::Borrowed(self)
+    fn display_builder(self) -> DisplayBuilder {
+        DisplayBuilder(Cow::Borrowed(self))
     }
 }
 

@@ -73,6 +73,7 @@ impl Interpolation {
             &fields,
             &into_views,
         );
+
         let dummy_impl = Self::dummy_impl(
             &ident,
             &dummy_ident,
@@ -82,6 +83,7 @@ impl Interpolation {
             &fields,
             &into_views,
         );
+
         let into_view_impl = Self::into_view_impl(
             key,
             &ident,
@@ -93,6 +95,7 @@ impl Interpolation {
             key_path,
             &into_views,
         );
+
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields, &into_views);
 
         let display_impl = if cfg!(feature = "interpolate_display") {
@@ -177,7 +180,7 @@ impl Interpolation {
                     }
                 }
 
-                pub fn new_builder<#(#left_generics,)*>(self) -> #type_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                pub fn view_builder<#(#left_generics,)*>(self) -> #type_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
                     #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
                 }
             }
@@ -193,7 +196,10 @@ impl Interpolation {
         fields: &[Field],
         into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let generics = Self::bounded_generics(fields, into_views);
+        let generics = fields
+            .iter()
+            .map(|field| &field.generic)
+            .chain(into_views.iter().copied());
 
         let fields = fields.iter().map(|field| {
             let key = field.kind;
