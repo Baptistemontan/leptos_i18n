@@ -127,6 +127,28 @@ impl Interpolation {
         }
     }
 
+    fn bounded_generics<'a>(
+        fields: &'a [Field],
+        into_views: &'a [&syn::Ident],
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        let into_view_generics = into_views
+            .iter()
+            .map(|into_view| quote!(#into_view: l_i18n_crate::__private::leptos::IntoView));
+
+        fields
+            .iter()
+            .map(|field| {
+                let ident = &field.generic;
+                let generic_bound = field.kind.get_generic();
+                if let Some(into_view) = field.into_view.as_ref() {
+                    quote!(#ident: #generic_bound<#into_view>)
+                } else {
+                    quote!(#ident: #generic_bound)
+                }
+            })
+            .chain(into_view_generics)
+    }
+
     fn dummy_impl(
         ident: &syn::Ident,
         dummy_ident: &syn::Ident,
@@ -138,22 +160,7 @@ impl Interpolation {
     ) -> TokenStream {
         let type_builder_name = format_ident!("{}Builder", ident);
 
-        let into_view_generics = into_views
-            .iter()
-            .map(|into_view| quote!(#into_view: l_i18n_crate::__private::leptos::IntoView));
-
-        let left_generics = fields
-            .iter()
-            .map(|field| {
-                let ident = &field.generic;
-                let generic_bound = field.kind.get_generic();
-                if let Some(into_view) = field.into_view.as_ref() {
-                    quote!(#ident: #generic_bound<#into_view>)
-                } else {
-                    quote!(#ident: #generic_bound)
-                }
-            })
-            .chain(into_view_generics);
+        let left_generics = Self::bounded_generics(fields, into_views);
 
         let right_generics = fields
             .iter()
@@ -186,15 +193,14 @@ impl Interpolation {
         fields: &[Field],
         into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let generics = fields
-            .iter()
-            .map(|field| &field.generic)
-            .chain(into_views.iter().copied());
+        let generics = Self::bounded_generics(fields, into_views);
+
         let fields = fields.iter().map(|field| {
             let key = field.kind;
             let generic = &field.generic;
             quote!(#key: #generic)
         });
+
         let into_views_marker = quote! {
             #into_view_field: core::marker::PhantomData<(#(#into_views,)*)>
         };
