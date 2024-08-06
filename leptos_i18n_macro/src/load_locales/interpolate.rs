@@ -381,6 +381,13 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
+        let plural = fields
+            .iter()
+            .any(|field| matches!(field.kind, InterpolateKey::Count(_)));
+
+        let var_count =
+            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
+
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, default_match);
 
@@ -389,6 +396,7 @@ impl Interpolation {
             impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
                 fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
+                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,
@@ -450,6 +458,13 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
+        let plural = fields
+            .iter()
+            .any(|field| matches!(field.kind, InterpolateKey::Count(_)));
+
+        let var_count =
+            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
+
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
 
         quote! {
@@ -457,6 +472,7 @@ impl Interpolation {
             impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
                 fn into_view(self) -> leptos::View {
                     #destructure
+                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,

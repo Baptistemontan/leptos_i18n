@@ -232,15 +232,12 @@ impl Plurals {
         let captured_values = captured_values.map(|keys| {
             let keys = keys
                 .into_iter()
-                .filter(|key| !matches!(key, InterpolateKey::Variable(k) if k.name == "var_count"))
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
             quote!(#(#keys)*)
         });
         let match_statement = quote! {
             {
                 let plural_count = plural_count();
-                #[allow(unused)]
-                let var_count = plural_count;
                 match plural_count {
                     #(
                         #match_arms,
@@ -270,8 +267,6 @@ impl Plurals {
 
         quote! {
             {
-                #[allow(unused)]
-                let var_count = plural_count;
                 let plural_count = *plural_count;
                 match plural_count {
                     #(
@@ -319,7 +314,6 @@ impl Plurals {
         let captured_values = captured_values.map(|keys| {
             let keys = keys
                 .into_iter()
-                .filter(|key| !matches!(key, InterpolateKey::Variable(k) if k.name == "var_count"))
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
             quote!(#(#keys)*)
         });
@@ -330,8 +324,6 @@ impl Plurals {
                     #captured_values
                     move || {
                         let plural_count = plural_count();
-                        #[allow(unused)]
-                        let var_count = plural_count;
                         #ifs
                     }
                 },
@@ -358,8 +350,6 @@ impl Plurals {
 
         quote! {
             {
-                #[allow(unused)]
-                let var_count = plural_count;
                 let plural_count = *plural_count;
                 #ifs
             }
