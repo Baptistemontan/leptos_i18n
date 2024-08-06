@@ -96,13 +96,6 @@ impl OutputType {
         }
     }
 
-    pub fn is_string(self) -> bool {
-        match self {
-            OutputType::View => false,
-            OutputType::String | OutputType::Display => true,
-        }
-    }
-
     pub fn comp_check_fn(self) -> TokenStream {
         match self {
             OutputType::View => quote!(leptos_i18n::__private::check_comp),
