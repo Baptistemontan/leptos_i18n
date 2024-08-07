@@ -7,7 +7,12 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_use::UseCookieOptions;
 
-use crate::{fetch_locale, locale_traits::*, scopes::ConstScope, Scope};
+use crate::{
+    fetch_locale::{self, signal_maybe_once_then},
+    locale_traits::*,
+    scopes::ConstScope,
+    Scope,
+};
 
 /// This context is the heart of the i18n system:
 ///
@@ -96,14 +101,12 @@ const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 fn init_context_inner<L: Locale, El: ElementDescriptor + 'static + Clone>(
     root_element: Option<HtmlOrNodeRef<El>>,
     set_lang_cookie: WriteSignal<Option<L>>,
-    initial_locale: impl Fn(Option<L>) -> L + 'static,
+    initial_locale: Memo<L>,
 ) -> I18nContext<L> {
     let locale_signal = create_rw_signal(L::default());
 
-    create_isomorphic_effect(move |old_locale| {
-        let new_locale = initial_locale(old_locale);
-        locale_signal.set(new_locale);
-        new_locale
+    create_isomorphic_effect(move |_| {
+        locale_signal.set(initial_locale.get());
     });
 
     let node_ref = match root_element {
@@ -148,7 +151,7 @@ fn init_context_with_options<L: Locale, El: ElementDescriptor + 'static + Clone>
 
     let initial_locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
 
-    init_context_inner::<L, El>(root_element, set_lang_cookie, move |_| initial_locale)
+    init_context_inner::<L, El>(root_element, set_lang_cookie, initial_locale)
 }
 
 /// Same as `init_i18n_context` but with some cookies options.
@@ -280,13 +283,16 @@ fn init_subcontext_with_options<L: Locale, El: ElementDescriptor + 'static + Clo
         }
     };
 
-    let parent_locale = use_context::<I18nContext<L>>()
-        .map(|ctx| ctx.get_locale_untracked())
-        .unwrap_or_else(|| fetch_locale::fetch_locale(None));
+    let fetch_locale_memo = fetch_locale::fetch_locale(None);
 
-    let initial_locale_listener = move |prev_locale: Option<L>| {
+    let parent_locale = use_context::<I18nContext<L>>().map(|ctx| ctx.get_locale_untracked());
+
+    let parent_locale = signal_maybe_once_then(parent_locale, fetch_locale_memo);
+
+    let initial_locale_listener = create_memo(move |prev_locale| {
         let initial_locale = initial_locale.get();
         let cookie = lang_cookie.get_untracked();
+        let parent_locale = parent_locale.get();
         // first execution, cookie takes precedence
         if prev_locale.is_none() {
             cookie.or(initial_locale).unwrap_or(parent_locale)
@@ -294,7 +300,7 @@ fn init_subcontext_with_options<L: Locale, El: ElementDescriptor + 'static + Clo
             // triggers if initial_locale updates, so it takes precedence here
             initial_locale.or(cookie).unwrap_or(parent_locale)
         }
-    };
+    });
 
     let root_element = root_element.map(HtmlOrNodeRef::Custom);
 
