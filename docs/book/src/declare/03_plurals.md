@@ -137,3 +137,33 @@ The "You clicked {{ count }} times" kind of gave it away, but you can use interp
   ]
 }
 ```
+
+With plurals, `{{ count }}` is a special variable that refers to the count provided to the plural, so you don't need to also provide it:
+
+```json
+{
+  "click_count": [
+    ["You have not clicked yet", 0],
+    ["You clicked once", 1],
+    ["You clicked {{ count }} times"]
+  ]
+}
+```
+
+```rust
+t!(i18n, click_count, $ = || 0);
+```
+
+Will result in `"You have not clicked yet"` and
+
+```rust
+t!(i18n, click_count, $ = || 5);
+```
+
+Will result in `"You clicked 5 times"`.
+
+Providing `count` will create an error:
+
+```rust
+t!(i18n, click_count, count = 12, $ = || 5); // compilation error
+```

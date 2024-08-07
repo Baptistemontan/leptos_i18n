@@ -153,7 +153,11 @@ Basically `<name .../>` expand to `move |children| view! { <name ...>{children}<
 
 ## Plurals
 
-Plurals expect a variable named `count`, that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the plural (default is `i32`).
+Plurals expect a variable `$` that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the plural (default is `i32`).
+
+```rust
+t!(i18n, key_to_plural, $ = count);
+```
 
 ## Access subkeys
 
