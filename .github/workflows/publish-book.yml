@@ -1,7 +1,8 @@
 name: Deploy book
 on:
   push:
-    paths: ["docs/book/**"]
+    tags:
+      - "*"
     branches:
       - master
 
