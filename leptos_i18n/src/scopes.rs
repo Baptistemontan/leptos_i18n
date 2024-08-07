@@ -126,11 +126,11 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
 
     fn as_str(self) -> &'static str {
-        todo!()
+        <L as Locale>::as_str(self.locale)
     }
 
     fn as_langid(self) -> &'static LanguageIdentifier {
-        todo!()
+        <L as Locale>::as_langid(self.locale)
     }
 
     fn get_all() -> &'static [L] {
