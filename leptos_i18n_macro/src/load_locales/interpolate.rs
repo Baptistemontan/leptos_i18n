@@ -190,9 +190,12 @@ impl Interpolation {
 
         fields
             .iter()
-            .map(|field| match &field.generic {
-                GenericOrType::Type(t) => t.clone(),
-                GenericOrType::Generic(ident) => quote!(#ident),
+            .map(|field| match field.kind.get_string_generic() {
+                BoundOrType::Type(t) => t.clone(),
+                BoundOrType::Bound(_) => {
+                    let generic = field.generic.as_generic();
+                    quote!(#generic)
+                }
             })
             .chain(into_views)
     }
@@ -207,10 +210,15 @@ impl Interpolation {
         let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
 
         let into_views = into_views.iter().map(|_| quote!(()));
-        let marker = fields.iter().map(|field| match &field.generic {
-            GenericOrType::Type(t) => t.clone(),
-            GenericOrType::Generic(ident) => quote!(#ident),
-        });
+        let marker = fields
+            .iter()
+            .map(|field| match field.kind.get_string_generic() {
+                BoundOrType::Type(t) => t.clone(),
+                BoundOrType::Bound(_) => {
+                    let generic = field.generic.as_generic();
+                    quote!(#generic)
+                }
+            });
 
         quote! {
             #[allow(non_camel_case_types)]
