@@ -17,8 +17,9 @@ leptos_meta = "0.6"
 leptos_router = "0.6"
 leptos-use = "0.11"
 codee = "0.1"
-icu = { version = "1.5", default-features = false }
+icu = { version = "1.5" }
 typed-builder = "0.19"
+fixed_decimal = { version = "0.5", features = ["ryu"] }
 
 [features]
 default = ["cookie", "json_files"]

@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use proc_macro2::{Span, TokenStream};
 use quote::format_ident;
 use quote::quote;
+use quote::ToTokens;
 
+use super::parsed_value::BoundOrType;
 use super::{
     key::{Key, KeyPath},
     locale::Locale,
@@ -15,8 +17,31 @@ pub struct Interpolation {
     pub imp: TokenStream,
 }
 
+enum GenericOrType {
+    Generic(syn::Ident),
+    Type(TokenStream),
+}
+
+impl GenericOrType {
+    pub fn as_generic(&self) -> Option<&syn::Ident> {
+        match self {
+            GenericOrType::Generic(ident) => Some(ident),
+            GenericOrType::Type(_) => None,
+        }
+    }
+}
+
+impl ToTokens for GenericOrType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            GenericOrType::Generic(ident) => ident.to_tokens(tokens),
+            GenericOrType::Type(ts) => ts.to_tokens(tokens),
+        }
+    }
+}
+
 struct Field<'a> {
-    generic: syn::Ident,
+    generic: GenericOrType,
     kind: &'a InterpolateKey,
     into_view: Option<syn::Ident>,
 }
@@ -49,7 +74,12 @@ impl Interpolation {
                     .map(|key| key.name.as_str())
                     .unwrap_or("plural_count");
                 let name = format!("__{}__", key);
-                let generic = syn::Ident::new(&name, Span::call_site());
+                let generic = match kind.get_generic() {
+                    BoundOrType::Bound(_) => {
+                        GenericOrType::Generic(syn::Ident::new(&name, Span::call_site()))
+                    }
+                    BoundOrType::Type(t) => GenericOrType::Type(t),
+                };
                 let into_view = kind
                     .as_comp()
                     .map(|key| format_ident!("__{}_into_view__", key.ident));
@@ -147,8 +177,8 @@ impl Interpolation {
         fields: &'a [Field],
     ) -> impl Iterator<Item = TokenStream> + Clone + 'a {
         fields.iter().filter_map(|field| {
-            let ident = &field.generic;
-            let generic = field.kind.get_string_generic().ok()?;
+            let ident = &field.generic.as_generic()?;
+            let generic = field.kind.get_string_generic().into_bound()?;
             Some(quote!(#ident: #generic))
         })
     }
@@ -160,12 +190,9 @@ impl Interpolation {
 
         fields
             .iter()
-            .map(|field| match field.kind {
-                InterpolateKey::Count(t) => quote!(#t),
-                _ => {
-                    let ident = &field.generic;
-                    quote!(#ident)
-                }
+            .map(|field| match &field.generic {
+                GenericOrType::Type(t) => t.clone(),
+                GenericOrType::Generic(ident) => quote!(#ident),
             })
             .chain(into_views)
     }
@@ -180,12 +207,9 @@ impl Interpolation {
         let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
 
         let into_views = into_views.iter().map(|_| quote!(()));
-        let marker = fields.iter().map(|field| match field.kind {
-            InterpolateKey::Count(plural_type) => quote!(#plural_type),
-            _ => {
-                let ident = &field.generic;
-                quote!(#ident)
-            }
+        let marker = fields.iter().map(|field| match &field.generic {
+            GenericOrType::Type(t) => t.clone(),
+            GenericOrType::Generic(ident) => quote!(#ident),
         });
 
         quote! {
@@ -214,14 +238,15 @@ impl Interpolation {
 
         fields
             .iter()
-            .map(|field| {
-                let ident = &field.generic;
-                let generic_bound = field.kind.get_generic();
-                if let Some(into_view) = field.into_view.as_ref() {
+            .filter_map(|field| {
+                let ident = field.generic.as_generic()?;
+                let generic_bound = field.kind.get_generic().into_bound()?;
+                let ts = if let Some(into_view) = field.into_view.as_ref() {
                     quote!(#ident: #generic_bound<#into_view>)
                 } else {
                     quote!(#ident: #generic_bound)
-                }
+                };
+                Some(ts)
             })
             .chain(into_view_generics)
     }
@@ -262,8 +287,11 @@ impl Interpolation {
 
         let right_generics = fields
             .iter()
-            .map(|field| &field.generic)
-            .chain(into_views.iter().copied());
+            .map(|field| {
+                let generic_or_type = &field.generic;
+                quote!(#generic_or_type)
+            })
+            .chain(into_views.iter().map(|i| quote!(#i)));
 
         let builder_marker = fields.iter().map(|_| quote!(()));
 
@@ -309,7 +337,7 @@ impl Interpolation {
     ) -> TokenStream {
         let generics = fields
             .iter()
-            .map(|field| &field.generic)
+            .filter_map(|field| field.generic.as_generic())
             .chain(into_views.iter().copied());
 
         let fields = fields.iter().map(|field| {
@@ -348,7 +376,7 @@ impl Interpolation {
     ) -> TokenStream {
         let left_generics = fields
             .iter()
-            .map(|field| &field.generic)
+            .filter_map(|field| field.generic.as_generic())
             .chain(into_views.iter().copied());
 
         let right_generics = left_generics.clone();
@@ -425,20 +453,21 @@ impl Interpolation {
 
         let left_generics = fields
             .iter()
-            .map(|field| {
+            .filter_map(|field| {
                 let ident = &field.generic;
-                let generic = field.kind.get_generic();
-                if let Some(into_view) = field.into_view.as_ref() {
+                let generic = field.kind.get_generic().into_bound()?;
+                let ts = if let Some(into_view) = field.into_view.as_ref() {
                     quote!(#ident: #generic<#into_view>)
                 } else {
                     quote!(#ident: #generic)
-                }
+                };
+                Some(ts)
             })
             .chain(into_view_generics);
 
         let right_generics = fields
             .iter()
-            .map(|field| &field.generic)
+            .filter_map(|field| field.generic.as_generic())
             .chain(into_views.iter().copied());
 
         if cfg!(feature = "show_keys_only") {

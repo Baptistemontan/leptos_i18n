@@ -88,6 +88,50 @@ pub enum Formatter {
     Time(TimeLength),
 }
 
+impl Formatter {
+    fn var_into_view(self, key: &Key) -> TokenStream {
+        match self {
+            Formatter::None => {
+                quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)))
+            }
+            Formatter::Number => {
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(locale, #key)))
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn var_fmt(self, key: &Key) -> TokenStream {
+        match self {
+            Formatter::None => {
+                quote!(core::fmt::Display::fmt(#key, __formatter))
+            }
+            Formatter::Number => {
+                quote!(l_i18n_crate::format_number_to_formatter(locale, #key, __formatter))
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn get_generic(self) -> BoundOrType {
+        match self {
+            Formatter::None => BoundOrType::Bound(quote!(l_i18n_crate::__private::InterpolateVar)),
+            Formatter::Number => {
+                BoundOrType::Type(quote!(l_i18n_crate::__private::FixedDecimalSignal))
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn get_string_generic(self) -> BoundOrType {
+        match self {
+            Formatter::None => BoundOrType::Bound(quote!(core::fmt::Display)),
+            Formatter::Number => BoundOrType::Type(quote!(l_i18n_crate::__private::FixedDecimal)),
+            _ => todo!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ParsedValue {
     #[default]
@@ -635,11 +679,10 @@ impl ParsedValue {
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
-            ParsedValue::Variable { key, formatter } => match formatter {
-                Formatter::None => tokens
-                    .push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)))),
-                _ => todo!(),
-            },
+            ParsedValue::Variable { key, formatter } => {
+                let ts = formatter.var_into_view(key);
+                tokens.push(ts);
+            }
             ParsedValue::Component { key, inner } => {
                 let captured_keys = inner.get_keys().map(|keys| {
                     let keys = keys
@@ -672,10 +715,10 @@ impl ParsedValue {
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
-            ParsedValue::Variable { key, formatter } => match formatter {
-                Formatter::None => tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter))),
-                _ => todo!(),
-            },
+            ParsedValue::Variable { key, formatter } => {
+                let ts = formatter.var_fmt(key);
+                tokens.push(ts);
+            }
             ParsedValue::Component { key, inner } => {
                 let inner = inner.as_string_impl();
                 tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
@@ -727,6 +770,20 @@ impl ForeignKey {
     }
 }
 
+pub enum BoundOrType {
+    Bound(TokenStream),
+    Type(TokenStream),
+}
+
+impl BoundOrType {
+    pub fn into_bound(self) -> Option<TokenStream> {
+        match self {
+            BoundOrType::Bound(ts) => Some(ts),
+            BoundOrType::Type(_) => None,
+        }
+    }
+}
+
 impl InterpolateKey {
     pub fn as_ident(&self) -> syn::Ident {
         match self {
@@ -751,28 +808,25 @@ impl InterpolateKey {
         }
     }
 
-    pub fn get_generic(&self) -> TokenStream {
+    pub fn get_generic(&self) -> BoundOrType {
         match self {
-            InterpolateKey::Variable { .. } => {
-                quote!(l_i18n_crate::__private::InterpolateVar)
-            }
+            InterpolateKey::Variable { formatter, .. } => formatter.get_generic(),
             InterpolateKey::Count(plural_type) => {
-                quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>)
+                BoundOrType::Bound(quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>))
             }
             InterpolateKey::Component(_) => {
-                quote!(l_i18n_crate::__private::InterpolateComp)
+                BoundOrType::Bound(quote!(l_i18n_crate::__private::InterpolateComp))
             }
         }
     }
 
-    pub fn get_string_generic(&self) -> Result<TokenStream, PluralType> {
+    pub fn get_string_generic(&self) -> BoundOrType {
         match self {
-            InterpolateKey::Count(t) => Err(*t),
-            InterpolateKey::Variable { formatter, .. } => match formatter {
-                Formatter::None => Ok(quote!(core::fmt::Display)),
-                _ => todo!(),
-            },
-            InterpolateKey::Component(_) => Ok(quote!(l_i18n_crate::display::DisplayComponent)),
+            InterpolateKey::Count(t) => BoundOrType::Type(quote!(#t)),
+            InterpolateKey::Variable { formatter, .. } => formatter.get_string_generic(),
+            InterpolateKey::Component(_) => {
+                BoundOrType::Bound(quote!(l_i18n_crate::display::DisplayComponent))
+            }
         }
     }
 }
