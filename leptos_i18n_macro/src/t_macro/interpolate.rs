@@ -25,7 +25,13 @@ pub enum InterpolatedValue {
         comp_name: Ident,
         attrs: TokenStream,
     },
-    Count(Expr),
+    // intermidiate value, not constructible by the user
+    Count(Ident),
+    // form t!(i18n, key, $ = ..)
+    AssignedCount {
+        key: Ident,
+        value: Expr,
+    },
 }
 
 fn check_component_end(input: Cursor) -> bool {
@@ -69,7 +75,8 @@ impl syn::parse::Parse for InterpolatedValue {
             input.parse::<Token![$]>()?;
             input.parse::<Token![=]>()?;
             let value = input.parse::<Expr>()?;
-            return Ok(InterpolatedValue::Count(value));
+            let ident = format_ident!("__plural_count__");
+            return Ok(InterpolatedValue::AssignedCount { key: ident, value });
         }
         let key = input.parse::<Ident>()?;
         if is_comp {
@@ -102,6 +109,18 @@ impl syn::parse::Parse for InterpolatedValue {
 }
 
 impl InterpolatedValue {
+    pub fn get_ident(&self) -> Option<&Ident> {
+        match self {
+            InterpolatedValue::Var(ident)
+            | InterpolatedValue::Count(ident)
+            | InterpolatedValue::Comp(ident) => Some(ident),
+            InterpolatedValue::AssignedVar { .. }
+            | InterpolatedValue::AssignedComp { .. }
+            | InterpolatedValue::DirectComp { .. }
+            | InterpolatedValue::AssignedCount { .. } => None,
+        }
+    }
+
     fn format_ident(ident: &Ident, variable: bool) -> Ident {
         if variable {
             format_ident!("var_{}", ident)
@@ -113,44 +132,46 @@ impl InterpolatedValue {
     pub fn param(&mut self, output_type: OutputType) -> (Ident, TokenStream) {
         match self {
             InterpolatedValue::Var(ident) => {
-                let var_check_fn = output_type.var_check_fn();
-                (ident.clone(), quote!(#var_check_fn(#ident)))
+                let var_checked = output_type.var_check_fn(&*ident);
+                (ident.clone(), var_checked)
             }
             InterpolatedValue::Comp(ident) => {
-                let comp_check_fn = output_type.comp_check_fn();
-                (ident.clone(), quote!(#comp_check_fn(#ident)))
+                let comp_checked = output_type.comp_check_fn(&*ident);
+                (ident.clone(), comp_checked)
             }
             InterpolatedValue::AssignedVar { key, value } => {
-                let var_check_fn = output_type.var_check_fn();
-                let ts = (key.clone(), quote!(#var_check_fn(#value)));
+                let var_checked = output_type.var_check_fn(value);
+                let key = key.clone();
                 *self = InterpolatedValue::Var(key.clone());
-                ts
+                (key.clone(), var_checked)
             }
             InterpolatedValue::AssignedComp { key, value } => {
-                let comp_check_fn = output_type.comp_check_fn();
-                let ts = (key.clone(), quote!(#comp_check_fn(#value)));
+                let comp_checked = output_type.comp_check_fn(value);
+                let key = key.clone();
                 *self = InterpolatedValue::Comp(key.clone());
-                ts
+                (key.clone(), comp_checked)
             }
             InterpolatedValue::DirectComp {
                 key,
                 comp_name,
                 attrs,
             } => {
-                let comp_check_fn = output_type.comp_check_fn();
                 let ts = quote! {
-                    #comp_check_fn(move |__children:leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } })
+                    move |__children:leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
                 };
-                let ts = (key.clone(), ts);
+                let comp_checked = output_type.comp_check_fn(ts);
+                let key = key.clone();
                 *self = InterpolatedValue::Comp(key.clone());
-                ts
+                (key.clone(), comp_checked)
             }
-            InterpolatedValue::Count(expr) => {
-                let count_check_fn = output_type.count_check_fn();
-                (
-                    format_ident!("__plural_count__"),
-                    quote!(#count_check_fn(#expr)),
-                )
+            InterpolatedValue::AssignedCount { key, value } => {
+                let count_checked = output_type.count_check_fn(value);
+                let key = key.clone();
+                *self = InterpolatedValue::Count(key.clone());
+                (key, count_checked)
+            }
+            InterpolatedValue::Count(_) => {
+                unreachable!("This is an intermidiate state, can't be constructed by the user.")
             }
         }
     }
@@ -161,18 +182,19 @@ impl ToTokens for InterpolatedValue {
         match self {
             InterpolatedValue::Var(ident) => {
                 let var_ident = Self::format_ident(ident, true);
-                quote!(#var_ident(Clone::clone(&#ident)))
+                quote!(#var_ident(#ident))
             }
             InterpolatedValue::Comp(ident) => {
                 let comp_ident = Self::format_ident(ident, false);
-                quote!(#comp_ident(Clone::clone(&#ident)))
+                quote!(#comp_ident(#ident))
             }
-            InterpolatedValue::Count(_) => {
-                quote!(plural_count(Clone::clone(&__plural_count__)))
+            InterpolatedValue::Count(ident) => {
+                quote!(plural_count(#ident))
             }
             InterpolatedValue::AssignedVar { .. }
             | InterpolatedValue::AssignedComp { .. }
-            | InterpolatedValue::DirectComp { .. } => {
+            | InterpolatedValue::DirectComp { .. }
+            | InterpolatedValue::AssignedCount { .. } => {
                 unreachable!(
                     "Assigned values should have been transformed to normal var in the param step"
                 )

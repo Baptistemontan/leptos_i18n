@@ -1,3 +1,4 @@
+use interpolate::InterpolatedValue;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
@@ -39,13 +40,13 @@ pub fn t_macro_inner(
     let ParsedInput {
         context,
         keys,
-        interpolations,
+        mut interpolations,
     } = input;
 
     let get_key = input_type.get_key(context, keys);
     let (builder_fn, build_fn) = output_type.build_fns();
 
-    let (inner, params) = if let Some(mut interpolations) = interpolations {
+    let (inner, params) = if let Some(interpolations) = interpolations.as_mut() {
         let (keys, values): (Vec<_>, Vec<_>) = interpolations
             .iter_mut()
             .map(|inter| inter.param(output_type))
@@ -78,7 +79,7 @@ pub fn t_macro_inner(
         (inner, None)
     };
 
-    output_type.wrapp(inner, params)
+    output_type.wrapp(inner, params, interpolations.as_deref())
 }
 
 impl OutputType {
@@ -90,41 +91,62 @@ impl OutputType {
         }
     }
 
-    pub fn comp_check_fn(self) -> TokenStream {
+    pub fn comp_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
         match self {
-            OutputType::View => quote!(leptos_i18n::__private::check_comp),
+            OutputType::View => quote!(leptos_i18n::__private::check_comp(#input)),
             OutputType::Display | OutputType::String => {
-                quote!(leptos_i18n::__private::check_comp_string)
+                quote!(leptos_i18n::__private::check_comp_string(#input))
             }
         }
     }
 
-    pub fn count_check_fn(self) -> TokenStream {
+    pub fn count_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
         match self {
-            OutputType::View => quote!(leptos_i18n::__private::check_count),
+            OutputType::View => quote!(leptos_i18n::__private::check_count(#input)),
             OutputType::Display | OutputType::String => {
-                quote!(leptos_i18n::__private::check_count_string)
+                quote!(leptos_i18n::__private::check_count_string(#input))
             }
         }
     }
 
-    pub fn var_check_fn(self) -> TokenStream {
+    pub fn var_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
         match self {
-            OutputType::View => quote!(leptos_i18n::__private::check_var),
+            OutputType::View => quote!(leptos_i18n::__private::check_var(#input)),
             OutputType::Display | OutputType::String => {
-                quote!(leptos_i18n::__private::check_var_string)
+                quote!(leptos_i18n::__private::check_var_string(#input))
             }
         }
     }
 
-    pub fn wrapp(self, ts: TokenStream, params: Option<TokenStream>) -> TokenStream {
+    pub fn clone_values(interpolations: &[InterpolatedValue]) -> TokenStream {
+        let keys = interpolations
+            .iter()
+            .filter_map(InterpolatedValue::get_ident);
+
+        let keys_to_clone = keys.clone();
+
+        quote!(let (#(#keys,)*) = (#(core::clone::Clone::clone(&#keys_to_clone),)*);)
+    }
+
+    pub fn wrapp(
+        self,
+        ts: TokenStream,
+        params: Option<TokenStream>,
+        interpolations: Option<&[InterpolatedValue]>,
+    ) -> TokenStream {
         match self {
-            OutputType::View => quote! {
-                {
-                    #params
-                    move || #ts
+            OutputType::View => {
+                let clone_values = interpolations.map(Self::clone_values);
+                quote! {
+                    {
+                        #params
+                        move || {
+                            #clone_values
+                            #ts
+                        }
+                    }
                 }
-            },
+            }
             OutputType::String | OutputType::Display => quote! {
                 {
                     #params
