@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use unic_langid::LanguageIdentifier;
+use icu::locid::LanguageIdentifier;
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
 

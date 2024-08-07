@@ -4,7 +4,7 @@ use std::{
     str::FromStr,
 };
 
-use unic_langid::LanguageIdentifier;
+use icu::locid::LanguageIdentifier;
 
 use crate::{I18nContext, Locale, LocaleKeys};
 
