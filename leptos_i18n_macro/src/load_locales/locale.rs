@@ -393,7 +393,7 @@ impl LocaleValue {
                 // if the set contains InterpolateKey::Count, remove variable keys with name "count"
                 // ("var_count" with the rename)
                 keys.retain(
-                    |key| !matches!(key, InterpolateKey::Variable(key) if key.name == "var_count"),
+                    |key| !matches!(key, InterpolateKey::Variable{ key, .. } if key.name == "var_count"),
                 );
 
                 Ok(())

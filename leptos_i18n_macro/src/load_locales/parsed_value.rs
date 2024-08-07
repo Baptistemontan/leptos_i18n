@@ -25,6 +25,69 @@ pub enum ForeignKey {
     Set(Box<ParsedValue>),
 }
 
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum DateLength {
+    Full,
+    Long,
+    #[default]
+    Medium,
+    Short,
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum TimeLength {
+    Full,
+    Long,
+    Medium,
+    #[default]
+    Short,
+}
+
+impl DateLength {
+    fn from_args(args: Option<&[&str]>) -> Self {
+        let Some(args) = args else {
+            return Default::default();
+        };
+        for arg in args {
+            match *arg {
+                "full" => return DateLength::Full,
+                "long" => return DateLength::Long,
+                "medium" => return DateLength::Medium,
+                "short" => return DateLength::Short,
+                _ => {}
+            }
+        }
+        Default::default()
+    }
+}
+
+impl TimeLength {
+    fn from_args(args: Option<&[&str]>) -> Self {
+        let Some(args) = args else {
+            return Default::default();
+        };
+        for arg in args {
+            match *arg {
+                "full" => return TimeLength::Full,
+                "long" => return TimeLength::Long,
+                "medium" => return TimeLength::Medium,
+                "short" => return TimeLength::Short,
+                _ => {}
+            }
+        }
+        Default::default()
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum Formatter {
+    #[default]
+    None,
+    Number,
+    DateTime(DateLength),
+    Time(TimeLength),
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ParsedValue {
     #[default]
@@ -32,7 +95,10 @@ pub enum ParsedValue {
     ForeignKey(RefCell<ForeignKey>),
     Plural(Plurals),
     String(String),
-    Variable(Rc<Key>),
+    Variable {
+        key: Rc<Key>,
+        formatter: Formatter,
+    },
     Component {
         key: Rc<Key>,
         inner: Box<Self>,
@@ -44,7 +110,7 @@ pub enum ParsedValue {
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum InterpolateKey {
     Count(PluralType),
-    Variable(Rc<Key>),
+    Variable { key: Rc<Key>, formatter: Formatter },
     Component(Rc<Key>),
 }
 
@@ -128,7 +194,7 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Plural(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -172,9 +238,12 @@ impl ParsedValue {
             ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::String(_) => {
                 Ok(self.clone())
             }
-            ParsedValue::Variable(key) => match args.get(&key.name) {
+            ParsedValue::Variable { key, formatter } => match args.get(&key.name) {
                 Some(value) => Ok(ParsedValue::String(value.to_owned())),
-                None => Ok(ParsedValue::Variable(Rc::clone(key))),
+                None => Ok(ParsedValue::Variable {
+                    key: Rc::clone(key),
+                    formatter: *formatter,
+                }),
             },
             ParsedValue::Component { key, inner } => Ok(ParsedValue::Component {
                 key: Rc::clone(key),
@@ -196,9 +265,12 @@ impl ParsedValue {
     pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
         match self {
             ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Variable(key) => {
+            ParsedValue::Variable { key, formatter } => {
                 keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Variable(Rc::clone(key)));
+                    .insert(InterpolateKey::Variable {
+                        key: Rc::clone(key),
+                        formatter: *formatter,
+                    });
             }
             ParsedValue::Component { key, inner } => {
                 keys.get_or_insert_with(HashSet::new)
@@ -293,7 +365,7 @@ impl ParsedValue {
                 | ParsedValue::Component { .. }
                 | ParsedValue::Plural(_)
                 | ParsedValue::String(_)
-                | ParsedValue::Variable(_)
+                | ParsedValue::Variable { .. }
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(keys),
             ) => {
@@ -356,6 +428,29 @@ impl ParsedValue {
         ))))
     }
 
+    fn parse_formatter_args(s: &str) -> (&str, Option<Vec<&str>>) {
+        let Some((name, rest)) = s.split_once('(') else {
+            return (s.trim(), None);
+        };
+        let Some((args, rest)) = rest.rsplit_once(')') else {
+            return (s.trim(), None);
+        };
+        if !rest.trim().is_empty() {
+            todo!()
+        }
+        (name.trim(), Some(args.split(',').map(str::trim).collect()))
+    }
+
+    fn parse_formatter(s: &str) -> Formatter {
+        let (name, args) = Self::parse_formatter_args(s);
+        match name {
+            "number" => Formatter::Number,
+            "datetime" => Formatter::DateTime(DateLength::from_args(args.as_deref())),
+            "time" => Formatter::Time(TimeLength::from_args(args.as_deref())),
+            _ => unimplemented!(),
+        }
+    }
+
     fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
@@ -372,8 +467,17 @@ impl ParsedValue {
             '@' => Self::parse_foreign_key(ident, locale, key_path)?,
             // variable key
             _ => {
-                let ident = Key::new(&format!("var_{}", ident))?;
-                ParsedValue::Variable(Rc::new(ident))
+                if let Some((ident, formatter)) = ident.split_once(',') {
+                    let formatter = Self::parse_formatter(formatter);
+                    let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+                    ParsedValue::Variable { key, formatter }
+                } else {
+                    let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+                    ParsedValue::Variable {
+                        key,
+                        formatter: Formatter::None,
+                    }
+                }
             }
         };
 
@@ -453,7 +557,7 @@ impl ParsedValue {
 
     pub fn reduce(&mut self) {
         match self {
-            ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => {}
+            ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -510,7 +614,9 @@ impl ParsedValue {
                     bloc.push(ParsedValue::String(s));
                 }
             }
-            ParsedValue::Variable(key) => bloc.push(ParsedValue::Variable(key)),
+            ParsedValue::Variable { key, formatter } => {
+                bloc.push(ParsedValue::Variable { key, formatter })
+            }
             ParsedValue::Component { key, mut inner } => {
                 inner.reduce();
                 bloc.push(ParsedValue::Component { key, inner });
@@ -529,9 +635,11 @@ impl ParsedValue {
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
-            ParsedValue::Variable(key) => {
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key))))
-            }
+            ParsedValue::Variable { key, formatter } => match formatter {
+                Formatter::None => tokens
+                    .push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)))),
+                _ => todo!(),
+            },
             ParsedValue::Component { key, inner } => {
                 let captured_keys = inner.get_keys().map(|keys| {
                     let keys = keys
@@ -564,9 +672,10 @@ impl ParsedValue {
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
-            ParsedValue::Variable(key) => {
-                tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter)))
-            }
+            ParsedValue::Variable { key, formatter } => match formatter {
+                Formatter::None => tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter))),
+                _ => todo!(),
+            },
             ParsedValue::Component { key, inner } => {
                 let inner = inner.as_string_impl();
                 tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
@@ -621,14 +730,16 @@ impl ForeignKey {
 impl InterpolateKey {
     pub fn as_ident(&self) -> syn::Ident {
         match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
+            InterpolateKey::Variable { key, .. } | InterpolateKey::Component(key) => {
+                key.ident.clone()
+            }
             InterpolateKey::Count(_) => format_ident!("plural_count"),
         }
     }
 
     pub fn as_key(&self) -> Option<&Key> {
         match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
+            InterpolateKey::Variable { key, .. } | InterpolateKey::Component(key) => Some(key),
             InterpolateKey::Count(_) => None,
         }
     }
@@ -642,7 +753,7 @@ impl InterpolateKey {
 
     pub fn get_generic(&self) -> TokenStream {
         match self {
-            InterpolateKey::Variable(_) => {
+            InterpolateKey::Variable { .. } => {
                 quote!(l_i18n_crate::__private::InterpolateVar)
             }
             InterpolateKey::Count(plural_type) => {
@@ -657,7 +768,10 @@ impl InterpolateKey {
     pub fn get_string_generic(&self) -> Result<TokenStream, PluralType> {
         match self {
             InterpolateKey::Count(t) => Err(*t),
-            InterpolateKey::Variable(_) => Ok(quote!(core::fmt::Display)),
+            InterpolateKey::Variable { formatter, .. } => match formatter {
+                Formatter::None => Ok(quote!(core::fmt::Display)),
+                _ => todo!(),
+            },
             InterpolateKey::Component(_) => Ok(quote!(l_i18n_crate::display::DisplayComponent)),
         }
     }
@@ -806,7 +920,10 @@ mod tests {
             value,
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
-                ParsedValue::Variable(new_key("var_var")),
+                ParsedValue::Variable {
+                    key: new_key("var_var"),
+                    formatter: Formatter::None
+                },
                 ParsedValue::String(" after".to_string())
             ])
         )
