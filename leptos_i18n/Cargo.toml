@@ -15,10 +15,6 @@ leptos_i18n_macro = { workspace = true }
 leptos = "0.6"
 leptos_meta = "0.6"
 leptos_router = "0.6"
-actix-web = { version = "4", optional = true }
-axum = { version = "0.7", optional = true }
-leptos_axum = { version = "0.6", optional = true }
-http = { version = "1", optional = true }
 leptos-use = "0.11"
 codee = "0.1"
 unic-langid = { version = "0.9", features = ["macros"] }
@@ -29,8 +25,9 @@ default = ["cookie", "json_files"]
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 cookie = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
-actix = ["ssr", "leptos-use/actix", "dep:actix-web"]
-axum = ["ssr", "leptos-use/axum", "dep:axum", "dep:leptos_axum", "dep:http"]
+actix = ["ssr", "leptos-use/actix"]
+axum = ["ssr", "leptos-use/axum"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
 csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
@@ -45,14 +42,11 @@ experimental-islands = [
 ]
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
-# internally used features, not meant to be manually enabled
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
-
 
 [package.metadata.cargo-all-features]
 denylist = [
     # Always exclude:
-    "ssr",        # Should always be enabled via a server integration rather than directly - see `./src/server/mod.rs`
+    "ssr",        # Should always be enabled via a server integration rather than directly
     "yaml_files", # See leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
     "nightly",    # Requires a nightly toolchain
 
@@ -64,7 +58,7 @@ denylist = [
     "show_keys_only",
 ]
 skip_feature_sets = [
-    # Axum and Actix features are incompatible with each other - see `./src/server/mod.rs`, always exclude:
+    # Axum and Actix features are incompatible with each other
     [
         "axum",
         "actix",

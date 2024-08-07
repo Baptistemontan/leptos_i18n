@@ -132,7 +132,6 @@ mod locale_traits;
 mod macro_helpers;
 mod routing;
 mod scopes;
-mod server;
 
 pub mod display;
 
