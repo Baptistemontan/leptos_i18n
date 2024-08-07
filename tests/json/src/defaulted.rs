@@ -20,16 +20,16 @@ fn defaulted_interpolation() {
 #[test]
 fn defaulted_plurals() {
     let count = || 0;
-    let en = tdbg!(Locale::en, defaulted_plurals, locale = "en", count);
+    let en = tdbg!(Locale::en, defaulted_plurals, locale = "en", $ = count);
     assert_eq_rendered!(en, "zero");
-    let fr = tdbg!(Locale::fr, defaulted_plurals, locale = "en", count);
+    let fr = tdbg!(Locale::fr, defaulted_plurals, locale = "en", $ = count);
     assert_eq_rendered!(fr, "zero");
 
     for i in [-3, 5, 12] {
         let count = move || i;
-        let en = tdbg!(Locale::en, defaulted_plurals, locale = "en", count);
+        let en = tdbg!(Locale::en, defaulted_plurals, locale = "en", $ = count);
         assert_eq_rendered!(en, "this plural is declared in locale en");
-        let fr = tdbg!(Locale::fr, defaulted_plurals, locale = "en", count);
+        let fr = tdbg!(Locale::fr, defaulted_plurals, locale = "en", $ = count);
         assert_eq_rendered!(fr, "this plural is declared in locale en");
     }
 }

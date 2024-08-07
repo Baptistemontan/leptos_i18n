@@ -10,19 +10,15 @@ use super::{
     parsed_value::{InterpolateKey, ParsedValue},
 };
 
-const MAX_KEY_GENERATE_BUILD_DEBUG: usize = 4;
-
 pub struct Interpolation {
     pub ident: syn::Ident,
-    pub default_generic_ident: TokenStream,
     pub imp: TokenStream,
 }
 
 struct Field<'a> {
     generic: syn::Ident,
-    name: String,
     kind: &'a InterpolateKey,
-    real_name: &'a str,
+    into_view: Option<syn::Ident>,
 }
 
 impl Interpolation {
@@ -38,29 +34,59 @@ impl Interpolation {
 
         let ident = syn::Ident::new(&builder_name, Span::call_site());
 
+        let dummy_ident = format_ident!("{}_dummy", ident);
+
         let locale_field = Key::new("_locale").unwrap();
+        let into_view_field = Key::new("_into_views_marker").unwrap();
+
+        let typed_builder_name = format_ident!("{}Builder", ident);
 
         let fields = keys_set
             .iter()
             .map(|kind| {
-                let real_name = kind.get_real_name();
                 let key = kind
                     .as_key()
                     .map(|key| key.name.as_str())
-                    .unwrap_or("var_count");
-                let name = format!("__{}", key);
+                    .unwrap_or("plural_count");
+                let name = format!("__{}__", key);
                 let generic = syn::Ident::new(&name, Span::call_site());
+                let into_view = kind
+                    .as_comp()
+                    .map(|key| format_ident!("__{}_into_view__", key.ident));
                 Field {
                     generic,
-                    name,
                     kind,
-                    real_name,
+                    into_view,
                 }
             })
             .collect::<Vec<_>>();
 
-        let type_def = Self::create_type(&ident, enum_ident, &fields);
-        let builder_impl = Self::builder_impl(&ident, &locale_field, &fields);
+        let into_views = fields
+            .iter()
+            .filter_map(|f| f.into_view.as_ref())
+            .collect::<Vec<_>>();
+
+        let type_def = Self::create_types(
+            &ident,
+            &dummy_ident,
+            enum_ident,
+            &locale_field,
+            &into_view_field,
+            &fields,
+            &into_views,
+        );
+
+        let dummy_impl = Self::dummy_impl(
+            &ident,
+            &dummy_ident,
+            enum_ident,
+            &typed_builder_name,
+            &locale_field,
+            &into_view_field,
+            &fields,
+            &into_views,
+        );
+
         let into_view_impl = Self::into_view_impl(
             key,
             &ident,
@@ -70,11 +96,13 @@ impl Interpolation {
             locales,
             default_match,
             key_path,
+            &into_views,
         );
-        let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
-        let display_impl = if cfg!(feature = "interpolate_display") {
-            Self::display_impl(
+        let debug_impl = Self::debug_impl(&builder_name, &ident, &fields, &into_views);
+
+        let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
+            let display_impl = Self::display_impl(
                 key,
                 &ident,
                 enum_ident,
@@ -82,21 +110,21 @@ impl Interpolation {
                 &fields,
                 locales,
                 default_match,
-            )
+                &into_views,
+            );
+            let builder_display = Self::builder_string_build_fns(
+                enum_ident,
+                &typed_builder_name,
+                &fields,
+                &into_views,
+            );
+            (display_impl, builder_display)
         } else {
-            quote!()
+            (quote!(), quote!())
         };
-
-        let new_impl = Self::new_impl(&ident, enum_ident, &locale_field, &fields);
-        let default_generics = fields
-            .iter()
-            .map(|_| quote!(builders::EmptyInterpolateValue));
-        let default_generic_ident = quote!(#ident<#(#default_generics,)*>);
 
         let imp = quote! {
             #type_def
-
-            #new_impl
 
             #into_view_impl
 
@@ -104,78 +132,56 @@ impl Interpolation {
 
             #display_impl
 
-            #builder_impl
+            #builder_display
+
+            #dummy_impl
         };
 
         Self {
             imp,
-            ident,
-            default_generic_ident,
+            ident: dummy_ident,
         }
     }
 
-    fn new_impl(
-        ident: &syn::Ident,
-        enum_ident: &syn::Ident,
-        locale_field: &Key,
-        fields: &[Field],
-    ) -> TokenStream {
-        let generics = fields.iter().map(|_| quote!(EmptyInterpolateValue));
-
-        let fields = fields.iter().map(|field| {
-            let field_key = field.kind;
-            quote!(#field_key: EmptyInterpolateValue)
-        });
-
-        quote! {
-            impl #ident<#(#generics,)*> {
-                pub const fn new(#locale_field: #enum_ident) -> Self {
-                    Self {
-                        #(#fields,)*
-                        #locale_field
-                    }
-                }
-            }
-        }
-    }
-
-    fn split_at<T>(slice: &[T], i: usize) -> (&[T], &T, &[T]) {
-        let (left, rest) = slice.split_at(i);
-        let (mid, right) = rest.split_first().unwrap();
-        (left, mid, right)
-    }
-    fn genenerate_set_fns(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
-        (0..fields.len())
-            .map(|i| Self::split_at(fields, i))
-            .map(|(left_fields, field, right_fields)| {
-                Self::create_field_set_fn(ident, locale_field, left_fields, right_fields, field)
-            })
-            .collect()
-    }
-
-    fn generate_build_fns(ident: &syn::Ident, fields: &[Field], locale_field: &Key) -> TokenStream {
-        if fields.len() > MAX_KEY_GENERATE_BUILD_DEBUG {
-            return Self::generate_success_build_fn(ident, fields);
-        }
-        let failing_builds = Self::generate_all_failing_build_fn(ident, fields, locale_field);
-        let success_build = Self::generate_success_build_fn(ident, fields);
-
-        quote! {
-            #(#failing_builds)*
-
-            #success_build
-        }
-    }
-
-    fn generate_string_build(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
-        let left_generics_string = fields.iter().filter_map(|field| {
+    fn get_string_bounded_left_generics<'a>(
+        fields: &'a [Field],
+    ) -> impl Iterator<Item = TokenStream> + Clone + 'a {
+        fields.iter().filter_map(|field| {
             let ident = &field.generic;
             let generic = field.kind.get_string_generic().ok()?;
             Some(quote!(#ident: #generic))
-        });
+        })
+    }
+    fn get_string_bounded_right_generics<'a>(
+        fields: &'a [Field],
+        into_views: &'a [&syn::Ident],
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        let into_views = into_views.iter().map(|_| quote!(()));
 
-        let right_generics_string = fields.iter().map(|field| match field.kind {
-            InterpolateKey::Count(t) => quote!(#t),
+        fields
+            .iter()
+            .map(|field| match field.kind {
+                InterpolateKey::Count(t) => quote!(#t),
+                _ => {
+                    let ident = &field.generic;
+                    quote!(#ident)
+                }
+            })
+            .chain(into_views)
+    }
+
+    fn builder_string_build_fns(
+        enum_ident: &syn::Ident,
+        typed_builder_name: &syn::Ident,
+        fields: &[Field],
+        into_views: &[&syn::Ident],
+    ) -> TokenStream {
+        let left_generics = Self::get_string_bounded_left_generics(fields);
+        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+
+        let into_views = into_views.iter().map(|_| quote!(()));
+        let marker = fields.iter().map(|field| match field.kind {
+            InterpolateKey::Count(plural_type) => quote!(#plural_type),
             _ => {
                 let ident = &field.generic;
                 quote!(#ident)
@@ -184,418 +190,166 @@ impl Interpolation {
 
         quote! {
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics_string,)*> #ident<#(#right_generics_string,)*> {
+            impl<#(#left_generics,)*> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #((#marker,),)*)> {
                 #[inline]
-                pub fn build_display(self) -> Self {
-                    self
+                pub fn build_display(self) -> impl std::fmt::Display {
+                    self.build()
                 }
 
+                #[inline]
                 pub fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    self.to_string().into()
+                    std::borrow::Cow::Owned(self.build().to_string())
                 }
             }
         }
     }
 
-    fn generate_success_build_fn(ident: &syn::Ident, fields: &[Field]) -> TokenStream {
-        let left_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            let generic = field.kind.get_generic();
-            quote!(#ident: #generic)
-        });
+    fn bounded_generics<'a>(
+        fields: &'a [Field],
+        into_views: &'a [&syn::Ident],
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        let into_view_generics = into_views
+            .iter()
+            .map(|into_view| quote!(#into_view: l_i18n_crate::__private::leptos::IntoView));
 
-        let right_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            quote!(#ident)
-        });
+        fields
+            .iter()
+            .map(|field| {
+                let ident = &field.generic;
+                let generic_bound = field.kind.get_generic();
+                if let Some(into_view) = field.into_view.as_ref() {
+                    quote!(#ident: #generic_bound<#into_view>)
+                } else {
+                    quote!(#ident: #generic_bound)
+                }
+            })
+            .chain(into_view_generics)
+    }
 
-        let string_build = if cfg!(feature = "interpolate_display") {
-            Self::generate_string_build(ident, fields)
+    fn display_builder_fn(
+        ident: &syn::Ident,
+        enum_ident: &syn::Ident,
+        typed_builder_name: &syn::Ident,
+        locale_field: &Key,
+        into_view_field: &Key,
+        fields: &[Field],
+        into_views: &[&syn::Ident],
+    ) -> TokenStream {
+        let left_generics = Self::get_string_bounded_left_generics(fields);
+        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+        let builder_marker = fields.iter().map(|_| quote!(()));
+        let into_views = into_views.iter().map(|_| quote!(()));
+
+        quote! {
+            pub fn display_builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn dummy_impl(
+        ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
+        enum_ident: &syn::Ident,
+        typed_builder_name: &syn::Ident,
+        locale_field: &Key,
+        into_view_field: &Key,
+        fields: &[Field],
+        into_views: &[&syn::Ident],
+    ) -> TokenStream {
+        let left_generics = Self::bounded_generics(fields, into_views);
+
+        let right_generics = fields
+            .iter()
+            .map(|field| &field.generic)
+            .chain(into_views.iter().copied());
+
+        let builder_marker = fields.iter().map(|_| quote!(()));
+
+        let display_builder_fn = if cfg!(feature = "interpolate_display") {
+            Self::display_builder_fn(
+                ident,
+                enum_ident,
+                typed_builder_name,
+                locale_field,
+                into_view_field,
+                fields,
+                into_views,
+            )
         } else {
             quote!()
         };
 
         quote! {
-
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                #[inline]
-                pub fn build(self) -> Self {
-                    self
+            impl #dummy_ident {
+                pub const fn new(#locale_field: #enum_ident) -> Self {
+                    Self {
+                        #locale_field
+                    }
                 }
+
+                pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                    #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
+                }
+
+                #display_builder_fn
             }
-
-            #string_build
-
         }
     }
 
-    fn builder_impl(ident: &syn::Ident, locale_field: &Key, fields: &[Field]) -> TokenStream {
-        let set_fns = Self::genenerate_set_fns(ident, locale_field, fields);
+    fn create_types(
+        ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
+        enum_ident: &syn::Ident,
+        locale_field: &Key,
+        into_view_field: &Key,
+        fields: &[Field],
+        into_views: &[&syn::Ident],
+    ) -> TokenStream {
+        let generics = fields
+            .iter()
+            .map(|field| &field.generic)
+            .chain(into_views.iter().copied());
 
-        let build_fns = if cfg!(not(feature = "debug_interpolations")) {
-            Self::generate_success_build_fn(ident, fields)
-        } else {
-            Self::generate_build_fns(ident, fields, locale_field)
-        };
-
-        quote! {
-            #set_fns
-            #build_fns
-        }
-    }
-
-    fn create_type(ident: &syn::Ident, enum_ident: &syn::Ident, fields: &[Field]) -> TokenStream {
-        let generics = fields.iter().map(|field| &field.generic);
         let fields = fields.iter().map(|field| {
             let key = field.kind;
             let generic = &field.generic;
             quote!(#key: #generic)
         });
 
+        let into_views_marker = quote! {
+            #into_view_field: core::marker::PhantomData<(#(#into_views,)*)>
+        };
+
         quote! {
             #[allow(non_camel_case_types, non_snake_case)]
-            #[derive(Clone, Copy, Hash, PartialEq, Eq)]
+            #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+            pub struct #dummy_ident {
+                #locale_field: #enum_ident
+            }
+
+            #[allow(non_camel_case_types, non_snake_case)]
+            #[derive(l_i18n_crate::__private::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path=l_i18n_crate::typed_builder)]
             pub struct #ident<#(#generics,)*> {
-                _locale: #enum_ident,
+                #locale_field: #enum_ident,
+                #into_views_marker,
                 #(#fields,)*
             }
         }
     }
 
-    fn generate_generics<'a, F, T: Clone + 'a>(
-        left_fields: &'a [Field],
-        field_generic: Option<T>,
-        right_fields: &'a [Field],
-        other_field_map_fn: F,
-    ) -> impl Iterator<Item = T> + 'a + Clone
-    where
-        F: FnMut(&'a Field) -> T + Copy + 'a,
-    {
-        left_fields
-            .iter()
-            .map(other_field_map_fn)
-            .chain(field_generic)
-            .chain(right_fields.iter().map(other_field_map_fn))
-    }
-
-    fn generate_default_constructed(
+    fn debug_impl(
+        builder_name: &str,
         ident: &syn::Ident,
         fields: &[Field],
-        locale_field: &Key,
+        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let populated_fields = fields
+        let left_generics = fields
             .iter()
-            .map(|field| {
-                let field_ident = field.kind;
-                let default = field.kind.get_default();
-                quote!(#field_ident: #default)
-            })
-            .chain(std::iter::once(
-                quote!(#locale_field: core::default::Default::default()),
-            ));
-
-        quote! {
-            #ident {
-                #(#populated_fields,)*
-            }
-        }
-    }
-
-    fn generate_all_failing_build_fn<'a>(
-        ident: &'a syn::Ident,
-        fields: &'a [Field],
-        locale_field: &Key,
-    ) -> impl Iterator<Item = TokenStream> + 'a {
-        let default_constructed = Self::generate_default_constructed(ident, fields, locale_field);
-        let output_generics = fields.iter().map(|field| {
-            let generic = field.kind.get_generic();
-            quote!(impl #generic)
-        });
-        let output = quote!(#ident<#(#output_generics,)*>);
-        let max = 1u64 << fields.len();
-        (0..max - 1).map(move |states| {
-            let fields_iter = fields.iter().enumerate().map(|(i, field)| {
-                let state = (states >> i & 1) == 1;
-                (state, field)
-            });
-            Self::generate_failing_build_fn(ident, &default_constructed, &output, fields_iter)
-        })
-    }
-
-    fn generate_failing_build_fn<'a, I>(
-        self_ident: &syn::Ident,
-        default_constructed: &TokenStream,
-        output: &TokenStream,
-        fields: I,
-    ) -> TokenStream
-    where
-        I: Iterator<Item = (bool, &'a Field<'a>)> + Clone,
-    {
-        use std::borrow::Cow;
-
-        let right_generics = fields.clone().map(|(set, field)| {
-            if set {
-                quote::ToTokens::to_token_stream(&field.generic)
-            } else {
-                quote!(EmptyInterpolateValue)
-            }
-        });
-        let left_generics = fields.clone().filter(|(set, _)| *set).map(|(_, field)| {
-            let ident = &field.generic;
-            let generic_bound = field.kind.get_generic();
-            quote!(#ident: #generic_bound)
-        });
-
-        let missing_fields = fields
-            .filter_map(|(set, field)| (!set).then_some(field))
-            .map(|field| match field.kind {
-                InterpolateKey::Count(_) | InterpolateKey::Variable(_) => field.real_name.into(),
-                InterpolateKey::Component(_) => format!("<{}>", field.real_name).into(),
-            })
-            .collect::<Vec<Cow<_>>>();
-
-        let error_message = format!("\nMissing interpolations keys: {:?}", missing_fields);
-
-        quote! {
-            impl<#(#left_generics,)*> #self_ident<#(#right_generics,)*> {
-                #[deprecated(note = #error_message)]
-                pub fn build(self) -> #output {
-                    panic!(#error_message);
-                    #[allow(unreachable_code)]
-                    #default_constructed
-                }
-            }
-        }
-    }
-
-    fn create_field_set_fn(
-        ident: &syn::Ident,
-        locale_field: &Key,
-        left_fields: &[Field],
-        right_fields: &[Field],
-        field: &Field,
-    ) -> TokenStream {
-        let quoted_gen = |field: &Field| {
-            let generic = &field.generic;
-            quote!(#generic)
-        };
-        let output_field_generic = field.kind.get_generic();
-        let output_generics = Self::generate_generics(
-            left_fields,
-            Some(quote!(impl #output_field_generic)),
-            right_fields,
-            quoted_gen,
-        );
-
-        let (output_field_generic_string, output_generics_string, bounds) =
-            if cfg!(feature = "interpolate_display") {
-                let (output_field_generic_string, bounds) = match field.kind.get_string_generic() {
-                    Ok(bounds) => (quote!(impl #bounds), bounds),
-                    Err(t) => (quote!(#t), quote!()),
-                };
-                let output_generics_string = Self::generate_generics(
-                    left_fields,
-                    Some(output_field_generic_string.clone()),
-                    right_fields,
-                    quoted_gen,
-                );
-                (
-                    output_field_generic_string,
-                    Some(output_generics_string),
-                    bounds,
-                )
-            } else {
-                (quote!(), None, quote!())
-            };
-
-        let other_fields = Self::generate_generics(left_fields, None, right_fields, |field| {
-            if let Some(key) = field.kind.as_key() {
-                quote!(#key)
-            } else {
-                quote!(var_count)
-            }
-        })
-        .chain(Some(quote!(#locale_field)));
-
-        let kind = field.kind;
-
-        let destructure = {
-            let other_fields = other_fields.clone();
-            quote!(let Self { #(#other_fields,)* .. } = self;)
-        };
-        let restructure = quote!(#ident { #(#other_fields,)* #kind });
-
-        let (set_function, set_str_function) = match kind {
-            InterpolateKey::Variable(key) => (
-                quote! {
-                    #[inline]
-                    pub fn #key<__T>(self, #key: __T) -> #ident<#(#output_generics,)*>
-                        where __T: leptos::IntoView + core::clone::Clone + 'static
-                    {
-                        #destructure
-                        #restructure
-                    }
-                },
-                if let Some(output_generics_string) = output_generics_string {
-                    let string_key = format_ident!("{}_string", key.ident);
-                    quote! {
-                        #[inline]
-                        pub fn #string_key(self, #key: #output_field_generic_string) -> #ident<#(#output_generics_string,)*>
-                        {
-                            #destructure
-                            #restructure
-                        }
-                    }
-                } else {
-                    quote!()
-                },
-            ),
-            InterpolateKey::Component(key) => (
-                quote! {
-                    #[inline]
-                    pub fn #key<__O, __T>(self, #key: __T) -> #ident<#(#output_generics,)*>
-                    where
-                        __O: leptos::IntoView,
-                        __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
-                    {
-                        #destructure
-                        let #key = move |children| leptos::IntoView::into_view(#key(children));
-                        #restructure
-                    }
-                },
-                if let Some(output_generics_string) = output_generics_string {
-                    let string_key = format_ident!("{}_string", key.ident);
-                    quote! {
-                        #[inline]
-                        pub fn #string_key(self, #key: #output_field_generic_string) -> #ident<#(#output_generics_string,)*>
-                        {
-                            #destructure
-                            #restructure
-                        }
-                    }
-                } else {
-                    quote!()
-                },
-            ),
-            InterpolateKey::Count(plural_type) => (
-                quote! {
-                    #[inline]
-                    pub fn var_count<__T>(self, var_count: __T) -> #ident<#(#output_generics,)*>
-                        where __T: Fn() -> #plural_type + core::clone::Clone + 'static,
-                    {
-                        #destructure
-                        #restructure
-                    }
-                },
-                if let Some(output_generics_string) = output_generics_string {
-                    quote! {
-                        #[inline]
-                    pub fn var_count_string(self, var_count: #plural_type) -> #ident<#(#output_generics_string,)*>
-                    {
-                        #destructure
-                        #restructure
-                    }
-                    }
-                } else {
-                    quote!()
-                },
-            ),
-        };
-
-        if cfg!(feature = "debug_interpolations") {
-            let left_generics_empty =
-                Self::generate_generics(left_fields, None, right_fields, |field| &field.generic);
-            let left_generics_already_set = Self::generate_generics(
-                left_fields,
-                Some({
-                    let field_gen = &field.generic;
-                    quote!(#field_gen: #output_field_generic)
-                }),
-                right_fields,
-                quoted_gen,
-            );
-            let right_generics_empty = Self::generate_generics(
-                left_fields,
-                Some(quote!(EmptyInterpolateValue)),
-                right_fields,
-                quoted_gen,
-            );
-            let right_generics_already_set =
-                Self::generate_generics(left_fields, Some(&field.generic), right_fields, |field| {
-                    &field.generic
-                });
-
-            let compile_warning = match field.kind {
-                InterpolateKey::Count(_) => "variable `count` is already set".to_string(),
-                InterpolateKey::Variable(_) => format!("variable `{}` is already set", field.name),
-                InterpolateKey::Component(_) => {
-                    format!("component `{}` is already set", field.name)
-                }
-            };
-
-            let string_impl = if cfg!(feature = "interpolate_display") {
-                let left_generics_empty_string = left_generics_empty.clone();
-                let right_generics_empty_string = right_generics_empty.clone();
-                let left_generics_already_set_string = Self::generate_generics(
-                    left_fields,
-                    Some({
-                        let field_gen = &field.generic;
-                        quote!(#field_gen: #bounds)
-                    }),
-                    right_fields,
-                    quoted_gen,
-                );
-                let right_generics_already_set_string = right_generics_already_set.clone();
-                quote! {
-                    #[allow(non_camel_case_types)]
-                    impl<#(#left_generics_empty_string,)*> #ident<#(#right_generics_empty_string,)*> {
-                        #set_str_function
-                    }
-
-                    #[allow(non_camel_case_types)]
-                    impl<#(#left_generics_already_set_string,)*> #ident<#(#right_generics_already_set_string,)*> {
-                        #[deprecated(note = #compile_warning)]
-                        #set_str_function
-                    }
-                }
-            } else {
-                quote!()
-            };
-
-            quote! {
-                #[allow(non_camel_case_types)]
-                impl<#(#left_generics_empty,)*> #ident<#(#right_generics_empty,)*> {
-                    #set_function
-                }
-                #[allow(non_camel_case_types)]
-                impl<#(#left_generics_already_set,)*> #ident<#(#right_generics_already_set,)*> {
-                    #[deprecated(note = #compile_warning)]
-                    #set_function
-                }
-
-                #string_impl
-            }
-        } else {
-            let left_generics =
-                Self::generate_generics(left_fields, Some(&field.generic), right_fields, |field| {
-                    &field.generic
-                });
-            let right_generics = left_generics.clone();
-
-            quote! {
-                #[allow(non_camel_case_types)]
-                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                    #set_function
-
-                    #set_str_function
-                }
-            }
-        }
-    }
-
-    fn debug_impl(builder_name: &str, ident: &syn::Ident, fields: &[Field]) -> TokenStream {
-        let left_generics = fields.iter().map(|field| &field.generic);
+            .map(|field| &field.generic)
+            .chain(into_views.iter().copied());
 
         let right_generics = left_generics.clone();
 
@@ -609,6 +363,7 @@ impl Interpolation {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn display_impl(
         key: &Key,
         ident: &syn::Ident,
@@ -617,33 +372,31 @@ impl Interpolation {
         fields: &[Field],
         locales: &[Locale],
         default_match: &TokenStream,
+        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(|field| {
-            let ident = &field.generic;
-            let generic = field.kind.get_string_generic().ok()?;
-            Some(quote!(#ident: #generic))
-        });
-
-        let right_generics = fields.iter().map(|field| match field.kind {
-            InterpolateKey::Count(t) => quote!(#t),
-            _ => {
-                let ident = &field.generic;
-                quote!(#ident)
-            }
-        });
+        let left_generics = Self::get_string_bounded_left_generics(fields);
+        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
 
         let fields_key = fields.iter().map(|f| f.kind);
 
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
+        let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
+
+        let plural = fields
+            .iter()
+            .any(|field| matches!(field.kind, InterpolateKey::Count(_)));
+
+        let var_count =
+            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
 
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, default_match);
 
         quote! {
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> core::fmt::Display for #ident<#(#right_generics,)*> {
-                fn fmt(&self, __formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
+                fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
+                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,
@@ -664,17 +417,29 @@ impl Interpolation {
         locales: &[Locale],
         default_match: &TokenStream,
         key_path: &KeyPath,
+        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            let generic = field.kind.get_generic();
-            quote!(#ident: #generic)
-        });
+        let into_view_generics = into_views
+            .iter()
+            .map(|into_view| quote!(#into_view: l_i18n_crate::__private::leptos::IntoView));
 
-        let right_generics = fields.iter().map(|field| {
-            let ident = &field.generic;
-            quote!(#ident)
-        });
+        let left_generics = fields
+            .iter()
+            .map(|field| {
+                let ident = &field.generic;
+                let generic = field.kind.get_generic();
+                if let Some(into_view) = field.into_view.as_ref() {
+                    quote!(#ident: #generic<#into_view>)
+                } else {
+                    quote!(#ident: #generic)
+                }
+            })
+            .chain(into_view_generics);
+
+        let right_generics = fields
+            .iter()
+            .map(|field| &field.generic)
+            .chain(into_views.iter().copied());
 
         if cfg!(feature = "show_keys_only") {
             let key = key_path.to_string_with_key(key);
@@ -691,7 +456,14 @@ impl Interpolation {
 
         let fields_key = fields.iter().map(|f| f.kind);
 
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field } = self;);
+        let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
+
+        let plural = fields
+            .iter()
+            .any(|field| matches!(field.kind, InterpolateKey::Count(_)));
+
+        let var_count =
+            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
 
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
 
@@ -700,6 +472,7 @@ impl Interpolation {
             impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
                 fn into_view(self) -> leptos::View {
                     #destructure
+                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,

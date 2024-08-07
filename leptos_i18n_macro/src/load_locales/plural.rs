@@ -236,10 +236,13 @@ impl Plurals {
             quote!(#(#keys)*)
         });
         let match_statement = quote! {
-            match var_count() {
-                #(
-                    #match_arms,
-                )*
+            {
+                let plural_count = plural_count();
+                match plural_count {
+                    #(
+                        #match_arms,
+                    )*
+                }
             }
         };
 
@@ -263,10 +266,13 @@ impl Plurals {
         });
 
         quote! {
-            match *var_count {
-                #(
-                    #match_arms,
-                )*
+            {
+                let plural_count = *plural_count;
+                match plural_count {
+                    #(
+                        #match_arms,
+                    )*
+                }
             }
         }
     }
@@ -317,7 +323,7 @@ impl Plurals {
                 {
                     #captured_values
                     move || {
-                        let plural_count = var_count();
+                        let plural_count = plural_count();
                         #ifs
                     }
                 },
@@ -344,7 +350,7 @@ impl Plurals {
 
         quote! {
             {
-                let plural_count = *var_count;
+                let plural_count = *plural_count;
                 #ifs
             }
         }

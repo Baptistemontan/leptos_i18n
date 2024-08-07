@@ -345,28 +345,7 @@ t!(i18n, key, count, <b>, other_key = ..)
 
 You may need to display different messages depending on a count, for example one when there is 0 elements, another when there is only one, and a last one when the count is anything else.
 
-You declare them in a sequence of plurals, there is 2 syntax for the plurals, first is being a map with the `count` and the `value`:
-
-```json
-{
-  "click_count": [
-    {
-      "count": 0,
-      "value": "You have not clicked yet"
-    },
-    {
-      "count": "1",
-      "value": "You clicked once"
-    },
-    {
-      "count": "_",
-      "value": "You clicked {{ count }} times"
-    }
-  ]
-}
-```
-
-The other one is a sequence where the first element is the value and the other elements are the counts:
+You declare them in a sequence of plurals with a sequence where the first element is the value and the other elements are the counts:
 
 ```json
 {
@@ -378,8 +357,6 @@ The other one is a sequence where the first element is the value and the other e
 }
 ```
 
-You can mix them up as you want.
-
 The count can be a string `"0"` or a litteral `0`.
 
 When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> N + Clone + 'static` where `N` is the specified type.
@@ -389,15 +366,9 @@ By default `N` is `i32` but you can change that by specifying the type as the **
 {
   "money_count": [
     "f32",
-    {
-      "count": "0.0",
-      "value": "You are broke"
-    },
+    ["you are broke", 0.0]
     ["You owe money", "..0.0"],
-    {
-      "count": "_",
-      "value": "You have {{ count }}€"
-    }
+    ["You have {{ count }}€"]
   ]
 }
 ```
@@ -419,7 +390,7 @@ match N::from(count()) {
 
 Because it expand to a match statement, a compilation error will be produced if the full range of `N` is not covered.
 
-But floats (`f32` and `f64`) are not accepted in match statements it expand to a `if-else` chain, therefore must end by a `else` block, so a fallback `_` or `..` is required.
+But floats (`f32` and `f64`) are not accepted in match statements, so they expand to a `if-else` chain, therefore must end by a `else` block, so a fallback `_` or `..` is required.
 
 The plural above would generate code similar to this:
 
@@ -442,30 +413,27 @@ If multiple locales use plurals for the same key, the count type must be the sam
 
 (PS: Floats are generaly not a good idea for money.)
 
-You can also have multiple conditions by either separate them by `|` or put them in a sequence:
-
 ```json
 {
   "click_count": [
     "u32",
-    {
-      "count": "0 | 5",
-      "value": "You clicked 0 or 5 times"
-    },
+    ["You clicked 0 or 5 times", 0, 5]
     ["You clicked once", 1],
-    {
-      "count": ["2..=10", 20],
-      "value": "You clicked {{ count }} times"
-    },
+    ["You clicked {{ count }} times", "2..=10", 20]
     ["You clicked 30 or 40 times", 30, 40],
-    {
-      "value": "You clicked <b>a lot</b>"
-    }
+    ["value": "You clicked <b>a lot</b>"]
   ]
 }
 ```
 
-If a plural is a fallback it can omit the `count` key in a map or with only supply the value: `["fallback value"]`
+If a plural is a fallback it can only supply the value: `["fallback value"]`
+
+To supply the count for the plural in the `t!` macro, use `$`:
+
+```rust
+let count = move || counter.get();
+t!(i18n, click_count, $ = count)
+```
 
 ### Subkeys
 

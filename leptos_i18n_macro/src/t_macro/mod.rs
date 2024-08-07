@@ -1,8 +1,7 @@
+use interpolate::InterpolatedValue;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;
-
-use crate::t_macro::interpolate::{InterpolatedValue, InterpolatedValueTokenizer};
 
 use self::parsed_input::ParsedInput;
 use crate::utils::Keys;
@@ -41,33 +40,29 @@ pub fn t_macro_inner(
     let ParsedInput {
         context,
         keys,
-        interpolations,
+        mut interpolations,
     } = input;
 
     let get_key = input_type.get_key(context, keys);
-    let build_fn = output_type.build_fn();
+    let (builder_fn, build_fn) = output_type.build_fns();
 
-    let (inner, params) = if let Some(mut interpolations) = interpolations {
+    let (inner, params) = if let Some(interpolations) = interpolations.as_mut() {
         let (keys, values): (Vec<_>, Vec<_>) = interpolations
             .iter_mut()
-            .map(InterpolatedValue::param)
+            .map(|inter| inter.param(output_type))
             .unzip();
         let params = quote! {
             let (#(#keys,)*) = (#(#values,)*);
         };
-        let string = output_type.is_string();
-        let interpolations = interpolations
-            .iter()
-            .map(|inter| InterpolatedValueTokenizer::new(inter, string));
 
         let inner = quote! {
             {
-                let _key = #get_key;
+                let _builder = #get_key.#builder_fn();
                 #(
-                    let _key = _key.#interpolations;
+                    let _builder = _builder.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _key.#build_fn()
+                _builder.#build_fn()
             }
         };
 
@@ -78,39 +73,80 @@ pub fn t_macro_inner(
                 #[allow(unused)]
                 use leptos_i18n::__private::BuildStr;
                 let _key = #get_key;
-                _key.#build_fn()
+                _key.#builder_fn().#build_fn()
             }
         };
         (inner, None)
     };
 
-    output_type.wrapp(inner, params)
+    output_type.wrapp(inner, params, interpolations.as_deref())
 }
 
 impl OutputType {
-    pub fn build_fn(self) -> TokenStream {
+    pub fn build_fns(self) -> (TokenStream, TokenStream) {
         match self {
-            OutputType::View => quote!(build),
-            OutputType::String => quote!(build_string),
-            OutputType::Display => quote!(build_display),
+            OutputType::View => (quote!(builder), quote!(build)),
+            OutputType::String => (quote!(display_builder), quote!(build_string)),
+            OutputType::Display => (quote!(display_builder), quote!(build_display)),
         }
     }
 
-    pub fn is_string(self) -> bool {
+    pub fn comp_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
         match self {
-            OutputType::View => false,
-            OutputType::String | OutputType::Display => true,
+            OutputType::View => quote!(leptos_i18n::__private::check_comp(#input)),
+            OutputType::Display | OutputType::String => {
+                quote!(leptos_i18n::__private::check_comp_string(#input))
+            }
         }
     }
 
-    pub fn wrapp(self, ts: TokenStream, params: Option<TokenStream>) -> TokenStream {
+    pub fn count_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
         match self {
-            OutputType::View => quote! {
-                {
-                    #params
-                    move || #ts
+            OutputType::View => quote!(leptos_i18n::__private::check_count(#input)),
+            OutputType::Display | OutputType::String => {
+                quote!(leptos_i18n::__private::check_count_string(#input))
+            }
+        }
+    }
+
+    pub fn var_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
+        match self {
+            OutputType::View => quote!(leptos_i18n::__private::check_var(#input)),
+            OutputType::Display | OutputType::String => {
+                quote!(leptos_i18n::__private::check_var_string(#input))
+            }
+        }
+    }
+
+    pub fn clone_values(interpolations: &[InterpolatedValue]) -> TokenStream {
+        let keys = interpolations
+            .iter()
+            .filter_map(InterpolatedValue::get_ident);
+
+        let keys_to_clone = keys.clone();
+
+        quote!(let (#(#keys,)*) = (#(core::clone::Clone::clone(&#keys_to_clone),)*);)
+    }
+
+    pub fn wrapp(
+        self,
+        ts: TokenStream,
+        params: Option<TokenStream>,
+        interpolations: Option<&[InterpolatedValue]>,
+    ) -> TokenStream {
+        match self {
+            OutputType::View => {
+                let clone_values = interpolations.map(Self::clone_values);
+                quote! {
+                    {
+                        #params
+                        move || {
+                            #clone_values
+                            #ts
+                        }
+                    }
                 }
-            },
+            }
             OutputType::String | OutputType::Display => quote! {
                 {
                     #params

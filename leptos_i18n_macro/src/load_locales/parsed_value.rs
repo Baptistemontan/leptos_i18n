@@ -622,7 +622,7 @@ impl InterpolateKey {
     pub fn as_ident(&self) -> syn::Ident {
         match self {
             InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
-            InterpolateKey::Count(_) => format_ident!("var_count"),
+            InterpolateKey::Count(_) => format_ident!("plural_count"),
         }
     }
 
@@ -633,27 +633,24 @@ impl InterpolateKey {
         }
     }
 
-    pub fn get_real_name(&self) -> &str {
+    pub fn as_comp(&self) -> Option<&Rc<Key>> {
         match self {
-            InterpolateKey::Count(_) => "count",
-            InterpolateKey::Variable(key) => key.name.strip_prefix("var_").unwrap(),
-            InterpolateKey::Component(key) => key.name.strip_prefix("comp_").unwrap(),
+            InterpolateKey::Component(k) => Some(k),
+            _ => None,
         }
     }
 
     pub fn get_generic(&self) -> TokenStream {
         match self {
             InterpolateKey::Variable(_) => {
-                quote!(leptos::IntoView + core::clone::Clone + 'static)
+                quote!(l_i18n_crate::__private::InterpolateVar)
             }
             InterpolateKey::Count(plural_type) => {
-                quote!(Fn() -> #plural_type + core::clone::Clone + 'static)
+                quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>)
             }
-            InterpolateKey::Component(_) => quote!(
-                Fn(leptos::ChildrenFn) -> leptos::View
-                    + core::clone::Clone
-                    + 'static
-            ),
+            InterpolateKey::Component(_) => {
+                quote!(l_i18n_crate::__private::InterpolateComp)
+            }
         }
     }
 
@@ -662,21 +659,6 @@ impl InterpolateKey {
             InterpolateKey::Count(t) => Err(*t),
             InterpolateKey::Variable(_) => Ok(quote!(core::fmt::Display)),
             InterpolateKey::Component(_) => Ok(quote!(l_i18n_crate::display::DisplayComponent)),
-        }
-    }
-
-    pub fn get_default(&self) -> TokenStream {
-        match self {
-            InterpolateKey::Variable(_) => {
-                quote!(())
-            }
-            InterpolateKey::Count(plural_type) => match plural_type {
-                PluralType::F32 | PluralType::F64 => quote!(|| 0.0),
-                _ => quote!(|| 0),
-            },
-            InterpolateKey::Component(_) => {
-                quote!(|_: leptos::ChildrenFn| core::default::Default::default())
-            }
         }
     }
 }

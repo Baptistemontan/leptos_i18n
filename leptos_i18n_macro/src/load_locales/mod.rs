@@ -445,7 +445,7 @@ fn create_locale_type_inner(
         .collect::<Vec<_>>();
 
     let builder_fields = builders.iter().map(|(key, inter)| {
-        let inter_ident = &inter.default_generic_ident;
+        let inter_ident = &inter.ident;
         quote!(pub #key: builders::#inter_ident)
     });
 
