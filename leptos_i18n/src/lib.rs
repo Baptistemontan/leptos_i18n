@@ -156,6 +156,12 @@ pub mod __private {
     pub use typed_builder;
 }
 
+/// Reexports of backend libraries, mostly about formatting.
+pub mod reexports {
+    pub use fixed_decimal;
+    pub use icu;
+}
+
 /// Utility macro for using reactive translations in a non reactive component when using islands.
 ///
 /// ```rust, ignore
