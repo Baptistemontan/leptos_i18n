@@ -43,41 +43,30 @@ pub enum TimeLength {
     Short,
 }
 
-impl DateLength {
-    fn from_args(args: Option<&[&str]>) -> Self {
-        let Some(args) = args else {
-            return Default::default();
-        };
-        for arg in args {
-            match *arg {
-                "full" => return DateLength::Full,
-                "long" => return DateLength::Long,
-                "medium" => return DateLength::Medium,
-                "short" => return DateLength::Short,
-                _ => {}
+macro_rules! from_args {
+    ($t:ty) => {
+        impl $t {
+            fn from_args(args: Option<&[&str]>) -> Self {
+                let Some(args) = args else {
+                    return Default::default();
+                };
+                for arg in args {
+                    match *arg {
+                        "full" => return Self::Full,
+                        "long" => return Self::Long,
+                        "medium" => return Self::Medium,
+                        "short" => return Self::Short,
+                        _ => {}
+                    }
+                }
+                Default::default()
             }
         }
-        Default::default()
-    }
+    };
 }
 
-impl TimeLength {
-    fn from_args(args: Option<&[&str]>) -> Self {
-        let Some(args) = args else {
-            return Default::default();
-        };
-        for arg in args {
-            match *arg {
-                "full" => return TimeLength::Full,
-                "long" => return TimeLength::Long,
-                "medium" => return TimeLength::Medium,
-                "short" => return TimeLength::Short,
-                _ => {}
-            }
-        }
-        Default::default()
-    }
-}
+from_args!(DateLength);
+from_args!(TimeLength);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Formatter {
