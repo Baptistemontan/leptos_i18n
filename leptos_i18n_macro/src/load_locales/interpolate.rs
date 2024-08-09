@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use proc_macro2::{Span, TokenStream};
@@ -14,6 +13,10 @@ use super::{
     locale::Locale,
     parsed_value::ParsedValue,
 };
+
+thread_local! {
+    pub static CACHED_LOCALE_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_locale").unwrap());
+}
 
 enum EitherIter<A, B> {
     Iter1(A),
@@ -36,9 +39,9 @@ pub struct Interpolation {
     pub imp: TokenStream,
 }
 
-enum VarOrComp<'a> {
+enum VarOrComp {
     Var {
-        formatters: &'a HashSet<Formatter>,
+        formatters: Vec<Formatter>,
         plural: Option<PluralType>,
     },
     Comp {
@@ -46,39 +49,37 @@ enum VarOrComp<'a> {
     },
 }
 
-struct Field<'a> {
+struct Field {
     key: Rc<Key>,
     generic: syn::Ident,
-    var_or_comp: VarOrComp<'a>,
+    var_or_comp: VarOrComp,
 }
 
-impl<'a> Field<'a> {
+impl Field {
     fn get_var_generics(
         generic: &syn::Ident,
-        formatters: &HashSet<Formatter>,
+        formatters: &[Formatter],
         plural: Option<PluralType>,
     ) -> TokenStream {
-        //! FIXME
-        let _ = formatters;
-        match plural {
-            Some(plural_type) => {
-                quote!(#generic: l_i18n_crate::__private::InterpolateCount<#plural_type>)
-            }
-            None => quote!(#generic: l_i18n_crate::__private::InterpolateVar),
-        }
+        let bounds = formatters.iter().copied().map(Formatter::to_bound);
+        let plural_bound = plural
+            .map(|plural_type| quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>));
+        let bounds = bounds.chain(plural_bound);
+
+        quote!(#generic: 'static + ::core::clone::Clone #(+ #bounds)*)
     }
 
     fn get_string_var_generics(
         generic: &syn::Ident,
-        formatters: &HashSet<Formatter>,
+        formatters: &[Formatter],
         plural: Option<PluralType>,
     ) -> Option<TokenStream> {
-        //! FIXME
-        let _ = formatters;
-        match plural {
-            Some(_) => None,
-            None => Some(quote!(#generic: ::std::fmt::Display)),
+        if plural.is_some() {
+            return None;
         }
+        let bounds = formatters.iter().copied().map(Formatter::to_string_bound);
+
+        Some(quote!(#generic: #(#bounds +)*))
     }
 
     pub fn as_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
@@ -158,8 +159,10 @@ impl<'a> Field<'a> {
 impl Interpolation {
     fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
         let vars = keys.iter_vars().map(|(key, infos)| {
+            let mut formatters = infos.formatters.iter().copied().collect::<Vec<_>>();
+            formatters.sort_unstable();
             let var_or_comp = VarOrComp::Var {
-                formatters: &infos.formatters,
+                formatters,
                 plural: infos.plural_count,
             };
             let key = match infos.plural_count {
@@ -206,7 +209,7 @@ impl Interpolation {
 
         let dummy_ident = format_ident!("{}_dummy", ident);
 
-        let locale_field = Key::new("_locale").unwrap();
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
         let into_view_field = Key::new("_into_views_marker").unwrap();
 
         let typed_builder_name = format_ident!("{}Builder", ident);
@@ -421,9 +424,9 @@ impl Interpolation {
     }
 
     fn debug_impl(builder_name: &str, ident: &syn::Ident, fields: &[Field]) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_right_generics);
 
-        let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
+        let right_generics = fields.iter().flat_map(Field::as_right_generics);
 
         quote! {
             #[allow(non_camel_case_types)]

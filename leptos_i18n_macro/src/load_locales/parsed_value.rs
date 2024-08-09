@@ -10,6 +10,7 @@ use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
 
 use super::{
     error::{Error, Result},
+    interpolate::CACHED_LOCALE_FIELD_KEY,
     key::{Key, KeyPath, CACHED_PLURAL_COUNT_KEY},
     locale::{Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plural::{PluralType, Plurals},
@@ -25,7 +26,7 @@ pub enum ForeignKey {
     Set(Box<ParsedValue>),
 }
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DateLength {
     Full,
     Long,
@@ -34,7 +35,7 @@ pub enum DateLength {
     Short,
 }
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TimeLength {
     Full,
     Long,
@@ -68,7 +69,7 @@ macro_rules! from_args {
 from_args!(DateLength);
 from_args!(TimeLength);
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
     #[default]
     None,
@@ -78,27 +79,45 @@ pub enum Formatter {
 }
 
 impl Formatter {
-    fn var_into_view(self, key: &Key) -> TokenStream {
+    fn var_into_view(self, key: &Key, locale_field: &Key) -> TokenStream {
         match self {
             Formatter::None => {
                 quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)))
             }
             Formatter::Number => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(locale, #key)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(#locale_field, #key)))
             }
             _ => todo!(),
         }
     }
 
-    fn var_fmt(self, key: &Key) -> TokenStream {
+    fn var_fmt(self, key: &Key, locale_field: &Key) -> TokenStream {
         match self {
             Formatter::None => {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Formatter::Number => {
-                quote!(l_i18n_crate::format_number_to_formatter(locale, #key, __formatter))
+                quote!(l_i18n_crate::format_number_to_formatter(#locale_field, #key, __formatter))
             }
             _ => todo!(),
+        }
+    }
+
+    pub fn to_bound(self) -> TokenStream {
+        match self {
+            Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
+            Formatter::Number => quote!(l_i18n_crate::__private::NumberFormatted),
+            Formatter::DateTime(_) => todo!(),
+            Formatter::Time(_) => todo!(),
+        }
+    }
+
+    pub fn to_string_bound(self) -> TokenStream {
+        match self {
+            Formatter::None => quote!(::std::fmt::Display),
+            Formatter::Number => quote!(l_i18n_crate::__private::IntoFixedDecimal),
+            Formatter::DateTime(_) => todo!(),
+            Formatter::Time(_) => todo!(),
         }
     }
 }
@@ -690,14 +709,14 @@ impl ParsedValue {
         }
     }
 
-    fn flatten(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
-                let ts = formatter.var_into_view(key);
+                let ts = formatter.var_into_view(key, locale_field);
                 tokens.push(ts);
             }
             ParsedValue::Component { key, inner } => {
@@ -718,23 +737,24 @@ impl ParsedValue {
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens)
+                    value.flatten(tokens, locale_field)
                 }
             }
-            ParsedValue::ForeignKey(foreign_key) => {
-                foreign_key.borrow().as_inner("flatten").flatten(tokens)
-            }
+            ParsedValue::ForeignKey(foreign_key) => foreign_key
+                .borrow()
+                .as_inner("flatten")
+                .flatten(tokens, locale_field),
         }
     }
 
-    fn flatten_string(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten_string(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
             ParsedValue::Variable { key, formatter } => {
-                let ts = formatter.var_fmt(key);
+                let ts = formatter.var_fmt(key, locale_field);
                 tokens.push(ts);
             }
             ParsedValue::Component { key, inner } => {
@@ -743,19 +763,20 @@ impl ParsedValue {
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten_string(tokens)
+                    value.flatten_string(tokens, locale_field)
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten_string")
-                .flatten_string(tokens),
+                .flatten_string(tokens, locale_field),
         }
     }
 
     pub fn as_string_impl(&self) -> TokenStream {
         let mut tokens = Vec::new();
-        self.flatten_string(&mut tokens);
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        self.flatten_string(&mut tokens, &locale_field);
 
         match &tokens[..] {
             [] => quote!(Ok(())),
@@ -791,7 +812,8 @@ impl ForeignKey {
 impl ToTokens for ParsedValue {
     fn to_token_stream(&self) -> TokenStream {
         let mut tokens = Vec::new();
-        self.flatten(&mut tokens);
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        self.flatten(&mut tokens, &locale_field);
 
         match &tokens[..] {
             [] => quote!(leptos::View::default()),
