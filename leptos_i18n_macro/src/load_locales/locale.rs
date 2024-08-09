@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs::File,
     path::{Path, PathBuf},
     rc::Rc,
@@ -9,7 +9,7 @@ use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
     key::{Key, KeyPath},
-    parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
+    parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
     tracking::track_file,
     warning::{emit_warning, Warning},
 };
@@ -358,7 +358,7 @@ impl BuildersKeysInner {
 
 #[derive(Debug)]
 pub enum LocaleValue {
-    Value(Option<HashSet<InterpolateKey>>),
+    Value(Option<InterpolationKeys>),
     Subkeys {
         locales: Vec<Locale>,
         keys: BuildersKeysInner,
@@ -368,37 +368,7 @@ pub enum LocaleValue {
 impl LocaleValue {
     fn check_conflicts(&mut self, key_path: &mut KeyPath) -> Result<()> {
         match self {
-            LocaleValue::Value(Some(keys)) => {
-                let mut iter = keys.iter();
-                let Some(count_type) = iter.find_map(|key| match key {
-                    InterpolateKey::Count(plural_type) => Some(*plural_type),
-                    _ => None,
-                }) else {
-                    return Ok(());
-                };
-
-                let other_type = iter.find_map(|key| match key {
-                    InterpolateKey::Count(plural_type) => Some(*plural_type),
-                    _ => None,
-                });
-
-                if let Some(other_type) = other_type {
-                    return Err(Error::PluralTypeMissmatch {
-                        key_path: std::mem::take(key_path),
-                        type1: count_type,
-                        type2: other_type,
-                    });
-                }
-
-                // if the set contains InterpolateKey::Count, remove variable keys with name "count"
-                // ("var_count" with the rename)
-                keys.retain(
-                    |key| !matches!(key, InterpolateKey::Variable{ key, .. } if key.name == "var_count"),
-                );
-
-                Ok(())
-            }
-            LocaleValue::Value(None) => Ok(()),
+            LocaleValue::Value(_) => Ok(()),
             LocaleValue::Subkeys { keys, .. } => keys.check_conflicts(key_path),
         }
     }

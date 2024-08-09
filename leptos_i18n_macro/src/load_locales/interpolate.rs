@@ -1,56 +1,170 @@
 use std::collections::HashSet;
+use std::rc::Rc;
 
 use proc_macro2::{Span, TokenStream};
 use quote::format_ident;
 use quote::quote;
-use quote::ToTokens;
 
-use super::parsed_value::BoundOrType;
+use super::parsed_value::Formatter;
+use super::parsed_value::InterpolationKeys;
+use super::plural::PluralType;
 use super::{
     key::{Key, KeyPath},
     locale::Locale,
-    parsed_value::{InterpolateKey, ParsedValue},
+    parsed_value::ParsedValue,
 };
+
+enum EitherIter<A, B> {
+    Iter1(A),
+    Iter2(B),
+}
+
+impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A, B> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            EitherIter::Iter1(iter) => iter.next(),
+            EitherIter::Iter2(iter) => iter.next(),
+        }
+    }
+}
 
 pub struct Interpolation {
     pub ident: syn::Ident,
     pub imp: TokenStream,
 }
 
-enum GenericOrType {
-    Generic(syn::Ident),
-    Type(TokenStream),
-}
-
-impl GenericOrType {
-    pub fn as_generic(&self) -> Option<&syn::Ident> {
-        match self {
-            GenericOrType::Generic(ident) => Some(ident),
-            GenericOrType::Type(_) => None,
-        }
-    }
-}
-
-impl ToTokens for GenericOrType {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            GenericOrType::Generic(ident) => ident.to_tokens(tokens),
-            GenericOrType::Type(ts) => ts.to_tokens(tokens),
-        }
-    }
+enum VarOrComp<'a> {
+    Var {
+        formatters: &'a HashSet<Formatter>,
+        plural: Option<PluralType>,
+    },
+    Comp {
+        into_view: syn::Ident,
+    },
 }
 
 struct Field<'a> {
-    generic: GenericOrType,
-    kind: &'a InterpolateKey,
-    into_view: Option<syn::Ident>,
+    key: Rc<Key>,
+    generic: syn::Ident,
+    var_or_comp: VarOrComp<'a>,
+}
+
+impl<'a> Field<'a> {
+    fn get_var_generics(
+        generic: &syn::Ident,
+        formatters: &HashSet<Formatter>,
+        plural: Option<PluralType>,
+    ) -> TokenStream {
+        //! FIXME
+        let _ = formatters;
+        match plural {
+            Some(plural_type) => {
+                quote!(#generic: l_i18n_crate::__private::InterpolateCount<#plural_type>)
+            }
+            None => quote!(#generic: ::std::fmt::Display),
+        }
+    }
+
+    fn get_string_var_generics(
+        generic: &syn::Ident,
+        formatters: &HashSet<Formatter>,
+        plural: Option<PluralType>,
+    ) -> TokenStream {
+        //! FIXME
+        let _ = formatters;
+        match plural {
+            Some(plural_type) => {
+                quote!(#generic: l_i18n_crate::__private::InterpolateCount<#plural_type>)
+            }
+            None => quote!(#generic: l_i18n_crate::__private::InterpolateVar),
+        }
+    }
+
+    pub fn as_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
+        let generic = &self.generic;
+        match &self.var_or_comp {
+            VarOrComp::Var { formatters, plural } => {
+                let ts = Self::get_var_generics(generic, formatters, *plural);
+                EitherIter::Iter1(std::iter::once(ts))
+            }
+            VarOrComp::Comp { into_view } => {
+                let ts = [
+                    quote!(#into_view: l_i18n_crate::__private::leptos::IntoView),
+                    quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>),
+                ];
+                EitherIter::Iter2(ts.into_iter())
+            }
+        }
+    }
+
+    pub fn as_string_bounded_generic(&self) -> TokenStream {
+        let generic = &self.generic;
+        match &self.var_or_comp {
+            VarOrComp::Var { formatters, plural } => {
+                Self::get_string_var_generics(generic, formatters, *plural)
+            }
+            VarOrComp::Comp { .. } => {
+                quote!(#generic: l_i18n_crate::display::DisplayComponent)
+            }
+        }
+    }
+
+    pub fn as_generic(&self) -> &syn::Ident {
+        &self.generic
+    }
+
+    pub fn as_struct_field(&self) -> TokenStream {
+        let Field { key, generic, .. } = self;
+        quote!(#key: #generic)
+    }
+
+    pub fn as_into_view_generic(&self) -> Option<&syn::Ident> {
+        match &self.var_or_comp {
+            VarOrComp::Var { .. } => None,
+            VarOrComp::Comp { into_view } => Some(into_view),
+        }
+    }
 }
 
 impl Interpolation {
+    fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
+        let vars = keys.iter_vars().map(|(key, infos)| {
+            let var_or_comp = VarOrComp::Var {
+                formatters: &infos.formatters,
+                plural: infos.plural_count,
+            };
+            let generic = format_ident!("__{}__", key.ident);
+            Field {
+                key,
+                var_or_comp,
+                generic,
+            }
+        });
+
+        let comps = keys.iter_comps().map(|key| {
+            let into_view = format_ident!("__into_view_{}__", key.ident);
+            let var_or_comp = VarOrComp::Comp { into_view };
+            let generic = format_ident!("__{}__", key.ident);
+            Field {
+                key,
+                var_or_comp,
+                generic,
+            }
+        });
+
+        let mut fields: Vec<_> = vars.chain(comps).collect();
+
+        fields.sort_by(|a, b| a.key.cmp(&b.key));
+
+        fields
+    }
+
     pub fn new(
         key: &Key,
         enum_ident: &syn::Ident,
-        keys_set: &HashSet<InterpolateKey>,
+        keys: &InterpolationKeys,
         locales: &[Locale],
         default_match: &TokenStream,
         key_path: &KeyPath,
@@ -66,35 +180,7 @@ impl Interpolation {
 
         let typed_builder_name = format_ident!("{}Builder", ident);
 
-        let fields = keys_set
-            .iter()
-            .map(|kind| {
-                let key = kind
-                    .as_key()
-                    .map(|key| key.name.as_str())
-                    .unwrap_or("plural_count");
-                let name = format!("__{}__", key);
-                let generic = match kind.get_generic() {
-                    BoundOrType::Bound(_) => {
-                        GenericOrType::Generic(syn::Ident::new(&name, Span::call_site()))
-                    }
-                    BoundOrType::Type(t) => GenericOrType::Type(t),
-                };
-                let into_view = kind
-                    .as_comp()
-                    .map(|key| format_ident!("__{}_into_view__", key.ident));
-                Field {
-                    generic,
-                    kind,
-                    into_view,
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let into_views = fields
-            .iter()
-            .filter_map(|f| f.into_view.as_ref())
-            .collect::<Vec<_>>();
+        let fields = Self::make_fields(keys);
 
         let type_def = Self::create_types(
             &ident,
@@ -103,7 +189,6 @@ impl Interpolation {
             &locale_field,
             &into_view_field,
             &fields,
-            &into_views,
         );
 
         let dummy_impl = Self::dummy_impl(
@@ -114,7 +199,6 @@ impl Interpolation {
             &locale_field,
             &into_view_field,
             &fields,
-            &into_views,
         );
 
         let into_view_impl = Self::into_view_impl(
@@ -126,10 +210,9 @@ impl Interpolation {
             locales,
             default_match,
             key_path,
-            &into_views,
         );
 
-        let debug_impl = Self::debug_impl(&builder_name, &ident, &fields, &into_views);
+        let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
         let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
             let display_impl = Self::display_impl(
@@ -140,14 +223,9 @@ impl Interpolation {
                 &fields,
                 locales,
                 default_match,
-                &into_views,
             );
-            let builder_display = Self::builder_string_build_fns(
-                enum_ident,
-                &typed_builder_name,
-                &fields,
-                &into_views,
-            );
+            let builder_display =
+                Self::builder_string_build_fns(enum_ident, &typed_builder_name, &fields);
             (display_impl, builder_display)
         } else {
             (quote!(), quote!())
@@ -173,52 +251,20 @@ impl Interpolation {
         }
     }
 
-    fn get_string_bounded_left_generics<'a>(
-        fields: &'a [Field],
-    ) -> impl Iterator<Item = TokenStream> + Clone + 'a {
-        fields.iter().filter_map(|field| {
-            let ident = &field.generic.as_generic()?;
-            let generic = field.kind.get_string_generic().into_bound()?;
-            Some(quote!(#ident: #generic))
-        })
-    }
-    fn get_string_bounded_right_generics<'a>(
-        fields: &'a [Field],
-        into_views: &'a [&syn::Ident],
-    ) -> impl Iterator<Item = TokenStream> + 'a {
-        let into_views = into_views.iter().map(|_| quote!(()));
-
-        fields
-            .iter()
-            .map(|field| match field.kind.get_string_generic() {
-                BoundOrType::Type(t) => t.clone(),
-                BoundOrType::Bound(_) => {
-                    let generic = field.generic.as_generic();
-                    quote!(#generic)
-                }
-            })
-            .chain(into_views)
-    }
-
     fn builder_string_build_fns(
         enum_ident: &syn::Ident,
         typed_builder_name: &syn::Ident,
         fields: &[Field],
-        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = Self::get_string_bounded_left_generics(fields);
-        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+        let left_generics = fields.iter().map(Field::as_string_bounded_generic);
 
-        let into_views = into_views.iter().map(|_| quote!(()));
-        let marker = fields
+        let right_generics = fields.iter().map(Field::as_generic);
+        let marker = right_generics.clone();
+
+        let into_views = fields
             .iter()
-            .map(|field| match field.kind.get_string_generic() {
-                BoundOrType::Type(t) => t.clone(),
-                BoundOrType::Bound(_) => {
-                    let generic = field.generic.as_generic();
-                    quote!(#generic)
-                }
-            });
+            .filter_map(Field::as_into_view_generic)
+            .map(|_| quote!(()));
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -236,29 +282,6 @@ impl Interpolation {
         }
     }
 
-    fn bounded_generics<'a>(
-        fields: &'a [Field],
-        into_views: &'a [&syn::Ident],
-    ) -> impl Iterator<Item = TokenStream> + 'a {
-        let into_view_generics = into_views
-            .iter()
-            .map(|into_view| quote!(#into_view: l_i18n_crate::__private::leptos::IntoView));
-
-        fields
-            .iter()
-            .filter_map(|field| {
-                let ident = field.generic.as_generic()?;
-                let generic_bound = field.kind.get_generic().into_bound()?;
-                let ts = if let Some(into_view) = field.into_view.as_ref() {
-                    quote!(#ident: #generic_bound<#into_view>)
-                } else {
-                    quote!(#ident: #generic_bound)
-                };
-                Some(ts)
-            })
-            .chain(into_view_generics)
-    }
-
     fn display_builder_fn(
         ident: &syn::Ident,
         enum_ident: &syn::Ident,
@@ -266,12 +289,14 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
-        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = Self::get_string_bounded_left_generics(fields);
-        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+        let left_generics = fields.iter().map(Field::as_string_bounded_generic);
+        let right_generics = fields.iter().map(Field::as_generic);
         let builder_marker = fields.iter().map(|_| quote!(()));
-        let into_views = into_views.iter().map(|_| quote!(()));
+        let into_views = fields
+            .iter()
+            .filter_map(Field::as_into_view_generic)
+            .map(|_| quote!(()));
 
         quote! {
             pub fn display_builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
@@ -289,19 +314,12 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
-        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = Self::bounded_generics(fields, into_views);
+        let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
-        let right_generics = fields
-            .iter()
-            .map(|field| {
-                let generic_or_type = &field.generic;
-                quote!(#generic_or_type)
-            })
-            .chain(into_views.iter().map(|i| quote!(#i)));
+        let right_generics = fields.iter().map(Field::as_generic);
 
-        let builder_marker = fields.iter().map(|_| quote!(()));
+        let empty_builder_marker = fields.iter().map(|_| quote!(()));
 
         let display_builder_fn = if cfg!(feature = "interpolate_display") {
             Self::display_builder_fn(
@@ -311,11 +329,12 @@ impl Interpolation {
                 locale_field,
                 into_view_field,
                 fields,
-                into_views,
             )
         } else {
             quote!()
         };
+
+        let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
         quote! {
             impl #dummy_ident {
@@ -325,7 +344,7 @@ impl Interpolation {
                     }
                 }
 
-                pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#empty_builder_marker,)*)> {
                     #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
                 }
 
@@ -341,18 +360,12 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
-        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let generics = fields
-            .iter()
-            .filter_map(|field| field.generic.as_generic())
-            .chain(into_views.iter().copied());
+        let generics = fields.iter().map(Field::as_generic);
 
-        let fields = fields.iter().map(|field| {
-            let key = field.kind;
-            let generic = &field.generic;
-            quote!(#key: #generic)
-        });
+        let into_views = fields.iter().filter_map(Field::as_into_view_generic);
+
+        let fields = fields.iter().map(Field::as_struct_field);
 
         let into_views_marker = quote! {
             #into_view_field: core::marker::PhantomData<(#(#into_views,)*)>
@@ -367,7 +380,7 @@ impl Interpolation {
 
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::__private::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path=l_i18n_crate::typed_builder)]
+            #[builder(crate_module_path = l_i18n_crate::typed_builder)]
             pub struct #ident<#(#generics,)*> {
                 #locale_field: #enum_ident,
                 #into_views_marker,
@@ -376,18 +389,10 @@ impl Interpolation {
         }
     }
 
-    fn debug_impl(
-        builder_name: &str,
-        ident: &syn::Ident,
-        fields: &[Field],
-        into_views: &[&syn::Ident],
-    ) -> TokenStream {
-        let left_generics = fields
-            .iter()
-            .filter_map(|field| field.generic.as_generic())
-            .chain(into_views.iter().copied());
+    fn debug_impl(builder_name: &str, ident: &syn::Ident, fields: &[Field]) -> TokenStream {
+        let left_generics = fields.iter().map(Field::as_string_bounded_generic);
 
-        let right_generics = left_generics.clone();
+        let right_generics = fields.iter().map(Field::as_generic);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -408,21 +413,13 @@ impl Interpolation {
         fields: &[Field],
         locales: &[Locale],
         default_match: &TokenStream,
-        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let left_generics = Self::get_string_bounded_left_generics(fields);
-        let right_generics = Self::get_string_bounded_right_generics(fields, into_views);
+        let left_generics = fields.iter().map(Field::as_string_bounded_generic);
+        let right_generics = fields.iter().map(Field::as_generic);
 
-        let fields_key = fields.iter().map(|f| f.kind);
+        let fields_key = fields.iter().map(|f| &*f.key);
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
-
-        let plural = fields
-            .iter()
-            .any(|field| matches!(field.kind, InterpolateKey::Count(_)));
-
-        let var_count =
-            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
 
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, default_match);
@@ -432,7 +429,6 @@ impl Interpolation {
             impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
                 fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
-                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,
@@ -453,30 +449,10 @@ impl Interpolation {
         locales: &[Locale],
         default_match: &TokenStream,
         key_path: &KeyPath,
-        into_views: &[&syn::Ident],
     ) -> TokenStream {
-        let into_view_generics = into_views
-            .iter()
-            .map(|into_view| quote!(#into_view: l_i18n_crate::__private::leptos::IntoView));
+        let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
-        let left_generics = fields
-            .iter()
-            .filter_map(|field| {
-                let ident = &field.generic;
-                let generic = field.kind.get_generic().into_bound()?;
-                let ts = if let Some(into_view) = field.into_view.as_ref() {
-                    quote!(#ident: #generic<#into_view>)
-                } else {
-                    quote!(#ident: #generic)
-                };
-                Some(ts)
-            })
-            .chain(into_view_generics);
-
-        let right_generics = fields
-            .iter()
-            .filter_map(|field| field.generic.as_generic())
-            .chain(into_views.iter().copied());
+        let right_generics = fields.iter().map(Field::as_generic);
 
         if cfg!(feature = "show_keys_only") {
             let key = key_path.to_string_with_key(key);
@@ -491,16 +467,9 @@ impl Interpolation {
             };
         }
 
-        let fields_key = fields.iter().map(|f| f.kind);
+        let fields_key = fields.iter().map(|f| &*f.key);
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
-
-        let plural = fields
-            .iter()
-            .any(|field| matches!(field.kind, InterpolateKey::Count(_)));
-
-        let var_count =
-            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
 
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
 
@@ -509,7 +478,6 @@ impl Interpolation {
             impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
                 fn into_view(self) -> leptos::View {
                     #destructure
-                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,

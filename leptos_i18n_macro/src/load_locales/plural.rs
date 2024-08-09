@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     marker::PhantomData,
     ops::{Bound, Not},
     rc::Rc,
@@ -18,7 +17,7 @@ use crate::load_locales::{
 use super::{
     declare_locales::parse_plural_pairs,
     error::{Error, Result},
-    parsed_value::{InterpolateKey, ParsedValue, ParsedValueSeed},
+    parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -129,23 +128,32 @@ impl Plurals {
         })
     }
 
-    pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
-        fn inner<T>(v: &PluralsInner<T>, keys: &mut Option<HashSet<InterpolateKey>>) {
+    pub fn get_keys_inner(
+        &self,
+        key_path: &mut KeyPath,
+        keys: &mut Option<InterpolationKeys>,
+    ) -> Result<()> {
+        fn inner<T>(
+            v: &PluralsInner<T>,
+            key_path: &mut KeyPath,
+            keys: &mut Option<InterpolationKeys>,
+        ) -> Result<()> {
             for (_, value) in v {
-                value.get_keys_inner(keys);
+                value.get_keys_inner(key_path, keys)?;
             }
+            Ok(())
         }
         match self {
-            Plurals::I8(v) => inner(v, keys),
-            Plurals::I16(v) => inner(v, keys),
-            Plurals::I32(v) => inner(v, keys),
-            Plurals::I64(v) => inner(v, keys),
-            Plurals::U8(v) => inner(v, keys),
-            Plurals::U16(v) => inner(v, keys),
-            Plurals::U32(v) => inner(v, keys),
-            Plurals::U64(v) => inner(v, keys),
-            Plurals::F32(v) => inner(v, keys),
-            Plurals::F64(v) => inner(v, keys),
+            Plurals::I8(v) => inner(v, key_path, keys),
+            Plurals::I16(v) => inner(v, key_path, keys),
+            Plurals::I32(v) => inner(v, key_path, keys),
+            Plurals::I64(v) => inner(v, key_path, keys),
+            Plurals::U8(v) => inner(v, key_path, keys),
+            Plurals::U16(v) => inner(v, key_path, keys),
+            Plurals::U32(v) => inner(v, key_path, keys),
+            Plurals::U64(v) => inner(v, key_path, keys),
+            Plurals::F32(v) => inner(v, key_path, keys),
+            Plurals::F64(v) => inner(v, key_path, keys),
         }
     }
 
@@ -224,14 +232,17 @@ impl Plurals {
             .map(|(plural, value)| quote!(#plural => #value));
 
         let mut captured_values = None;
+        let mut key_path = KeyPath::new(None);
 
         for (_, value) in plurals {
-            value.get_keys_inner(&mut captured_values);
+            value
+                .get_keys_inner(&mut key_path, &mut captured_values)
+                .unwrap();
         }
 
         let captured_values = captured_values.map(|keys| {
             let keys = keys
-                .into_iter()
+                .iter_keys()
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
             quote!(#(#keys)*)
         });
@@ -306,14 +317,17 @@ impl Plurals {
         };
 
         let mut captured_values = None;
+        let mut key_path = KeyPath::new(None);
 
         for (_, value) in plurals {
-            value.get_keys_inner(&mut captured_values);
+            value
+                .get_keys_inner(&mut key_path, &mut captured_values)
+                .unwrap();
         }
 
         let captured_values = captured_values.map(|keys| {
             let keys = keys
-                .into_iter()
+                .iter_keys()
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
             quote!(#(#keys)*)
         });

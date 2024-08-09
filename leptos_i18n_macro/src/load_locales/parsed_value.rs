@@ -5,12 +5,12 @@ use std::{
 };
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
 
 use super::{
     error::{Error, Result},
-    key::{Key, KeyPath},
+    key::{Key, KeyPath, CACHED_PLURAL_COUNT_KEY},
     locale::{Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plural::{PluralType, Plurals},
 };
@@ -101,24 +101,6 @@ impl Formatter {
             _ => todo!(),
         }
     }
-
-    fn get_generic(self) -> BoundOrType {
-        match self {
-            Formatter::None => BoundOrType::Bound(quote!(l_i18n_crate::__private::InterpolateVar)),
-            Formatter::Number => {
-                BoundOrType::Type(quote!(l_i18n_crate::__private::FixedDecimalSignal))
-            }
-            _ => todo!(),
-        }
-    }
-
-    fn get_string_generic(self) -> BoundOrType {
-        match self {
-            Formatter::None => BoundOrType::Bound(quote!(core::fmt::Display)),
-            Formatter::Number => BoundOrType::Type(quote!(l_i18n_crate::__private::FixedDecimal)),
-            _ => todo!(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -140,11 +122,56 @@ pub enum ParsedValue {
     Subkeys(Option<Locale>),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum InterpolateKey {
-    Count(PluralType),
-    Variable { key: Rc<Key>, formatter: Formatter },
-    Component(Rc<Key>),
+#[derive(Debug, Default)]
+pub struct VarInfo {
+    pub formatters: HashSet<Formatter>,
+    pub plural_count: Option<PluralType>,
+}
+
+#[derive(Debug, Default)]
+pub struct InterpolationKeys {
+    components: HashSet<Rc<Key>>,
+    variables: HashMap<Rc<Key>, VarInfo>,
+}
+
+impl InterpolationKeys {
+    pub fn push_var(&mut self, key: Rc<Key>, formatter: Formatter) {
+        let var_infos = self.variables.entry(key).or_default();
+        var_infos.formatters.insert(formatter);
+    }
+
+    pub fn push_comp(&mut self, key: Rc<Key>) {
+        self.components.insert(key);
+    }
+
+    pub fn push_count(&mut self, key_path: &mut KeyPath, ty: PluralType) -> Result<()> {
+        let key = CACHED_PLURAL_COUNT_KEY.with(Clone::clone);
+        let var_infos = self.variables.entry(key).or_default();
+        match var_infos.plural_count.replace(ty) {
+            Some(old) if old != ty => Err(Error::PluralTypeMissmatch {
+                key_path: std::mem::take(key_path),
+                type1: old,
+                type2: ty,
+            }),
+            _ => Ok(()),
+        }
+    }
+
+    pub fn iter_keys(&self) -> impl Iterator<Item = &Key> {
+        let comps = self.components.iter().map(|k| &**k);
+        let vars = self.variables.keys().map(|k| &**k);
+        comps.chain(vars)
+    }
+
+    pub fn iter_vars(&self) -> impl Iterator<Item = (Rc<Key>, &VarInfo)> {
+        self.variables
+            .iter()
+            .map(|(key, value)| (key.clone(), value))
+    }
+
+    pub fn iter_comps(&self) -> impl Iterator<Item = Rc<Key>> + '_ {
+        self.components.iter().cloned()
+    }
 }
 
 impl ParsedValue {
@@ -295,43 +322,47 @@ impl ParsedValue {
         }
     }
 
-    pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
+    pub fn get_keys_inner(
+        &self,
+        key_path: &mut KeyPath,
+        keys: &mut Option<InterpolationKeys>,
+    ) -> Result<()> {
         match self {
             ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable { key, formatter } => {
-                keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Variable {
-                        key: Rc::clone(key),
-                        formatter: *formatter,
-                    });
+                keys.get_or_insert_with(Default::default)
+                    .push_var(key.clone(), *formatter);
             }
             ParsedValue::Component { key, inner } => {
-                keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Component(Rc::clone(key)));
-                inner.get_keys_inner(keys);
+                keys.get_or_insert_with(Default::default)
+                    .push_comp(key.clone());
+                inner.get_keys_inner(key_path, keys)?;
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.get_keys_inner(keys)
+                    value.get_keys_inner(key_path, keys)?;
                 }
             }
             ParsedValue::Plural(plurals) => {
-                plurals.get_keys_inner(keys);
+                plurals.get_keys_inner(key_path, keys)?;
                 let plural_type = plurals.get_type();
-                keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Count(plural_type));
+                keys.get_or_insert_with(Default::default)
+                    .push_count(key_path, plural_type)?;
             }
-            ParsedValue::ForeignKey(foreign_key) => foreign_key
-                .borrow()
-                .as_inner("get_keys_inner")
-                .get_keys_inner(keys),
+            ParsedValue::ForeignKey(foreign_key) => {
+                foreign_key
+                    .borrow()
+                    .as_inner("get_keys_inner")
+                    .get_keys_inner(key_path, keys)?;
+            }
         }
+        Ok(())
     }
 
-    pub fn get_keys(&self) -> Option<HashSet<InterpolateKey>> {
+    pub fn get_keys(&self, key_path: &mut KeyPath) -> Result<Option<InterpolationKeys>> {
         let mut keys = None;
-        self.get_keys_inner(&mut keys);
-        keys
+        self.get_keys_inner(key_path, &mut keys)?;
+        Ok(keys)
     }
 
     pub fn is_string(&self) -> Option<&str> {
@@ -368,7 +399,7 @@ impl ParsedValue {
                 })
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
-            this => Ok(LocaleValue::Value(this.get_keys())),
+            this => this.get_keys(key_path).map(LocaleValue::Value),
         }
     }
 
@@ -401,10 +432,7 @@ impl ParsedValue {
                 | ParsedValue::Variable { .. }
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(keys),
-            ) => {
-                self.get_keys_inner(keys);
-                Ok(())
-            }
+            ) => self.get_keys_inner(key_path, keys),
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
@@ -673,9 +701,10 @@ impl ParsedValue {
                 tokens.push(ts);
             }
             ParsedValue::Component { key, inner } => {
-                let captured_keys = inner.get_keys().map(|keys| {
+                let mut key_path = KeyPath::new(None);
+                let captured_keys = inner.get_keys(&mut key_path).unwrap().map(|keys| {
                     let keys = keys
-                        .into_iter()
+                        .iter_keys()
                         .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
                     quote!(#(#keys)*)
                 });
@@ -756,73 +785,6 @@ impl ForeignKey {
             ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
             ForeignKey::Set(inner) => inner,
         }
-    }
-}
-
-pub enum BoundOrType {
-    Bound(TokenStream),
-    Type(TokenStream),
-}
-
-impl BoundOrType {
-    pub fn into_bound(self) -> Option<TokenStream> {
-        match self {
-            BoundOrType::Bound(ts) => Some(ts),
-            BoundOrType::Type(_) => None,
-        }
-    }
-}
-
-impl InterpolateKey {
-    pub fn as_ident(&self) -> syn::Ident {
-        match self {
-            InterpolateKey::Variable { key, .. } | InterpolateKey::Component(key) => {
-                key.ident.clone()
-            }
-            InterpolateKey::Count(_) => format_ident!("plural_count"),
-        }
-    }
-
-    pub fn as_key(&self) -> Option<&Key> {
-        match self {
-            InterpolateKey::Variable { key, .. } | InterpolateKey::Component(key) => Some(key),
-            InterpolateKey::Count(_) => None,
-        }
-    }
-
-    pub fn as_comp(&self) -> Option<&Rc<Key>> {
-        match self {
-            InterpolateKey::Component(k) => Some(k),
-            _ => None,
-        }
-    }
-
-    pub fn get_generic(&self) -> BoundOrType {
-        match self {
-            InterpolateKey::Variable { formatter, .. } => formatter.get_generic(),
-            InterpolateKey::Count(plural_type) => {
-                BoundOrType::Bound(quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>))
-            }
-            InterpolateKey::Component(_) => {
-                BoundOrType::Bound(quote!(l_i18n_crate::__private::InterpolateComp))
-            }
-        }
-    }
-
-    pub fn get_string_generic(&self) -> BoundOrType {
-        match self {
-            InterpolateKey::Count(t) => BoundOrType::Type(quote!(#t)),
-            InterpolateKey::Variable { formatter, .. } => formatter.get_string_generic(),
-            InterpolateKey::Component(_) => {
-                BoundOrType::Bound(quote!(l_i18n_crate::display::DisplayComponent))
-            }
-        }
-    }
-}
-
-impl ToTokens for InterpolateKey {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.as_ident().to_tokens(tokens)
     }
 }
 
