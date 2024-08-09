@@ -149,11 +149,17 @@ pub use scopes::{ConstScope, Scope};
 pub mod __private {
     pub use crate::macro_helpers::*;
     pub use crate::routing::i18n_routing;
+    pub use icu::locid;
     pub use leptos;
     pub use leptos_i18n_macro::declare_locales;
     pub use leptos_router;
     pub use typed_builder;
-    pub use unic_langid;
+}
+
+/// Reexports of backend libraries, mostly about formatting.
+pub mod reexports {
+    pub use fixed_decimal;
+    pub use icu;
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.

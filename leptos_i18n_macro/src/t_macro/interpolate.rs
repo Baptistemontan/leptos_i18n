@@ -2,8 +2,6 @@ use proc_macro2::{TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use syn::{buffer::Cursor, parse::ParseBuffer, Expr, Ident, Token};
 
-use super::OutputType;
-
 pub enum InterpolatedValue {
     // form t!(i18n, key, count)
     Var(Ident),
@@ -147,27 +145,21 @@ impl InterpolatedValue {
         }
     }
 
-    pub fn param(&mut self, output_type: OutputType) -> (Ident, TokenStream) {
+    pub fn param(&mut self) -> (Ident, TokenStream) {
         match self {
-            InterpolatedValue::Var(ident) => {
-                let var_checked = output_type.var_check_fn(&*ident);
-                (ident.clone(), var_checked)
-            }
-            InterpolatedValue::Comp(ident) => {
-                let comp_checked = output_type.comp_check_fn(&*ident);
-                (ident.clone(), comp_checked)
-            }
+            InterpolatedValue::Var(ident) => (ident.clone(), quote!(#ident)),
+            InterpolatedValue::Comp(ident) => (ident.clone(), quote!(#ident)),
             InterpolatedValue::AssignedVar { key, value } => {
-                let var_checked = output_type.var_check_fn(value);
                 let key = key.clone();
+                let ts = quote!(#value);
                 *self = InterpolatedValue::Var(key.clone());
-                (key.clone(), var_checked)
+                (key.clone(), ts)
             }
             InterpolatedValue::AssignedComp { key, value } => {
-                let comp_checked = output_type.comp_check_fn(value);
                 let key = key.clone();
+                let ts = quote!(#value);
                 *self = InterpolatedValue::Comp(key.clone());
-                (key.clone(), comp_checked)
+                (key.clone(), ts)
             }
             InterpolatedValue::DirectComp {
                 key,
@@ -177,23 +169,22 @@ impl InterpolatedValue {
                 let ts = quote! {
                     move |__children:leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
                 };
-                let comp_checked = output_type.comp_check_fn(ts);
                 let key = key.clone();
                 *self = InterpolatedValue::Comp(key.clone());
-                (key.clone(), comp_checked)
+                (key.clone(), ts)
             }
             InterpolatedValue::AssignedCount {
                 key,
                 value,
                 foreign_count,
             } => {
-                let count_checked = output_type.count_check_fn(value);
                 let key = key.clone();
+                let ts = quote!(#value);
                 *self = InterpolatedValue::Count {
                     key: key.clone(),
                     foreign_count: foreign_count.take(),
                 };
-                (key, count_checked)
+                (key, ts)
             }
             InterpolatedValue::Count { .. } => {
                 unreachable!("This is an intermidiate state, can't be constructed by the user.")

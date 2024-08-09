@@ -18,7 +18,7 @@ pub mod warning;
 
 use cfg_file::ConfigFile;
 use error::{Error, Result};
-use interpolate::{create_empty_type, Interpolation};
+use interpolate::Interpolation;
 use key::{Key, KeyPath};
 use locale::{Locale, LocaleValue};
 use proc_macro2::{Span, TokenStream};
@@ -224,7 +224,7 @@ fn create_locales_enum(
         .iter()
         .map(|(key, ident)| {
             let locale = &key.name;
-            quote!(const #ident: &'static l_i18n_crate::__private::unic_langid::LanguageIdentifier = &l_i18n_crate::__private::unic_langid::langid!(#locale);)
+            quote!(const #ident: &'static l_i18n_crate::__private::locid::LanguageIdentifier = &l_i18n_crate::__private::locid::langid!(#locale);)
         })
         .collect::<Vec<_>>();
 
@@ -261,7 +261,7 @@ fn create_locales_enum(
                 }
             }
 
-            fn as_langid(self) -> &'static l_i18n_crate::__private::unic_langid::LanguageIdentifier {
+            fn as_langid(self) -> &'static l_i18n_crate::__private::locid::LanguageIdentifier {
                 #(
                     #const_langids;
                 )*
@@ -294,8 +294,8 @@ fn create_locales_enum(
             }
         }
 
-        impl core::convert::AsRef<l_i18n_crate::__private::unic_langid::LanguageIdentifier> for #enum_ident {
-            fn as_ref(&self) -> &l_i18n_crate::__private::unic_langid::LanguageIdentifier {
+        impl core::convert::AsRef<l_i18n_crate::__private::locid::LanguageIdentifier> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::__private::locid::LanguageIdentifier {
                 l_i18n_crate::Locale::as_langid(*self)
             }
         }
@@ -492,13 +492,10 @@ fn create_locale_type_inner(
     let builder_impls = builders.iter().map(|(_, inter)| &inter.imp);
 
     let builder_module = builders.is_empty().not().then(move || {
-        let empty_type = create_empty_type();
         quote! {
             #[doc(hidden)]
             pub mod builders {
                 use super::{#enum_ident, l_i18n_crate};
-
-                #empty_type
 
                 #(
                     #builder_impls

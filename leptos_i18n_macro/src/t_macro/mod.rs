@@ -47,10 +47,8 @@ pub fn t_macro_inner(
     let (builder_fn, build_fn) = output_type.build_fns();
 
     let (inner, params) = if let Some(interpolations) = interpolations.as_mut() {
-        let (keys, values): (Vec<_>, Vec<_>) = interpolations
-            .iter_mut()
-            .map(|inter| inter.param(output_type))
-            .unzip();
+        let (keys, values): (Vec<_>, Vec<_>) =
+            interpolations.iter_mut().map(|inter| inter.param()).unzip();
         let params = quote! {
             let (#(#keys,)*) = (#(#values,)*);
         };
@@ -88,33 +86,6 @@ impl OutputType {
             OutputType::View => (quote!(builder), quote!(build)),
             OutputType::String => (quote!(display_builder), quote!(build_string)),
             OutputType::Display => (quote!(display_builder), quote!(build_display)),
-        }
-    }
-
-    pub fn comp_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
-        match self {
-            OutputType::View => quote!(leptos_i18n::__private::check_comp(#input)),
-            OutputType::Display | OutputType::String => {
-                quote!(leptos_i18n::__private::check_comp_string(#input))
-            }
-        }
-    }
-
-    pub fn count_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
-        match self {
-            OutputType::View => quote!(leptos_i18n::__private::check_count(#input)),
-            OutputType::Display | OutputType::String => {
-                quote!(leptos_i18n::__private::check_count_string(#input))
-            }
-        }
-    }
-
-    pub fn var_check_fn<T: ToTokens>(self, input: T) -> TokenStream {
-        match self {
-            OutputType::View => quote!(leptos_i18n::__private::check_var(#input)),
-            OutputType::Display | OutputType::String => {
-                quote!(leptos_i18n::__private::check_var_string(#input))
-            }
         }
     }
 

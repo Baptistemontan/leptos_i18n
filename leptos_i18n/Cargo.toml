@@ -17,8 +17,10 @@ leptos_meta = "0.6"
 leptos_router = "0.6"
 leptos-use = "0.11"
 codee = "0.1"
-unic-langid = { version = "0.9", features = ["macros"] }
+icu = { version = "1.5" }
 typed-builder = "0.19"
+fixed_decimal = { version = "0.5", features = ["ryu"] }
+writeable = "0.5"
 
 [features]
 default = ["cookie", "json_files"]

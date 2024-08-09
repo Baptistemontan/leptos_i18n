@@ -2,9 +2,49 @@
 //! see <https://github.com/XAMPPRocky/fluent-templates>
 //!
 //! I then specialized it for the use case of this crate.
-use unic_langid::LanguageIdentifier;
+use icu::locid::{
+    subtags::{Language, Variant},
+    LanguageIdentifier,
+};
 
 use crate::Locale;
+
+fn lang_matches(lhs: &Language, rhs: &Language, self_as_range: bool, other_as_range: bool) -> bool {
+    (self_as_range && lhs.is_empty()) || (other_as_range && rhs.is_empty()) || lhs == rhs
+}
+
+fn subtag_matches<P: PartialEq>(
+    subtag1: &Option<P>,
+    subtag2: &Option<P>,
+    as_range1: bool,
+    as_range2: bool,
+) -> bool {
+    (as_range1 && subtag1.is_none()) || (as_range2 && subtag2.is_none()) || subtag1 == subtag2
+}
+
+fn subtags_match(
+    subtag1: &[Variant],
+    subtag2: &[Variant],
+    as_range1: bool,
+    as_range2: bool,
+) -> bool {
+    (as_range1 && subtag1.is_empty()) || (as_range2 && subtag2.is_empty()) || subtag1 == subtag2
+}
+
+fn lang_id_matches<L: AsRef<LanguageIdentifier>, R: AsRef<LanguageIdentifier>>(
+    lhs: L,
+    rhs: R,
+    self_as_range: bool,
+    other_as_range: bool,
+) -> bool {
+    let rhs = rhs.as_ref();
+    let lhs = lhs.as_ref();
+
+    lang_matches(&lhs.language, &rhs.language, self_as_range, other_as_range)
+        && subtag_matches(&lhs.script, &rhs.script, self_as_range, other_as_range)
+        && subtag_matches(&lhs.region, &rhs.region, self_as_range, other_as_range)
+        && subtags_match(&lhs.variants, &rhs.variants, self_as_range, other_as_range)
+}
 
 pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> Vec<L> {
     let mut supported_locales = vec![];
@@ -16,7 +56,7 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
             ($self_as_range:expr) => {{
                 let mut match_found = false;
                 available_locales.retain(|locale| {
-                    if locale.as_ref().matches(&req, $self_as_range, false) {
+                    if lang_id_matches(&locale, &req, $self_as_range, false) {
                         match_found = true;
                         supported_locales.push(*locale);
                         return false;
@@ -61,7 +101,7 @@ fn into_specificity(lang: &LanguageIdentifier) -> usize {
     }
 
     // variant
-    specificity += lang.variants().len();
+    specificity += lang.variants.len();
 
     specificity
 }
@@ -84,7 +124,7 @@ where
 {
     input
         .into_iter()
-        .filter_map(|t| LanguageIdentifier::from_bytes(t.as_ref()).ok())
+        .filter_map(|t| LanguageIdentifier::try_from_bytes(t.as_ref()).ok())
         .collect()
 }
 
@@ -105,7 +145,8 @@ mod test {
 
     use super::{filter_matches, find_match};
     use i18n::Locale;
-    use unic_langid::langid;
+
+    use icu::locid::langid;
 
     #[test]
     fn test_hirarchy() {
