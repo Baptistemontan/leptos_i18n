@@ -45,37 +45,58 @@ pub enum TimeLength {
 }
 
 macro_rules! from_args {
-    ($t:ty) => {
+    ($t:ty, $arg_name:pat, $name:ident) => {
         impl $t {
-            fn from_args(args: Option<&[&str]>) -> Self {
+            fn from_args(args: Option<&[(&str, &str)]>) -> Self {
                 let Some(args) = args else {
                     return Default::default();
                 };
                 for arg in args {
                     match *arg {
-                        "full" => return Self::Full,
-                        "long" => return Self::Long,
-                        "medium" => return Self::Medium,
-                        "short" => return Self::Short,
+                        ($arg_name, "full") => return Self::Full,
+                        ($arg_name, "long") => return Self::Long,
+                        ($arg_name, "medium") => return Self::Medium,
+                        ($arg_name, "short") => return Self::Short,
                         _ => {}
                     }
                 }
                 Default::default()
             }
         }
+
+        impl ToTokens for $t {
+            fn to_token_stream(&self) -> TokenStream {
+                match self {
+                    Self::Full => quote!(l_i18n_crate::icu::datetime::options::length::$name::Full),
+                    Self::Long => quote!(l_i18n_crate::icu::datetime::options::length::$name::Long),
+                    Self::Medium => {
+                        quote!(l_i18n_crate::icu::datetime::options::length::$name::Medium)
+                    }
+                    Self::Short => {
+                        quote!(l_i18n_crate::icu::datetime::options::length::$name::Short)
+                    }
+                }
+            }
+
+            fn to_tokens(&self, tokens: &mut TokenStream) {
+                let ts = self.to_token_stream();
+                tokens.extend(ts);
+            }
+        }
     };
 }
 
-from_args!(DateLength);
-from_args!(TimeLength);
+from_args!(DateLength, "date_length" | "length", Date);
+from_args!(TimeLength, "time_length" | "length", Time);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
     #[default]
     None,
     Number,
-    DateTime(DateLength),
+    Date(DateLength),
     Time(TimeLength),
+    DateTime(DateLength, TimeLength),
 }
 
 impl Formatter {
@@ -87,7 +108,15 @@ impl Formatter {
             Formatter::Number => {
                 quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(#locale_field, #key)))
             }
-            _ => todo!(),
+            Formatter::Date(length) => {
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_to_string(#locale_field, #key, #length)))
+            }
+            Formatter::Time(length) => {
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_time_to_string(#locale_field, #key, #length)))
+            }
+            Formatter::DateTime(date_length, time_length) => {
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_time_to_string(#locale_field, #key, #date_length, #time_length)))
+            }
         }
     }
 
@@ -97,18 +126,27 @@ impl Formatter {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Formatter::Number => {
-                quote!(l_i18n_crate::format_number_to_formatter(#locale_field, #key, __formatter))
+                quote!(l_i18n_crate::format_number_to_formatter(__formatter, #locale_field, #key))
             }
-            _ => todo!(),
+            Formatter::Date(length) => {
+                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, #locale_field, #key, #length))
+            }
+            Formatter::Time(length) => {
+                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, #locale_field, #key, #length))
+            }
+            Formatter::DateTime(date_length, time_length) => {
+                quote!(l_i18n_crate::__private::format_date_time_to_formatter(__formatter, #locale_field, #key, #date_length, #time_length))
+            }
         }
     }
 
     pub fn to_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
-            Formatter::Number => quote!(l_i18n_crate::__private::NumberFormatted),
-            Formatter::DateTime(_) => todo!(),
-            Formatter::Time(_) => todo!(),
+            Formatter::Number => quote!(l_i18n_crate::__private::FormattedNumber),
+            Formatter::Date(_) => quote!(l_i18n_crate::__private::FormattedDate),
+            Formatter::Time(_) => quote!(l_i18n_crate::__private::FormattedTime),
+            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::FormattedDateTime),
         }
     }
 
@@ -116,8 +154,9 @@ impl Formatter {
         match self {
             Formatter::None => quote!(::std::fmt::Display),
             Formatter::Number => quote!(l_i18n_crate::__private::IntoFixedDecimal),
-            Formatter::DateTime(_) => todo!(),
-            Formatter::Time(_) => todo!(),
+            Formatter::Date(_) => quote!(l_i18n_crate::__private::IntoDate),
+            Formatter::Time(_) => quote!(l_i18n_crate::__private::IntoTime),
+            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::IntoDateTime),
         }
     }
 }
@@ -508,7 +547,7 @@ impl ParsedValue {
         ))))
     }
 
-    fn parse_formatter_args(s: &str) -> (&str, Option<Vec<&str>>) {
+    fn parse_formatter_args(s: &str) -> (&str, Option<Vec<(&str, &str)>>) {
         let Some((name, rest)) = s.split_once('(') else {
             return (s.trim(), None);
         };
@@ -518,15 +557,24 @@ impl ParsedValue {
         if !rest.trim().is_empty() {
             todo!()
         }
-        (name.trim(), Some(args.split(',').map(str::trim).collect()))
+        let args = args
+            .split(';')
+            .filter_map(|s| s.split_once(':'))
+            .map(|(a, b)| (a.trim(), b.trim()));
+
+        (name.trim(), Some(args.collect()))
     }
 
     fn parse_formatter(s: &str) -> Formatter {
         let (name, args) = Self::parse_formatter_args(s);
+        let args = args.as_deref();
         match name {
             "number" => Formatter::Number,
-            "datetime" => Formatter::DateTime(DateLength::from_args(args.as_deref())),
-            "time" => Formatter::Time(TimeLength::from_args(args.as_deref())),
+            "datetime" => {
+                Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args))
+            }
+            "date" => Formatter::Date(DateLength::from_args(args)),
+            "time" => Formatter::Time(TimeLength::from_args(args)),
             _ => unimplemented!(),
         }
     }

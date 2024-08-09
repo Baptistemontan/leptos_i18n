@@ -54,11 +54,11 @@ impl IntoFixedDecimal for f64 {
     }
 }
 
-pub trait NumberFormatted: Clone + 'static {
+pub trait FormattedNumber: Clone + 'static {
     fn to_fixed_decimal(&self) -> FixedDecimal;
 }
 
-impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> NumberFormatted for F {
+impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> FormattedNumber for F {
     fn to_fixed_decimal(&self) -> FixedDecimal {
         IntoFixedDecimal::to_fixed_decimal(self())
     }
@@ -66,7 +66,7 @@ impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> NumberFormatted for F 
 
 pub fn format_number_to_string<L: Locale>(
     locale: L,
-    number: impl NumberFormatted,
+    number: impl FormattedNumber,
 ) -> impl IntoView {
     let formatter =
         FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default()).unwrap();
@@ -78,14 +78,13 @@ pub fn format_number_to_string<L: Locale>(
 }
 
 pub fn format_number_to_formatter<L: Locale>(
+    f: &mut fmt::Formatter<'_>,
     locale: L,
     number: impl IntoFixedDecimal,
-    f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
-    std::fmt::Display::fmt(
-        &FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default())
-            .unwrap()
-            .format(&number.to_fixed_decimal()),
-        f,
-    )
+    let num_formatter =
+        FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default()).unwrap();
+    let fixed_dec = number.to_fixed_decimal();
+    let formatted_num = num_formatter.format(&fixed_dec);
+    std::fmt::Display::fmt(&formatted_num, f)
 }
