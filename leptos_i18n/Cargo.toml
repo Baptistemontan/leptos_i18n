@@ -20,6 +20,7 @@ codee = "0.1"
 icu = { version = "1.5" }
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
+writeable = "0.5"
 
 [features]
 default = ["cookie", "json_files"]

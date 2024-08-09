@@ -44,6 +44,25 @@ pub enum TimeLength {
     Short,
 }
 
+fn from_args_helper<T: Default>(
+    args: Option<&[(&str, &str)]>,
+    name: &str,
+    f: impl Fn(&str) -> Option<T>,
+) -> T {
+    let Some(args) = args else {
+        return Default::default();
+    };
+    for (arg_name, value) in args {
+        if *arg_name != name {
+            continue;
+        }
+        if let Some(v) = f(value) {
+            return v;
+        }
+    }
+    Default::default()
+}
+
 macro_rules! from_args {
     ($t:ty, $arg_name:pat, $name:ident) => {
         impl $t {
@@ -90,6 +109,74 @@ from_args!(DateLength, "date_length" | "length", Date);
 from_args!(TimeLength, "time_length" | "length", Time);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ListType {
+    #[default]
+    And,
+    Or,
+    Unit,
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ListStyle {
+    #[default]
+    Wide,
+    Short,
+    Narrow,
+}
+
+impl ListType {
+    fn from_args(args: Option<&[(&str, &str)]>) -> Self {
+        from_args_helper(args, "type", |arg| match arg {
+            "and" => Some(Self::And),
+            "or" => Some(Self::Or),
+            "unit" => Some(Self::Unit),
+            _ => None,
+        })
+    }
+
+    fn to_into_view_list(self) -> TokenStream {
+        match self {
+            ListType::And => quote!(format_and_list_to_string),
+            ListType::Or => quote!(format_or_list_to_string),
+            ListType::Unit => quote!(format_unit_list_to_string),
+        }
+    }
+    fn to_string_list(self) -> TokenStream {
+        match self {
+            ListType::And => quote!(format_and_list_to_formatter),
+            ListType::Or => quote!(format_or_list_to_formatter),
+            ListType::Unit => quote!(format_unit_list_to_formatter),
+        }
+    }
+}
+
+impl ListStyle {
+    fn from_args(args: Option<&[(&str, &str)]>) -> Self {
+        from_args_helper(args, "style", |arg| match arg {
+            "wide" => Some(Self::Wide),
+            "short" => Some(Self::Short),
+            "narrow" => Some(Self::Narrow),
+            _ => None,
+        })
+    }
+}
+
+impl ToTokens for ListStyle {
+    fn to_token_stream(&self) -> TokenStream {
+        match self {
+            ListStyle::Wide => quote!(l_i18n_crate::icu::list::ListLength::Wide),
+            ListStyle::Short => quote!(l_i18n_crate::icu::list::ListLength::Short),
+            ListStyle::Narrow => quote!(l_i18n_crate::icu::list::ListLength::Narrow),
+        }
+    }
+
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
     #[default]
     None,
@@ -97,6 +184,7 @@ pub enum Formatter {
     Date(DateLength),
     Time(TimeLength),
     DateTime(DateLength, TimeLength),
+    List(ListType, ListStyle),
 }
 
 impl Formatter {
@@ -116,6 +204,10 @@ impl Formatter {
             }
             Formatter::DateTime(date_length, time_length) => {
                 quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_time_to_string(#locale_field, #key, #date_length, #time_length)))
+            }
+            Formatter::List(list_type, list_style) => {
+                let format_fn = list_type.to_into_view_list();
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::#format_fn(#locale_field, #key, #list_style)))
             }
         }
     }
@@ -137,6 +229,10 @@ impl Formatter {
             Formatter::DateTime(date_length, time_length) => {
                 quote!(l_i18n_crate::__private::format_date_time_to_formatter(__formatter, #locale_field, #key, #date_length, #time_length))
             }
+            Formatter::List(list_type, list_style) => {
+                let format_fn = list_type.to_string_list();
+                quote!(l_i18n_crate::__private::#format_fn(__formatter, #locale_field, #key, #list_style))
+            }
         }
     }
 
@@ -147,6 +243,7 @@ impl Formatter {
             Formatter::Date(_) => quote!(l_i18n_crate::__private::FormattedDate),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::FormattedTime),
             Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::FormattedDateTime),
+            Formatter::List(_, _) => quote!(l_i18n_crate::__private::FormattedList),
         }
     }
 
@@ -157,6 +254,7 @@ impl Formatter {
             Formatter::Date(_) => quote!(l_i18n_crate::__private::IntoDate),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::IntoTime),
             Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::IntoDateTime),
+            Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
         }
     }
 }
@@ -575,6 +673,7 @@ impl ParsedValue {
             }
             "date" => Formatter::Date(DateLength::from_args(args)),
             "time" => Formatter::Time(TimeLength::from_args(args)),
+            "list" => Formatter::List(ListType::from_args(args), ListStyle::from_args(args)),
             _ => unimplemented!(),
         }
     }
