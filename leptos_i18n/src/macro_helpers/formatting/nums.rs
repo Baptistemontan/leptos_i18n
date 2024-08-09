@@ -2,7 +2,7 @@ use core::fmt;
 
 use fixed_decimal::{FixedDecimal, FloatPrecision};
 use icu::decimal::FixedDecimalFormatter;
-use leptos::{Signal, SignalGet, SignalWith};
+use leptos::IntoView;
 
 use crate::Locale;
 
@@ -44,7 +44,7 @@ impl_into_fixed_decimal!(
 
 impl IntoFixedDecimal for f32 {
     fn to_fixed_decimal(self) -> FixedDecimal {
-        FixedDecimal::try_from_f64(self.into(), FloatPrecision::Floating).unwrap()
+        FixedDecimal::try_from_f64(Into::into(self), FloatPrecision::Floating).unwrap()
     }
 }
 
@@ -54,52 +54,38 @@ impl IntoFixedDecimal for f64 {
     }
 }
 
-pub type FixedDecimalSignal = Signal<FixedDecimal>;
-
-pub trait IntoFixedDecimalSignal {
-    fn to_signal(self) -> FixedDecimalSignal;
+pub trait NumberFormatted: Clone + 'static {
+    fn to_fixed_decimal(&self) -> FixedDecimal;
 }
 
-impl<T: IntoFixedDecimal> IntoFixedDecimalSignal for T {
-    fn to_signal(self) -> FixedDecimalSignal {
-        let v = self.to_fixed_decimal();
-        Signal::derive(move || v.clone())
+impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> NumberFormatted for F {
+    fn to_fixed_decimal(&self) -> FixedDecimal {
+        IntoFixedDecimal::to_fixed_decimal(self())
     }
-}
-
-impl<T: IntoFixedDecimal> IntoFixedDecimalSignal for Signal<T> {
-    fn to_signal(self) -> FixedDecimalSignal {
-        Signal::derive(move || self.get().to_fixed_decimal())
-    }
-}
-
-pub fn check_into_fixed_decimal(var: impl IntoFixedDecimalSignal) -> FixedDecimalSignal {
-    var.to_signal()
-}
-
-pub fn check_into_fixed_decimal_string(var: impl IntoFixedDecimal) -> FixedDecimal {
-    var.to_fixed_decimal()
 }
 
 pub fn format_number_to_string<L: Locale>(
     locale: L,
-    number: Signal<FixedDecimal>,
-) -> Signal<String> {
+    number: impl NumberFormatted,
+) -> impl IntoView {
     let formatter =
         FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default()).unwrap();
 
-    Signal::derive(move || number.with(|value| formatter.format_to_string(value)))
+    move || {
+        let value = number.to_fixed_decimal();
+        formatter.format_to_string(&value)
+    }
 }
 
 pub fn format_number_to_formatter<L: Locale>(
     locale: L,
-    number: &FixedDecimal,
+    number: impl IntoFixedDecimal,
     f: &mut fmt::Formatter<'_>,
 ) -> fmt::Result {
     std::fmt::Display::fmt(
         &FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default())
             .unwrap()
-            .format(number),
+            .format(&number.to_fixed_decimal()),
         f,
     )
 }
