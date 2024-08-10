@@ -86,13 +86,21 @@ macro_rules! from_args {
         impl ToTokens for $t {
             fn to_token_stream(&self) -> TokenStream {
                 match self {
-                    Self::Full => quote!(l_i18n_crate::icu::datetime::options::length::$name::Full),
-                    Self::Long => quote!(l_i18n_crate::icu::datetime::options::length::$name::Long),
+                    Self::Full => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::length::$name::Full)
+                    }
+                    Self::Long => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::length::$name::Long)
+                    }
                     Self::Medium => {
-                        quote!(l_i18n_crate::icu::datetime::options::length::$name::Medium)
+                        quote!(
+                            l_i18n_crate::reexports::icu::datetime::options::length::$name::Medium
+                        )
                     }
                     Self::Short => {
-                        quote!(l_i18n_crate::icu::datetime::options::length::$name::Short)
+                        quote!(
+                            l_i18n_crate::reexports::icu::datetime::options::length::$name::Short
+                        )
                     }
                 }
             }
@@ -164,9 +172,9 @@ impl ListStyle {
 impl ToTokens for ListStyle {
     fn to_token_stream(&self) -> TokenStream {
         match self {
-            ListStyle::Wide => quote!(l_i18n_crate::icu::list::ListLength::Wide),
-            ListStyle::Short => quote!(l_i18n_crate::icu::list::ListLength::Short),
-            ListStyle::Narrow => quote!(l_i18n_crate::icu::list::ListLength::Narrow),
+            ListStyle::Wide => quote!(l_i18n_crate::reexports::icu::list::ListLength::Wide),
+            ListStyle::Short => quote!(l_i18n_crate::reexports::icu::list::ListLength::Short),
+            ListStyle::Narrow => quote!(l_i18n_crate::reexports::icu::list::ListLength::Narrow),
         }
     }
 
@@ -194,20 +202,20 @@ impl Formatter {
                 quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)))
             }
             Formatter::Number => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(#locale_field, #key)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(#locale_field, core::clone::Clone::clone(&#key))))
             }
             Formatter::Date(length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_to_string(#locale_field, #key, #length)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_to_string(#locale_field, core::clone::Clone::clone(&#key), #length)))
             }
             Formatter::Time(length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_time_to_string(#locale_field, #key, #length)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_time_to_string(#locale_field, core::clone::Clone::clone(&#key), #length)))
             }
             Formatter::DateTime(date_length, time_length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_time_to_string(#locale_field, #key, #date_length, #time_length)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_time_to_string(#locale_field, core::clone::Clone::clone(&#key), #date_length, #time_length)))
             }
             Formatter::List(list_type, list_style) => {
                 let format_fn = list_type.to_into_view_list();
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::#format_fn(#locale_field, #key, #list_style)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::#format_fn(#locale_field, core::clone::Clone::clone(&#key), #list_style)))
             }
         }
     }
@@ -218,20 +226,20 @@ impl Formatter {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Formatter::Number => {
-                quote!(l_i18n_crate::format_number_to_formatter(__formatter, #locale_field, #key))
+                quote!(l_i18n_crate::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key)))
             }
             Formatter::Date(length) => {
-                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, #locale_field, #key, #length))
+                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #length))
             }
             Formatter::Time(length) => {
-                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, #locale_field, #key, #length))
+                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #length))
             }
             Formatter::DateTime(date_length, time_length) => {
-                quote!(l_i18n_crate::__private::format_date_time_to_formatter(__formatter, #locale_field, #key, #date_length, #time_length))
+                quote!(l_i18n_crate::__private::format_date_time_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #date_length, #time_length))
             }
             Formatter::List(list_type, list_style) => {
                 let format_fn = list_type.to_string_list();
-                quote!(l_i18n_crate::__private::#format_fn(__formatter, #locale_field, #key, #list_style))
+                quote!(l_i18n_crate::__private::#format_fn(__formatter, *#locale_field, core::clone::Clone::clone(#key), #list_style))
             }
         }
     }
