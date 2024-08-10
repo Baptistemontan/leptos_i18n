@@ -7,6 +7,8 @@ mod defaulted;
 #[cfg(test)]
 mod foreign;
 #[cfg(test)]
+mod formatting;
+#[cfg(test)]
 mod plurals;
 #[cfg(test)]
 mod scoped;

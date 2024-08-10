@@ -44,5 +44,6 @@
   "foreign_key_to_subkey": "before {{ @subkeys.subkey_1 }} after",
   "foreign_key_to_explicit_default": "no explicit default in default locale",
   "populated_foreign_key": "before {{ @click_count, count = '45' }} after",
-  "interpolate_variable_and_comp": "<b>{{ count }}</b>"
+  "interpolate_variable_and_comp": "<b>{{ count }}</b>",
+  "list_formatting": "{{ list, list(type: and; style: wide) }}"
 }
