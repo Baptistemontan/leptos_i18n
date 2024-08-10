@@ -6,14 +6,16 @@ use writeable::Writeable;
 
 use crate::Locale;
 
-pub trait WriteableList: IntoIterator<Item = Self::WItem, IntoIter = Self::WIterator> {
+pub trait WriteableList:
+    IntoIterator<Item = Self::WItem, IntoIter = Self::WIterator> + Clone
+{
     type WIterator: Iterator<Item = Self::WItem> + Clone;
     type WItem: Writeable;
 }
 
 impl<T> WriteableList for T
 where
-    T: IntoIterator,
+    T: IntoIterator + Clone,
     T::Item: Writeable,
     T::IntoIter: Clone,
 {
