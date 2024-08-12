@@ -33,8 +33,8 @@ struct Formatters {
 // making possible to return values borrowing from the formatter,
 // such as all *Formatter::format(..) returned values.
 
+// FIXME: This is ok on the client, but will probably leak on the server.
 
-//! FIXME: This is ok on the client, but will probably leak on the server.
 thread_local! {
   static FORMATTERS: RefCell<Formatters> = Default::default();
 }
