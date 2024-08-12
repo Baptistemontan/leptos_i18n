@@ -49,7 +49,7 @@ static FORMATTERS: std::sync::OnceLock<std::sync::Mutex<Formatters>> = OnceLock:
 #[cfg(feature = "ssr")]
 fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
   let mutex = FORMATTERS.get_or_init(Default::default);
-  let guard = mutex.lock().unwrap();
+  let mut guard = mutex.lock().unwrap();
   f(&mut *guard)
 }
 
