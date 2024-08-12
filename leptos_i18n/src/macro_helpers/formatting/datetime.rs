@@ -64,7 +64,7 @@ pub fn format_datetime_to_string<L: Locale>(
 ) -> impl IntoView {
     let options = length::Bag::from_date_time_style(date_length, time_length);
 
-    let formatter = DateTimeFormatter::try_new(&locale.as_langid().into(), options.into()).unwrap();
+    let formatter = DateTimeFormatter::try_new(&locale.as_icu_locale().into(), options.into()).unwrap();
 
     move || {
         let datetime = datetime.to_datetime();
@@ -81,7 +81,7 @@ pub fn format_datetime_to_formatter<L: Locale>(
 ) -> fmt::Result {
     let options = length::Bag::from_date_time_style(date_length, time_length);
     let datetime_formatter =
-        DateTimeFormatter::try_new(&locale.as_langid().into(), options.into()).unwrap();
+        DateTimeFormatter::try_new(&locale.as_icu_locale().into(), options.into()).unwrap();
 
     let date = datetime.as_datetime();
     let formatted_date = datetime_formatter.format(date).unwrap();

@@ -64,7 +64,7 @@ pub fn format_date_to_string<L: Locale>(
     date: impl FormattedDate,
     length: length::Date,
 ) -> impl IntoView {
-    let formatter = DateFormatter::try_new_with_length(&locale.as_langid().into(), length).unwrap();
+    let formatter = DateFormatter::try_new_with_length(&locale.as_icu_locale().into(), length).unwrap();
 
     move || {
         let date = date.to_date();
@@ -79,7 +79,7 @@ pub fn format_date_to_formatter<L: Locale>(
     length: length::Date,
 ) -> fmt::Result {
     let date_formatter =
-        DateFormatter::try_new_with_length(&locale.as_langid().into(), length).unwrap();
+        DateFormatter::try_new_with_length(&locale.as_icu_locale().into(), length).unwrap();
     let date = date.as_date();
     let formatted_date = date_formatter.format(date).unwrap();
     std::fmt::Display::fmt(&formatted_date, f)

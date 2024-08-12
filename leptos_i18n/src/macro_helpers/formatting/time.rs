@@ -63,7 +63,7 @@ pub fn format_time_to_string<L: Locale>(
     time: impl FormattedTime,
     length: length::Time,
 ) -> impl IntoView {
-    let formatter = TimeFormatter::try_new_with_length(&locale.as_langid().into(), length).unwrap();
+    let formatter = TimeFormatter::try_new_with_length(&locale.as_icu_locale().into(), length).unwrap();
 
     move || {
         let time = time.to_time();
@@ -78,7 +78,7 @@ pub fn format_time_to_formatter<L: Locale>(
     length: length::Time,
 ) -> fmt::Result {
     let time_formatter =
-        TimeFormatter::try_new_with_length(&locale.as_langid().into(), length).unwrap();
+        TimeFormatter::try_new_with_length(&locale.as_icu_locale().into(), length).unwrap();
     let time = time.as_time();
     let formatted_time = time_formatter.format(time);
     std::fmt::Display::fmt(&formatted_time, f)

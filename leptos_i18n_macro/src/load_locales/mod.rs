@@ -220,15 +220,15 @@ fn create_locales_enum(
         })
         .collect::<Vec<_>>();
 
-    let const_langids = constant_names_ident
+    let const_icu_locales = constant_names_ident
         .iter()
         .map(|(key, ident)| {
             let locale = &key.name;
-            quote!(const #ident: &'static l_i18n_crate::__private::locid::LanguageIdentifier = &l_i18n_crate::__private::locid::langid!(#locale);)
+            quote!(const #ident: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!(#locale);)
         })
         .collect::<Vec<_>>();
 
-    let as_langid_match_arms = constant_names_ident
+    let as_icu_locale_match_arms = constant_names_ident
         .iter()
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
@@ -261,12 +261,12 @@ fn create_locales_enum(
                 }
             }
 
-            fn as_langid(self) -> &'static l_i18n_crate::__private::locid::LanguageIdentifier {
+            fn as_icu_locale(self) -> &'static l_i18n_crate::__private::locid::Locale {
                 #(
-                    #const_langids;
+                    #const_icu_locales;
                 )*
                 match self {
-                    #(#as_langid_match_arms,)*
+                    #(#as_icu_locale_match_arms,)*
                 }
             }
 
@@ -297,6 +297,18 @@ fn create_locales_enum(
         impl core::convert::AsRef<l_i18n_crate::__private::locid::LanguageIdentifier> for #enum_ident {
             fn as_ref(&self) -> &l_i18n_crate::__private::locid::LanguageIdentifier {
                 l_i18n_crate::Locale::as_langid(*self)
+            }
+        }
+
+        impl core::convert::AsRef<l_i18n_crate::__private::locid::Locale> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::__private::locid::Locale {
+                l_i18n_crate::Locale::as_icu_locale(*self)
+            }
+        }
+
+        impl core::convert::AsRef<str> for #enum_ident {
+            fn as_ref(&self) -> &str {
+                l_i18n_crate::Locale::as_str(*self)
             }
         }
 

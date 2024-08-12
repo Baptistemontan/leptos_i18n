@@ -69,7 +69,7 @@ pub fn format_number_to_string<L: Locale>(
     number: impl FormattedNumber,
 ) -> impl IntoView {
     let formatter =
-        FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default()).unwrap();
+        FixedDecimalFormatter::try_new(&locale.as_icu_locale().into(), Default::default()).unwrap();
 
     move || {
         let value = number.to_fixed_decimal();
@@ -83,7 +83,7 @@ pub fn format_number_to_formatter<L: Locale>(
     number: impl IntoFixedDecimal,
 ) -> fmt::Result {
     let num_formatter =
-        FixedDecimalFormatter::try_new(&locale.as_langid().into(), Default::default()).unwrap();
+        FixedDecimalFormatter::try_new(&locale.as_icu_locale().into(), Default::default()).unwrap();
     let fixed_dec = number.to_fixed_decimal();
     let formatted_num = num_formatter.format(&fixed_dec);
     std::fmt::Display::fmt(&formatted_num, f)

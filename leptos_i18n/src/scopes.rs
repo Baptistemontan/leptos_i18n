@@ -1,10 +1,11 @@
 use std::{
     fmt::{self, Debug},
+    hash::Hash,
     marker::PhantomData,
     str::FromStr,
 };
 
-use icu::locid::LanguageIdentifier;
+use icu::locid;
 
 use crate::{I18nContext, Locale, LocaleKeys};
 
@@ -90,6 +91,8 @@ impl<L: Locale, S: Scope<L>> PartialEq for ScopedLocale<L, S> {
     }
 }
 
+impl<L: Locale, S: Scope<L>> Eq for ScopedLocale<L, S> {}
+
 impl<L: Locale, S: Scope<L>> Clone for ScopedLocale<L, S> {
     fn clone(&self) -> Self {
         *self
@@ -104,9 +107,27 @@ impl<L: Locale, S: Scope<L>> fmt::Display for ScopedLocale<L, S> {
     }
 }
 
-impl<L: Locale, S: Scope<L>> AsRef<LanguageIdentifier> for ScopedLocale<L, S> {
-    fn as_ref(&self) -> &LanguageIdentifier {
+impl<L: Locale, S: Scope<L>> AsRef<locid::LanguageIdentifier> for ScopedLocale<L, S> {
+    fn as_ref(&self) -> &locid::LanguageIdentifier {
         self.locale.as_ref()
+    }
+}
+
+impl<L: Locale, S: Scope<L>> AsRef<locid::Locale> for ScopedLocale<L, S> {
+    fn as_ref(&self) -> &locid::Locale {
+        self.locale.as_ref()
+    }
+}
+
+impl<L: Locale, S: Scope<L>> AsRef<str> for ScopedLocale<L, S> {
+    fn as_ref(&self) -> &str {
+        self.locale.as_ref()
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Hash for ScopedLocale<L, S> {
+    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {
+        Hash::hash(&self.locale, state)
     }
 }
 
@@ -129,8 +150,8 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
         <L as Locale>::as_str(self.locale)
     }
 
-    fn as_langid(self) -> &'static LanguageIdentifier {
-        <L as Locale>::as_langid(self.locale)
+    fn as_icu_locale(self) -> &'static locid::Locale {
+        <L as Locale>::as_icu_locale(self.locale)
     }
 
     fn get_all() -> &'static [L] {

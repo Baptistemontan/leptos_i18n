@@ -1,6 +1,7 @@
 use std::str::FromStr;
+use std::hash::Hash;
 
-use icu::locid::LanguageIdentifier;
+use icu::locid;
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
 
@@ -13,10 +14,14 @@ pub trait Locale<L: Locale = Self>:
     + Clone
     + Copy
     + FromStr
-    + AsRef<LanguageIdentifier>
+    + AsRef<locid::LanguageIdentifier>
+    + AsRef<locid::Locale>
+    + AsRef<str>
     + std::fmt::Display
     + std::fmt::Debug
     + PartialEq
+    + Eq
+    + Hash
 {
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = L>;
@@ -24,8 +29,13 @@ pub trait Locale<L: Locale = Self>:
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
 
+    /// Return a static reference to a icu `Locale`
+    fn as_icu_locale(self) -> &'static locid::Locale;
+
     /// Return a static reference to a `LanguageIdentifier`
-    fn as_langid(self) -> &'static LanguageIdentifier;
+    fn as_langid(self) -> &'static locid::LanguageIdentifier {
+        Locale::as_icu_locale(self).as_ref()
+    }
 
     /// Return a static reference to an array containing all variants of this enum
     fn get_all() -> &'static [L];
@@ -40,7 +50,7 @@ pub trait Locale<L: Locale = Self>:
     /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
     ///
     /// This function does not fallback to default if no match is found.
-    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
+    fn find_matchs<T: AsRef<locid::LanguageIdentifier>>(langid: T) -> Vec<Self> {
         let matches: Vec<L> =
             filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all());
         matches.into_iter().map(Self::from_base_locale).collect()

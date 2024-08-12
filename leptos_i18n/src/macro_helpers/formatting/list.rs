@@ -43,7 +43,7 @@ pub fn format_and_list_to_string<L: Locale>(
     length: ListLength,
 ) -> impl IntoView {
     let formatter =
-        ListFormatter::try_new_and_with_length(&locale.as_langid().into(), length).unwrap();
+        ListFormatter::try_new_and_with_length(&locale.as_icu_locale().into(), length).unwrap();
 
     move || {
         let list = list.to_list().into_iter();
@@ -57,7 +57,7 @@ pub fn format_or_list_to_string<L: Locale>(
     length: ListLength,
 ) -> impl IntoView {
     let formatter =
-        ListFormatter::try_new_or_with_length(&locale.as_langid().into(), length).unwrap();
+        ListFormatter::try_new_or_with_length(&locale.as_icu_locale().into(), length).unwrap();
 
     move || {
         let list = list.to_list().into_iter();
@@ -71,7 +71,7 @@ pub fn format_unit_list_to_string<L: Locale>(
     length: ListLength,
 ) -> impl IntoView {
     let formatter =
-        ListFormatter::try_new_unit_with_length(&locale.as_langid().into(), length).unwrap();
+        ListFormatter::try_new_unit_with_length(&locale.as_icu_locale().into(), length).unwrap();
 
     move || {
         let list = list.to_list().into_iter();
@@ -86,7 +86,7 @@ pub fn format_and_list_to_formatter<L: Locale>(
     length: ListLength,
 ) -> fmt::Result {
     let list_formatter =
-        ListFormatter::try_new_and_with_length(&locale.as_langid().into(), length).unwrap();
+        ListFormatter::try_new_and_with_length(&locale.as_icu_locale().into(), length).unwrap();
     let formatted_date = list_formatter.format(list.into_iter());
     std::fmt::Display::fmt(&formatted_date, f)
 }
@@ -98,7 +98,7 @@ pub fn format_or_list_to_formatter<L: Locale>(
     length: ListLength,
 ) -> fmt::Result {
     let list_formatter =
-        ListFormatter::try_new_or_with_length(&locale.as_langid().into(), length).unwrap();
+        ListFormatter::try_new_or_with_length(&locale.as_icu_locale().into(), length).unwrap();
     let formatted_date = list_formatter.format(list.into_iter());
     std::fmt::Display::fmt(&formatted_date, f)
 }
@@ -110,7 +110,7 @@ pub fn format_unit_list_to_formatter<L: Locale>(
     length: ListLength,
 ) -> fmt::Result {
     let list_formatter =
-        ListFormatter::try_new_unit_with_length(&locale.as_langid().into(), length).unwrap();
+        ListFormatter::try_new_unit_with_length(&locale.as_icu_locale().into(), length).unwrap();
     let formatted_date = list_formatter.format(list.into_iter());
     std::fmt::Display::fmt(&formatted_date, f)
 }
