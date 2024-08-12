@@ -211,7 +211,7 @@ impl Formatter {
                 quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_time_to_string(#locale_field, core::clone::Clone::clone(&#key), #length)))
             }
             Formatter::DateTime(date_length, time_length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_time_to_string(#locale_field, core::clone::Clone::clone(&#key), #date_length, #time_length)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_datetime_to_string(#locale_field, core::clone::Clone::clone(&#key), #date_length, #time_length)))
             }
             Formatter::List(list_type, list_style) => {
                 let format_fn = list_type.to_into_view_list();
@@ -226,16 +226,16 @@ impl Formatter {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Formatter::Number => {
-                quote!(l_i18n_crate::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key)))
+                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key)))
             }
             Formatter::Date(length) => {
-                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #length))
+                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length))
             }
             Formatter::Time(length) => {
-                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #length))
+                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length))
             }
             Formatter::DateTime(date_length, time_length) => {
-                quote!(l_i18n_crate::__private::format_date_time_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #date_length, #time_length))
+                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #date_length, #time_length))
             }
             Formatter::List(list_type, list_style) => {
                 let format_fn = list_type.to_string_list();
@@ -259,9 +259,9 @@ impl Formatter {
         match self {
             Formatter::None => quote!(::std::fmt::Display),
             Formatter::Number => quote!(l_i18n_crate::__private::IntoFixedDecimal),
-            Formatter::Date(_) => quote!(l_i18n_crate::__private::IntoDate),
-            Formatter::Time(_) => quote!(l_i18n_crate::__private::IntoTime),
-            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::IntoDateTime),
+            Formatter::Date(_) => quote!(l_i18n_crate::__private::AsDate),
+            Formatter::Time(_) => quote!(l_i18n_crate::__private::AsTime),
+            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsDateTime),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
         }
     }

@@ -8,6 +8,21 @@ use leptos::IntoView;
 
 use crate::Locale;
 
+pub trait AsDate {
+    type Date: DateInput<Calendar = AnyCalendar>;
+
+    fn as_date(&self) -> &Self::Date;
+}
+
+impl<T: DateInput<Calendar = AnyCalendar>> AsDate for T {
+    type Date = Self;
+
+    fn as_date(&self) -> &Self::Date {
+        self
+    }
+}
+
+
 pub trait IntoDate {
     type Date: DateInput<Calendar = AnyCalendar>;
 
@@ -30,7 +45,7 @@ impl IntoDate for DateTime<AnyCalendar> {
     }
 }
 
-pub trait FormattedDate: 'static {
+pub trait FormattedDate: 'static + Clone {
     type Date: DateInput<Calendar = AnyCalendar>;
 
     fn to_date(&self) -> Self::Date;
@@ -60,12 +75,12 @@ pub fn format_date_to_string<L: Locale>(
 pub fn format_date_to_formatter<L: Locale>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
-    date: impl IntoDate,
+    date: &impl AsDate,
     length: length::Date,
 ) -> fmt::Result {
     let date_formatter =
         DateFormatter::try_new_with_length(&locale.as_langid().into(), length).unwrap();
-    let date = date.into_date();
-    let formatted_date = date_formatter.format(&date).unwrap();
+    let date = date.as_date();
+    let formatted_date = date_formatter.format(date).unwrap();
     std::fmt::Display::fmt(&formatted_date, f)
 }
