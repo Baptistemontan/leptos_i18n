@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use icu::list::{ListFormatter, ListLength};
 use leptos::IntoView;
@@ -37,80 +37,58 @@ impl<T: WriteableList, F: Fn() -> T + Clone + 'static> FormattedList for F {
     }
 }
 
-pub fn format_and_list_to_string<L: Locale>(
-    locale: L,
-    list: impl FormattedList,
-    length: ListLength,
-) -> impl IntoView {
-    let formatter =
-        ListFormatter::try_new_and_with_length(&locale.as_icu_locale().into(), length).unwrap();
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum ListType {
+    And,
+    Or,
+    Unit
+}
 
-    move || {
-        let list = list.to_list().into_iter();
-        formatter.format_to_string(list)
+impl ListType {
+    pub fn new_formatter(self, locale: &icu::locid::Locale, length: ListLength) -> ListFormatter {
+        match self {
+            ListType::And => ListFormatter::try_new_and_with_length(&locale.into(), length).unwrap(),
+            ListType::Or => ListFormatter::try_new_or_with_length(&locale.into(), length).unwrap(),
+            ListType::Unit => ListFormatter::try_new_unit_with_length(&locale.into(), length).unwrap(),
+        }
     }
 }
 
-pub fn format_or_list_to_string<L: Locale>(
+pub fn format_list_to_string<L: Locale>(
     locale: L,
     list: impl FormattedList,
+    list_type: ListType,
     length: ListLength,
 ) -> impl IntoView {
-    let formatter =
-        ListFormatter::try_new_or_with_length(&locale.as_icu_locale().into(), length).unwrap();
+    let list_formatter = super::get_list_formatter(locale, list_type, length);
 
     move || {
         let list = list.to_list().into_iter();
-        formatter.format_to_string(list)
+        list_formatter.format_to_string(list)
     }
 }
 
-pub fn format_unit_list_to_string<L: Locale>(
-    locale: L,
-    list: impl FormattedList,
-    length: ListLength,
-) -> impl IntoView {
-    let formatter =
-        ListFormatter::try_new_unit_with_length(&locale.as_icu_locale().into(), length).unwrap();
 
-    move || {
-        let list = list.to_list().into_iter();
-        formatter.format_to_string(list)
-    }
-}
-
-pub fn format_and_list_to_formatter<L: Locale>(
+pub fn format_list_to_formatter<L: Locale>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
     list: impl WriteableList,
+    list_type: ListType,
     length: ListLength,
 ) -> fmt::Result {
-    let list_formatter =
-        ListFormatter::try_new_and_with_length(&locale.as_icu_locale().into(), length).unwrap();
-    let formatted_date = list_formatter.format(list.into_iter());
-    std::fmt::Display::fmt(&formatted_date, f)
+    let formatted_list = format_list_to_display(locale, list, list_type, length);
+    Display::fmt(&formatted_list, f)
 }
 
-pub fn format_or_list_to_formatter<L: Locale>(
-    f: &mut fmt::Formatter<'_>,
+pub fn format_list_to_display<'a, WL: WriteableList, L: Locale>(
     locale: L,
-    list: impl WriteableList,
+    list: WL,
+    list_type: ListType,
     length: ListLength,
-) -> fmt::Result {
-    let list_formatter =
-        ListFormatter::try_new_or_with_length(&locale.as_icu_locale().into(), length).unwrap();
-    let formatted_date = list_formatter.format(list.into_iter());
-    std::fmt::Display::fmt(&formatted_date, f)
-}
-
-pub fn format_unit_list_to_formatter<L: Locale>(
-    f: &mut fmt::Formatter<'_>,
-    locale: L,
-    list: impl WriteableList,
-    length: ListLength,
-) -> fmt::Result {
-    let list_formatter =
-        ListFormatter::try_new_unit_with_length(&locale.as_icu_locale().into(), length).unwrap();
-    let formatted_date = list_formatter.format(list.into_iter());
-    std::fmt::Display::fmt(&formatted_date, f)
+) -> impl Display + 'a 
+    where WL::WItem: 'a,
+        WL::WIterator: 'a
+{
+    let list_formatter = super::get_list_formatter(locale, list_type, length);
+    list_formatter.format(list.into_iter())
 }

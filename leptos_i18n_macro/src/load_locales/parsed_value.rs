@@ -141,22 +141,23 @@ impl ListType {
             _ => None,
         })
     }
+}
 
-    fn to_into_view_list(self) -> TokenStream {
+impl ToTokens for ListType {
+    fn to_token_stream(&self) -> TokenStream {
         match self {
-            ListType::And => quote!(format_and_list_to_string),
-            ListType::Or => quote!(format_or_list_to_string),
-            ListType::Unit => quote!(format_unit_list_to_string),
+            ListType::And => quote!(l_i18n_crate::__private::ListType::And),
+            ListType::Or => quote!(l_i18n_crate::__private::ListType::Or),
+            ListType::Unit => quote!(l_i18n_crate::__private::ListType::Unit),
         }
     }
-    fn to_string_list(self) -> TokenStream {
-        match self {
-            ListType::And => quote!(format_and_list_to_formatter),
-            ListType::Or => quote!(format_or_list_to_formatter),
-            ListType::Unit => quote!(format_unit_list_to_formatter),
-        }
+
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
     }
 }
+
 
 impl ListStyle {
     fn from_args(args: Option<&[(&str, &str)]>) -> Self {
@@ -214,8 +215,7 @@ impl Formatter {
                 quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_datetime_to_string(#locale_field, core::clone::Clone::clone(&#key), #date_length, #time_length)))
             }
             Formatter::List(list_type, list_style) => {
-                let format_fn = list_type.to_into_view_list();
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::#format_fn(#locale_field, core::clone::Clone::clone(&#key), #list_style)))
+                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_list_to_string(#locale_field, core::clone::Clone::clone(&#key), #list_type, #list_style)))
             }
         }
     }
@@ -238,8 +238,7 @@ impl Formatter {
                 quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #date_length, #time_length))
             }
             Formatter::List(list_type, list_style) => {
-                let format_fn = list_type.to_string_list();
-                quote!(l_i18n_crate::__private::#format_fn(__formatter, *#locale_field, core::clone::Clone::clone(#key), #list_style))
+                quote!(l_i18n_crate::__private::format_list_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
             }
         }
     }

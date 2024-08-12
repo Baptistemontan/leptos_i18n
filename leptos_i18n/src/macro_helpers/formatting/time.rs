@@ -1,8 +1,8 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use icu::{
     calendar::{AnyCalendar, DateTime, Time},
-    datetime::{input::IsoTimeInput, options::length, TimeFormatter},
+    datetime::{input::IsoTimeInput, options::length},
 };
 use leptos::IntoView;
 
@@ -63,11 +63,11 @@ pub fn format_time_to_string<L: Locale>(
     time: impl FormattedTime,
     length: length::Time,
 ) -> impl IntoView {
-    let formatter = TimeFormatter::try_new_with_length(&locale.as_icu_locale().into(), length).unwrap();
+    let time_formatter = super::get_time_formatter(locale, length);
 
     move || {
         let time = time.to_time();
-        formatter.format_to_string(&time)
+        time_formatter.format_to_string(&time)
     }
 }
 
@@ -77,9 +77,16 @@ pub fn format_time_to_formatter<L: Locale>(
     time: &impl AsTime,
     length: length::Time,
 ) -> fmt::Result {
-    let time_formatter =
-        TimeFormatter::try_new_with_length(&locale.as_icu_locale().into(), length).unwrap();
+    let formatted_time = format_time_to_display(locale, time, length);
+    Display::fmt(&formatted_time, f)
+}
+
+pub fn format_time_to_display<L: Locale>(
+    locale: L,
+    time: &impl AsTime,
+    length: length::Time,
+) -> impl Display {
+    let time_formatter = super::get_time_formatter(locale, length);
     let time = time.as_time();
-    let formatted_time = time_formatter.format(time);
-    std::fmt::Display::fmt(&formatted_time, f)
+    time_formatter.format(time)
 }

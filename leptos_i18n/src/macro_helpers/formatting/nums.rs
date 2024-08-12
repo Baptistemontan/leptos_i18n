@@ -1,7 +1,6 @@
-use core::fmt;
+use core::fmt::{self, Display};
 
 use fixed_decimal::{FixedDecimal, FloatPrecision};
-use icu::decimal::FixedDecimalFormatter;
 use leptos::IntoView;
 
 use crate::Locale;
@@ -68,12 +67,11 @@ pub fn format_number_to_string<L: Locale>(
     locale: L,
     number: impl FormattedNumber,
 ) -> impl IntoView {
-    let formatter =
-        FixedDecimalFormatter::try_new(&locale.as_icu_locale().into(), Default::default()).unwrap();
+    let num_formatter = super::get_num_formatter(locale);
 
     move || {
         let value = number.to_fixed_decimal();
-        formatter.format_to_string(&value)
+        num_formatter.format_to_string(&value)
     }
 }
 
@@ -82,9 +80,8 @@ pub fn format_number_to_formatter<L: Locale>(
     locale: L,
     number: impl IntoFixedDecimal,
 ) -> fmt::Result {
-    let num_formatter =
-        FixedDecimalFormatter::try_new(&locale.as_icu_locale().into(), Default::default()).unwrap();
+    let num_formatter = super::get_num_formatter(locale);
     let fixed_dec = number.to_fixed_decimal();
     let formatted_num = num_formatter.format(&fixed_dec);
-    std::fmt::Display::fmt(&formatted_num, f)
+    Display::fmt(&formatted_num, f)
 }

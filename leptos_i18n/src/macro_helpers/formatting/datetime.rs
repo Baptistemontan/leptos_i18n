@@ -1,8 +1,8 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use icu::{
     calendar::AnyCalendar,
-    datetime::{input::DateTimeInput, options::length, DateTimeFormatter},
+    datetime::{input::DateTimeInput, options::length},
 };
 use leptos::IntoView;
 
@@ -62,13 +62,11 @@ pub fn format_datetime_to_string<L: Locale>(
     date_length: length::Date,
     time_length: length::Time,
 ) -> impl IntoView {
-    let options = length::Bag::from_date_time_style(date_length, time_length);
-
-    let formatter = DateTimeFormatter::try_new(&locale.as_icu_locale().into(), options.into()).unwrap();
+    let datetime_formatter = super::get_datetime_formatter(locale, date_length, time_length);
 
     move || {
         let datetime = datetime.to_datetime();
-        formatter.format_to_string(&datetime).unwrap()
+        datetime_formatter.format_to_string(&datetime).unwrap()
     }
 }
 
@@ -79,11 +77,17 @@ pub fn format_datetime_to_formatter<L: Locale>(
     date_length: length::Date,
     time_length: length::Time,
 ) -> fmt::Result {
-    let options = length::Bag::from_date_time_style(date_length, time_length);
-    let datetime_formatter =
-        DateTimeFormatter::try_new(&locale.as_icu_locale().into(), options.into()).unwrap();
+    let formatted_date = format_datetime_to_display(locale, datetime, date_length, time_length);
+    Display::fmt(&formatted_date, f)
+}
 
+pub fn format_datetime_to_display<L: Locale>(
+    locale: L,
+    datetime: &impl AsDateTime,
+    date_length: length::Date,
+    time_length: length::Time,
+) -> impl Display {
+    let datetime_formatter = super::get_datetime_formatter(locale, date_length, time_length);
     let date = datetime.as_datetime();
-    let formatted_date = datetime_formatter.format(date).unwrap();
-    std::fmt::Display::fmt(&formatted_date, f)
+    datetime_formatter.format(date).unwrap()
 }
