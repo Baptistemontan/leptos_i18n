@@ -32,8 +32,15 @@ cookie = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr", "icu/sync"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr", "sync"]
 csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
+experimental-islands = [
+    "leptos/experimental-islands",
+    "leptos_i18n_macro/experimental-islands",
+]
+sync = ["icu/sync"]
+
+# macro features
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
@@ -41,10 +48,6 @@ json_files = ["leptos_i18n_macro/json_files"]
 yaml_files = ["leptos_i18n_macro/yaml_files"]
 interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 track_locale_files = ["leptos_i18n_macro/track_locale_files"]
-experimental-islands = [
-    "leptos/experimental-islands",
-    "leptos_i18n_macro/experimental-islands",
-]
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
 
