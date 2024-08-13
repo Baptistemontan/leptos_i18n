@@ -21,6 +21,8 @@ icu = "1.5"
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
+# fixme
+web-sys = "=0.3.9"
 
 [features]
 default = ["cookie", "json_files"]
