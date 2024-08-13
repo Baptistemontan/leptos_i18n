@@ -1,5 +1,5 @@
-use std::str::FromStr;
 use std::hash::Hash;
+use std::str::FromStr;
 
 use icu::locid;
 

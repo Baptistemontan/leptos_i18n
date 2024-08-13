@@ -8,7 +8,7 @@ use leptos::IntoView;
 
 use crate::Locale;
 
-use super::{IntoDate, AsDate, IntoTime, AsTime};
+use super::{AsDate, AsTime, IntoDate, IntoTime};
 
 pub trait AsDateTime: AsDate<Date = Self::DateTime> + AsTime<Time = Self::DateTime> {
     type DateTime: DateTimeInput<Calendar = AnyCalendar>;
@@ -16,8 +16,8 @@ pub trait AsDateTime: AsDate<Date = Self::DateTime> + AsTime<Time = Self::DateTi
     fn as_datetime(&self) -> &Self::DateTime;
 }
 
-impl<DT: DateTimeInput<Calendar = AnyCalendar>, T: AsDate<Date = DT> + AsTime<Time = DT>>
-    AsDateTime for T
+impl<DT: DateTimeInput<Calendar = AnyCalendar>, T: AsDate<Date = DT> + AsTime<Time = DT>> AsDateTime
+    for T
 {
     type DateTime = DT;
 

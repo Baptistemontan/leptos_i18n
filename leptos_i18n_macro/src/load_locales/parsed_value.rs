@@ -158,7 +158,6 @@ impl ToTokens for ListType {
     }
 }
 
-
 impl ListStyle {
     fn from_args(args: Option<&[(&str, &str)]>) -> Self {
         from_args_helper(args, "style", |arg| match arg {

@@ -22,7 +22,6 @@ impl<T: DateInput<Calendar = AnyCalendar>> AsDate for T {
     }
 }
 
-
 pub trait IntoDate {
     type Date: DateInput<Calendar = AnyCalendar>;
 

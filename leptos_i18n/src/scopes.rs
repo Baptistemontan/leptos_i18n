@@ -126,7 +126,10 @@ impl<L: Locale, S: Scope<L>> AsRef<str> for ScopedLocale<L, S> {
 }
 
 impl<L: Locale, S: Scope<L>> Hash for ScopedLocale<L, S> {
-    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
         Hash::hash(&self.locale, state)
     }
 }
