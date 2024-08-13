@@ -50,7 +50,7 @@ fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
 }
 
 #[cfg(feature = "ssr")]
-static FORMATTERS: std::sync::OnceLock<std::sync::Mutex<Formatters>> = OnceLock::new();
+static FORMATTERS: std::sync::OnceLock<std::sync::Mutex<Formatters>> = std::sync::OnceLock::new();
 
 #[cfg(feature = "ssr")]
 fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
