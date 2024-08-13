@@ -85,3 +85,16 @@ pub fn format_number_to_formatter<L: Locale>(
     let formatted_num = num_formatter.format(&fixed_dec);
     Display::fmt(&formatted_num, f)
 }
+
+/// This function is a lie.
+/// The only reason it exist is for the `format` macros.
+/// It does NOT return a `impl Display` struct with no allocation like the other
+/// This directly return a `String` of the formatted num, because borrow issues.
+pub fn format_number_to_display<L: Locale>(
+    locale: L,
+    number: impl IntoFixedDecimal,
+) -> impl Display {
+    let num_formatter = super::get_num_formatter(locale);
+    let fixed_dec = number.to_fixed_decimal();
+    num_formatter.format_to_string(&fixed_dec)
+}
