@@ -22,7 +22,7 @@ typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
 # fixme
-web-sys = "=0.3.9"
+web-sys = "=0.3.69"
 
 [features]
 default = ["cookie", "json_files"]
