@@ -17,7 +17,7 @@ leptos_meta = "0.6"
 leptos_router = "0.6"
 leptos-use = "0.11"
 codee = "0.1"
-icu = { version = "1.5" }
+icu = "1.5"
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
@@ -29,7 +29,7 @@ cookie = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr", "icu/sync"]
 csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
