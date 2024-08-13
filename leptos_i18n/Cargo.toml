@@ -23,6 +23,7 @@ fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
 # fixme
 web-sys = "=0.3.69"
+wasm-bindgen = "=0.2.92"
 
 [features]
 default = ["cookie", "json_files"]
