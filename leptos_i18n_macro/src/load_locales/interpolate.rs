@@ -5,14 +5,11 @@ use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
-use super::parsed_value::Formatter;
 use super::parsed_value::InterpolationKeys;
 use super::plural::PluralType;
-use super::{
-    key::{Key, KeyPath},
-    locale::Locale,
-    parsed_value::ParsedValue,
-};
+use super::{locale::Locale, parsed_value::ParsedValue};
+use crate::utils::formatter::Formatter;
+use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
     pub static CACHED_LOCALE_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_locale").unwrap());

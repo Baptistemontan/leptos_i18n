@@ -1,13 +1,10 @@
 use std::{collections::HashMap, fmt::Display, rc::Rc};
 
-use crate::load_locales::{
-    key::Key,
-    plural::{PluralParseBuffer, Plurals},
-};
+use crate::load_locales::plural::{PluralParseBuffer, Plurals};
+use crate::utils::key::{Key, KeyPath};
 
 use super::{
     cfg_file::ConfigFile,
-    key::KeyPath,
     load_locales_inner,
     locale::{Locale, LocalesOrNamespaces},
     parsed_value::ParsedValue,

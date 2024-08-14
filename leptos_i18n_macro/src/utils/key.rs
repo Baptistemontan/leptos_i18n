@@ -1,4 +1,4 @@
-use super::error::{Error, Result};
+use crate::load_locales::error::{Error, Result};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,

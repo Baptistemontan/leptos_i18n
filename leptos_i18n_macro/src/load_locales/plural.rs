@@ -9,10 +9,8 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::ParseBuffer;
 
-use crate::load_locales::{
-    key::{Key, KeyPath},
-    locale::LocalesOrNamespaces,
-};
+use crate::load_locales::locale::LocalesOrNamespaces;
+use crate::utils::key::{Key, KeyPath};
 
 use super::{
     declare_locales::parse_plural_pairs,

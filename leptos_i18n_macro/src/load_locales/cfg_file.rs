@@ -1,9 +1,7 @@
 use serde::de::DeserializeOwned;
 
-use super::{
-    error::{Error, Result},
-    key::Key,
-};
+use super::error::{Error, Result};
+use crate::utils::key::Key;
 use std::{borrow::Cow, collections::HashSet, path::PathBuf, rc::Rc};
 
 #[derive(Debug)]

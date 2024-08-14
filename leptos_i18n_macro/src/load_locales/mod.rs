@@ -9,17 +9,16 @@ pub mod cfg_file;
 pub mod declare_locales;
 pub mod error;
 pub mod interpolate;
-pub mod key;
 pub mod locale;
 pub mod parsed_value;
 pub mod plural;
 pub mod tracking;
 pub mod warning;
 
+use crate::utils::key::{Key, KeyPath};
 use cfg_file::ConfigFile;
 use error::{Error, Result};
 use interpolate::Interpolation;
-use key::{Key, KeyPath};
 use locale::{Locale, LocaleValue};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};

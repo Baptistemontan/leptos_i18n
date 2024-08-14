@@ -1,6 +1,6 @@
 use std::{path::PathBuf, rc::Rc};
 
-use super::key::Key;
+use crate::utils::key::Key;
 
 #[cfg(feature = "track_locale_files")]
 mod inner {

@@ -8,11 +8,11 @@ use std::{
 use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
-    key::{Key, KeyPath},
     parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
     tracking::track_file,
     warning::{emit_warning, Warning},
 };
+use crate::utils::key::{Key, KeyPath};
 
 macro_rules! define_by_format {
     (json => $($tt:tt)*) => {
