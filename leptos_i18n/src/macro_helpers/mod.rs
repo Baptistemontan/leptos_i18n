@@ -1,13 +1,11 @@
-#![doc(hidden)]
-
 use std::borrow::Cow;
 
-mod formatting;
-mod interpol_check;
+pub mod formatting;
+mod interpol_args;
 mod scope;
 
 pub use formatting::*;
-pub use interpol_check::*;
+pub use interpol_args::*;
 pub use scope::*;
 
 #[doc(hidden)]

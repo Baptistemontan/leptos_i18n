@@ -135,6 +135,8 @@ mod scopes;
 
 pub mod display;
 
+pub use macro_helpers::formatting;
+
 pub use locale_traits::{Locale, LocaleKeys};
 
 pub use context::{provide_i18n_context, use_i18n_context, I18nContext};

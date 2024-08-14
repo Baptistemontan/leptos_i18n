@@ -20,7 +20,9 @@ macro_rules! impl_into_fixed_decimal {
     }
 }
 
+/// Marker trait for types that can be turned into a `fixed_decimal::FixedDecimal`.
 pub trait IntoFixedDecimal: Clone {
+    /// Consume self to produce a `FixedDecimal`.
     fn to_fixed_decimal(self) -> FixedDecimal;
 }
 
@@ -53,19 +55,22 @@ impl IntoFixedDecimal for f64 {
     }
 }
 
-pub trait FormattedNumber: Clone + 'static {
+/// Marker trait for types that produce a `FixedDecimal`.
+pub trait NumberFormatterInputFn: Clone + 'static {
+    /// Produce a `FixedDecimal`.
     fn to_fixed_decimal(&self) -> FixedDecimal;
 }
 
-impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> FormattedNumber for F {
+impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> NumberFormatterInputFn for F {
     fn to_fixed_decimal(&self) -> FixedDecimal {
         IntoFixedDecimal::to_fixed_decimal(self())
     }
 }
 
+#[doc(hidden)]
 pub fn format_number_to_string<L: Locale>(
     locale: L,
-    number: impl FormattedNumber,
+    number: impl NumberFormatterInputFn,
 ) -> impl IntoView {
     let num_formatter = super::get_num_formatter(locale);
 
@@ -75,6 +80,7 @@ pub fn format_number_to_string<L: Locale>(
     }
 }
 
+#[doc(hidden)]
 pub fn format_number_to_formatter<L: Locale>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
@@ -90,6 +96,7 @@ pub fn format_number_to_formatter<L: Locale>(
 /// The only reason it exist is for the `format` macros.
 /// It does NOT return a `impl Display` struct with no allocation like the other
 /// This directly return a `String` of the formatted num, because borrow issues.
+#[doc(hidden)]
 pub fn format_number_to_display<L: Locale>(
     locale: L,
     number: impl IntoFixedDecimal,

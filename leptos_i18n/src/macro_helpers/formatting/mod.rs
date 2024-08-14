@@ -1,3 +1,6 @@
+//! This module contain traits and helper functions for formatting
+//! different kind of value based on a locale.
+
 mod date;
 mod datetime;
 mod list;
@@ -17,6 +20,16 @@ use icu::decimal::FixedDecimalFormatter;
 use icu::list::{ListFormatter, ListLength};
 use icu::locid;
 use std::collections::HashMap;
+
+pub mod traits {
+    //! This module contain traits for formatting
+    //! different kind of value based on a locale.
+    pub use super::date::{AsIcuDate, DateFormatterInputFn, IntoIcuDate};
+    pub use super::datetime::{AsIcuDateTime, DateTimeFormatterInputFn, IntoIcuDateTime};
+    pub use super::list::{ListFormatterInputFn, WriteableList};
+    pub use super::nums::{IntoFixedDecimal, NumberFormatterInputFn};
+    pub use super::time::{AsIcuTime, IntoIcuTime, TimeFormatterInputFn};
+}
 
 #[derive(Default)]
 struct Formatters {

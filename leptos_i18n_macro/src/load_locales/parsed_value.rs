@@ -245,11 +245,11 @@ impl Formatter {
     pub fn to_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
-            Formatter::Number => quote!(l_i18n_crate::__private::FormattedNumber),
-            Formatter::Date(_) => quote!(l_i18n_crate::__private::FormattedDate),
-            Formatter::Time(_) => quote!(l_i18n_crate::__private::FormattedTime),
-            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::FormattedDateTime),
-            Formatter::List(_, _) => quote!(l_i18n_crate::__private::FormattedList),
+            Formatter::Number => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
+            Formatter::Date(_) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
+            Formatter::Time(_) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
+            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::DateFormatterInputFnTime),
+            Formatter::List(_, _) => quote!(l_i18n_crate::__private::ListFormatterInputFn),
         }
     }
 
@@ -257,9 +257,9 @@ impl Formatter {
         match self {
             Formatter::None => quote!(::std::fmt::Display),
             Formatter::Number => quote!(l_i18n_crate::__private::IntoFixedDecimal),
-            Formatter::Date(_) => quote!(l_i18n_crate::__private::AsDate),
-            Formatter::Time(_) => quote!(l_i18n_crate::__private::AsTime),
-            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsDateTime),
+            Formatter::Date(_) => quote!(l_i18n_crate::__private::AsIcuDate),
+            Formatter::Time(_) => quote!(l_i18n_crate::__private::AsIcuTime),
+            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
         }
     }

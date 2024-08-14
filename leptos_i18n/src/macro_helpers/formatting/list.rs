@@ -6,10 +6,14 @@ use writeable::Writeable;
 
 use crate::Locale;
 
+/// Marker trait for types that can be turned into an iterator where
+/// `Iterator::Item: writeable::Writeable`.
 pub trait WriteableList:
     IntoIterator<Item = Self::WItem, IntoIter = Self::WIterator> + Clone
 {
+    /// The iterator produced.
     type WIterator: Iterator<Item = Self::WItem> + Clone;
+    /// The item the iterator returns.
     type WItem: Writeable;
 }
 
@@ -23,13 +27,16 @@ where
     type WIterator = T::IntoIter;
 }
 
-pub trait FormattedList: 'static {
+/// Marker trait for types that produce a `T: WriteableList`.
+pub trait ListFormatterInputFn: 'static {
+    /// The returned `T: WriteableList`.
     type List: WriteableList;
 
+    /// Produce a `Self::List`.
     fn to_list(&self) -> Self::List;
 }
 
-impl<T: WriteableList, F: Fn() -> T + Clone + 'static> FormattedList for F {
+impl<T: WriteableList, F: Fn() -> T + Clone + 'static> ListFormatterInputFn for F {
     type List = T;
 
     fn to_list(&self) -> Self::List {
@@ -37,6 +44,7 @@ impl<T: WriteableList, F: Fn() -> T + Clone + 'static> FormattedList for F {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum ListType {
     And,
@@ -58,9 +66,10 @@ impl ListType {
     }
 }
 
+#[doc(hidden)]
 pub fn format_list_to_string<L: Locale>(
     locale: L,
-    list: impl FormattedList,
+    list: impl ListFormatterInputFn,
     list_type: ListType,
     length: ListLength,
 ) -> impl IntoView {
@@ -72,6 +81,7 @@ pub fn format_list_to_string<L: Locale>(
     }
 }
 
+#[doc(hidden)]
 pub fn format_list_to_formatter<L: Locale>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
@@ -83,6 +93,7 @@ pub fn format_list_to_formatter<L: Locale>(
     Display::fmt(&formatted_list, f)
 }
 
+#[doc(hidden)]
 pub fn format_list_to_display<'a, WL: WriteableList, L: Locale>(
     locale: L,
     list: WL,
