@@ -171,6 +171,7 @@ pub fn init_i18n_context_with_options<L: Locale>(
 }
 
 /// Same as `init_i18n_context` but takes a root element to bind the `"lang"` HTML attribute.
+/// (That attribute will not be set on ssr, only on the client.)
 pub fn init_i18n_context_with_root<L: Locale, El: ElementDescriptor + 'static + Clone>(
     root_element: NodeRef<El>,
 ) -> I18nContext<L> {
@@ -178,6 +179,7 @@ pub fn init_i18n_context_with_root<L: Locale, El: ElementDescriptor + 'static + 
 }
 
 /// Same as `init_i18n_context` but with some cookies options and a root element to bind the `"lang"` HTML attribute.
+/// (That attribute will not be set on ssr, only on the client.)
 pub fn init_i18n_context_with_options_and_root<
     L: Locale,
     El: ElementDescriptor + 'static + Clone,
@@ -242,6 +244,7 @@ pub fn provide_i18n_context_with_root<L: Locale, El: ElementDescriptor + 'static
 }
 
 /// Same as `provide_i18n_context`  but with some cookies options and a root element to bind the `"lang"` HTML attribute.
+/// (That attribute will not be set on ssr, only on the client.)
 pub fn provide_i18n_context_with_options_and_root<
     L: Locale,
     El: ElementDescriptor + 'static + Clone,
@@ -344,6 +347,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 /// If none no cookie will be set.
 ///
 /// The `root_element` is a `NodeRef` to an element that will receive the HTML `"lang"` attribute.
+/// (That attribute will not be set on ssr, only on the client.)
 ///
 /// The locale to init the subcontext with is determined in this order:
 /// - locale in the cookie
@@ -372,6 +376,7 @@ pub fn init_i18n_subcontext_with_options_and_root<
 /// Same as `init_i18n_subcontext` but with some options
 ///
 /// The `root_element` is a `NodeRef` to an element that will receive the HTML `"lang"` attribute.
+/// (That attribute will not be set on ssr, only on the client.)
 ///
 /// The locale to init the subcontext with is determined in this order:
 /// - `initial_locale` if set
@@ -414,6 +419,7 @@ pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> 
     ctx
 }
 
+/// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
 #[component]
 #[allow(non_snake_case)]
 pub fn I18nSubContextProvider<L: Locale>(
@@ -438,6 +444,10 @@ pub fn I18nSubContextProvider<L: Locale>(
     })
 }
 
+/// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
+/// 
+/// Like `I18nSubContextProvider` but can be given a `root_element: NodeRef` to set the `"lang"` attribute on.
+/// (That attribute will not be set on ssr, only on the client.)
 #[leptos::component]
 #[allow(non_snake_case)]
 pub fn I18nSubContextProviderWithRoot<L, El>(
