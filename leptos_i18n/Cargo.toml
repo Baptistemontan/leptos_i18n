@@ -21,7 +21,7 @@ icu = "1.5"
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
-# fixme
+# fixme: remove those pinned version when new version of leptos_use
 web-sys = "=0.3.69"
 wasm-bindgen = "=0.2.92"
 
