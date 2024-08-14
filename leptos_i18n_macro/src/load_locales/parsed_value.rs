@@ -248,7 +248,7 @@ impl Formatter {
             Formatter::Number => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Date(_) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
-            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::DateFormatterInputFnTime),
+            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::DateTimeFormatterInputFn),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::ListFormatterInputFn),
         }
     }
