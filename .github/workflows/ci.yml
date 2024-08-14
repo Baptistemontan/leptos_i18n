@@ -76,8 +76,7 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Install cargo-leptos"
-        # fixme: use latest cargo-leptos version
-        run: cargo install cargo-leptos --locked --version 0.2.17
+        run: cargo install cargo-leptos --locked
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}

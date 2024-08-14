@@ -12,18 +12,15 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_macro = { workspace = true }
-leptos = "0.6"
-leptos_meta = "0.6"
-leptos_router = "0.6"
-leptos-use = "0.11"
+leptos = "0.6.14"
+leptos_meta = "0.6.14"
+leptos_router = "0.6.14"
+leptos-use = "0.12"
 codee = "0.1"
 icu = "1.5"
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
-# fixme: remove those pinned version when new version of leptos_use
-web-sys = "=0.3.69"
-wasm-bindgen = "=0.2.92"
 
 [features]
 default = ["cookie", "json_files"]
