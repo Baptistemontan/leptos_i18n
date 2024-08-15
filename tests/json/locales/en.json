@@ -45,7 +45,7 @@
   "foreign_key_to_explicit_default": "no explicit default in default locale",
   "populated_foreign_key": "before {{ @click_count, count = '45' }} after",
   "interpolate_variable_and_comp": "<b>{{ count }}</b>",
-  "list_formatting": "{{ list, list(type: and; style: wide) }}",
+  "list_formatting": "{{ list, list(list_type: and; list_style: wide) }}",
   "date_formatting": "{{ date, date }}",
   "time_formatting": "{{ time, time }}",
   "datetime_formatting": "{{ date, datetime }}",

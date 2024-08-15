@@ -68,7 +68,7 @@ impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> NumberFormatterInputFn
 }
 
 #[doc(hidden)]
-pub fn format_number_to_string<L: Locale>(
+pub fn format_number_to_view<L: Locale>(
     locale: L,
     number: impl NumberFormatterInputFn,
 ) -> impl IntoView {

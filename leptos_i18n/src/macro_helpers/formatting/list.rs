@@ -67,7 +67,7 @@ impl ListType {
 }
 
 #[doc(hidden)]
-pub fn format_list_to_string<L: Locale>(
+pub fn format_list_to_view<L: Locale>(
     locale: L,
     list: impl ListFormatterInputFn,
     list_type: ListType,

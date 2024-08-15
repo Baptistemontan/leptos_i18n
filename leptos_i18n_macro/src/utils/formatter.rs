@@ -119,7 +119,7 @@ pub enum ListStyle {
 
 impl ListType {
     impl_from_args! {
-        "type",
+        "list_type",
         "and" => Self::And,
         "or" => Self::Or,
         "unit" => Self::Unit,
@@ -143,7 +143,7 @@ impl ToTokens for ListType {
 
 impl ListStyle {
     impl_from_args! {
-        "style",
+        "list_style",
         "wide" => Self::Wide,
         "short" => Self::Short,
         "narrow" => Self::Narrow,
@@ -196,25 +196,46 @@ impl Formatter {
         }
     }
 
-    pub fn var_into_view(self, key: &Key, locale_field: &Key) -> TokenStream {
+    pub fn var_to_view(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         match self {
             Formatter::None => {
-                quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)))
+                quote!(#key)
             }
             Formatter::Number => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_number_to_string(#locale_field, core::clone::Clone::clone(&#key))))
+                quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key))
             }
             Formatter::Date(length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_date_to_string(#locale_field, core::clone::Clone::clone(&#key), #length)))
+                quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length))
             }
             Formatter::Time(length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_time_to_string(#locale_field, core::clone::Clone::clone(&#key), #length)))
+                quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length))
             }
             Formatter::DateTime(date_length, time_length) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_datetime_to_string(#locale_field, core::clone::Clone::clone(&#key), #date_length, #time_length)))
+                quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #date_length, #time_length))
             }
             Formatter::List(list_type, list_style) => {
-                quote!(leptos::IntoView::into_view(l_i18n_crate::__private::format_list_to_string(#locale_field, core::clone::Clone::clone(&#key), #list_type, #list_style)))
+                quote!(l_i18n_crate::__private::format_list_to_view(#locale_field, #key, #list_type, #list_style))
+            }
+        }
+    }
+
+    pub fn var_to_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+        match self {
+            Formatter::None => unreachable!(),
+            Formatter::Number => {
+                quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key))
+            }
+            Formatter::Date(length) => {
+                quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length))
+            }
+            Formatter::Time(length) => {
+                quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length))
+            }
+            Formatter::DateTime(date_length, time_length) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #date_length, #time_length))
+            }
+            Formatter::List(list_type, list_style) => {
+                quote!(l_i18n_crate::__private::format_list_to_display(#locale_field, #key, #list_type, #list_style))
             }
         }
     }

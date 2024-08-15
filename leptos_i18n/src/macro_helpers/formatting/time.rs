@@ -59,7 +59,7 @@ impl<T: IntoIcuTime, F: Fn() -> T + Clone + 'static> TimeFormatterInputFn for F 
 }
 
 #[doc(hidden)]
-pub fn format_time_to_string<L: Locale>(
+pub fn format_time_to_view<L: Locale>(
     locale: L,
     time: impl TimeFormatterInputFn,
     length: length::Time,

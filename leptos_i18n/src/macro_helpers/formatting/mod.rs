@@ -9,6 +9,10 @@ mod time;
 
 pub use date::*;
 pub use datetime::*;
+pub use leptos_i18n_macro::{
+    t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
+    tu_format, tu_format_display, tu_format_string,
+};
 pub use list::*;
 pub use nums::*;
 pub use time::*;

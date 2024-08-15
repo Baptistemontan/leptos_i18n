@@ -62,7 +62,7 @@ impl<T: IntoIcuDate, F: Fn() -> T + Clone + 'static> DateFormatterInputFn for F 
 }
 
 #[doc(hidden)]
-pub fn format_date_to_string<L: Locale>(
+pub fn format_date_to_view<L: Locale>(
     locale: L,
     date: impl DateFormatterInputFn,
     length: length::Date,

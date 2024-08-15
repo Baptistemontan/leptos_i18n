@@ -622,8 +622,11 @@ impl ParsedValue {
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
-                let ts = formatter.var_into_view(key, locale_field);
-                tokens.push(ts);
+                let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
+                tokens.push(quote! {{
+                    let #key = core::clone::Clone::clone(&#key);
+                    leptos::IntoView::into_view(#ts)
+                }});
             }
             ParsedValue::Component { key, inner } => {
                 let mut key_path = KeyPath::new(None);

@@ -9,6 +9,7 @@
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
 pub(crate) mod load_locales;
+pub(crate) mod t_format;
 pub(crate) mod t_macro;
 pub(crate) mod utils;
 
@@ -211,7 +212,7 @@ pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// Instead of
 ///
 /// ```rust, ignore
-/// let i18n = use_i18n;
+/// let i18n = use_i18n();
 /// t!(i18n, namespace.subkeys.value);
 /// ```
 ///
@@ -272,7 +273,7 @@ pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// Instead of
 ///
 /// ```rust, ignore
-/// let i18n = use_i18n;
+/// let i18n = use_i18n();
 /// t!(i18n, namespace.subkeys.value);
 /// ```
 ///
@@ -292,4 +293,145 @@ pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 #[proc_macro]
 pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     utils::scoped::scope_locale(tokens)
+}
+
+/// Format a given value with a given formatter and retu:
+///
+/// ```rust, ignore
+/// let i18n =  use_i18n();
+/// let num = 100_000usize;
+///
+/// t_format!(i18n, num, formatter: number);
+///
+/// let list = || ["A", "B", "C"];
+///
+/// t_format!(i18n, list, formatter: list(list_type: and; list_style: wide));
+/// ```
+/// This function does exactly the same as if you had "{{ var, formatter_name(formatter_arg: value; ...) }}"
+/// for a translation and do
+///
+/// ```rust,ignore
+/// t!(i18n, key, var = ...)
+/// ```
+#[proc_macro]
+pub fn t_format(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Context,
+        t_format::OutputType::View,
+    )
+}
+
+/// Same as the `t_format!` macro but untracked.
+#[proc_macro]
+pub fn tu_format(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Untracked,
+        t_format::OutputType::View,
+    )
+}
+
+/// Same as the `t_format!` macro but takes the desired `Locale` as the first argument.
+#[proc_macro]
+pub fn td_format(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Locale,
+        t_format::OutputType::View,
+    )
+}
+
+/// Format a given value with a given formatter and return a `String`:
+///
+/// ```rust, ignore
+/// let i18n =  use_i18n();
+/// let num = 100_000usize;
+///
+/// t_format_string!(i18n, num, formatter: number);
+///
+/// let list = || ["A", "B", "C"];
+///
+/// t_format_string!(i18n, list, formatter: list(list_type: and; list_style: wide));
+/// ```
+/// This function does exactly the same as if you had "{{ var, formatter_name(formatter_arg: value; ...) }}"
+/// for a translation and do
+///
+/// ```rust,ignore
+/// t_string!(i18n, key, var = ...)
+/// ```
+#[proc_macro]
+pub fn t_format_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Context,
+        t_format::OutputType::String,
+    )
+}
+
+/// Same as the `t_format_string!` macro but untracked.
+#[proc_macro]
+pub fn tu_format_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Untracked,
+        t_format::OutputType::String,
+    )
+}
+
+/// Same as the `t_format_string!` macro but takes the desired `Locale` as the first argument.
+#[proc_macro]
+pub fn td_format_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Locale,
+        t_format::OutputType::String,
+    )
+}
+
+/// Format a given value with a given formatter and return a `impl Display`:
+///
+/// ```rust, ignore
+/// let i18n =  use_i18n();
+/// let num = 100_000usize;
+///
+/// t_format_display!(i18n, num, formatter: number);
+///
+/// let list = || ["A", "B", "C"];
+///
+/// t_format_display!(i18n, list, formatter: list(list_type: and; list_style: wide));
+/// ```
+/// This function does exactly the same as if you had "{{ var, formatter_name(formatter_arg: value; ...) }}"
+/// for a translation and do
+///
+/// ```rust,ignore
+/// t_display!(i18n, key, var = ...)
+/// ```
+#[proc_macro]
+pub fn t_format_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Context,
+        t_format::OutputType::Display,
+    )
+}
+
+/// Same as the `t_format_display!` macro but untracked.
+#[proc_macro]
+pub fn tu_format_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Untracked,
+        t_format::OutputType::Display,
+    )
+}
+
+/// Same as the `t_format_display!` macro but takes the desired `Locale` as the first argument.
+#[proc_macro]
+pub fn td_format_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_format::t_format(
+        tokens,
+        t_format::InputType::Locale,
+        t_format::OutputType::Display,
+    )
 }
