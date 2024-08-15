@@ -20,16 +20,16 @@ pub enum TimeLength {
     Short,
 }
 
-fn from_args_helper<T: Default>(
-    args: Option<&[(&str, &str)]>,
-    name: &str,
-    f: impl Fn(&str) -> Option<T>,
+fn from_args_helper<'a, T: Default, S: PartialEq + PartialEq<&'a str>>(
+    args: Option<&[(S, S)]>,
+    name: &'a str,
+    f: impl Fn(&S) -> Option<T>,
 ) -> T {
     let Some(args) = args else {
         return Default::default();
     };
     for (arg_name, value) in args {
-        if *arg_name != name {
+        if arg_name != &name {
             continue;
         }
         if let Some(v) = f(value) {
@@ -39,23 +39,32 @@ fn from_args_helper<T: Default>(
     Default::default()
 }
 
+macro_rules! impl_from_args {
+    ($name:literal, $($arg_name:literal => $value:expr,)*) => {
+        pub fn from_args<'a, S: PartialEq + PartialEq<&'a str>>(args: Option<&[(S, S)]>) -> Self {
+        from_args_helper(args, $name, |arg| {
+            $(
+                if arg == &$arg_name {
+                    Some($value)
+                } else
+            )*
+            {
+                None
+            }
+        })
+    }
+    }
+}
+
 macro_rules! impl_length {
-    ($t:ty, $arg_name:pat, $name:ident) => {
+    ($t:ty, $arg_name:literal, $name:ident) => {
         impl $t {
-            pub fn from_args(args: Option<&[(&str, &str)]>) -> Self {
-                let Some(args) = args else {
-                    return Default::default();
-                };
-                for arg in args {
-                    match *arg {
-                        ($arg_name, "full") => return Self::Full,
-                        ($arg_name, "long") => return Self::Long,
-                        ($arg_name, "medium") => return Self::Medium,
-                        ($arg_name, "short") => return Self::Short,
-                        _ => {}
-                    }
-                }
-                Default::default()
+            impl_from_args! {
+                $arg_name,
+                "full" => Self::Full,
+                "long" => Self::Long,
+                "medium" => Self::Medium,
+                "short" => Self::Short,
             }
         }
 
@@ -89,8 +98,8 @@ macro_rules! impl_length {
     };
 }
 
-impl_length!(DateLength, "date_length" | "length", Date);
-impl_length!(TimeLength, "time_length" | "length", Time);
+impl_length!(DateLength, "date_length", Date);
+impl_length!(TimeLength, "time_length", Time);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListType {
@@ -109,13 +118,11 @@ pub enum ListStyle {
 }
 
 impl ListType {
-    pub fn from_args(args: Option<&[(&str, &str)]>) -> Self {
-        from_args_helper(args, "type", |arg| match arg {
-            "and" => Some(Self::And),
-            "or" => Some(Self::Or),
-            "unit" => Some(Self::Unit),
-            _ => None,
-        })
+    impl_from_args! {
+        "type",
+        "and" => Self::And,
+        "or" => Self::Or,
+        "unit" => Self::Unit,
     }
 }
 
@@ -135,13 +142,11 @@ impl ToTokens for ListType {
 }
 
 impl ListStyle {
-    pub fn from_args(args: Option<&[(&str, &str)]>) -> Self {
-        from_args_helper(args, "style", |arg| match arg {
-            "wide" => Some(Self::Wide),
-            "short" => Some(Self::Short),
-            "narrow" => Some(Self::Narrow),
-            _ => None,
-        })
+    impl_from_args! {
+        "style",
+        "wide" => Self::Wide,
+        "short" => Self::Short,
+        "narrow" => Self::Narrow,
     }
 }
 
@@ -172,6 +177,25 @@ pub enum Formatter {
 }
 
 impl Formatter {
+    pub fn from_name_and_args<'a, S: PartialEq + PartialEq<&'a str>>(
+        name: S,
+        args: Option<&[(S, S)]>,
+    ) -> Formatter {
+        if name == "number" {
+            Formatter::Number
+        } else if name == "datetime" {
+            Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args))
+        } else if name == "date" {
+            Formatter::Date(DateLength::from_args(args))
+        } else if name == "time" {
+            Formatter::Time(TimeLength::from_args(args))
+        } else if name == "list" {
+            Formatter::List(ListType::from_args(args), ListStyle::from_args(args))
+        } else {
+            todo!()
+        }
+    }
+
     pub fn var_into_view(self, key: &Key, locale_field: &Key) -> TokenStream {
         match self {
             Formatter::None => {

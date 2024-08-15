@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::utils::formatter::{DateLength, Formatter, ListStyle, ListType, TimeLength};
+use crate::utils::formatter::Formatter;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
@@ -434,17 +434,7 @@ impl ParsedValue {
 
     fn parse_formatter(s: &str) -> Formatter {
         let (name, args) = Self::parse_formatter_args(s);
-        let args = args.as_deref();
-        match name {
-            "number" => Formatter::Number,
-            "datetime" => {
-                Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args))
-            }
-            "date" => Formatter::Date(DateLength::from_args(args)),
-            "time" => Formatter::Time(TimeLength::from_args(args)),
-            "list" => Formatter::List(ListType::from_args(args), ListStyle::from_args(args)),
-            _ => unimplemented!(),
-        }
+        Formatter::from_name_and_args(name, args.as_deref())
     }
 
     fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
