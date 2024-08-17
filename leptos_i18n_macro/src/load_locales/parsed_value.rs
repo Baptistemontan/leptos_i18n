@@ -4,16 +4,19 @@ use std::{
     rc::Rc,
 };
 
+use crate::utils::formatter::Formatter;
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{quote, ToTokens};
 use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
 
 use super::{
     error::{Error, Result},
-    key::{Key, KeyPath},
+    interpolate::CACHED_LOCALE_FIELD_KEY,
     locale::{Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plural::{PluralType, Plurals},
 };
+
+use crate::utils::key::{Key, KeyPath, CACHED_PLURAL_COUNT_KEY};
 
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
@@ -32,7 +35,10 @@ pub enum ParsedValue {
     ForeignKey(RefCell<ForeignKey>),
     Plural(Plurals),
     String(String),
-    Variable(Rc<Key>),
+    Variable {
+        key: Rc<Key>,
+        formatter: Formatter,
+    },
     Component {
         key: Rc<Key>,
         inner: Box<Self>,
@@ -41,11 +47,56 @@ pub enum ParsedValue {
     Subkeys(Option<Locale>),
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
-pub enum InterpolateKey {
-    Count(PluralType),
-    Variable(Rc<Key>),
-    Component(Rc<Key>),
+#[derive(Debug, Default)]
+pub struct VarInfo {
+    pub formatters: HashSet<Formatter>,
+    pub plural_count: Option<PluralType>,
+}
+
+#[derive(Debug, Default)]
+pub struct InterpolationKeys {
+    components: HashSet<Rc<Key>>,
+    variables: HashMap<Rc<Key>, VarInfo>,
+}
+
+impl InterpolationKeys {
+    pub fn push_var(&mut self, key: Rc<Key>, formatter: Formatter) {
+        let var_infos = self.variables.entry(key).or_default();
+        var_infos.formatters.insert(formatter);
+    }
+
+    pub fn push_comp(&mut self, key: Rc<Key>) {
+        self.components.insert(key);
+    }
+
+    pub fn push_count(&mut self, key_path: &mut KeyPath, ty: PluralType) -> Result<()> {
+        let key = CACHED_PLURAL_COUNT_KEY.with(Clone::clone);
+        let var_infos = self.variables.entry(key).or_default();
+        match var_infos.plural_count.replace(ty) {
+            Some(old) if old != ty => Err(Error::PluralTypeMissmatch {
+                key_path: std::mem::take(key_path),
+                type1: old,
+                type2: ty,
+            }),
+            _ => Ok(()),
+        }
+    }
+
+    pub fn iter_keys(&self) -> impl Iterator<Item = &Key> {
+        let comps = self.components.iter().map(|k| &**k);
+        let vars = self.variables.keys().map(|k| &**k);
+        comps.chain(vars)
+    }
+
+    pub fn iter_vars(&self) -> impl Iterator<Item = (Rc<Key>, &VarInfo)> {
+        self.variables
+            .iter()
+            .map(|(key, value)| (key.clone(), value))
+    }
+
+    pub fn iter_comps(&self) -> impl Iterator<Item = Rc<Key>> + '_ {
+        self.components.iter().cloned()
+    }
 }
 
 impl ParsedValue {
@@ -128,7 +179,7 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Plural(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -172,9 +223,12 @@ impl ParsedValue {
             ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::String(_) => {
                 Ok(self.clone())
             }
-            ParsedValue::Variable(key) => match args.get(&key.name) {
+            ParsedValue::Variable { key, formatter } => match args.get(&key.name) {
                 Some(value) => Ok(ParsedValue::String(value.to_owned())),
-                None => Ok(ParsedValue::Variable(Rc::clone(key))),
+                None => Ok(ParsedValue::Variable {
+                    key: Rc::clone(key),
+                    formatter: *formatter,
+                }),
             },
             ParsedValue::Component { key, inner } => Ok(ParsedValue::Component {
                 key: Rc::clone(key),
@@ -193,40 +247,47 @@ impl ParsedValue {
         }
     }
 
-    pub fn get_keys_inner(&self, keys: &mut Option<HashSet<InterpolateKey>>) {
+    pub fn get_keys_inner(
+        &self,
+        key_path: &mut KeyPath,
+        keys: &mut Option<InterpolationKeys>,
+    ) -> Result<()> {
         match self {
             ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Variable(key) => {
-                keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Variable(Rc::clone(key)));
+            ParsedValue::Variable { key, formatter } => {
+                keys.get_or_insert_with(Default::default)
+                    .push_var(key.clone(), *formatter);
             }
             ParsedValue::Component { key, inner } => {
-                keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Component(Rc::clone(key)));
-                inner.get_keys_inner(keys);
+                keys.get_or_insert_with(Default::default)
+                    .push_comp(key.clone());
+                inner.get_keys_inner(key_path, keys)?;
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.get_keys_inner(keys)
+                    value.get_keys_inner(key_path, keys)?;
                 }
             }
             ParsedValue::Plural(plurals) => {
-                plurals.get_keys_inner(keys);
+                plurals.get_keys_inner(key_path, keys)?;
                 let plural_type = plurals.get_type();
-                keys.get_or_insert_with(HashSet::new)
-                    .insert(InterpolateKey::Count(plural_type));
+                keys.get_or_insert_with(Default::default)
+                    .push_count(key_path, plural_type)?;
             }
-            ParsedValue::ForeignKey(foreign_key) => foreign_key
-                .borrow()
-                .as_inner("get_keys_inner")
-                .get_keys_inner(keys),
+            ParsedValue::ForeignKey(foreign_key) => {
+                foreign_key
+                    .borrow()
+                    .as_inner("get_keys_inner")
+                    .get_keys_inner(key_path, keys)?;
+            }
         }
+        Ok(())
     }
 
-    pub fn get_keys(&self) -> Option<HashSet<InterpolateKey>> {
+    pub fn get_keys(&self, key_path: &mut KeyPath) -> Result<Option<InterpolationKeys>> {
         let mut keys = None;
-        self.get_keys_inner(&mut keys);
-        keys
+        self.get_keys_inner(key_path, &mut keys)?;
+        Ok(keys)
     }
 
     pub fn is_string(&self) -> Option<&str> {
@@ -263,7 +324,7 @@ impl ParsedValue {
                 })
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
-            this => Ok(LocaleValue::Value(this.get_keys())),
+            this => this.get_keys(key_path).map(LocaleValue::Value),
         }
     }
 
@@ -293,13 +354,10 @@ impl ParsedValue {
                 | ParsedValue::Component { .. }
                 | ParsedValue::Plural(_)
                 | ParsedValue::String(_)
-                | ParsedValue::Variable(_)
+                | ParsedValue::Variable { .. }
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(keys),
-            ) => {
-                self.get_keys_inner(keys);
-                Ok(())
-            }
+            ) => self.get_keys_inner(key_path, keys),
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
@@ -356,6 +414,29 @@ impl ParsedValue {
         ))))
     }
 
+    fn parse_formatter_args(s: &str) -> (&str, Option<Vec<(&str, &str)>>) {
+        let Some((name, rest)) = s.split_once('(') else {
+            return (s.trim(), None);
+        };
+        let Some((args, rest)) = rest.rsplit_once(')') else {
+            return (s.trim(), None);
+        };
+        if !rest.trim().is_empty() {
+            todo!()
+        }
+        let args = args
+            .split(';')
+            .filter_map(|s| s.split_once(':'))
+            .map(|(a, b)| (a.trim(), b.trim()));
+
+        (name.trim(), Some(args.collect()))
+    }
+
+    fn parse_formatter(s: &str) -> Formatter {
+        let (name, args) = Self::parse_formatter_args(s);
+        Formatter::from_name_and_args(name, args.as_deref())
+    }
+
     fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
@@ -372,8 +453,17 @@ impl ParsedValue {
             '@' => Self::parse_foreign_key(ident, locale, key_path)?,
             // variable key
             _ => {
-                let ident = Key::new(&format!("var_{}", ident))?;
-                ParsedValue::Variable(Rc::new(ident))
+                if let Some((ident, formatter)) = ident.split_once(',') {
+                    let formatter = Self::parse_formatter(formatter);
+                    let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+                    ParsedValue::Variable { key, formatter }
+                } else {
+                    let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+                    ParsedValue::Variable {
+                        key,
+                        formatter: Formatter::None,
+                    }
+                }
             }
         };
 
@@ -453,7 +543,7 @@ impl ParsedValue {
 
     pub fn reduce(&mut self) {
         match self {
-            ParsedValue::Variable(_) | ParsedValue::String(_) | ParsedValue::Default => {}
+            ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -510,7 +600,9 @@ impl ParsedValue {
                     bloc.push(ParsedValue::String(s));
                 }
             }
-            ParsedValue::Variable(key) => bloc.push(ParsedValue::Variable(key)),
+            ParsedValue::Variable { key, formatter } => {
+                bloc.push(ParsedValue::Variable { key, formatter })
+            }
             ParsedValue::Component { key, mut inner } => {
                 inner.reduce();
                 bloc.push(ParsedValue::Component { key, inner });
@@ -523,19 +615,24 @@ impl ParsedValue {
         }
     }
 
-    fn flatten(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
-            ParsedValue::Variable(key) => {
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key))))
+            ParsedValue::Variable { key, formatter } => {
+                let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
+                tokens.push(quote! {{
+                    let #key = core::clone::Clone::clone(&#key);
+                    leptos::IntoView::into_view(#ts)
+                }});
             }
             ParsedValue::Component { key, inner } => {
-                let captured_keys = inner.get_keys().map(|keys| {
+                let mut key_path = KeyPath::new(None);
+                let captured_keys = inner.get_keys(&mut key_path).unwrap().map(|keys| {
                     let keys = keys
-                        .into_iter()
+                        .iter_keys()
                         .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
                     quote!(#(#keys)*)
                 });
@@ -549,23 +646,25 @@ impl ParsedValue {
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens)
+                    value.flatten(tokens, locale_field)
                 }
             }
-            ParsedValue::ForeignKey(foreign_key) => {
-                foreign_key.borrow().as_inner("flatten").flatten(tokens)
-            }
+            ParsedValue::ForeignKey(foreign_key) => foreign_key
+                .borrow()
+                .as_inner("flatten")
+                .flatten(tokens, locale_field),
         }
     }
 
-    fn flatten_string(&self, tokens: &mut Vec<TokenStream>) {
+    fn flatten_string(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
             ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
-            ParsedValue::Variable(key) => {
-                tokens.push(quote!(core::fmt::Display::fmt(#key, __formatter)))
+            ParsedValue::Variable { key, formatter } => {
+                let ts = formatter.var_fmt(key, locale_field);
+                tokens.push(ts);
             }
             ParsedValue::Component { key, inner } => {
                 let inner = inner.as_string_impl();
@@ -573,19 +672,20 @@ impl ParsedValue {
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten_string(tokens)
+                    value.flatten_string(tokens, locale_field)
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten_string")
-                .flatten_string(tokens),
+                .flatten_string(tokens, locale_field),
         }
     }
 
     pub fn as_string_impl(&self) -> TokenStream {
         let mut tokens = Vec::new();
-        self.flatten_string(&mut tokens);
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        self.flatten_string(&mut tokens, &locale_field);
 
         match &tokens[..] {
             [] => quote!(Ok(())),
@@ -618,61 +718,11 @@ impl ForeignKey {
     }
 }
 
-impl InterpolateKey {
-    pub fn as_ident(&self) -> syn::Ident {
-        match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => key.ident.clone(),
-            InterpolateKey::Count(_) => format_ident!("plural_count"),
-        }
-    }
-
-    pub fn as_key(&self) -> Option<&Key> {
-        match self {
-            InterpolateKey::Variable(key) | InterpolateKey::Component(key) => Some(key),
-            InterpolateKey::Count(_) => None,
-        }
-    }
-
-    pub fn as_comp(&self) -> Option<&Rc<Key>> {
-        match self {
-            InterpolateKey::Component(k) => Some(k),
-            _ => None,
-        }
-    }
-
-    pub fn get_generic(&self) -> TokenStream {
-        match self {
-            InterpolateKey::Variable(_) => {
-                quote!(l_i18n_crate::__private::InterpolateVar)
-            }
-            InterpolateKey::Count(plural_type) => {
-                quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>)
-            }
-            InterpolateKey::Component(_) => {
-                quote!(l_i18n_crate::__private::InterpolateComp)
-            }
-        }
-    }
-
-    pub fn get_string_generic(&self) -> Result<TokenStream, PluralType> {
-        match self {
-            InterpolateKey::Count(t) => Err(*t),
-            InterpolateKey::Variable(_) => Ok(quote!(core::fmt::Display)),
-            InterpolateKey::Component(_) => Ok(quote!(l_i18n_crate::display::DisplayComponent)),
-        }
-    }
-}
-
-impl ToTokens for InterpolateKey {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.as_ident().to_tokens(tokens)
-    }
-}
-
 impl ToTokens for ParsedValue {
     fn to_token_stream(&self) -> TokenStream {
         let mut tokens = Vec::new();
-        self.flatten(&mut tokens);
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        self.flatten(&mut tokens, &locale_field);
 
         match &tokens[..] {
             [] => quote!(leptos::View::default()),
@@ -806,7 +856,10 @@ mod tests {
             value,
             ParsedValue::Bloc(vec![
                 ParsedValue::String("before ".to_string()),
-                ParsedValue::Variable(new_key("var_var")),
+                ParsedValue::Variable {
+                    key: new_key("var_var"),
+                    formatter: Formatter::None
+                },
                 ParsedValue::String(" after".to_string())
             ])
         )

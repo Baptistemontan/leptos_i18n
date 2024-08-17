@@ -9,17 +9,16 @@ pub mod cfg_file;
 pub mod declare_locales;
 pub mod error;
 pub mod interpolate;
-pub mod key;
 pub mod locale;
 pub mod parsed_value;
 pub mod plural;
 pub mod tracking;
 pub mod warning;
 
+use crate::utils::key::{Key, KeyPath};
 use cfg_file::ConfigFile;
 use error::{Error, Result};
-use interpolate::{create_empty_type, Interpolation};
-use key::{Key, KeyPath};
+use interpolate::Interpolation;
 use locale::{Locale, LocaleValue};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -220,15 +219,15 @@ fn create_locales_enum(
         })
         .collect::<Vec<_>>();
 
-    let const_langids = constant_names_ident
+    let const_icu_locales = constant_names_ident
         .iter()
         .map(|(key, ident)| {
             let locale = &key.name;
-            quote!(const #ident: &'static l_i18n_crate::__private::unic_langid::LanguageIdentifier = &l_i18n_crate::__private::unic_langid::langid!(#locale);)
+            quote!(const #ident: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!(#locale);)
         })
         .collect::<Vec<_>>();
 
-    let as_langid_match_arms = constant_names_ident
+    let as_icu_locale_match_arms = constant_names_ident
         .iter()
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
@@ -261,12 +260,12 @@ fn create_locales_enum(
                 }
             }
 
-            fn as_langid(self) -> &'static l_i18n_crate::__private::unic_langid::LanguageIdentifier {
+            fn as_icu_locale(self) -> &'static l_i18n_crate::__private::locid::Locale {
                 #(
-                    #const_langids;
+                    #const_icu_locales;
                 )*
                 match self {
-                    #(#as_langid_match_arms,)*
+                    #(#as_icu_locale_match_arms,)*
                 }
             }
 
@@ -294,9 +293,21 @@ fn create_locales_enum(
             }
         }
 
-        impl core::convert::AsRef<l_i18n_crate::__private::unic_langid::LanguageIdentifier> for #enum_ident {
-            fn as_ref(&self) -> &l_i18n_crate::__private::unic_langid::LanguageIdentifier {
+        impl core::convert::AsRef<l_i18n_crate::__private::locid::LanguageIdentifier> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::__private::locid::LanguageIdentifier {
                 l_i18n_crate::Locale::as_langid(*self)
+            }
+        }
+
+        impl core::convert::AsRef<l_i18n_crate::__private::locid::Locale> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::__private::locid::Locale {
+                l_i18n_crate::Locale::as_icu_locale(*self)
+            }
+        }
+
+        impl core::convert::AsRef<str> for #enum_ident {
+            fn as_ref(&self) -> &str {
+                l_i18n_crate::Locale::as_str(*self)
             }
         }
 
@@ -492,13 +503,10 @@ fn create_locale_type_inner(
     let builder_impls = builders.iter().map(|(_, inter)| &inter.imp);
 
     let builder_module = builders.is_empty().not().then(move || {
-        let empty_type = create_empty_type();
         quote! {
             #[doc(hidden)]
             pub mod builders {
                 use super::{#enum_ident, l_i18n_crate};
-
-                #empty_type
 
                 #(
                     #builder_impls

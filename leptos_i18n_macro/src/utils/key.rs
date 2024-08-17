@@ -1,9 +1,13 @@
-use super::error::{Error, Result};
+use crate::load_locales::error::{Error, Result};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     rc::Rc,
 };
+
+thread_local! {
+    pub static CACHED_PLURAL_COUNT_KEY: Rc<Key> = Rc::new(Key::new("var_count").unwrap());
+}
 
 #[derive(Clone)]
 pub struct Key {
@@ -30,6 +34,18 @@ impl PartialEq for Key {
 }
 
 impl Eq for Key {}
+
+impl PartialOrd for Key {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Key {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
+}
 
 impl Key {
     pub fn new(name: &str) -> Option<Self> {

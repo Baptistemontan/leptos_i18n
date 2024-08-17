@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 #[cfg(not(feature = "nightly"))]
 use quote::{format_ident, quote};
 
-use super::key::{Key, KeyPath};
+use crate::utils::key::{Key, KeyPath};
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 #[derive(Debug)]

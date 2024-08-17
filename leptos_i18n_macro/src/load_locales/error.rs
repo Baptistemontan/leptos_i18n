@@ -1,10 +1,7 @@
 use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
 
-use super::{
-    key::{Key, KeyPath},
-    locale::SerdeError,
-    plural::PluralType,
-};
+use super::{locale::SerdeError, plural::PluralType};
+use crate::utils::key::{Key, KeyPath};
 use quote::quote;
 
 #[derive(Debug)]

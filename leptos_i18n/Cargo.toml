@@ -12,13 +12,15 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_macro = { workspace = true }
-leptos = "0.6"
-leptos_meta = "0.6"
-leptos_router = "0.6"
-leptos-use = "0.11"
+leptos = "0.6.14"
+leptos_meta = "0.6.14"
+leptos_router = "0.6.14"
+leptos-use = "0.12"
 codee = "0.1"
-unic-langid = { version = "0.9", features = ["macros"] }
+icu = "1.5"
 typed-builder = "0.19"
+fixed_decimal = { version = "0.5", features = ["ryu"] }
+writeable = "0.5"
 
 [features]
 default = ["cookie", "json_files"]
@@ -27,8 +29,21 @@ cookie = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
+ssr = [
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos-use/ssr",
+    "leptos_router/ssr",
+    "sync",
+]
 csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
+experimental-islands = [
+    "leptos/experimental-islands",
+    "leptos_i18n_macro/experimental-islands",
+]
+sync = ["icu/sync"]
+
+# macro features
 serde = ["leptos_i18n_macro/serde"]
 debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
@@ -36,10 +51,6 @@ json_files = ["leptos_i18n_macro/json_files"]
 yaml_files = ["leptos_i18n_macro/yaml_files"]
 interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 track_locale_files = ["leptos_i18n_macro/track_locale_files"]
-experimental-islands = [
-    "leptos/experimental-islands",
-    "leptos_i18n_macro/experimental-islands",
-]
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
 

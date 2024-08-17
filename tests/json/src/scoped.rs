@@ -7,18 +7,18 @@ fn subkey_3() {
     let fr_scope = scope_locale!(Locale::fr, subkeys);
 
     let count = || 0;
-    let en = tdbg!(en_scope, subkey_3, $ = count);
+    let en = td!(en_scope, subkey_3, $ = count);
     assert_eq_rendered!(en, "zero");
-    let fr = tdbg!(fr_scope, subkey_3, $ = count);
+    let fr = td!(fr_scope, subkey_3, $ = count);
     assert_eq_rendered!(fr, "0");
     let count = || 1;
-    let en = tdbg!(en_scope, subkey_3, $ = count);
+    let en = td!(en_scope, subkey_3, $ = count);
     assert_eq_rendered!(en, "one");
-    let fr = tdbg!(fr_scope, subkey_3, $ = count);
+    let fr = td!(fr_scope, subkey_3, $ = count);
     assert_eq_rendered!(fr, "1");
     let count = || 3;
-    let en = tdbg!(en_scope, subkey_3, $ = count);
+    let en = td!(en_scope, subkey_3, $ = count);
     assert_eq_rendered!(en, "3");
-    let fr = tdbg!(fr_scope, subkey_3, $ = count);
+    let fr = td!(fr_scope, subkey_3, $ = count);
     assert_eq_rendered!(fr, "3");
 }
