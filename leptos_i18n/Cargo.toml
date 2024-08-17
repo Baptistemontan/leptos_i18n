@@ -29,7 +29,13 @@ cookie = []
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
-ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr", "sync"]
+ssr = [
+    "leptos/ssr",
+    "leptos_meta/ssr",
+    "leptos-use/ssr",
+    "leptos_router/ssr",
+    "sync",
+]
 csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
 experimental-islands = [
     "leptos/experimental-islands",
