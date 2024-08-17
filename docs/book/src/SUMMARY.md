@@ -13,6 +13,7 @@
   - [Subkeys](./declare/04_subkeys.md)
   - [Foreign keys](./declare/05_foreign_keys.md)
   - [Mixing Kinds](./declare/06_mix_kinds.md)
+  - [Formatters](./declare/07_formatters.md)
 - [Use Translations](./usage/README.md)
   - [Load The Translations](./usage/01_load.md)
   - [`I18nContext`](./usage/02_context.md)
