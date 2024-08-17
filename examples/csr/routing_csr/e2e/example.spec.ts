@@ -61,6 +61,7 @@ test.describe("when locale is the default locale (en-GB)", () => {
   test("main check", ({ page, i18n }) => main_check(page, i18n));
   test("history check", ({ page, i18n }) => history_check(page, i18n));
   test("counter check", ({ page, i18n }) => counter_check(page, i18n));
+  test("redirection check", ({ page, i18n }) => redirection_check(page, i18n));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
@@ -164,5 +165,23 @@ async function counter_check(page: Page, i18n: I18n) {
 
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
     i18n.t("click_count", { count: 3 })
+  );
+}
+
+async function redirection_check(page: Page, i18n: I18n) {
+  await page.goto("/en/counter");
+
+  await expect(page).toHaveURL("/en/counter");
+
+  await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
+    i18n.t("click_to_change_lang")
+  );
+
+  await switch_lang(i18n);
+
+  await expect(page).toHaveURL("/fr/counter");
+
+  await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
+    i18n.t("click_to_change_lang")
   );
 }

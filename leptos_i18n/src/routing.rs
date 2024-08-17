@@ -53,12 +53,11 @@ fn get_new_path<L: Locale>(
         if let Some(path_rest) = path_name.strip_prefix(base_path) {
             match locale {
                 None => path_builder.push(path_rest),
-                Some(l) if l == L::default() => path_builder.push(path_rest),
                 Some(l) => {
                     if let Some(path_rest) = path_rest.strip_prefix(l.as_str()) {
                         path_builder.push(path_rest)
                     } else {
-                        path_builder.push(path_rest) //? Should'nt happen tho
+                        path_builder.push(path_rest) // Should happen only if l == L::default()
                     }
                 }
             }
