@@ -103,9 +103,9 @@ impl_length!(TimeLength, "time_length", Time);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListType {
-    #[default]
     And,
     Or,
+    #[default]
     Unit,
 }
 

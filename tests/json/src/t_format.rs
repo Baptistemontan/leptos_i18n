@@ -9,7 +9,7 @@ fn list_formatting() {
     let list = move || ["A", "B", "C"];
 
     let en = td_format!(Locale::en, list, formatter: list);
-    assert_eq_rendered!(en, "A, B, and C");
+    assert_eq_rendered!(en, "A, B, C");
     let fr = td_format!(Locale::fr, list, formatter: list(list_type: or));
     assert_eq_rendered!(fr, "A, B ou C");
 }
@@ -20,8 +20,8 @@ fn date_formatting() {
 
     let en = td_format!(Locale::en, date, formatter: date);
     assert_eq_rendered!(en, "Jan 2, 1970");
-    let fr = td_format!(Locale::fr, date, formatter: date);
-    assert_eq_rendered!(fr, "2 janv. 1970");
+    let fr = td_format!(Locale::fr, date, formatter: date(date_length: full));
+    assert_eq_rendered!(fr, "vendredi 2 janvier 1970");
 }
 
 #[test]
