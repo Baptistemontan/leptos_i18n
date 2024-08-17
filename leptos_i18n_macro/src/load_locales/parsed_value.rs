@@ -13,7 +13,8 @@ use super::{
     error::{Error, Result},
     interpolate::CACHED_LOCALE_FIELD_KEY,
     locale::{Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
-    plural::{PluralType, Plurals},
+    plurals::Plurals,
+    ranges::{RangeType, Ranges},
 };
 
 use crate::utils::key::{Key, KeyPath, CACHED_PLURAL_COUNT_KEY};
@@ -33,7 +34,7 @@ pub enum ParsedValue {
     #[default]
     Default,
     ForeignKey(RefCell<ForeignKey>),
-    Plural(Plurals),
+    Ranges(Ranges),
     String(String),
     Variable {
         key: Rc<Key>,
@@ -45,12 +46,13 @@ pub enum ParsedValue {
     },
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
+    Plurals(Plurals),
 }
 
 #[derive(Debug, Default)]
 pub struct VarInfo {
     pub formatters: HashSet<Formatter>,
-    pub plural_count: Option<PluralType>,
+    pub range_count: Option<RangeType>,
 }
 
 #[derive(Debug, Default)]
@@ -69,11 +71,11 @@ impl InterpolationKeys {
         self.components.insert(key);
     }
 
-    pub fn push_count(&mut self, key_path: &mut KeyPath, ty: PluralType) -> Result<()> {
+    pub fn push_count(&mut self, key_path: &mut KeyPath, ty: RangeType) -> Result<()> {
         let key = CACHED_PLURAL_COUNT_KEY.with(Clone::clone);
         let var_infos = self.variables.entry(key).or_default();
-        match var_infos.plural_count.replace(ty) {
-            Some(old) if old != ty => Err(Error::PluralTypeMissmatch {
+        match var_infos.range_count.replace(ty) {
+            Some(old) if old != ty => Err(Error::RangeTypeMissmatch {
                 key_path: std::mem::take(key_path),
                 type1: old,
                 type2: ty,
@@ -152,9 +154,9 @@ impl ParsedValue {
                     );
                 }
             }
-            ParsedValue::Plural(_) => {
+            ParsedValue::Ranges(_) => {
                 return Err(Error::Custom(format!(
-                    "foreign key to plurals is not supported yet, at key {} in locale {:?}",
+                    "foreign key to ranges is not supported yet, at key {} in locale {:?}",
                     key_path, top_locale
                 )))
             }
@@ -181,7 +183,7 @@ impl ParsedValue {
         match self {
             ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
-            ParsedValue::Plural(inner) => {
+            ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
             }
             ParsedValue::Component { inner, .. } => {
@@ -208,6 +210,12 @@ impl ParsedValue {
                     default_locale,
                     path,
                 )
+            }
+            ParsedValue::Plurals(Plurals { forms, other }) => {
+                for value in forms.values() {
+                    value.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                }
+                other.resolve_foreign_key(values, top_locale, default_locale, path)
             }
         }
     }
@@ -239,11 +247,13 @@ impl ParsedValue {
                 .map(|value| value.populate(args, foreign_key, locale, key_path))
                 .collect::<Result<_>>()
                 .map(ParsedValue::Bloc),
-            ParsedValue::Subkeys(_) | ParsedValue::Plural(_) => Err(Error::InvalidForeignKey {
-                foreign_key: foreign_key.to_owned(),
-                locale: Rc::clone(locale),
-                key_path: key_path.to_owned(),
-            }),
+            ParsedValue::Subkeys(_) | ParsedValue::Ranges(_) | ParsedValue::Plurals { .. } => {
+                Err(Error::InvalidForeignKey {
+                    foreign_key: foreign_key.to_owned(),
+                    locale: Rc::clone(locale),
+                    key_path: key_path.to_owned(),
+                })
+            }
         }
     }
 
@@ -268,17 +278,23 @@ impl ParsedValue {
                     value.get_keys_inner(key_path, keys)?;
                 }
             }
-            ParsedValue::Plural(plurals) => {
-                plurals.get_keys_inner(key_path, keys)?;
-                let plural_type = plurals.get_type();
+            ParsedValue::Ranges(ranges) => {
+                ranges.get_keys_inner(key_path, keys)?;
+                let range_type = ranges.get_type();
                 keys.get_or_insert_with(Default::default)
-                    .push_count(key_path, plural_type)?;
+                    .push_count(key_path, range_type)?;
             }
             ParsedValue::ForeignKey(foreign_key) => {
                 foreign_key
                     .borrow()
                     .as_inner("get_keys_inner")
                     .get_keys_inner(key_path, keys)?;
+            }
+            ParsedValue::Plurals(Plurals { forms, other }) => {
+                for value in forms.values() {
+                    value.get_keys_inner(key_path, keys)?;
+                }
+                other.get_keys_inner(key_path, keys)?;
             }
         }
         Ok(())
@@ -352,7 +368,7 @@ impl ParsedValue {
             (
                 ParsedValue::Bloc(_)
                 | ParsedValue::Component { .. }
-                | ParsedValue::Plural(_)
+                | ParsedValue::Ranges(_)
                 | ParsedValue::String(_)
                 | ParsedValue::Variable { .. }
                 | ParsedValue::ForeignKey(_),
@@ -550,11 +566,13 @@ impl ParsedValue {
                 let value = std::mem::take(value);
                 *self = value;
             }
-            ParsedValue::Plural(plurals) => {
-                let _: Result<_, ()> = plurals.try_for_each_value_mut(|value| {
-                    value.reduce();
-                    Ok(())
-                });
+            ParsedValue::Ranges(ranges) => {
+                ranges
+                    .try_for_each_value_mut::<_, core::convert::Infallible>(|value| {
+                        value.reduce();
+                        Ok(())
+                    })
+                    .unwrap();
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
             ParsedValue::Subkeys(Some(subkeys)) => {
@@ -576,14 +594,20 @@ impl ParsedValue {
                     _ => {}
                 }
             }
+            ParsedValue::Plurals(Plurals { forms, other }) => {
+                for value in forms.values_mut().chain(Some(&mut **other)) {
+                    value.reduce();
+                }
+            }
         }
     }
 
     pub fn reduce_into(self, bloc: &mut Vec<Self>) {
         match self {
-            ParsedValue::Default => {}    // default in a bloc ? skip
-            ParsedValue::Plural(_) => {}  // same for plural, can't be in a bloc
-            ParsedValue::Subkeys(_) => {} // same for subkeys
+            ParsedValue::Default => {}        // default in a bloc ? skip
+            ParsedValue::Ranges(_) => {}      // same for ranges, can't be in a bloc
+            ParsedValue::Subkeys(_) => {}     // same for subkeys
+            ParsedValue::Plurals { .. } => {} // same for plurals
             ParsedValue::ForeignKey(foreign_key) => {
                 foreign_key
                     .into_inner()
@@ -620,7 +644,7 @@ impl ParsedValue {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
-            ParsedValue::Plural(plurals) => tokens.push(plurals.to_token_stream()),
+            ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
@@ -653,6 +677,10 @@ impl ParsedValue {
                 .borrow()
                 .as_inner("flatten")
                 .flatten(tokens, locale_field),
+            ParsedValue::Plurals(Plurals { forms, other }) => {
+                let _ = (forms, other);
+                todo!()
+            }
         }
     }
 
@@ -661,7 +689,7 @@ impl ParsedValue {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::String(s) if s.is_empty() => {}
             ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
-            ParsedValue::Plural(plurals) => tokens.push(plurals.as_string_impl()),
+            ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_fmt(key, locale_field);
                 tokens.push(ts);
@@ -679,6 +707,10 @@ impl ParsedValue {
                 .borrow()
                 .as_inner("flatten_string")
                 .flatten_string(tokens, locale_field),
+            ParsedValue::Plurals(Plurals { forms, other }) => {
+                let _ = (forms, other);
+                todo!()
+            }
         }
     }
 
@@ -739,7 +771,7 @@ impl ToTokens for ParsedValue {
 #[derive(Debug, Clone, Copy)]
 pub struct ParsedValueSeed<'a> {
     pub top_locale_name: &'a Rc<Key>,
-    pub in_plural: bool,
+    pub in_range: bool,
     pub key_path: &'a KeyPath,
     pub key: &'a Rc<Key>,
 }
@@ -769,8 +801,8 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         A: serde::de::MapAccess<'de>,
     {
-        if self.in_plural {
-            return Err(serde::de::Error::custom(Error::PluralSubkeys));
+        if self.in_range {
+            return Err(serde::de::Error::custom(Error::RangeSubkeys));
         }
 
         let map_de = MapAccessDeserializer::new(map);
@@ -795,15 +827,15 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         A: serde::de::SeqAccess<'de>,
     {
-        // nested plurals are not allowed, the code technically supports it,
+        // nested ranges are not allowed, the code technically supports it,
         // but it's pointless and probably nobody will ever needs it.
-        if std::mem::replace(&mut self.in_plural, true) {
-            return Err(serde::de::Error::custom(Error::NestedPlurals));
+        if std::mem::replace(&mut self.in_range, true) {
+            return Err(serde::de::Error::custom(Error::NestedRanges));
         }
-        let plurals = Plurals::from_serde_seq(map, self)?;
+        let ranges = Ranges::from_serde_seq(map, self)?;
 
         let (invalid_fallback, fallback_count, should_have_fallback) =
-            plurals.check_deserialization();
+            ranges.check_deserialization();
 
         if invalid_fallback {
             Err(serde::de::Error::custom(Error::InvalidFallback))
@@ -811,17 +843,17 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             Err(serde::de::Error::custom(Error::MultipleFallbacks))
         } else if fallback_count == 0 && should_have_fallback {
             Err(serde::de::Error::custom(Error::MissingFallback(
-                plurals.get_type(),
+                ranges.get_type(),
             )))
         } else {
-            Ok(ParsedValue::Plural(plurals))
+            Ok(ParsedValue::Ranges(ranges))
         }
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             formatter,
-            "either a string, a sequence of plurals or a map of subkeys"
+            "either a string, a sequence of ranges or a map of subkeys"
         )
     }
 }

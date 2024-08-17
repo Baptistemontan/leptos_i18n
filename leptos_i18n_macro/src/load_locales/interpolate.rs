@@ -6,7 +6,7 @@ use quote::quote;
 use quote::ToTokens;
 
 use super::parsed_value::InterpolationKeys;
-use super::plural::PluralType;
+use super::ranges::RangeType;
 use super::{locale::Locale, parsed_value::ParsedValue};
 use crate::utils::formatter::Formatter;
 use crate::utils::key::{Key, KeyPath};
@@ -39,7 +39,7 @@ pub struct Interpolation {
 enum VarOrComp {
     Var {
         formatters: Vec<Formatter>,
-        plural: Option<PluralType>,
+        range: Option<RangeType>,
     },
     Comp {
         into_view: syn::Ident,
@@ -56,12 +56,12 @@ impl Field {
     fn get_var_generics(
         generic: &syn::Ident,
         formatters: &[Formatter],
-        plural: Option<PluralType>,
+        range: Option<RangeType>,
     ) -> TokenStream {
         let bounds = formatters.iter().copied().map(Formatter::to_bound);
-        let plural_bound = plural
-            .map(|plural_type| quote!(l_i18n_crate::__private::InterpolateCount<#plural_type>));
-        let bounds = bounds.chain(plural_bound);
+        let range_bound =
+            range.map(|range_type| quote!(l_i18n_crate::__private::InterpolateCount<#range_type>));
+        let bounds = bounds.chain(range_bound);
 
         quote!(#generic: 'static + ::core::clone::Clone #(+ #bounds)*)
     }
@@ -69,9 +69,9 @@ impl Field {
     fn get_string_var_generics(
         generic: &syn::Ident,
         formatters: &[Formatter],
-        plural: Option<PluralType>,
+        range: Option<RangeType>,
     ) -> Option<TokenStream> {
-        if plural.is_some() {
+        if range.is_some() {
             return None;
         }
         let bounds = formatters.iter().copied().map(Formatter::to_string_bound);
@@ -82,8 +82,8 @@ impl Field {
     pub fn as_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
-            VarOrComp::Var { formatters, plural } => {
-                let ts = Self::get_var_generics(generic, formatters, *plural);
+            VarOrComp::Var { formatters, range } => {
+                let ts = Self::get_var_generics(generic, formatters, *range);
                 EitherIter::Iter1(std::iter::once(ts))
             }
             VarOrComp::Comp { into_view } => {
@@ -99,8 +99,8 @@ impl Field {
     pub fn as_string_bounded_generic(&self) -> Option<TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
-            VarOrComp::Var { formatters, plural } => {
-                Self::get_string_var_generics(generic, formatters, *plural)
+            VarOrComp::Var { formatters, range } => {
+                Self::get_string_var_generics(generic, formatters, *range)
             }
             VarOrComp::Comp { .. } => {
                 Some(quote!(#generic: l_i18n_crate::display::DisplayComponent))
@@ -119,11 +119,11 @@ impl Field {
     pub fn as_string_right_generics(&self) -> impl Iterator<Item = TokenStream> {
         let generic = std::iter::once(self.generic.to_token_stream());
         match &self.var_or_comp {
-            VarOrComp::Var { plural: None, .. } => EitherIter::Iter1(generic),
+            VarOrComp::Var { range: None, .. } => EitherIter::Iter1(generic),
             VarOrComp::Var {
-                plural: Some(plural_type),
+                range: Some(range_type),
                 ..
-            } => EitherIter::Iter1(std::iter::once(quote!(#plural_type))),
+            } => EitherIter::Iter1(std::iter::once(quote!(#range_type))),
             VarOrComp::Comp { .. } => EitherIter::Iter2(generic.chain(Some(quote!(())))),
         }
     }
@@ -131,10 +131,10 @@ impl Field {
     pub fn as_string_builder_marker(&self) -> TokenStream {
         match &self.var_or_comp {
             VarOrComp::Var {
-                plural: Some(plural_type),
+                range: Some(range_type),
                 ..
-            } => quote!(#plural_type),
-            VarOrComp::Var { plural: None, .. } | VarOrComp::Comp { .. } => {
+            } => quote!(#range_type),
+            VarOrComp::Var { range: None, .. } | VarOrComp::Comp { .. } => {
                 self.generic.to_token_stream()
             }
         }
@@ -160,9 +160,9 @@ impl Interpolation {
             formatters.sort_unstable();
             let var_or_comp = VarOrComp::Var {
                 formatters,
-                plural: infos.plural_count,
+                range: infos.range_count,
             };
-            let key = match infos.plural_count {
+            let key = match infos.range_count {
                 Some(_) => Rc::new(Key::new("plural_count").unwrap()),
                 None => key,
             };
@@ -455,18 +455,12 @@ impl Interpolation {
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, default_match);
 
-        let plural = fields.iter().any(|field| {
-            matches!(
-                field.var_or_comp,
-                VarOrComp::Var {
-                    plural: Some(_),
-                    ..
-                }
-            )
-        });
+        let range = fields
+            .iter()
+            .any(|field| matches!(field.var_or_comp, VarOrComp::Var { range: Some(_), .. }));
 
         let var_count =
-            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
+            range.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -518,18 +512,12 @@ impl Interpolation {
 
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
 
-        let plural = fields.iter().any(|field| {
-            matches!(
-                field.var_or_comp,
-                VarOrComp::Var {
-                    plural: Some(_),
-                    ..
-                }
-            )
-        });
+        let range = fields
+            .iter()
+            .any(|field| matches!(field.var_or_comp, VarOrComp::Var { range: Some(_), .. }));
 
         let var_count =
-            plural.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
+            range.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
 
         quote! {
             #[allow(non_camel_case_types)]

@@ -1,3 +1,5 @@
+use quote::format_ident;
+
 use crate::load_locales::error::{Error, Result};
 use std::{
     fmt::{Debug, Display},
@@ -56,6 +58,11 @@ impl Key {
             name: name.to_string(),
             ident,
         })
+    }
+
+    pub fn from_unchecked_string(name: String) -> Self {
+        let ident = format_ident!("{}", name);
+        Key { name, ident }
     }
 
     pub fn from_ident(ident: syn::Ident) -> Key {
