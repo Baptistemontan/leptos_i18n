@@ -1,11 +1,8 @@
 use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
 
-use super::{
-    locale::SerdeError,
-    plural::PluralType,
-};
-use quote::quote;
+use super::{locale::SerdeError, plural::PluralType};
 use crate::utils::key::{Key, KeyPath};
+use quote::quote;
 
 #[derive(Debug)]
 pub enum Error {

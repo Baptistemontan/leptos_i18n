@@ -445,7 +445,7 @@ pub fn I18nSubContextProvider<L: Locale>(
 }
 
 /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
-/// 
+///
 /// Like `I18nSubContextProvider` but can be given a `root_element: NodeRef` to set the `"lang"` attribute on.
 /// (That attribute will not be set on ssr, only on the client.)
 #[leptos::component]
