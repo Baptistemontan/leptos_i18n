@@ -16,3 +16,6 @@ mod scoped;
 mod subkeys;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod t_format;
