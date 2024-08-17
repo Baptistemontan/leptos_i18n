@@ -24,17 +24,6 @@ impl PluralForm {
             _ => None,
         }
     }
-
-    pub fn to_str(self) -> &'static str {
-        match self {
-            PluralForm::Zero => "zero",
-            PluralForm::One => "one",
-            PluralForm::Two => "two",
-            PluralForm::Few => "few",
-            PluralForm::Many => "many",
-            PluralForm::Other => "other",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
