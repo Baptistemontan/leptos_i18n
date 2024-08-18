@@ -34,7 +34,7 @@ macro_rules! nested_result_try {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForeignKey {
-    NotSet(KeyPath, HashMap<String, String>),
+    NotSet(KeyPath, HashMap<String, ParsedValue>),
     Set(Box<ParsedValue>),
 }
 
@@ -141,6 +141,7 @@ impl ParsedValue {
     ) -> Result<()> {
         FOREIGN_KEYS.with(|foreign_keys| {
             let set = foreign_keys.borrow();
+            #[allow(clippy::never_loop)]
             for (locale, value_path) in &*set {
                 let value = values.get_value_at(locale, value_path).unwrap();
                 value.resolve_foreign_key(values, locale, default_locale, value_path)?;
@@ -255,7 +256,7 @@ impl ParsedValue {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, String>,
+        args: &HashMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -265,7 +266,7 @@ impl ParsedValue {
                 Ok(self.clone())
             }
             ParsedValue::Variable { key, formatter } => match args.get(&key.name) {
-                Some(value) => Ok(ParsedValue::String(value.to_owned())),
+                Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
                     key: Rc::clone(key),
                     formatter: *formatter,
@@ -349,17 +350,18 @@ impl ParsedValue {
     }
 
     pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Result<Self> {
-        // look for component
-        if let Some(component) = Self::find_component(value, key_path, locale) {
-            return component;
+        let parsed_value = [
+            Self::find_component,
+            Self::find_variable,
+            Self::find_foreign_key,
+        ]
+        .into_iter()
+        .find_map(|f| f(value, key_path, locale));
+        if let Some(parsed_value) = parsed_value {
+            parsed_value
+        } else {
+            Ok(ParsedValue::String(value.to_string()))
         }
-        // else look for variables
-        if let Some(variable) = Self::find_variable(value, key_path, locale) {
-            return variable;
-        }
-
-        // else it's just a string
-        Ok(ParsedValue::String(value.to_string()))
     }
 
     pub fn make_locale_value(&mut self, key_path: &mut KeyPath) -> Result<LocaleValue> {
@@ -418,54 +420,6 @@ impl ParsedValue {
         }
     }
 
-    fn parse_key_path(path: &str) -> Option<KeyPath> {
-        let (mut key_path, path) = if let Some((namespace, rest)) = path.split_once("::") {
-            let namespace = Key::new(namespace)?;
-
-            (KeyPath::new(Some(Rc::new(namespace))), rest)
-        } else {
-            (KeyPath::new(None), path)
-        };
-
-        for key in path.split('.') {
-            let key = Key::new(key)?;
-            key_path.push_key(Rc::new(key));
-        }
-
-        Some(key_path)
-    }
-
-    fn parse_foreign_key(ident: &str, locale: &Rc<Key>, key_path: &KeyPath) -> Option<Self> {
-        let ident = ident.strip_prefix('@')?;
-        let mut splitted = ident.split(',');
-        let path = splitted.next()?;
-
-        let foreign_key_path = Self::parse_key_path(path)?;
-        FOREIGN_KEYS.with(|foreign_keys| {
-            foreign_keys
-                .borrow_mut()
-                .insert((Rc::clone(locale), key_path.clone()))
-        });
-
-        let mut args = HashMap::new();
-        const QUOTES: &[char] = &['"', '\''];
-
-        for arg in splitted {
-            let (ident, value) = arg.split_once('=')?;
-            let mut key = String::from("var_");
-            key.push_str(ident.trim());
-
-            let value = value.trim().strip_prefix(QUOTES)?;
-            let value = value.strip_suffix(QUOTES)?;
-            args.insert(key, value.to_owned());
-        }
-
-        Some(ParsedValue::ForeignKey(RefCell::new(ForeignKey::NotSet(
-            foreign_key_path,
-            args,
-        ))))
-    }
-
     fn parse_formatter_args(s: &str) -> (&str, Option<Vec<(&str, &str)>>) {
         let Some((name, rest)) = s.split_once('(') else {
             return (s.trim(), None);
@@ -496,34 +450,129 @@ impl ParsedValue {
         }
     }
 
+    fn parse_key_path(path: &str) -> Option<KeyPath> {
+        let (mut key_path, path) = if let Some((namespace, rest)) = path.split_once(':') {
+            let namespace = Key::new(namespace)?;
+
+            (KeyPath::new(Some(Rc::new(namespace))), rest)
+        } else {
+            (KeyPath::new(None), path)
+        };
+
+        for key in path.split('.') {
+            let key = Key::new(key)?;
+            key_path.push_key(Rc::new(key));
+        }
+
+        Some(key_path)
+    }
+
+    fn parse_foreign_key_args_inner(
+        s: &str,
+        key_path: &KeyPath,
+        locale: &Rc<Key>,
+    ) -> Result<HashMap<String, ParsedValue>> {
+        let args = match serde_json::from_str::<HashMap<String, String>>(s) {
+            Ok(args) => args,
+            Err(err) => {
+                return Err(Error::InvalidForeignKeyArgs {
+                    locale: Rc::clone(locale),
+                    key_path: key_path.clone(),
+                    err,
+                })
+            }
+        };
+        let mut parsed_args = HashMap::new();
+
+        for (key, arg) in args {
+            let parsed_value = Self::new(&arg, key_path, locale)?;
+            let key = format!("var_{}", key.trim());
+            parsed_args.insert(key, parsed_value);
+        }
+
+        Ok(parsed_args)
+    }
+
+    fn parse_foreign_key_args<'a>(
+        s: &'a str,
+        key_path: &KeyPath,
+        locale: &Rc<Key>,
+    ) -> Result<(HashMap<String, ParsedValue>, &'a str)> {
+        let mut depth = 0usize;
+        let mut index = 0usize;
+
+        for (i, c) in s.char_indices() {
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    let depth = match depth.checked_sub(1) {
+                        Some(v) => v,
+                        None => todo!(),
+                    };
+                    if depth == 0 {
+                        index = i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let (before, after) = s.split_at(index + '}'.len_utf8());
+
+        let Some(after) = after.trim_start().strip_prefix(')') else {
+            todo!()
+        };
+
+        let args = Self::parse_foreign_key_args_inner(before, key_path, locale)?;
+
+        Ok((args, after))
+    }
+
+    fn find_foreign_key(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Result<Self>> {
+        let (before, rest) = value.split_once("$t(")?;
+        let next_split = rest.find([',', ')'])?;
+        let keypath = rest.get(..next_split)?;
+        let sep = rest[next_split..].chars().next()?;
+        let after = rest.get(next_split + sep.len_utf8()..)?;
+        let target_key_path = Self::parse_key_path(keypath)?;
+
+        let (args, after) = if sep == ',' {
+            nested_result_try!(Self::parse_foreign_key_args(after, key_path, locale))
+        } else {
+            (HashMap::new(), after)
+        };
+
+        let this = ParsedValue::ForeignKey(RefCell::new(ForeignKey::new(
+            key_path.clone(),
+            target_key_path,
+            args,
+            locale,
+        )));
+        let before = nested_result_try!(Self::new(before, key_path, locale));
+        let after = nested_result_try!(Self::new(after, key_path, locale));
+
+        Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
+    }
+
     fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Result<Self>> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
         let ident = ident.trim();
 
-        let first_char = ident.chars().next()?;
-
         let before = nested_result_try!(Self::new(before, key_path, locale));
         let after = nested_result_try!(Self::new(after, key_path, locale));
 
-        let this = match first_char {
-            // foreign key
-            '@' => Self::parse_foreign_key(ident, locale, key_path)?,
-            // variable key
-            _ => {
-                if let Some((ident, formatter)) = ident.split_once(',') {
-                    let formatter =
-                        nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
-                    let key = Rc::new(Key::new(&format!("var_{}", ident))?);
-                    ParsedValue::Variable { key, formatter }
-                } else {
-                    let key = Rc::new(Key::new(&format!("var_{}", ident))?);
-                    ParsedValue::Variable {
-                        key,
-                        formatter: Formatter::None,
-                    }
-                }
+        let this = if let Some((ident, formatter)) = ident.split_once(',') {
+            let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
+            let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+            ParsedValue::Variable { key, formatter }
+        } else {
+            let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+            ParsedValue::Variable {
+                key,
+                formatter: Formatter::None,
             }
         };
 
@@ -766,23 +815,37 @@ impl ParsedValue {
 }
 
 impl ForeignKey {
+    pub fn new(
+        current_key_path: KeyPath,
+        target_key_path: KeyPath,
+        args: HashMap<String, ParsedValue>,
+        locale: &Rc<Key>,
+    ) -> Self {
+        FOREIGN_KEYS.with(|foreign_keys| {
+            foreign_keys
+                .borrow_mut()
+                .insert((Rc::clone(locale), current_key_path))
+        });
+        ForeignKey::NotSet(target_key_path, args)
+    }
+
     pub fn into_inner(self, call_site: &str) -> ParsedValue {
         match self {
-            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
+            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (into_inner).", call_site),
             ForeignKey::Set(inner) => *inner,
         }
     }
 
     pub fn as_inner(&self, call_site: &str) -> &ParsedValue {
         match self {
-            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
+            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner).", call_site),
             ForeignKey::Set(inner) => inner,
         }
     }
 
     pub fn as_inner_mut(&mut self, call_site: &str) -> &mut ParsedValue {
         match self {
-            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github.", call_site),
+            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner_mut).", call_site),
             ForeignKey::Set(inner) => inner,
         }
     }

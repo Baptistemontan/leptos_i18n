@@ -1,16 +1,16 @@
 {
-    "common_key": "second namespace",
-    "click_count": "You clicked {{ count }} times",
-    "click_to_inc": "Click to increment the counter",
-    "subkeys": {
-        "subkey_1": "subkey_1",
-        "subkey_2": "<b>subkey_2</b>",
-        "subkey_3": [
-            ["zero", "0"],
-            ["one", 1],
-            ["{{ count }}", "_"]
-        ]
-    },
-    "foreign_key_to_same_namespace": "before {{ @second_namespace::common_key }} after",
-    "foreign_key_to_another_namespace": "before {{ @first_namespace::common_key }} after"
+  "common_key": "second namespace",
+  "click_count": "You clicked {{ count }} times",
+  "click_to_inc": "Click to increment the counter",
+  "subkeys": {
+    "subkey_1": "subkey_1",
+    "subkey_2": "<b>subkey_2</b>",
+    "subkey_3": [
+      ["zero", "0"],
+      ["one", 1],
+      ["{{ count }}", "_"]
+    ]
+  },
+  "foreign_key_to_same_namespace": "before $t(second_namespace::common_key) after",
+  "foreign_key_to_another_namespace": "before $t(first_namespace::common_key) after"
 }

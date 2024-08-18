@@ -15,7 +15,7 @@ proc-macro = true
 
 [dependencies]
 serde = { version = "1", features = ["rc"] }
-serde_json = { version = "1", optional = true }
+serde_json = { version = "1" }
 serde_yaml = { version = "0.9", optional = true }
 proc-macro2 = "1"
 quote = "1"
@@ -28,7 +28,7 @@ serde = []
 debug_interpolations = []
 nightly = []
 suppress_key_warnings = []
-json_files = ["serde_json"]
+json_files = []
 yaml_files = ["serde_yaml"]
 interpolate_display = []
 track_locale_files = []

@@ -1,15 +1,15 @@
 {
-    "common_key": "deuxième namespace",
-    "click_count": "Vous avez cliqué {{ count }} fois",
-    "click_to_inc": "Cliquez pour incrémenter le compteur",
-    "subkeys": {
-        "subkey_1": "subkey_1",
-        "subkey_2": "<b>subkey_2</b>",
-        "subkey_3": [
-            ["zero", 0],
-            ["{{ count }}", "_"]
-        ]
-    },
-    "foreign_key_to_same_namespace": "before {{ @second_namespace::common_key }} after",
-    "foreign_key_to_another_namespace": "before {{ @first_namespace::common_key }} after"
+  "common_key": "deuxième namespace",
+  "click_count": "Vous avez cliqué {{ count }} fois",
+  "click_to_inc": "Cliquez pour incrémenter le compteur",
+  "subkeys": {
+    "subkey_1": "subkey_1",
+    "subkey_2": "<b>subkey_2</b>",
+    "subkey_3": [
+      ["zero", 0],
+      ["{{ count }}", "_"]
+    ]
+  },
+  "foreign_key_to_same_namespace": "before $t(second_namespace::common_key) after",
+  "foreign_key_to_another_namespace": "before $(first_namespace::common_key) after"
 }
