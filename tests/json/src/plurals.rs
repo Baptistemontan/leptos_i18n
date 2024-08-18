@@ -2,179 +2,58 @@ use crate::i18n::*;
 use common::*;
 
 #[test]
-fn f32_plural() {
-    // count = 0
-    let count = move || 0.0;
-    let en = td!(Locale::en, f32_plural, $ = count);
-    assert_eq_rendered!(en, "You are broke");
-    let fr = td!(Locale::fr, f32_plural, $ = count);
-    assert_eq_rendered!(fr, "Vous êtes pauvre");
-
-    // count = ..0
-    for i in [-100.34, -57.69, 0.0 - 0.00001] {
-        let count = move || i;
-        let en = td!(Locale::en, f32_plural, $ = count);
-        assert_eq_rendered!(en, "You owe money");
-        let fr = td!(Locale::fr, f32_plural, $ = count);
-        assert_eq_rendered!(fr, "Vous devez de l'argent");
-    }
-
-    // count = _
-    for i in [100.34, 57.69, 0.0 + 0.00001] {
-        let count = move || i;
-        let en = td!(Locale::en, f32_plural, $ = count);
-        assert_eq_rendered!(en, format!("You have {}€", i));
-        let fr = td!(Locale::fr, f32_plural, $ = count);
-        assert_eq_rendered!(fr, format!("Vous avez {}€", i));
-    }
-}
-
-#[test]
-fn u32_plural() {
+fn cardinal_plural() {
     // count = 0
     let count = move || 0;
-    let en = td!(Locale::en, u32_plural, $ = count);
-    assert_eq_rendered!(en, "0");
-    let fr = td!(Locale::fr, u32_plural, $ = count);
+    let en = td!(Locale::en, cardinal_plural, $ = count);
+    assert_eq_rendered!(en, "0 items");
+    let fr = td!(Locale::fr, cardinal_plural, $ = count);
     assert_eq_rendered!(fr, "0");
 
-    // count = 1..
-    for i in [1, 45, 72] {
+    // count = 1
+    let count = move || 1;
+    let en = td!(Locale::en, cardinal_plural, $ = count);
+    assert_eq_rendered!(en, "one item");
+    let fr = td!(Locale::fr, cardinal_plural, $ = count);
+    assert_eq_rendered!(fr, "1");
+
+    // count = 2..
+    for i in [2, 5, 10, 1000] {
         let count = move || i;
-        let en = td!(Locale::en, u32_plural, $ = count);
-        assert_eq_rendered!(en, "1..");
-        let fr = td!(Locale::fr, u32_plural, $ = count);
-        assert_eq_rendered!(fr, "1..");
+        let en = td!(Locale::en, cardinal_plural, $ = count);
+        assert_eq_rendered!(en, format!("{} items", i));
+        let fr = td!(Locale::fr, cardinal_plural, $ = count);
+        assert_eq_rendered!(fr, i.to_string());
     }
 }
 
 #[test]
-fn u32_plural_string() {
-    // count = 0
-    let count = 0;
-    let en = td_string!(Locale::en, u32_plural, $ = count);
-    assert_eq!(en.to_string(), "0");
-    let fr = td_string!(Locale::fr, u32_plural, $ = count);
-    assert_eq!(fr.to_string(), "0");
+fn ordinal_plural() {
+    // count = 1
+    let count = move || 1;
+    let en = td!(Locale::en, ordinal_plural, $ = count);
+    assert_eq_rendered!(en, "1st place");
+    let fr = td!(Locale::fr, ordinal_plural, $ = count);
+    assert_eq_rendered!(fr, "1re place");
 
-    // count = 1..
-    for count in [1, 45, 72] {
-        let en = td_string!(Locale::en, u32_plural, $ = count);
-        assert_eq!(en.to_string(), "1..");
-        let fr = td_string!(Locale::fr, u32_plural, $ = count);
-        assert_eq!(fr.to_string(), "1..");
-    }
-}
+    // count = 2
+    let count = move || 2;
+    let en = td!(Locale::en, ordinal_plural, $ = count);
+    assert_eq_rendered!(en, "2nd place");
+    let fr = td!(Locale::fr, ordinal_plural, $ = count);
+    assert_eq_rendered!(fr, "2e place");
 
-#[test]
-fn or_plural() {
-    // count = 0 | 5
-    for i in [0, 5] {
-        let count = move || i;
-        let en = td!(Locale::en, OR_plural, $ = count);
-        assert_eq_rendered!(en, "0 or 5");
-        let fr = td!(Locale::fr, OR_plural, $ = count);
-        assert_eq_rendered!(fr, "0 or 5");
-    }
+    // count = 3
+    let count = move || 3;
+    let en = td!(Locale::en, ordinal_plural, $ = count);
+    assert_eq_rendered!(en, "3rd place");
+    let fr = td!(Locale::fr, ordinal_plural, $ = count);
+    assert_eq_rendered!(fr, "3e place");
 
-    // count = 1..5 | 6..10
-    for i in [1, 4, 6, 9] {
-        let count = move || i;
-        let en = td!(Locale::en, OR_plural, $ = count);
-        assert_eq_rendered!(en, "1..5 | 6..10");
-        let fr = td!(Locale::fr, OR_plural, $ = count);
-        assert_eq_rendered!(fr, "1..5 | 6..10");
-    }
-
-    // count = 10..15 | 20
-    for i in [10, 12, 14, 20] {
-        let count = move || i;
-        let en = td!(Locale::en, OR_plural, $ = count);
-        assert_eq_rendered!(en, "10..15 | 20");
-        let fr = td!(Locale::fr, OR_plural, $ = count);
-        assert_eq_rendered!(fr, "10..15 | 20");
-    }
-
-    // count = _
-    for i in [15, 17, 21, 56] {
-        let count = move || i;
-        let en = td!(Locale::en, OR_plural, $ = count);
-        assert_eq_rendered!(en, "fallback with no count");
-        let fr = td!(Locale::fr, OR_plural, $ = count);
-        assert_eq_rendered!(fr, "fallback sans count");
-    }
-}
-
-#[test]
-fn f32_or_plural() {
-    // count = 0 | 5
-    for i in [0.0, 5.0] {
-        let count = move || i;
-        let en = td!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq_rendered!(en, "0 or 5");
-        let fr = td!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq_rendered!(fr, "0 or 5");
-    }
-
-    // count = 1..5 | 6..10
-    for i in [1.0, 4.0, 6.0, 9.0] {
-        let count = move || i;
-        let en = td!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq_rendered!(en, "1..5 | 6..10");
-        let fr = td!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq_rendered!(fr, "1..5 | 6..10");
-    }
-
-    // count = 10..15 | 20
-    for i in [10.0, 12.0, 14.0, 20.0] {
-        let count = move || i;
-        let en = td!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq_rendered!(en, "10..15 | 20");
-        let fr = td!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq_rendered!(fr, "10..15 | 20");
-    }
-
-    // count = _
-    for i in [15.0, 17.0, 21.0, 56.0] {
-        let count = move || i;
-        let en = td!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq_rendered!(en, "fallback with no count");
-        let fr = td!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq_rendered!(fr, "fallback avec tuple vide");
-    }
-}
-
-#[test]
-fn f32_or_plural_string() {
-    // count = 0 | 5
-    for count in [0.0, 5.0] {
-        let en = td_string!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq!(en, "0 or 5");
-        let fr = td_string!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq!(fr, "0 or 5");
-    }
-
-    // count = 1..5 | 6..10
-    for count in [1.0, 4.0, 6.0, 9.0] {
-        let en = td_string!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq!(en, "1..5 | 6..10");
-        let fr = td_string!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq!(fr, "1..5 | 6..10");
-    }
-
-    // count = 10..15 | 20
-    for count in [10.0, 12.0, 14.0, 20.0] {
-        let en = td_string!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq!(en, "10..15 | 20");
-        let fr = td_string!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq!(fr, "10..15 | 20");
-    }
-
-    // count = _
-    for count in [15.0, 17.0, 21.0, 56.0] {
-        let en = td_string!(Locale::en, f32_OR_plural, $ = count);
-        assert_eq!(en, "fallback with no count");
-        let fr = td_string!(Locale::fr, f32_OR_plural, $ = count);
-        assert_eq!(fr, "fallback avec tuple vide");
-    }
+    // count = 4
+    let count = move || 4;
+    let en = td!(Locale::en, ordinal_plural, $ = count);
+    assert_eq_rendered!(en, "4th place");
+    let fr = td!(Locale::fr, ordinal_plural, $ = count);
+    assert_eq_rendered!(fr, "4e place");
 }

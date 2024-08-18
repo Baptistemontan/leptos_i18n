@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
 
-use super::{locale::SerdeError, plural::PluralType};
+use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
 use quote::quote;
 
@@ -26,31 +26,31 @@ pub enum Error {
         locale: Rc<Key>,
         key_path: KeyPath,
     },
-    PluralParse {
-        plural: String,
-        plural_type: PluralType,
+    RangeParse {
+        range: String,
+        range_type: RangeType,
     },
     InvalidBoundEnd {
         range: String,
-        plural_type: PluralType,
+        range_type: RangeType,
     },
     ImpossibleRange(String),
-    PluralTypeMissmatch {
+    RangeTypeMissmatch {
         key_path: KeyPath,
-        type1: PluralType,
-        type2: PluralType,
+        type1: RangeType,
+        type2: RangeType,
     },
     InvalidKey(String),
-    EmptyPlural,
-    InvalidPluralType(String),
-    NestedPlurals,
+    EmptyRange,
+    InvalidRangeType(String),
+    NestedRanges,
     InvalidFallback,
     MultipleFallbacks,
-    MissingFallback(PluralType),
-    PluralSubkeys,
-    PluralNumberType {
-        found: PluralType,
-        expected: PluralType,
+    MissingFallback(RangeType),
+    RangeSubkeys,
+    RangeNumberType {
+        found: RangeType,
+        expected: RangeType,
     },
     ExplicitDefaultInDefault(KeyPath),
     RecursiveForeignKey {
@@ -64,6 +64,15 @@ pub enum Error {
     },
     InvalidForeignKey {
         foreign_key: KeyPath,
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
+    UnknownFormatter {
+        name: String,
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
+    ConflictingPluralRuleType {
         locale: Rc<Key>,
         key_path: KeyPath,
     },
@@ -101,12 +110,12 @@ impl Display for Error {
                 "Some keys are different beetween locale files, locale {:?} is missing key: \"{}\"",
                 locale, key_path
             ),
-            Error::PluralParse {
-                plural,
-                plural_type
+            Error::RangeParse {
+                range,
+                range_type
             } => write!(f,
                 "error parsing {:?} as {}", 
-                plural, plural_type
+                range, range_type
             ),
             Error::DuplicateLocalesInConfig(duplicates) => write!(f,
                 "Found duplicates locales in configuration (Cargo.toml): {:?}", 
@@ -114,17 +123,17 @@ impl Display for Error {
             ),
             Error::InvalidBoundEnd {
                 range,
-                plural_type: plural_type @ (PluralType::F32 | PluralType::F64)
+                range_type: range_type @ (RangeType::F32 | RangeType::F64)
             } => write!(f,
                 "the range {:?} end bound is invalid, you can't use exclusif range with {}", 
-                range, plural_type
+                range, range_type
             ),
             Error::InvalidBoundEnd {
                 range,
-                plural_type
+                range_type
             } => write!(f,
                 "the range {:?} end bound is invalid, you can't end before {}::MIN", 
-                range, plural_type
+                range, range_type
             ),
             Error::ImpossibleRange(range) => write!(f, "the range {:?} is impossible, it end before it starts",
                 range
@@ -133,24 +142,26 @@ impl Display for Error {
                 "Found duplicates namespaces in configuration (Cargo.toml): {:?}", 
                 duplicates
             ),
-            Error::PluralTypeMissmatch { key_path, type1, type2 } => write!(f, "Conflicting plural value type at key \"{}\", found type {} but also type {}.", key_path, type1, type2),
+            Error::RangeTypeMissmatch { key_path, type1, type2 } => write!(f, "Conflicting range value type at key \"{}\", found type {} but also type {}.", key_path, type1, type2),
             Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters.", key),
-            Error::EmptyPlural => write!(f, "empty plurals are not allowed"),
-            Error::InvalidPluralType(t) => write!(f, "invalid plural type {:?}", t),
-            Error::NestedPlurals => write!(f, "nested plurals are not allowed"),
+            Error::EmptyRange => write!(f, "empty ranges are not allowed"),
+            Error::InvalidRangeType(t) => write!(f, "invalid prange type {:?}", t),
+            Error::NestedRanges => write!(f, "nested ranges are not allowed"),
             Error::InvalidFallback => write!(f, "fallbacks are only allowed in last position"),
             Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
-            Error::MissingFallback(t) => write!(f, "plural type {} require a fallback (or a fullrange \"..\")", t),
-            Error::PluralSubkeys => write!(f, "subkeys for plurals are not allowed"),
+            Error::MissingFallback(t) => write!(f, "range type {} require a fallback (or a fullrange \"..\")", t),
+            Error::RangeSubkeys => write!(f, "subkeys for ranges are not allowed"),
             Error::SubKeyMissmatch { locale, key_path } => {
                 write!(f, "Missmatch value type beetween locale {:?} and default at key \"{}\": one has subkeys and the other has direct value.", locale, key_path)
             },
-            Error::PluralNumberType { found, expected } => write!(f, "number type {} can't be used for plural type {}", found, expected),
+            Error::RangeNumberType { found, expected } => write!(f, "number type {} can't be used for range type {}", found, expected),
             Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key \"{}\"", key_path),
             Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key \"{}\" in locale {:?}, check for recursive foreign key.", key_path, locale),
             Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, key don't exist.", foreign_key, key_path, locale),
             Error::Custom(s) => f.write_str(s),
-            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to plurals or subkeys are not allowed.", foreign_key, key_path, locale),
+            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to ranges, plurals or subkeys are not allowed.", foreign_key, key_path, locale),
+            Error::UnknownFormatter { name, locale, key_path } => write!(f, "Unknown formatter {:?} at key \"{}\" in locale {:?}.", name, key_path, locale),
+            Error::ConflictingPluralRuleType { locale, key_path } => write!(f, "Found both ordinal and cardinal plurals for key \"{}\" in locale {:?}", key_path, locale),
         }
     }
 }

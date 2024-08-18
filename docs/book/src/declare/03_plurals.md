@@ -1,169 +1,85 @@
 # Plurals
 
-What if your translation display a count, and thus you must handle the case where the count is zero, one, or multiple ? You could declare multiple translations and use some kind of switch-case, but again this is not elegant.
+## What are plurals ?
 
-To simplify this process you can declare plurals, they are based around a count and display different translations based on this count.
+Plurals are a standardized way to deal with numbers, for example the English language deal with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
 
-To declare them the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
-
-```json
-{
-  "click_count": [
-    ["You have not clicked yet", 0],
-    ["You clicked once", 1],
-    ["You clicked {{ count }} times", "_"]
-  ]
-}
-```
-
-## Multiple exact values
-
-You can declare multiple counts to match against:
+If you were to have
 
 ```json
 {
-  "click_count": [
-    ["0 or 5", 0, 5],
-    ["1, 2, 3 or 4", 1, 2, 3, 4],
-    ["You clicked {{ count }} times", "_"]
-  ]
+  "items": "{{ count }} items"
 }
 ```
 
-## Ranges
+this would produce "1 items", which is not good english.
 
-You can also declare a range where the translations is used:
+This can be solved by defining 2 plural forms:
 
 ```json
 {
-  "click_count": [
-    ["0 or 5", 0, 5],
-    ["1, 2, 3 or 4", "1..=4"],
-    ["You clicked {{ count }} times", "_"]
-  ]
+  "items_one": "{{ count }} item",
+  "items_other": "{{ count }} items"
 }
 ```
 
-You can use all Rust ranges syntax: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will be considered fallback `_`)
-
-## Number type
-
-By default the count is expected to be an `i32`, but you can change that by specifying the type as the first element of the sequence:
-
-```json
-{
-  "click_count": [
-    "u32",
-    ["You have not clicked yet", 0],
-    ["You clicked once", 1],
-    ["You clicked {{ count }} times", "_"]
-  ]
-}
-```
-
-Now you only have to cover the `u32` range.
-
-The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`.
-
-## Fallback
-
-If all the given counts don't fill the range of the number type, you can use a fallback (`"_"` or `".."`) as seen above, but it can be completely omitted on the last element of the sequence:
-
-```json
-{
-  "click_count": [
-    ["You have not clicked yet", 0],
-    ["You clicked once", 1],
-    ["You clicked {{ count }} times"]
-  ]
-}
-```
-
-Fallbacks are not required if you already cover the full number range:
-
-```json
-{
-  "click_count": [
-    "u8",
-    ["You have not clicked yet", 0],
-    ["1 to 254", "1..=254"],
-    ["255", 255]
-  ]
-}
-```
-
-Fallbacks are always required for `f32` and `f64`.
-
-## Order
-
-The order of the plurals matter, for example:
-
-```json
-{
-  "click_count": [
-    ["first", "0..5"],
-    ["second", "0..=5"],
-    ["You clicked {{ count }} times"]
-  ]
-}
-```
-
-Here "second" will only be printed if count is 5, if `0 <= count < 5` then "first" will be printed.
-
-## Mix ranges with exact values
-
-You can totally mix them, this is valid:
-
-```json
-{
-  "click_count": [
-    ["first", 0, "3..5", "10..=56"],
-    ["second", "0..3", "..78"],
-    ["You clicked {{ count }} times"]
-  ]
-}
-```
-
-## Use interpolation
-
-The "You clicked {{ count }} times" kind of gave it away, but you can use interpolation in your plurals, this is valid:
-
-```json
-{
-  "click_count": [
-    ["<b>first</b>", 0, "3..5", "10..=56"],
-    ["<i>second</i>", "0..3", "..78"],
-    ["You clicked {{ count }} times and have {{ banana_count }} bananas"]
-  ]
-}
-```
-
-With plurals, `{{ count }}` is a special variable that refers to the count provided to the plural, so you don't need to also provide it:
-
-```json
-{
-  "click_count": [
-    ["You have not clicked yet", 0],
-    ["You clicked once", 1],
-    ["You clicked {{ count }} times"]
-  ]
-}
-```
+Providing the count to the `t!` macro with the `$`, this will result in:
 
 ```rust
-t!(i18n, click_count, $ = || 0);
+let i18n = use_i18n();
+
+t!(i18n, items, $ = || 0) // -> "0 items"
+t!(i18n, items, $ = || 1) // -> "1 item"
+t!(i18n, items, $ = || 4) // -> "4 items"
 ```
 
-Will result in `"You have not clicked yet"` and
+`{{ count }}` is a special variable when using plurals, you don't supply it as `t!(i18n, key, count = ..)` but with the `$`.
+
+## Why bother ?
+
+Why bother and not just do
 
 ```rust
-t!(i18n, click_count, $ = || 5);
+if item_count == 1 {
+    t!(i18n, items_one)
+} else {
+    t!(i18n, items_other, count = move || item_count)
+}
 ```
 
-Will result in `"You clicked 5 times"`.
+Because all languages don't use the same plurals!
 
-Providing `count` will create an error:
+For example in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is bad french (except in certain conditions, because french, exceptions are everywhere).
 
-```rust
-t!(i18n, click_count, count = 12, $ = || 5); // compilation error
+## Ordinal plurals
+
+What I describe above are "Cardinal" plurals, but they don't work with like "1rst place", "2nd place", ect..
+
+The English language use 4 ordinal plurals, and French 2:
+
+- one: "1rst place", "21rst place"
+- two: "2nd place", "22nd place"
+- few: "3rd place", "33rd place"
+- other: "4th place", "5th place", "7th place"
+
+And French:
+
+- one: "1ère place"
+- other: "2ème place", "21ème place"
+
+You can use them by using the `_ordinal` suffix:
+
+```json
+{
+  "key_ordinal_one": "{{ count }}rst place",
+  "key_ordinal_two": "{{ count }}nd place",
+  "key_ordinal_few": "{{ count }}rd place",
+  "key_ordinal_other": "{{ count }}th place"
+}
 ```
+
+> the `_ordinal` suffix is removed, in this example you access it with `t!(i18n, key, $ = ..)`
+
+## How to know which to use:
+
+There are ressources online to help you find what you should use, my personnal favorite is the [unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).

@@ -42,6 +42,6 @@ You can specify multiple kinds of values:
 
 - String
 - Interpolated String
-- Plurals
+- Ranges
 
 The next chapters of this section will cover them, apart for strings, those are self explanatory.

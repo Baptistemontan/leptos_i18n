@@ -151,12 +151,12 @@ t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, cou
 
 Basically `<name .../>` expand to `move |children| view! { <name ...>{children}</name> }`
 
-## Plurals
+## Ranges
 
-Plurals expect a variable `$` that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the plural (default is `i32`).
+Ranges expect a variable `$` that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
 
 ```rust
-t!(i18n, key_to_plural, $ = count);
+t!(i18n, key_to_range, $ = count);
 ```
 
 ## Access subkeys

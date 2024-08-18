@@ -114,7 +114,7 @@ jobs:
         examples:
           [
             counter,
-            counter_plurals,
+            counter_ranges,
             interpolation,
             namespaces,
             subkeys,

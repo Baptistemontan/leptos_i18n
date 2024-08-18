@@ -1,7 +1,7 @@
 {
-  "name": "counter_plurals",
+  "name": "counter_ranges",
   "version": "1.0.0",
-  "description": "This example showcase how you can use plurals to display a different text based on a count.",
+  "description": "This example showcase how you can use ranges to display a different text based on a count.",
   "main": "index.js",
   "scripts": {
     "build": "trunk build",

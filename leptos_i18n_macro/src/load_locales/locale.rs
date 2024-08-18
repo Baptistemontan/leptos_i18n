@@ -9,6 +9,7 @@ use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
     parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
+    plurals::{PluralForm, PluralRuleType, Plurals},
     tracking::track_file,
     warning::{emit_warning, Warning},
 };
@@ -263,6 +264,84 @@ impl Locale {
         Ok(keys)
     }
 
+    pub fn is_possible_plural<'a>(
+        key: &'a Key,
+        value: &ParsedValue,
+    ) -> Option<(&'a str, PluralRuleType, PluralForm)> {
+        if matches!(value, ParsedValue::Ranges(_) | ParsedValue::Subkeys(_)) {
+            return None;
+        }
+        let (base_key, suffix) = key.name.rsplit_once('_')?;
+        let (base_key, rule_type) = match base_key.strip_suffix("_ordinal") {
+            Some(base_key) => (base_key, PluralRuleType::Ordinal),
+            None => (base_key, PluralRuleType::Cardinal),
+        };
+
+        PluralForm::try_from_str(suffix).map(|form| (base_key, rule_type, form))
+    }
+
+    pub fn merge_plurals(&mut self, locale: Rc<Key>, key_path: &mut KeyPath) -> Result<()> {
+        let keys = std::mem::take(&mut self.keys);
+        #[allow(clippy::type_complexity)]
+        let mut possible_plurals: HashMap<
+            String,
+            HashMap<PluralForm, (Rc<Key>, PluralRuleType, ParsedValue)>,
+        > = HashMap::new();
+        for (key, mut value) in keys {
+            if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
+                key_path.push_key(key.clone());
+                subkeys.merge_plurals(locale.clone(), key_path)?;
+                key_path.pop_key();
+            }
+            if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
+            {
+                let map = possible_plurals.entry(base_key.to_owned()).or_default();
+                map.insert(plural_form, (key, rule_type, value));
+            } else {
+                self.keys.insert(key, value);
+            }
+        }
+        for (base_key, mut plurals) in possible_plurals {
+            if plurals.len() == 1 {
+                for (_, (key, _, value)) in plurals {
+                    self.keys.insert(key, value);
+                }
+                continue;
+            }
+            let Some((_, rule_type, other)) = plurals.remove(&PluralForm::Other) else {
+                for (_, (key, _, value)) in plurals {
+                    self.keys.insert(key, value);
+                }
+                continue;
+            };
+            let key = Key::from_unchecked_string(base_key);
+            let key = Rc::new(key);
+            key_path.push_key(key);
+            let forms = plurals
+                .into_iter()
+                .map(|(form, (_, rule, value))| {
+                    if rule == rule_type {
+                        Ok((form, value))
+                    } else {
+                        Err(Error::ConflictingPluralRuleType {
+                            locale: locale.clone(),
+                            key_path: std::mem::take(key_path),
+                        })
+                    }
+                })
+                .collect::<Result<HashMap<_, _>>>()?;
+            let value = ParsedValue::Plurals(Plurals {
+                rule_type,
+                forms,
+                other: Box::new(other),
+            });
+            let key = key_path.pop_key().unwrap();
+            self.keys.insert(key, value);
+        }
+
+        Ok(())
+    }
+
     pub fn merge(
         &mut self,
         keys: &mut BuildersKeysInner,
@@ -305,12 +384,15 @@ impl Locale {
         let default_locale = locales.next().unwrap();
         let mut key_path = KeyPath::new(namespace);
 
+        default_locale.merge_plurals(default_locale.name.clone(), &mut key_path)?;
+
         let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
 
         let default_locale_name = &default_locale.name.name;
 
         for locale in locales {
             let top_locale = locale.name.clone();
+            locale.merge_plurals(top_locale.clone(), &mut key_path)?;
             locale.merge(
                 &mut default_keys,
                 default_locale_name,
@@ -318,8 +400,6 @@ impl Locale {
                 &mut key_path,
             )?;
         }
-
-        default_keys.check_conflicts(&mut key_path)?;
 
         Ok(default_keys)
     }
@@ -345,17 +425,6 @@ impl Locale {
     }
 }
 
-impl BuildersKeysInner {
-    fn check_conflicts(&mut self, key_path: &mut KeyPath) -> Result<()> {
-        for (key, values) in &mut self.0 {
-            key_path.push_key(Rc::clone(key));
-            values.check_conflicts(key_path)?;
-            key_path.pop_key();
-        }
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
 pub enum LocaleValue {
     Value(Option<InterpolationKeys>),
@@ -363,15 +432,6 @@ pub enum LocaleValue {
         locales: Vec<Locale>,
         keys: BuildersKeysInner,
     },
-}
-
-impl LocaleValue {
-    fn check_conflicts(&mut self, key_path: &mut KeyPath) -> Result<()> {
-        match self {
-            LocaleValue::Value(_) => Ok(()),
-            LocaleValue::Subkeys { keys, .. } => keys.check_conflicts(key_path),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -396,7 +456,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed {
                 top_locale_name: &self.top_locale_name,
                 key: &locale_key,
                 key_path: &self.key_path,
-                in_plural: false,
+                in_range: false,
             })?;
             self.key_path.pop_key();
             keys.insert(locale_key, value);

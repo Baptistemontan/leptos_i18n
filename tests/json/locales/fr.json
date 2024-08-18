@@ -2,21 +2,21 @@
   "click_to_change_lang": "Cliquez pour changez de langue",
   "click_count": "Vous avez cliqué {{ count }} fois",
   "click_to_inc": "Cliquez pour incrémenter le compteur",
-  "f32_plural": [
+  "f32_range": [
     "f32",
     ["Vous êtes pauvre", 0.0],
     ["Vous devez de l'argent", "..0.0"],
     ["Vous avez {{ count }}€"]
   ],
-  "u32_plural": ["u32", ["0", 0], ["1..", "1.."]],
-  "OR_plural": [
+  "u32_range": ["u32", ["0", 0], ["1..", "1.."]],
+  "OR_range": [
     "u8",
     ["0 or 5", 0, 5],
     ["1..5 | 6..10", "1..5", "6..10"],
     ["10..15 | 20", "10..15", "20"],
     ["fallback sans count"]
   ],
-  "f32_OR_plural": [
+  "f32_OR_range": [
     "f32",
     ["0 or 5", 0, "5"],
     ["1..5 | 6..10", "1..5", "6..10"],
@@ -30,7 +30,7 @@
   },
   "defaulted_string": null,
   "defaulted_interpolation": null,
-  "defaulted_plurals": null,
+  "defaulted_ranges": null,
   "defaulted_foreign_key": null,
   "foreign_key_to_string": "before {{ @click_to_inc }} after",
   "foreign_key_to_interpolation": "before {{ @click_count }} after",
@@ -42,5 +42,8 @@
   "date_formatting": "{{ date, date }}",
   "time_formatting": "{{ time, time }}",
   "datetime_formatting": "{{ date, datetime }}",
-  "number_formatting": "{{ num, number }}"
+  "number_formatting": "{{ num, number }}",
+  "cardinal_plural": "{{ count }}",
+  "ordinal_plural_ordinal_one": "{{ count }}re place",
+  "ordinal_plural_ordinal_other": "{{ count }}e place"
 }

@@ -2,7 +2,7 @@
 leptos_i18n::load_locales!();
 
 #[cfg(test)]
-mod plurals;
+mod ranges;
 
 #[cfg(test)]
 mod subkeys;

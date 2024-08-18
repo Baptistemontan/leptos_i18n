@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display, rc::Rc};
 
-use crate::load_locales::plural::{PluralParseBuffer, Plurals};
+use crate::load_locales::ranges::{RangeParseBuffer, Ranges};
 use crate::utils::key::{Key, KeyPath};
 
 use super::{
@@ -8,7 +8,7 @@ use super::{
     load_locales_inner,
     locale::{Locale, LocalesOrNamespaces},
     parsed_value::ParsedValue,
-    plural::{Plural, PluralNumber, PluralsInner, TypeOrPlural},
+    ranges::{Range, RangeNumber, RangesInner, TypeOrRange},
 };
 use proc_macro2::Span;
 use quote::ToTokens;
@@ -65,9 +65,11 @@ fn parse_str_value(
     if !input.peek(LitStr) {
         return Ok(None);
     }
-    let value = input.parse::<LitStr>()?.value();
-    let parsed_value = ParsedValue::new(&value, key_path, locale);
-    Ok(Some(parsed_value))
+    let lit_str = input.parse::<LitStr>()?;
+    let value = lit_str.value();
+    ParsedValue::new(&value, key_path, locale)
+        .map(Some)
+        .map_err(|_| syn::Error::new_spanned(lit_str, "unknown formatter."))
 }
 
 fn parse_map_values(
@@ -94,19 +96,19 @@ fn parse_map_values(
     }))))
 }
 
-pub struct ParsePluralSeed<'a> {
+pub struct ParseRangeSeed<'a> {
     pub key_path: &'a mut KeyPath,
     pub locale: &'a Rc<Key>,
 }
 
-fn parse_plural_count<T: PluralNumber>(input: &ParseBuffer) -> syn::Result<Plural<T>> {
+fn parse_range_count<T: RangeNumber>(input: &ParseBuffer) -> syn::Result<Range<T>> {
     let lit = input.parse::<Lit>()?;
-    let plural = match lit {
+    let range = match lit {
         Lit::Str(slit) => {
             let s = slit.value();
-            match Plural::new(&s) {
+            match Range::new(&s) {
                 Ok(p) => p,
-                Err(_) => return emit_err(slit, "invalid plural count."),
+                Err(_) => return emit_err(slit, "invalid range count."),
             }
         }
         Lit::Int(intlit) => {
@@ -114,24 +116,24 @@ fn parse_plural_count<T: PluralNumber>(input: &ParseBuffer) -> syn::Result<Plura
                 .base10_digits()
                 .parse()
                 .map_err(|_| syn::Error::new(intlit.span(), "invalid int"))?;
-            Plural::Exact(n)
+            Range::Exact(n)
         }
         Lit::Float(floatlit) => {
             let n = floatlit
                 .base10_digits()
                 .parse()
                 .map_err(|_| syn::Error::new(floatlit.span(), "invalid float"))?;
-            Plural::Exact(n)
+            Range::Exact(n)
         }
         _ => return emit_err(lit, "invalid litteral."),
     };
-    Ok(plural)
+    Ok(range)
 }
 
-fn parse_plural_pair<T: PluralNumber>(
+fn parse_range_pair<T: RangeNumber>(
     input: &ParseBuffer,
-    seed: &mut ParsePluralSeed,
-) -> syn::Result<(Plural<T>, ParsedValue)> {
+    seed: &mut ParseRangeSeed,
+) -> syn::Result<(Range<T>, ParsedValue)> {
     let content;
     syn::bracketed!(content in input);
 
@@ -140,32 +142,32 @@ fn parse_plural_pair<T: PluralNumber>(
     };
 
     if content.is_empty() {
-        return Ok((Plural::Fallback, parsed_value));
+        return Ok((Range::Fallback, parsed_value));
     }
     content.parse::<Comma>()?;
 
     let mut counts = content
-        .parse_terminated(parse_plural_count::<T>, Comma)?
+        .parse_terminated(parse_range_count::<T>, Comma)?
         .into_iter();
 
     match (counts.next(), counts.next()) {
-        (None, _) => Ok((Plural::Fallback, parsed_value)),
+        (None, _) => Ok((Range::Fallback, parsed_value)),
         (Some(count), None) => Ok((count, parsed_value)),
         (Some(a), Some(b)) => Ok((
-            Plural::Multiple([a, b].into_iter().chain(counts).collect()),
+            Range::Multiple([a, b].into_iter().chain(counts).collect()),
             parsed_value,
         )),
     }
 }
 
-pub fn parse_plural_pairs<T: PluralNumber>(
+pub fn parse_range_pairs<T: RangeNumber>(
     content: &ParseBuffer,
-    plurals: &mut PluralsInner<T>,
-    mut seed: ParsePluralSeed,
+    ranges: &mut RangesInner<T>,
+    mut seed: ParseRangeSeed,
 ) -> syn::Result<()> {
     while !content.is_empty() {
-        let pair = parse_plural_pair(content, &mut seed)?;
-        plurals.push(pair);
+        let pair = parse_range_pair(content, &mut seed)?;
+        ranges.push(pair);
         if !content.is_empty() {
             content.parse::<Comma>()?;
         }
@@ -173,25 +175,22 @@ pub fn parse_plural_pairs<T: PluralNumber>(
     Ok(())
 }
 
-fn parse_plural_type(
-    content: &ParseBuffer,
-    seed: &mut ParsePluralSeed,
-) -> syn::Result<TypeOrPlural> {
+fn parse_range_type(content: &ParseBuffer, seed: &mut ParseRangeSeed) -> syn::Result<TypeOrRange> {
     if content.peek(LitStr) {
         let lit_str = content.parse::<LitStr>()?;
         let s = lit_str.value();
-        return TypeOrPlural::from_str(&s)
-            .ok_or_else(|| syn::Error::new_spanned(lit_str, "invalid plural type."));
+        return TypeOrRange::from_str(&s)
+            .ok_or_else(|| syn::Error::new_spanned(lit_str, "invalid range type."));
     }
 
-    let plural = parse_plural_pair(content, seed)?;
+    let range = parse_range_pair(content, seed)?;
 
-    Ok(TypeOrPlural::Plural(plural))
+    Ok(TypeOrRange::Range(range))
 }
 
-fn parse_plurals(
+fn parse_ranges(
     input: syn::parse::ParseStream,
-    mut seed: ParsePluralSeed,
+    mut seed: ParseRangeSeed,
 ) -> syn::Result<Option<ParsedValue>> {
     fn inner(input: syn::parse::ParseStream) -> syn::Result<ParseBuffer> {
         let content;
@@ -202,14 +201,14 @@ fn parse_plurals(
         return Ok(None);
     };
 
-    let mut plurals = match parse_plural_type(&content, &mut seed)? {
-        TypeOrPlural::Type(plural_type) => Plurals::from_type(plural_type),
-        TypeOrPlural::Plural(plural) => Plurals::I32(vec![plural]),
+    let mut ranges = match parse_range_type(&content, &mut seed)? {
+        TypeOrRange::Type(range_type) => Ranges::from_type(range_type),
+        TypeOrRange::Range(range) => Ranges::I32(vec![range]),
     };
 
-    plurals.deserialize_inner(PluralParseBuffer(content), seed)?;
+    ranges.deserialize_inner(RangeParseBuffer(content), seed)?;
 
-    Ok(Some(ParsedValue::Plural(plurals)))
+    Ok(Some(ParsedValue::Ranges(ranges)))
 }
 
 fn parse_values(
@@ -230,9 +229,9 @@ fn parse_values(
         return Ok((key, parsed_value));
     }
 
-    let seed = ParsePluralSeed { key_path, locale };
+    let seed = ParseRangeSeed { key_path, locale };
 
-    if let Some(parsed_value) = parse_plurals(input, seed)? {
+    if let Some(parsed_value) = parse_ranges(input, seed)? {
         key_path.pop_key();
         return Ok((key, parsed_value));
     }
