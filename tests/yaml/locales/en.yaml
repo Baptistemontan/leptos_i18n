@@ -2,20 +2,20 @@
 click_to_change_lang: Click to change language
 click_count: You clicked {{ count }} times
 click_to_inc: Click to increment the counter
-f32_plural:
+f32_range:
   - f32
   - count: "0.0"
     value: You are broke
   - count: "..0.0"
     value: You owe money
   - ["You have {{ count }}€", _]
-u32_plural:
+u32_range:
   - u32
   - count: 0
     value: "0"
   - count: 1..
     value: 1..
-OR_plural:
+OR_range:
   - u8
   - [0 or 5, "0", 5]
   - count: 1..5 | 6..10
@@ -25,7 +25,7 @@ OR_plural:
       - "20"
     value: 10..15 | 20
   - value: fallback with no count
-f32_OR_plural:
+f32_OR_range:
   - f32
   - count: 0 | 5
     value: 0 or 5
@@ -46,6 +46,6 @@ subkeys:
     - ["{{ count }}", _]
 defaulted_string: this string is declared in locale en
 defaulted_interpolation: this interpolation is declared in locale {{ locale }}
-defaulted_plurals:
+defaulted_ranges:
   - [zero, 0]
-  - - this plural is declared in locale {{ locale }}
+  - - this range is declared in locale {{ locale }}

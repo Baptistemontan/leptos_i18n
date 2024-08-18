@@ -1,7 +1,7 @@
 click_to_change_lang: Cliquez pour changez de langue
 click_count: Vous avez cliqué {{ count }} fois
 click_to_inc: Cliquez pour incrémenter le compteur
-f32_plural:
+f32_range:
   - f32
   - count: 0
     value: Vous êtes pauvre
@@ -9,13 +9,13 @@ f32_plural:
     value: Vous devez de l'argent
   - count: _
     value: Vous avez {{ count }}€
-u32_plural:
+u32_range:
   - u32
   - count: 0
     value: "0"
   - count: 1..
     value: 1..
-OR_plural:
+OR_range:
   - u8
   - count: 0 | 5
     value: 0 or 5
@@ -26,7 +26,7 @@ OR_plural:
       - 20
     value: 10..15 | 20
   - value: fallback sans count
-f32_OR_plural:
+f32_OR_range:
   - f32
   - ["0 or 5", [0, "5"]]
   - count:
@@ -46,4 +46,4 @@ subkeys:
     - ["{{ count }}", _]
 defaulted_string:
 defaulted_interpolation: ~
-defaulted_plurals: null
+defaulted_ranges: null
