@@ -479,7 +479,7 @@ fn create_locale_type_inner(
                 return Some(quote!(#key: #key_str));
             }
             match locale.keys.get(key) {
-                Some(ParsedValue::String(str_value)) => Some(quote!(#key: #str_value)),
+                Some(ParsedValue::Literal(str_value)) => Some(quote!(#key: #str_value)),
                 _ => {
                     let str_value = default_locale
                         .keys

@@ -7,7 +7,11 @@ use std::{
 use crate::utils::formatter::Formatter;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use serde::de::{value::MapAccessDeserializer, DeserializeSeed};
+use serde::{
+    de::{value::MapAccessDeserializer, DeserializeSeed, Visitor},
+    Deserialize,
+};
+use std::fmt::Display;
 
 use super::{
     error::{Error, Result},
@@ -38,13 +42,141 @@ pub enum ForeignKey {
     Set(Box<ParsedValue>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    String(String),
+    Signed(i64),
+    Unsigned(u64),
+    Float(f64),
+    Bool(bool),
+}
+
+struct LiteralVisitor;
+
+impl<'de> Deserialize<'de> for Literal {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(LiteralVisitor)
+    }
+}
+
+impl<'de> Visitor<'de> for LiteralVisitor {
+    type Value = Literal;
+
+    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Bool(v))
+    }
+
+    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Signed(v))
+    }
+
+    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Float(v))
+    }
+
+    fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Unsigned(v))
+    }
+
+    fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::String(v))
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::String(v.to_string()))
+    }
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            formatter,
+            "a litteral such as a number, a string or a boolean"
+        )
+    }
+}
+
+impl Literal {
+    pub fn is_string(&self) -> Option<&str> {
+        match self {
+            Literal::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn join(&mut self, other: &Self) {
+        match self {
+            Literal::String(s) => s.push_str(&other.to_string()),
+            Literal::Signed(v) => {
+                let s = format!("{}{}", v, other);
+                *self = Literal::String(s);
+            }
+            Literal::Unsigned(v) => {
+                let s = format!("{}{}", v, other);
+                *self = Literal::String(s);
+            }
+            Literal::Float(v) => {
+                let s = format!("{}{}", v, other);
+                *self = Literal::String(s);
+            }
+            Literal::Bool(v) => {
+                let s = format!("{}{}", v, other);
+                *self = Literal::String(s);
+            }
+        }
+    }
+}
+
+impl ToTokens for Literal {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Literal::String(v) => ToTokens::to_tokens(v, tokens),
+            Literal::Signed(v) => ToTokens::to_tokens(v, tokens),
+            Literal::Unsigned(v) => ToTokens::to_tokens(v, tokens),
+            Literal::Float(v) => ToTokens::to_tokens(v, tokens),
+            Literal::Bool(v) => ToTokens::to_tokens(v, tokens),
+        }
+    }
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::String(v) => Display::fmt(v, f),
+            Literal::Signed(v) => Display::fmt(v, f),
+            Literal::Unsigned(v) => Display::fmt(v, f),
+            Literal::Float(v) => Display::fmt(v, f),
+            Literal::Bool(v) => Display::fmt(v, f),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ParsedValue {
     #[default]
     Default,
     ForeignKey(RefCell<ForeignKey>),
     Ranges(Ranges),
-    String(String),
+    Literal(Literal),
     Variable {
         key: Rc<Key>,
         formatter: Formatter,
@@ -215,7 +347,7 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -262,7 +394,7 @@ impl ParsedValue {
         key_path: &KeyPath,
     ) -> Result<Self> {
         match self {
-            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::String(_) => {
+            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::Literal(_) => {
                 Ok(self.clone())
             }
             ParsedValue::Variable { key, formatter } => match args.get(&key.name) {
@@ -297,7 +429,7 @@ impl ParsedValue {
         keys: &mut Option<InterpolationKeys>,
     ) -> Result<()> {
         match self {
-            ParsedValue::String(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+            ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable { key, formatter } => {
                 keys.get_or_insert_with(Default::default)
                     .push_var(key.clone(), *formatter);
@@ -344,7 +476,7 @@ impl ParsedValue {
 
     pub fn is_string(&self) -> Option<&str> {
         match self {
-            ParsedValue::String(value) => Some(value),
+            ParsedValue::Literal(Literal::String(value)) => Some(value),
             _ => None,
         }
     }
@@ -360,7 +492,7 @@ impl ParsedValue {
         if let Some(parsed_value) = parsed_value {
             parsed_value
         } else {
-            Ok(ParsedValue::String(value.to_string()))
+            Ok(ParsedValue::Literal(Literal::String(value.to_string())))
         }
     }
 
@@ -406,7 +538,7 @@ impl ParsedValue {
                 ParsedValue::Bloc(_)
                 | ParsedValue::Component { .. }
                 | ParsedValue::Ranges(_)
-                | ParsedValue::String(_)
+                | ParsedValue::Literal(_)
                 | ParsedValue::Variable { .. }
                 | ParsedValue::Plurals(_)
                 | ParsedValue::ForeignKey(_),
@@ -472,7 +604,7 @@ impl ParsedValue {
         key_path: &KeyPath,
         locale: &Rc<Key>,
     ) -> Result<HashMap<String, ParsedValue>> {
-        let args = match serde_json::from_str::<HashMap<String, String>>(s) {
+        let args = match serde_json::from_str::<HashMap<String, Literal>>(s) {
             Ok(args) => args,
             Err(err) => {
                 return Err(Error::InvalidForeignKeyArgs {
@@ -485,7 +617,10 @@ impl ParsedValue {
         let mut parsed_args = HashMap::new();
 
         for (key, arg) in args {
-            let parsed_value = Self::new(&arg, key_path, locale)?;
+            let parsed_value = match arg {
+                Literal::String(s) => Self::new(&s, key_path, locale)?,
+                other => ParsedValue::Literal(other),
+            };
             let key = format!("var_{}", key.trim());
             parsed_args.insert(key, parsed_value);
         }
@@ -652,7 +787,7 @@ impl ParsedValue {
 
     pub fn reduce(&mut self) {
         match self {
-            ParsedValue::Variable { .. } | ParsedValue::String(_) | ParsedValue::Default => {}
+            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -682,7 +817,7 @@ impl ParsedValue {
                 }
 
                 match values.as_mut_slice() {
-                    [] => *self = ParsedValue::String(String::new()),
+                    [] => *self = ParsedValue::Literal(Literal::String(String::new())),
                     [one] => *self = std::mem::take(one),
                     _ => {}
                 }
@@ -707,14 +842,14 @@ impl ParsedValue {
                     .into_inner("reduce_into")
                     .reduce_into(bloc);
             }
-            ParsedValue::String(s) => {
-                if s.is_empty() {
+            ParsedValue::Literal(s) => {
+                if s.is_string().is_some_and(str::is_empty) {
                     // skip empty strings
-                } else if let Some(ParsedValue::String(last)) = bloc.last_mut() {
-                    // if last in the bloc is a string push into it instead of 2 strings next to each others
-                    last.push_str(&s);
+                } else if let Some(ParsedValue::Literal(last)) = bloc.last_mut() {
+                    // if last in the bloc is a literal join them instead of 2 literal next to each others
+                    last.join(&s);
                 } else {
-                    bloc.push(ParsedValue::String(s));
+                    bloc.push(ParsedValue::Literal(s));
                 }
             }
             ParsedValue::Variable { key, formatter } => {
@@ -735,8 +870,8 @@ impl ParsedValue {
     fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
+            ParsedValue::Literal(s) if s.is_string().is_some_and(str::is_empty) => {}
+            ParsedValue::Literal(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
@@ -777,8 +912,10 @@ impl ParsedValue {
     fn flatten_string(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::String(s) if s.is_empty() => {}
-            ParsedValue::String(s) => tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter))),
+            ParsedValue::Literal(s) if s.is_string().is_some_and(str::is_empty) => {}
+            ParsedValue::Literal(s) => {
+                tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter)))
+            }
             ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_fmt(key, locale_field);
@@ -899,6 +1036,34 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             .map_err(|err| serde::de::Error::custom(err))
     }
 
+    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ParsedValue::Literal(Literal::Bool(v)))
+    }
+
+    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ParsedValue::Literal(Literal::Signed(v)))
+    }
+
+    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ParsedValue::Literal(Literal::Float(v)))
+    }
+
+    fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ParsedValue::Literal(Literal::Unsigned(v)))
+    }
+
     fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
@@ -979,7 +1144,10 @@ mod tests {
     fn parse_normal_string() {
         let value = new_parsed_value("test");
 
-        assert_eq!(value, ParsedValue::String("test".to_string()));
+        assert_eq!(
+            value,
+            ParsedValue::Literal(Literal::String("test".to_string()))
+        );
     }
 
     #[test]
@@ -989,12 +1157,12 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::String("before ".to_string()),
+                ParsedValue::Literal(Literal::String("before ".to_string())),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
                     formatter: Formatter::None
                 },
-                ParsedValue::String(" after".to_string())
+                ParsedValue::Literal(Literal::String(" after".to_string()))
             ])
         )
     }
@@ -1006,12 +1174,12 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::String("before ".to_string()),
+                ParsedValue::Literal(Literal::String("before ".to_string())),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
-                    inner: Box::new(ParsedValue::String("inner".to_string()))
+                    inner: Box::new(ParsedValue::Literal(Literal::String("inner".to_string())))
                 },
-                ParsedValue::String(" after".to_string())
+                ParsedValue::Literal(Literal::String(" after".to_string()))
             ])
         )
     }
@@ -1025,19 +1193,21 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::String("before ".to_string()),
+                ParsedValue::Literal(Literal::String("before ".to_string())),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Bloc(vec![
-                        ParsedValue::String("inner before".to_string()),
+                        ParsedValue::Literal(Literal::String("inner before".to_string())),
                         ParsedValue::Component {
                             key: new_key("comp_comp"),
-                            inner: Box::new(ParsedValue::String("inner inner".to_string()))
+                            inner: Box::new(ParsedValue::Literal(Literal::String(
+                                "inner inner".to_string()
+                            )))
                         },
-                        ParsedValue::String("inner after".to_string()),
+                        ParsedValue::Literal(Literal::String("inner after".to_string())),
                     ]))
                 },
-                ParsedValue::String(" after".to_string())
+                ParsedValue::Literal(Literal::String(" after".to_string()))
             ])
         )
     }
@@ -1049,12 +1219,14 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::String("<p>test".to_string()),
+                ParsedValue::Literal(Literal::String("<p>test".to_string())),
                 ParsedValue::Component {
                     key: new_key("comp_h3"),
-                    inner: Box::new(ParsedValue::String("this is a h3".to_string()))
+                    inner: Box::new(ParsedValue::Literal(Literal::String(
+                        "this is a h3".to_string()
+                    )))
                 },
-                ParsedValue::String("not closing p".to_string())
+                ParsedValue::Literal(Literal::String("not closing p".to_string()))
             ])
         )
     }
