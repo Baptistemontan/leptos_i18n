@@ -351,9 +351,9 @@ impl ParsedValue {
 
     pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Result<Self> {
         let parsed_value = [
+            Self::find_foreign_key,
             Self::find_component,
             Self::find_variable,
-            Self::find_foreign_key,
         ]
         .into_iter()
         .find_map(|f| f(value, key_path, locale));
@@ -505,7 +505,7 @@ impl ParsedValue {
             match c {
                 '{' => depth += 1,
                 '}' => {
-                    let depth = match depth.checked_sub(1) {
+                    depth = match depth.checked_sub(1) {
                         Some(v) => v,
                         None => todo!(),
                     };
@@ -521,7 +521,7 @@ impl ParsedValue {
         let (before, after) = s.split_at(index + '}'.len_utf8());
 
         let Some(after) = after.trim_start().strip_prefix(')') else {
-            todo!()
+            todo!("parse_foreign_key_args_inner")
         };
 
         let args = Self::parse_foreign_key_args_inner(before, key_path, locale)?;
@@ -566,7 +566,7 @@ impl ParsedValue {
 
         let this = if let Some((ident, formatter)) = ident.split_once(',') {
             let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
-            let key = Rc::new(Key::new(&format!("var_{}", ident))?);
+            let key = Rc::new(Key::new(&format!("var_{}", ident.trim()))?);
             ParsedValue::Variable { key, formatter }
         } else {
             let key = Rc::new(Key::new(&format!("var_{}", ident))?);
