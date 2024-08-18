@@ -58,3 +58,11 @@ fn populated_foreign_key() {
     let fr = td!(Locale::fr, populated_foreign_key);
     assert_eq_rendered!(fr, "before Vous avez cliqué 32 fois after");
 }
+
+#[test]
+fn populated_foreign_key_with_arg() {
+    let en = td!(Locale::en, populated_foreign_key_with_arg, new_count = 12);
+    assert_eq_rendered!(en, "before You clicked 12 times after");
+    let fr = td!(Locale::fr, populated_foreign_key_with_arg, new_count = 67);
+    assert_eq_rendered!(fr, "before Vous avez cliqué 67 fois after");
+}
