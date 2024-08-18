@@ -244,7 +244,7 @@ impl ParsedValue {
                     path,
                 )
             }
-            ParsedValue::Plurals(Plurals { forms, other }) => {
+            ParsedValue::Plurals(Plurals { forms, other, .. }) => {
                 for value in forms.values() {
                     value.resolve_foreign_key(values, top_locale, default_locale, path)?;
                 }
@@ -323,7 +323,7 @@ impl ParsedValue {
                     .as_inner("get_keys_inner")
                     .get_keys_inner(key_path, keys)?;
             }
-            ParsedValue::Plurals(Plurals { forms, other }) => {
+            ParsedValue::Plurals(Plurals { forms, other, .. }) => {
                 keys.get_or_insert_with(Default::default)
                     .push_count(key_path, RangeOrPlural::Plural)?;
                 for value in forms.values() {
@@ -637,7 +637,7 @@ impl ParsedValue {
                     _ => {}
                 }
             }
-            ParsedValue::Plurals(Plurals { forms, other }) => {
+            ParsedValue::Plurals(Plurals { forms, other, .. }) => {
                 for value in forms.values_mut().chain(Some(&mut **other)) {
                     value.reduce();
                 }

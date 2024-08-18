@@ -72,6 +72,10 @@ pub enum Error {
         locale: Rc<Key>,
         key_path: KeyPath,
     },
+    ConflictingPluralRuleType {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
 }
 
 impl Display for Error {
@@ -157,6 +161,7 @@ impl Display for Error {
             Error::Custom(s) => f.write_str(s),
             Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to ranges, plurals or subkeys are not allowed.", foreign_key, key_path, locale),
             Error::UnknownFormatter { name, locale, key_path } => write!(f, "Unknown formatter {:?} at key \"{}\" in locale {:?}.", name, key_path, locale),
+            Error::ConflictingPluralRuleType { locale, key_path } => write!(f, "Found both ordinal and cardinal plurals for key \"{}\" in locale {:?}", key_path, locale),
         }
     }
 }

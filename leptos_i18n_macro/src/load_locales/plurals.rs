@@ -10,7 +10,6 @@ use super::parsed_value::ParsedValue;
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum PluralRuleType {
     Cardinal,
-    #[allow(unused)]
     Ordinal,
 }
 
@@ -76,6 +75,7 @@ impl ToTokens for PluralForm {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Plurals {
+    pub rule_type: PluralRuleType,
     // Box to be used inside the `ParsedValue::Plurals` variant without size recursion,
     // we could have `ParsedValue::Plurals(Box<Plurals>)`
     // but that makes `ParsedValue::Plurals(Plurals { .. })` impossible in match patterns.
@@ -94,7 +94,7 @@ impl Plurals {
 
         let other = self.other.as_string_impl();
 
-        let rule_type = PluralRuleType::Cardinal;
+        let rule_type = self.rule_type;
 
         quote! {{
             let _plural_rules = l_i18n_crate::__private::get_plural_rules(*#locale_field, #rule_type);
@@ -136,7 +136,7 @@ impl ToTokens for Plurals {
             quote!(#(#keys)*)
         });
 
-        let rule_type = PluralRuleType::Cardinal;
+        let rule_type = self.rule_type;
 
         quote! {
             leptos::IntoView::into_view(
