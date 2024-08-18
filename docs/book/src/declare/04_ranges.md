@@ -1,8 +1,8 @@
 # Ranges
 
-What if your translation display a count, and thus you must handle the case where the count is zero, one, or multiple ? You could declare multiple translations and use some kind of switch-case, but again this is not elegant.
+We just talked about plurals, which are standardized, but we have a little unorthodox features that I called ranges.
 
-To simplify this process you can declare ranges, they are based around a count and display different translations based on this count.
+They are based around a count and display different translations based on this count.
 
 To declare them the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
 
