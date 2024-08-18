@@ -406,6 +406,7 @@ impl ParsedValue {
                 | ParsedValue::Ranges(_)
                 | ParsedValue::String(_)
                 | ParsedValue::Variable { .. }
+                | ParsedValue::Plurals(_)
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(keys),
             ) => self.get_keys_inner(key_path, keys),

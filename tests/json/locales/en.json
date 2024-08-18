@@ -50,6 +50,10 @@
   "time_formatting": "{{ time, time }}",
   "datetime_formatting": "{{ date, datetime }}",
   "number_formatting": "{{ num, number }}",
-  "actual_plural_one": "one item",
-  "actual_plural_other": "{{ count }} items"
+  "cardinal_plural_one": "one item",
+  "cardinal_plural_other": "{{ count }} items",
+  "ordinal_plural_ordinal_one": "{{ count }}st place",
+  "ordinal_plural_ordinal_two": "{{ count }}nd place",
+  "ordinal_plural_ordinal_few": "{{ count }}rd place",
+  "ordinal_plural_ordinal_other": "{{ count }}th place"
 }

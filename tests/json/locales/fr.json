@@ -43,5 +43,7 @@
   "time_formatting": "{{ time, time }}",
   "datetime_formatting": "{{ date, datetime }}",
   "number_formatting": "{{ num, number }}",
-  "actual_plural": "{{ count }}"
+  "cardinal_plural": "{{ count }}",
+  "ordinal_plural_ordinal_one": "{{ count }}re place",
+  "ordinal_plural_ordinal_other": "{{ count }}e place"
 }
