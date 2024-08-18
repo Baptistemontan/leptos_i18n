@@ -37,11 +37,11 @@ impl Display for Warning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Warning::MissingKey { locale, key_path } => {
-                write!(f, "Missing key {} in locale {:?}", key_path, locale)
+                write!(f, "Missing key \"{}\" in locale {:?}", key_path, locale)
             }
             Warning::SurplusKey { locale, key_path } => write!(
                 f,
-                "Key {} is present in locale {:?} but not in default locale, it is ignored",
+                "Key \"{}\" is present in locale {:?} but not in default locale, it is ignored",
                 key_path, locale
             ),
             #[cfg(feature = "track_locale_files")]

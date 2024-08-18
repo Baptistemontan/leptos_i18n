@@ -10,7 +10,19 @@ pub trait InterpolateComp<O: IntoView>: Fn(leptos::ChildrenFn) -> O + Clone + 's
 
 impl<O: IntoView, T: Fn(leptos::ChildrenFn) -> O + Clone + 'static> InterpolateComp<O> for T {}
 
-/// Marker trait for a type that can be used to produce a count for a plural key.
-pub trait InterpolateCount<T>: Fn() -> T + Clone + 'static {}
+/// Marker trait for a type that can be used to produce a count for a range key.
+pub trait InterpolateRangeCount<T>: Fn() -> T + Clone + 'static {}
 
-impl<T, F: Fn() -> T + Clone + 'static> InterpolateCount<T> for F {}
+impl<T, F: Fn() -> T + Clone + 'static> InterpolateRangeCount<T> for F {}
+
+/// Marker trait for a type that can produce a `icu::plurals::PluralOperands`
+pub trait InterpolatePluralCount: Fn() -> Self::Count + Clone + 'static {
+    /// The returned value that can be turned into a `icu::plurals::PluralOperands`
+    type Count: Into<icu::plurals::PluralOperands>;
+}
+
+impl<T: Into<icu::plurals::PluralOperands>, F: Fn() -> T + Clone + 'static> InterpolatePluralCount
+    for F
+{
+    type Count = T;
+}
