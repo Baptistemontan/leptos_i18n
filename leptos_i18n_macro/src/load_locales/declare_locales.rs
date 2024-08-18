@@ -65,9 +65,11 @@ fn parse_str_value(
     if !input.peek(LitStr) {
         return Ok(None);
     }
-    let value = input.parse::<LitStr>()?.value();
-    let parsed_value = ParsedValue::new(&value, key_path, locale);
-    Ok(Some(parsed_value))
+    let lit_str = input.parse::<LitStr>()?;
+    let value = lit_str.value();
+    ParsedValue::new(&value, key_path, locale)
+        .map(Some)
+        .map_err(|_| syn::Error::new_spanned(lit_str, "unknown formatter."))
 }
 
 fn parse_map_values(

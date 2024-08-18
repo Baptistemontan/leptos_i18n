@@ -180,19 +180,25 @@ impl Formatter {
     pub fn from_name_and_args<'a, S: PartialEq + PartialEq<&'a str>>(
         name: S,
         args: Option<&[(S, S)]>,
-    ) -> Formatter {
+    ) -> Option<Formatter> {
         if name == "number" {
-            Formatter::Number
+            Some(Formatter::Number)
         } else if name == "datetime" {
-            Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args))
+            Some(Formatter::DateTime(
+                DateLength::from_args(args),
+                TimeLength::from_args(args),
+            ))
         } else if name == "date" {
-            Formatter::Date(DateLength::from_args(args))
+            Some(Formatter::Date(DateLength::from_args(args)))
         } else if name == "time" {
-            Formatter::Time(TimeLength::from_args(args))
+            Some(Formatter::Time(TimeLength::from_args(args)))
         } else if name == "list" {
-            Formatter::List(ListType::from_args(args), ListStyle::from_args(args))
+            Some(Formatter::List(
+                ListType::from_args(args),
+                ListStyle::from_args(args),
+            ))
         } else {
-            todo!()
+            None
         }
     }
 

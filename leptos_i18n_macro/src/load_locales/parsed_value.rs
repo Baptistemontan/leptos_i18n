@@ -23,6 +23,15 @@ thread_local! {
     pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
 }
 
+macro_rules! nested_result_try {
+    ($value:expr) => {
+        match $value {
+            Ok(v) => v,
+            Err(err) => return Some(Err(err)),
+        }
+    };
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForeignKey {
     NotSet(KeyPath, HashMap<String, String>),
@@ -313,7 +322,7 @@ impl ParsedValue {
         }
     }
 
-    pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Self {
+    pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Result<Self> {
         // look for component
         if let Some(component) = Self::find_component(value, key_path, locale) {
             return component;
@@ -324,7 +333,7 @@ impl ParsedValue {
         }
 
         // else it's just a string
-        ParsedValue::String(value.to_string())
+        Ok(ParsedValue::String(value.to_string()))
     }
 
     pub fn make_locale_value(&mut self, key_path: &mut KeyPath) -> Result<LocaleValue> {
@@ -448,12 +457,19 @@ impl ParsedValue {
         (name.trim(), Some(args.collect()))
     }
 
-    fn parse_formatter(s: &str) -> Formatter {
+    fn parse_formatter(s: &str, locale: &Rc<Key>, key_path: &KeyPath) -> Result<Formatter> {
         let (name, args) = Self::parse_formatter_args(s);
-        Formatter::from_name_and_args(name, args.as_deref())
+        match Formatter::from_name_and_args(name, args.as_deref()) {
+            Some(formatter) => Ok(formatter),
+            None => Err(Error::UnknownFormatter {
+                name: name.to_string(),
+                locale: locale.clone(),
+                key_path: key_path.clone(),
+            }),
+        }
     }
 
-    fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
+    fn find_variable(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Result<Self>> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
@@ -461,8 +477,8 @@ impl ParsedValue {
 
         let first_char = ident.chars().next()?;
 
-        let before = Self::new(before, key_path, locale);
-        let after = Self::new(after, key_path, locale);
+        let before = nested_result_try!(Self::new(before, key_path, locale));
+        let after = nested_result_try!(Self::new(after, key_path, locale));
 
         let this = match first_char {
             // foreign key
@@ -470,7 +486,8 @@ impl ParsedValue {
             // variable key
             _ => {
                 if let Some((ident, formatter)) = ident.split_once(',') {
-                    let formatter = Self::parse_formatter(formatter);
+                    let formatter =
+                        nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
                     let key = Rc::new(Key::new(&format!("var_{}", ident))?);
                     ParsedValue::Variable { key, formatter }
                 } else {
@@ -483,7 +500,7 @@ impl ParsedValue {
             }
         };
 
-        Some(ParsedValue::Bloc(vec![before, this, after]))
+        Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
 
     fn find_valid_component(value: &str) -> Option<(Rc<Key>, &str, &str, &str)> {
@@ -500,19 +517,19 @@ impl ParsedValue {
         }
     }
 
-    fn find_component(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Self> {
+    fn find_component(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Option<Result<Self>> {
         let (key, before, beetween, after) = Self::find_valid_component(value)?;
 
-        let before = ParsedValue::new(before, key_path, locale);
-        let beetween = ParsedValue::new(beetween, key_path, locale);
-        let after = ParsedValue::new(after, key_path, locale);
+        let before = nested_result_try!(ParsedValue::new(before, key_path, locale));
+        let beetween = nested_result_try!(ParsedValue::new(beetween, key_path, locale));
+        let after = nested_result_try!(ParsedValue::new(after, key_path, locale));
 
         let this = ParsedValue::Component {
             key,
             inner: beetween.into(),
         };
 
-        Some(ParsedValue::Bloc(vec![before, this, after]))
+        Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
 
     fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(Key, &'a str, &'a str)> {
@@ -794,7 +811,8 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         E: serde::de::Error,
     {
-        Ok(ParsedValue::new(v, self.key_path, self.top_locale_name))
+        ParsedValue::new(v, self.key_path, self.top_locale_name)
+            .map_err(|err| serde::de::Error::custom(err))
     }
 
     fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
@@ -866,7 +884,7 @@ mod tests {
         let key_path = KeyPath::new(None);
         let locale = Rc::new(Key::new("locale_key").unwrap());
 
-        ParsedValue::new(value, &key_path, &locale)
+        ParsedValue::new(value, &key_path, &locale).unwrap()
     }
 
     fn new_key(key: &str) -> Rc<Key> {
