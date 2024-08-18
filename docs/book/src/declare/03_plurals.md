@@ -1,8 +1,8 @@
-# Plurals
+# Ranges
 
 What if your translation display a count, and thus you must handle the case where the count is zero, one, or multiple ? You could declare multiple translations and use some kind of switch-case, but again this is not elegant.
 
-To simplify this process you can declare plurals, they are based around a count and display different translations based on this count.
+To simplify this process you can declare ranges, they are based around a count and display different translations based on this count.
 
 To declare them the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
 
@@ -96,7 +96,7 @@ Fallbacks are always required for `f32` and `f64`.
 
 ## Order
 
-The order of the plurals matter, for example:
+The order of the ranges matter, for example:
 
 ```json
 {
@@ -126,7 +126,7 @@ You can totally mix them, this is valid:
 
 ## Use interpolation
 
-The "You clicked {{ count }} times" kind of gave it away, but you can use interpolation in your plurals, this is valid:
+The "You clicked {{ count }} times" kind of gave it away, but you can use interpolation in your ranges, this is valid:
 
 ```json
 {
@@ -138,7 +138,7 @@ The "You clicked {{ count }} times" kind of gave it away, but you can use interp
 }
 ```
 
-With plurals, `{{ count }}` is a special variable that refers to the count provided to the plural, so you don't need to also provide it:
+With ranges, `{{ count }}` is a special variable that refers to the count provided to the range, so you don't need to also provide it:
 
 ```json
 {

@@ -11,7 +11,7 @@ Foreign keys let you re-use already declared translations, you declare them like
 
 This will replace `{{ @hello_world }}` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
 
-You can point to any key other than plurals and keys containing subkeys.
+You can point to any key other than ranges and keys containing subkeys.
 
 To point to subkeys you give the path by separating the the key by `.`: `{{ @key.subkey.subsubkey }}`.
 

@@ -9,7 +9,7 @@
 - [Declare Translations](./declare/README.md)
   - [Key-Value Pairs](./declare/01_key_value.md)
   - [Interpolation](./declare/02_interpolation.md)
-  - [Plurals](./declare/03_plurals.md)
+  - [Ranges](./declare/03_ranges.md)
   - [Subkeys](./declare/04_subkeys.md)
   - [Foreign keys](./declare/05_foreign_keys.md)
   - [Mixing Kinds](./declare/06_mix_kinds.md)
