@@ -9,7 +9,7 @@ mod foreign;
 #[cfg(test)]
 mod formatting;
 #[cfg(test)]
-mod plurals;
+mod ranges;
 #[cfg(test)]
 mod scoped;
 #[cfg(test)]

@@ -2,21 +2,21 @@
   "click_to_change_lang": "Click to change language",
   "click_count": "You clicked {{ count }} times",
   "click_to_inc": "Click to increment the counter",
-  "f32_plural": [
+  "f32_range": [
     "f32",
     ["You are broke", "0.0"],
     ["You owe money", "..0.0"],
     ["You have {{ count }}€"]
   ],
-  "u32_plural": ["u32", ["0", 0], ["1..", "1.."]],
-  "OR_plural": [
+  "u32_range": ["u32", ["0", 0], ["1..", "1.."]],
+  "OR_range": [
     "u8",
     ["0 or 5", "0", "5"],
     ["1..5 | 6..10", "1..5", "6..10"],
     ["10..15 | 20", "10..15", "20"],
     ["fallback with no count"]
   ],
-  "f32_OR_plural": [
+  "f32_OR_range": [
     "f32",
     ["0 or 5", 0, 5],
     ["1..5 | 6..10", "1..5", "6..10"],
@@ -34,9 +34,9 @@
   },
   "defaulted_string": "this string is declared in locale en",
   "defaulted_interpolation": "this interpolation is declared in locale {{ locale }}",
-  "defaulted_plurals": [
+  "defaulted_ranges": [
     ["zero", 0],
-    ["this plural is declared in locale {{ locale }}"]
+    ["this range is declared in locale {{ locale }}"]
   ],
   "defaulted_foreign_key": "before {{ @click_to_inc }} after",
   "foreign_key_to_string": "before {{ @click_to_inc }} after",
