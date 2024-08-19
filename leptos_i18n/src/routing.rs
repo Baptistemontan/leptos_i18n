@@ -111,7 +111,7 @@ fn update_path_effect<L: Locale>(
     }
 }
 
-fn correct_locale_prefix_effet<L: Locale>(
+fn correct_locale_prefix_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
 ) -> impl Fn(Option<()>) + 'static {
@@ -205,7 +205,7 @@ fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -
         check_history_change(i18n, base_path, history_changed_locale),
     );
     // correct the url when using <a> that removes the locale prefix
-    create_effect(correct_locale_prefix_effet(i18n, base_path));
+    create_effect(correct_locale_prefix_effect(i18n, base_path));
 
     match redir {
         None => view! { <Outlet /> },
