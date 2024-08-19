@@ -182,7 +182,7 @@ impl Display for Error {
             Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key \"{}\" in locale {:?}, check for recursive foreign key.", key_path, locale),
             Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, key don't exist.", foreign_key, key_path, locale),
             Error::Custom(s) => f.write_str(s),
-            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to ranges, plurals or subkeys are not allowed.", foreign_key, key_path, locale),
+            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to subkeys are not allowed.", foreign_key, key_path, locale),
             Error::UnknownFormatter { name, locale, key_path } => write!(f, "Unknown formatter {:?} at key \"{}\" in locale {:?}.", name, key_path, locale),
             Error::ConflictingPluralRuleType { locale, key_path } => write!(f, "Found both ordinal and cardinal plurals for key \"{}\" in locale {:?}.", key_path, locale),
             Error::InvalidForeignKeyArgs { locale, key_path, err } => write!(f, "Malformed foreign key args in locale {:?} at key \"{}\": {}.", locale, key_path, err),
