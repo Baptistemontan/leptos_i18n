@@ -178,3 +178,12 @@ fn f32_or_range_string() {
         assert_eq!(fr, "fallback avec tuple vide");
     }
 }
+
+#[test]
+fn args_to_range() {
+    let count = move || 0;
+    let en = td!(Locale::en, args_to_range, $ = count);
+    assert_eq_rendered!(en, "en");
+    let fr = td!(Locale::fr, args_to_range, $ = count);
+    assert_eq_rendered!(fr, "fr");
+}

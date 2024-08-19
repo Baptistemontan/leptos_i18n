@@ -1,13 +1,14 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::{
     load_locales::{
-        interpolate::CACHED_LOCALE_FIELD_KEY, locale::LiteralType, parsed_value::InterpolOrLit,
+        error::Result, interpolate::CACHED_LOCALE_FIELD_KEY, locale::LiteralType,
+        parsed_value::InterpolOrLit,
     },
-    utils::key::KeyPath,
+    utils::key::{Key, KeyPath},
 };
 
 use super::parsed_value::ParsedValue;
@@ -108,6 +109,27 @@ impl Plurals {
                 _ => #other,
             }
         }}
+    }
+
+    pub fn populate(
+        &self,
+        args: &HashMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<Self> {
+        let other = self.other.populate(args, foreign_key, locale, key_path)?;
+        let mut forms = HashMap::new();
+        for (form, value) in &self.forms {
+            let value = value.populate(args, foreign_key, locale, key_path)?;
+            forms.insert(*form, value);
+        }
+
+        Ok(Plurals {
+            rule_type: self.rule_type,
+            other: Box::new(other),
+            forms,
+        })
     }
 }
 

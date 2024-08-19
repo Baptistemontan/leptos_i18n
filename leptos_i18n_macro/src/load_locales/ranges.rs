@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     marker::PhantomData,
     ops::{Bound, Not},
     rc::Rc,
@@ -99,6 +100,42 @@ pub enum Ranges {
 }
 
 impl Ranges {
+    pub fn populate(
+        &self,
+        args: &HashMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<Self> {
+        fn inner<T: Clone>(
+            v: &RangesInner<T>,
+            args: &HashMap<String, ParsedValue>,
+            foreign_key: &KeyPath,
+            locale: &Rc<Key>,
+            key_path: &KeyPath,
+        ) -> Result<RangesInner<T>> {
+            let mut values = Vec::with_capacity(v.len());
+            for (range, value) in v {
+                let range = Clone::clone(range);
+                let value = value.populate(args, foreign_key, locale, key_path)?;
+                values.push((range, value));
+            }
+            Ok(values)
+        }
+        match self {
+            Ranges::I8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I8),
+            Ranges::I16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I16),
+            Ranges::I32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I32),
+            Ranges::I64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I64),
+            Ranges::U8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U8),
+            Ranges::U16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U16),
+            Ranges::U32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U32),
+            Ranges::U64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U64),
+            Ranges::F32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F32),
+            Ranges::F64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F64),
+        }
+    }
+
     pub fn as_string_impl(&self) -> TokenStream {
         match self {
             Ranges::I8(ranges) => Self::to_tokens_integers_string(ranges),

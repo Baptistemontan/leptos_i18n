@@ -57,3 +57,12 @@ fn ordinal_plural() {
     let fr = td!(Locale::fr, ordinal_plural, $ = count);
     assert_eq_rendered!(fr, "4e place");
 }
+
+#[test]
+fn args_to_plural() {
+    let count = move || 0;
+    let en = td!(Locale::en, args_to_plural, $ = count);
+    assert_eq_rendered!(en, "en");
+    let fr = td!(Locale::fr, args_to_plural, $ = count);
+    assert_eq_rendered!(fr, "fr");
+}

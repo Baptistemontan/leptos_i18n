@@ -244,7 +244,6 @@ impl ParsedValue {
     ) -> Result<()> {
         FOREIGN_KEYS.with(|foreign_keys| {
             let set = foreign_keys.borrow();
-            #[allow(clippy::never_loop)]
             for (locale, value_path) in &*set {
                 let value = values.get_value_at(locale, value_path).unwrap();
                 value.resolve_foreign_key(values, locale, default_locale, value_path)?;
@@ -273,31 +272,22 @@ impl ParsedValue {
             });
         };
 
-        match value {
-            ParsedValue::Default => {
-                // this check is normally done in a later step for optimisations (Locale::make_builder_keys),
-                // but we still need to do it here to avoid infinite loop
-                // this case happen if a foreign key point to an explicit default in the default locale
-                // pretty niche, but would cause a rustc stack overflow if not done.
-                if top_locale == default_locale {
-                    return Err(Error::ExplicitDefaultInDefault(key_path.to_owned()));
-                } else {
-                    return Self::resolve_foreign_key_inner(
-                        foreign_key,
-                        values,
-                        default_locale,
-                        default_locale,
-                        key_path,
-                    );
-                }
+        if matches!(value, ParsedValue::Default) {
+            // this check is normally done in a later step for optimisations (Locale::make_builder_keys),
+            // but we still need to do it here to avoid infinite loop
+            // this case happen if a foreign key point to an explicit default in the default locale
+            // pretty niche, but would cause a rustc stack overflow if not done.
+            if top_locale == default_locale {
+                return Err(Error::ExplicitDefaultInDefault(key_path.to_owned()));
+            } else {
+                return Self::resolve_foreign_key_inner(
+                    foreign_key,
+                    values,
+                    default_locale,
+                    default_locale,
+                    key_path,
+                );
             }
-            ParsedValue::Ranges(_) => {
-                return Err(Error::Custom(format!(
-                    "foreign key to ranges is not supported yet, at key {} in locale {:?}",
-                    key_path, top_locale
-                )))
-            }
-            _ => {}
         }
 
         // possibility that the foreign key must be resolved too
@@ -384,13 +374,17 @@ impl ParsedValue {
                 .map(|value| value.populate(args, foreign_key, locale, key_path))
                 .collect::<Result<_>>()
                 .map(ParsedValue::Bloc),
-            ParsedValue::Subkeys(_) | ParsedValue::Ranges(_) | ParsedValue::Plurals(_) => {
-                Err(Error::InvalidForeignKey {
-                    foreign_key: foreign_key.to_owned(),
-                    locale: Rc::clone(locale),
-                    key_path: key_path.to_owned(),
-                })
-            }
+            ParsedValue::Ranges(ranges) => ranges
+                .populate(args, foreign_key, locale, key_path)
+                .map(ParsedValue::Ranges),
+            ParsedValue::Plurals(plurals) => plurals
+                .populate(args, foreign_key, locale, key_path)
+                .map(ParsedValue::Plurals),
+            ParsedValue::Subkeys(_) => Err(Error::InvalidForeignKey {
+                foreign_key: foreign_key.to_owned(),
+                locale: Rc::clone(locale),
+                key_path: key_path.to_owned(),
+            }),
         }
     }
 
@@ -447,13 +441,6 @@ impl ParsedValue {
 
         self.get_keys_inner(key_path, &mut keys, true)?;
         Ok(keys)
-    }
-
-    pub fn is_string(&self) -> Option<&str> {
-        match self {
-            ParsedValue::Literal(Literal::String(value)) => Some(value),
-            _ => None,
-        }
     }
 
     pub fn is_literal(&self) -> Option<&Literal> {
@@ -827,9 +814,11 @@ impl ParsedValue {
     pub fn reduce_into(self, bloc: &mut Vec<Self>) {
         match self {
             ParsedValue::Default => {}    // default in a bloc ? skip
-            ParsedValue::Ranges(_) => {}  // same for ranges, can't be in a bloc
             ParsedValue::Subkeys(_) => {} // same for subkeys
-            ParsedValue::Plurals(_) => {} // same for plurals
+            mut plurals_like @ (ParsedValue::Ranges(_) | ParsedValue::Plurals(_)) => {
+                plurals_like.reduce();
+                bloc.push(plurals_like);
+            }
             ParsedValue::ForeignKey(foreign_key) => {
                 foreign_key
                     .into_inner()
@@ -864,7 +853,7 @@ impl ParsedValue {
     fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Literal(s) if s.is_string().is_some_and(str::is_empty) => {}
+            ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
             ParsedValue::Literal(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
             ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {

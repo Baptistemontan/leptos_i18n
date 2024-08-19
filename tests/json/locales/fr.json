@@ -48,5 +48,13 @@
   "ordinal_plural_ordinal_one": "{{ count }}re place",
   "ordinal_plural_ordinal_other": "{{ count }}e place",
   "same_lit_type": false,
-  "mixed_lit_type": true
+  "mixed_lit_type": true,
+  "range_with_arg_other_than_count": [
+    ["{{ arg }}", 0],
+    ["{{ arg }}", "_"]
+  ],
+  "args_to_range": "$t(range_with_arg_other_than_count, {\"arg\": \"fr\"})",
+  "plural_with_arg_other_than_count_one": "{{ arg }}",
+  "plural_with_arg_other_than_count_other": "{{ arg }}",
+  "args_to_plural": "$t(range_with_arg_other_than_count, {\"arg\": \"fr\"})"
 }
