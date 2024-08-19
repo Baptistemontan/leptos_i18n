@@ -49,19 +49,19 @@ fn click_count_string() {
 #[test]
 fn subkey_3() {
     let count = || 0;
-    let en = td!(Locale::en, subkeys.subkey_3, $ = count);
+    let en = td!(Locale::en, subkeys.subkey_3, count = count);
     assert_eq_rendered!(en, "zero");
-    let fr = td!(Locale::fr, subkeys.subkey_3, $ = count);
+    let fr = td!(Locale::fr, subkeys.subkey_3, count = count);
     assert_eq_rendered!(fr, "0");
     let count = || 1;
-    let en = td!(Locale::en, subkeys.subkey_3, $ = count);
+    let en = td!(Locale::en, subkeys.subkey_3, count = count);
     assert_eq_rendered!(en, "one");
-    let fr = td!(Locale::fr, subkeys.subkey_3, $ = count);
+    let fr = td!(Locale::fr, subkeys.subkey_3, count = count);
     assert_eq_rendered!(fr, "1");
     let count = || 3;
-    let en = td!(Locale::en, subkeys.subkey_3, $ = count);
+    let en = td!(Locale::en, subkeys.subkey_3, count = count);
     assert_eq_rendered!(en, "3");
-    let fr = td!(Locale::fr, subkeys.subkey_3, $ = count);
+    let fr = td!(Locale::fr, subkeys.subkey_3, count = count);
     assert_eq_rendered!(fr, "3");
 }
 

@@ -405,8 +405,7 @@ impl Ranges {
         });
         let match_statement = quote! {
             {
-                let plural_count = plural_count();
-                match plural_count {
+                match var_count() {
                     #(
                         #match_arms,
                     )*
@@ -435,8 +434,7 @@ impl Ranges {
 
         quote! {
             {
-                let plural_count = *plural_count;
-                match plural_count {
+                match *var_count {
                     #(
                         #match_arms,
                     )*
@@ -494,7 +492,7 @@ impl Ranges {
                 {
                     #captured_values
                     move || {
-                        let plural_count = plural_count();
+                        let plural_count = var_count();
                         #ifs
                     }
                 },
@@ -519,7 +517,7 @@ impl Ranges {
 
         quote! {
             {
-                let plural_count = *plural_count;
+                let plural_count = *var_count;
                 #ifs
             }
         }

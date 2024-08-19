@@ -58,5 +58,6 @@
   "plural_with_arg_other_than_count_one": "{{ arg }} singular",
   "plural_with_arg_other_than_count_other": "{{ arg }} {{ count }}",
   "args_to_plural": "$t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})",
-  "count_arg_to_plural": "$t(plural_with_arg_other_than_count, {\"count\": 2})"
+  "count_arg_to_plural": "$t(plural_with_arg_other_than_count, {\"count\": 2})",
+  "foreign_key_to_two_plurals": "$t(cardinal_plural) $t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})"
 }

@@ -23,17 +23,6 @@ pub enum InterpolatedValue {
         comp_name: Ident,
         attrs: TokenStream,
     },
-    // intermidiate value, not constructible by the user
-    Count {
-        key: Ident,
-        foreign_count: Option<Ident>,
-    },
-    // form t!(i18n, key, $ = ..)
-    AssignedCount {
-        foreign_count: Option<Ident>,
-        key: Ident,
-        value: Expr,
-    },
 }
 
 fn check_component_end(input: Cursor) -> bool {
@@ -72,28 +61,6 @@ impl syn::parse::Parse for InterpolatedValue {
         if is_comp {
             input.parse::<Token![<]>()?;
         }
-        let is_count = !is_comp && input.peek(Token![$]);
-        if is_count {
-            input.parse::<Token![$]>()?;
-            let foreign_count = if input.peek(Token![:]) {
-                input.parse::<Token![:]>()?;
-                let foreign_count = input.parse::<Ident>()?;
-                Some(foreign_count)
-            } else {
-                None
-            };
-            input.parse::<Token![=]>()?;
-            let value = input.parse::<Expr>()?;
-            let ident = foreign_count
-                .as_ref()
-                .map(|ident| format_ident!("__plural_count_{}__", ident))
-                .unwrap_or_else(|| format_ident!("__plural_count__"));
-            return Ok(InterpolatedValue::AssignedCount {
-                key: ident,
-                value,
-                foreign_count,
-            });
-        }
         let key = input.parse::<Ident>()?;
         if is_comp {
             input.parse::<Token![>]>()?;
@@ -127,13 +94,10 @@ impl syn::parse::Parse for InterpolatedValue {
 impl InterpolatedValue {
     pub fn get_ident(&self) -> Option<&Ident> {
         match self {
-            InterpolatedValue::Var(ident)
-            | InterpolatedValue::Count { key: ident, .. }
-            | InterpolatedValue::Comp(ident) => Some(ident),
+            InterpolatedValue::Var(ident) | InterpolatedValue::Comp(ident) => Some(ident),
             InterpolatedValue::AssignedVar { .. }
             | InterpolatedValue::AssignedComp { .. }
-            | InterpolatedValue::DirectComp { .. }
-            | InterpolatedValue::AssignedCount { .. } => None,
+            | InterpolatedValue::DirectComp { .. } => None,
         }
     }
 
@@ -173,22 +137,6 @@ impl InterpolatedValue {
                 *self = InterpolatedValue::Comp(key.clone());
                 (key.clone(), ts)
             }
-            InterpolatedValue::AssignedCount {
-                key,
-                value,
-                foreign_count,
-            } => {
-                let key = key.clone();
-                let ts = quote!(#value);
-                *self = InterpolatedValue::Count {
-                    key: key.clone(),
-                    foreign_count: foreign_count.take(),
-                };
-                (key, ts)
-            }
-            InterpolatedValue::Count { .. } => {
-                unreachable!("This is an intermidiate state, can't be constructed by the user.")
-            }
         }
     }
 }
@@ -204,18 +152,9 @@ impl ToTokens for InterpolatedValue {
                 let comp_ident = Self::format_ident(ident, false);
                 quote!(#comp_ident(#ident))
             }
-            InterpolatedValue::Count { foreign_count, key } => {
-                if let Some(foreign_count) = foreign_count {
-                    let builder_set_fn = format_ident!("plural_count_{}", foreign_count);
-                    quote!(#builder_set_fn(#key))
-                } else {
-                    quote!(plural_count(#key))
-                }
-            }
             InterpolatedValue::AssignedVar { .. }
             | InterpolatedValue::AssignedComp { .. }
-            | InterpolatedValue::DirectComp { .. }
-            | InterpolatedValue::AssignedCount { .. } => {
+            | InterpolatedValue::DirectComp { .. } => {
                 unreachable!(
                     "Assigned values should have been transformed to normal var in the param step"
                 )

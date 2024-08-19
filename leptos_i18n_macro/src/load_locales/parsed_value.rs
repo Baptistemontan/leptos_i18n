@@ -21,7 +21,7 @@ use super::{
     ranges::{RangeType, Ranges},
 };
 
-use crate::utils::key::{Key, KeyPath, CACHED_PLURAL_COUNT_KEY};
+use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
 
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
@@ -203,7 +203,7 @@ impl InterpolationKeys {
     }
 
     pub fn push_count(&mut self, key_path: &mut KeyPath, ty: RangeOrPlural) -> Result<()> {
-        let key = CACHED_PLURAL_COUNT_KEY.with(Clone::clone);
+        let key = CACHED_VAR_COUNT_KEY.with(Clone::clone);
         let var_infos = self.variables.entry(key).or_default();
         match (var_infos.range_count.replace(ty), ty) {
             (None, _) | (Some(RangeOrPlural::Plural), RangeOrPlural::Plural) => Ok(()),

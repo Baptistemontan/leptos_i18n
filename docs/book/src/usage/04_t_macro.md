@@ -156,7 +156,7 @@ Basically `<name .../>` expand to `move |children| view! { <name ...>{children}<
 Ranges expect a variable `$` that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
 
 ```rust
-t!(i18n, key_to_range, $ = count);
+t!(i18n, key_to_range, count = count);
 ```
 
 ## Access subkeys

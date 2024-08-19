@@ -128,7 +128,7 @@ impl Plurals {
 
         quote! {{
             let _plural_rules = l_i18n_crate::__private::get_plural_rules(*#locale_field, #rule_type);
-            match _plural_rules.category_for(core::clone::Clone::clone(plural_count)) {
+            match _plural_rules.category_for(core::clone::Clone::clone(var_count)) {
                 #(#match_arms,)*
                 _ => #other,
             }
@@ -245,7 +245,7 @@ impl ToTokens for Plurals {
                     #captured_values
                     let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
                     move || {
-                        match _plural_rules.category_for(plural_count()) {
+                        match _plural_rules.category_for(var_count()) {
                             #(#match_arms,)*
                             _ => #other,
                         }

@@ -151,13 +151,13 @@ With ranges, `{{ count }}` is a special variable that refers to the count provid
 ```
 
 ```rust
-t!(i18n, click_count, $ = || 0);
+t!(i18n, click_count, count = || 0);
 ```
 
 Will result in `"You have not clicked yet"` and
 
 ```rust
-t!(i18n, click_count, $ = || 5);
+t!(i18n, click_count, count = || 5);
 ```
 
 Will result in `"You clicked 5 times"`.
@@ -165,5 +165,5 @@ Will result in `"You clicked 5 times"`.
 Providing `count` will create an error:
 
 ```rust
-t!(i18n, click_count, count = 12, $ = || 5); // compilation error
+t!(i18n, click_count, count = 12, count = || 5); // compilation error
 ```

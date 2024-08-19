@@ -54,19 +54,19 @@ fn subkey_2() {
 #[test]
 fn subkey_3() {
     let count = || 0;
-    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, $ = count);
+    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, count = count);
     assert_eq_rendered!(en, "zero");
-    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, $ = count);
+    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, count = count);
     assert_eq_rendered!(fr, "zero");
     let count = || 1;
-    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, $ = count);
+    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, count = count);
     assert_eq_rendered!(en, "one");
-    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, $ = count);
+    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, count = count);
     assert_eq_rendered!(fr, "1");
     let count = || 3;
-    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, $ = count);
+    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, count = count);
     assert_eq_rendered!(en, "3");
-    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, $ = count);
+    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, count = count);
     assert_eq_rendered!(fr, "3");
 }
 

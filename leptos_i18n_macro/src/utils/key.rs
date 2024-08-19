@@ -8,7 +8,7 @@ use std::{
 };
 
 thread_local! {
-    pub static CACHED_PLURAL_COUNT_KEY: Rc<Key> = Rc::new(Key::new("var_count").unwrap());
+    pub static CACHED_VAR_COUNT_KEY: Rc<Key> = Rc::new(Key::new("var_count").unwrap());
 }
 
 #[derive(Clone)]
