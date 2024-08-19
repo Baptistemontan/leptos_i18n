@@ -5,17 +5,17 @@ Foreign keys let you re-use already declared translations, you declare them like
 ```json
 {
   "hello_world": "Hello World!",
-  "reuse": "message: {{ @hello_world }}"
+  "reuse": "message: $t(hello_world)"
 }
 ```
 
-This will replace `{{ @hello_world }}` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
+This will replace `$t(hello_world)` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
 
 You can point to any key other than ranges and keys containing subkeys.
 
-To point to subkeys you give the path by separating the the key by `.`: `{{ @key.subkey.subsubkey }}`.
+To point to subkeys you give the path by separating the the key by `.`: `$t(key.subkey.subsubkey)`.
 
-When using namespaces you _must_ specify the namespace of the key you are looking for, using `::`: `{{ @namespace::key }}`.
+When using namespaces you _must_ specify the namespace of the key you are looking for, using `:`: `$t(namespace:key)`.
 
 You can point to explicitly defaulted keys, but not implicitly defaulted ones.
 
@@ -26,7 +26,7 @@ You can also supply arguments to fill variables of the pointed key:
 ```json
 {
   "click_count": "You clicked {{ count }} times",
-  "clicked_twice": "{{ @click_count, count = 'two' }}"
+  "clicked_twice": "$t(click_count, {'count': 'two'})"
 }
 ```
 
