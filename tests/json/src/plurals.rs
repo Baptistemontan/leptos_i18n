@@ -89,3 +89,13 @@ fn foreign_key_to_two_plurals() {
     let fr = td!(Locale::fr, foreign_key_to_two_plurals, count);
     assert_eq_rendered!(fr, "1 fr singular");
 }
+
+#[test]
+fn renamed_plurals_count() {
+    let first_count = move || 0;
+    let second_count = move || 1;
+    let en = td!(Locale::en, renamed_plurals_count, first_count, second_count);
+    assert_eq_rendered!(en, "0 items 1st place");
+    let fr = td!(Locale::fr, renamed_plurals_count, first_count, second_count);
+    assert_eq_rendered!(fr, "0 1re place");
+}

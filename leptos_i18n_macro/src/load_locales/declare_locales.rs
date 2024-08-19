@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display, rc::Rc};
 
-use crate::load_locales::ranges::{RangeParseBuffer, Ranges};
-use crate::utils::key::{Key, KeyPath};
+use crate::load_locales::ranges::{RangeParseBuffer, Ranges, UntypedRangesInner};
+use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
 
 use super::{
     cfg_file::ConfigFile,
@@ -203,7 +203,10 @@ fn parse_ranges(
 
     let mut ranges = match parse_range_type(&content, &mut seed)? {
         TypeOrRange::Type(range_type) => Ranges::from_type(range_type),
-        TypeOrRange::Range(range) => Ranges::I32(vec![range]),
+        TypeOrRange::Range(range) => Ranges {
+            inner: UntypedRangesInner::I32(vec![range]),
+            count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+        },
     };
 
     ranges.deserialize_inner(RangeParseBuffer(content), seed)?;

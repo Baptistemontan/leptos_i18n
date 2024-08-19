@@ -135,6 +135,7 @@ impl ToTokens for PluralForm {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Plurals {
     pub rule_type: PluralRuleType,
+    pub count_key: Rc<Key>,
     // Box to be used inside the `ParsedValue::Plurals` variant without size recursion,
     // we could have `ParsedValue::Plurals(Box<Plurals>)`
     // but that makes `ParsedValue::Plurals(Plurals { .. })` impossible in match patterns.
@@ -165,7 +166,7 @@ impl Plurals {
         }
     }
 
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl(&self, count_key: &Key) -> TokenStream {
         let match_arms = self.forms.iter().map(|(form, value)| {
             let ts = value.as_string_impl();
             quote!(#form => #ts)
@@ -179,11 +180,80 @@ impl Plurals {
 
         quote! {{
             let _plural_rules = l_i18n_crate::__private::get_plural_rules(*#locale_field, #rule_type);
-            match _plural_rules.category_for(core::clone::Clone::clone(var_count)) {
+            match _plural_rules.category_for(core::clone::Clone::clone(#count_key)) {
                 #(#match_arms,)*
                 _ => #other,
             }
         }}
+    }
+
+    fn populate_with_new_key(
+        &self,
+        new_key: Rc<Key>,
+        args: &HashMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<ParsedValue> {
+        let other = self.other.populate(args, foreign_key, locale, key_path)?;
+        let mut forms = HashMap::new();
+        for (form, value) in &self.forms {
+            let value = value.populate(args, foreign_key, locale, key_path)?;
+            forms.insert(*form, value);
+        }
+
+        Ok(ParsedValue::Plurals(Plurals {
+            rule_type: self.rule_type,
+            count_key: new_key,
+            other: Box::new(other),
+            forms,
+        }))
+    }
+
+    pub fn find_variable(
+        values: &[ParsedValue],
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+        foreign_key: &KeyPath,
+    ) -> Result<Rc<Key>> {
+        let mut iter = values.iter().peekable();
+        while let Some(next) = iter.peek() {
+            match next {
+                ParsedValue::Literal(Literal::String(s)) if s.trim().is_empty() => {
+                    iter.next();
+                }
+                ParsedValue::Variable { .. } => break,
+                _ => {
+                    return Err(Error::InvalidCountArg {
+                        locale: locale.clone(),
+                        key_path: key_path.to_owned(),
+                        foreign_key: foreign_key.to_owned(),
+                    })
+                }
+            }
+        }
+        let Some(ParsedValue::Variable { key, .. }) = iter.next() else {
+            return Err(Error::InvalidCountArg {
+                locale: locale.clone(),
+                key_path: key_path.to_owned(),
+                foreign_key: foreign_key.to_owned(),
+            });
+        };
+
+        for next in iter {
+            match next {
+                ParsedValue::Literal(Literal::String(s)) if s.trim().is_empty() => continue,
+                _ => {
+                    return Err(Error::InvalidCountArg {
+                        locale: locale.clone(),
+                        key_path: key_path.to_owned(),
+                        foreign_key: foreign_key.to_owned(),
+                    })
+                }
+            }
+        }
+
+        Ok(key.clone())
     }
 
     fn populate_with_count_arg(
@@ -210,6 +280,13 @@ impl Plurals {
             }
             ParsedValue::Literal(Literal::Unsigned(count)) => get_category(self, locale, *count),
             ParsedValue::Literal(Literal::Signed(count)) => get_category(self, locale, *count),
+            ParsedValue::Bloc(values) => {
+                let new_key = Self::find_variable(values, locale, key_path, foreign_key)?;
+                return self.populate_with_new_key(new_key, args, foreign_key, locale, key_path);
+            }
+            ParsedValue::Variable { key, .. } => {
+                return self.populate_with_new_key(key.clone(), args, foreign_key, locale, key_path)
+            }
             _ => {
                 return Err(Error::InvalidCountArg {
                     locale: locale.clone(),
@@ -241,18 +318,7 @@ impl Plurals {
             return self.populate_with_count_arg(count_arg, args, foreign_key, locale, key_path);
         }
 
-        let other = self.other.populate(args, foreign_key, locale, key_path)?;
-        let mut forms = HashMap::new();
-        for (form, value) in &self.forms {
-            let value = value.populate(args, foreign_key, locale, key_path)?;
-            forms.insert(*form, value);
-        }
-
-        Ok(ParsedValue::Plurals(Plurals {
-            rule_type: self.rule_type,
-            other: Box::new(other),
-            forms,
-        }))
+        self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
     }
 }
 
@@ -288,13 +354,15 @@ impl ToTokens for Plurals {
 
         let rule_type = self.rule_type;
 
+        let count_key = &self.count_key;
+
         quote! {
             leptos::IntoView::into_view(
                 {
                     #captured_values
                     let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
                     move || {
-                        match _plural_rules.category_for(var_count()) {
+                        match _plural_rules.category_for(#count_key()) {
                             #(#match_arms,)*
                             _ => #other,
                         }

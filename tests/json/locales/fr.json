@@ -55,9 +55,11 @@
   ],
   "args_to_range": "$t(range_with_arg_other_than_count, {\"arg\": \"fr\"})",
   "count_arg_to_range": "$t(range_with_arg_other_than_count, {\"count\": 0})",
+  "renamed_ranges_count": "$t(f32_range, {\"count\":\"{{ first_count }}\"}) $t(OR_range, {\"count\":\"{{ second_count }}\"})",
   "plural_with_arg_other_than_count_one": "{{ arg }} singular",
   "plural_with_arg_other_than_count_other": "{{ arg }} {{ count }}",
   "args_to_plural": "$t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})",
   "count_arg_to_plural": "$t(plural_with_arg_other_than_count, {\"count\": 2})",
-  "foreign_key_to_two_plurals": "$t(cardinal_plural) $t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})"
+  "foreign_key_to_two_plurals": "$t(cardinal_plural) $t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})",
+  "renamed_plurals_count": "$t(cardinal_plural, {\"count\":\"{{ first_count }}\"}) $t(ordinal_plural, {\"count\":\"{{ second_count }}\"})"
 }

@@ -9,7 +9,6 @@ use super::parsed_value::InterpolationKeys;
 use super::parsed_value::RangeOrPlural;
 use super::{locale::Locale, parsed_value::ParsedValue};
 use crate::utils::formatter::Formatter;
-use crate::utils::key::CACHED_VAR_COUNT_KEY;
 use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
@@ -170,10 +169,6 @@ impl Interpolation {
             let var_or_comp = VarOrComp::Var {
                 formatters,
                 plural: infos.range_count,
-            };
-            let key = match infos.range_count {
-                Some(_) => CACHED_VAR_COUNT_KEY.with(Clone::clone),
-                None => key,
             };
             let generic = format_ident!("__{}__", key.ident);
             Field {

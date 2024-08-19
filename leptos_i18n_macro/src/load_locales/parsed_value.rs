@@ -21,7 +21,7 @@ use super::{
     ranges::{RangeType, Ranges},
 };
 
-use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
+use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
@@ -202,9 +202,13 @@ impl InterpolationKeys {
         self.components.insert(key);
     }
 
-    pub fn push_count(&mut self, key_path: &mut KeyPath, ty: RangeOrPlural) -> Result<()> {
-        let key = CACHED_VAR_COUNT_KEY.with(Clone::clone);
-        let var_infos = self.variables.entry(key).or_default();
+    pub fn push_count(
+        &mut self,
+        key_path: &mut KeyPath,
+        ty: RangeOrPlural,
+        count_key: Rc<Key>,
+    ) -> Result<()> {
+        let var_infos = self.variables.entry(count_key).or_default();
         match (var_infos.range_count.replace(ty), ty) {
             (None, _) | (Some(RangeOrPlural::Plural), RangeOrPlural::Plural) => Ok(()),
             (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) if old == new => Ok(()),
@@ -411,8 +415,11 @@ impl ParsedValue {
             ParsedValue::Ranges(ranges) => {
                 ranges.get_keys_inner(key_path, keys)?;
                 let range_type = ranges.get_type();
-                keys.get_interpol_keys_mut()
-                    .push_count(key_path, RangeOrPlural::Range(range_type))?;
+                keys.get_interpol_keys_mut().push_count(
+                    key_path,
+                    RangeOrPlural::Range(range_type),
+                    ranges.count_key.clone(),
+                )?;
             }
             ParsedValue::ForeignKey(foreign_key) => {
                 foreign_key
@@ -420,9 +427,17 @@ impl ParsedValue {
                     .as_inner("get_keys_inner")
                     .get_keys_inner(key_path, keys, false)?;
             }
-            ParsedValue::Plurals(Plurals { forms, other, .. }) => {
-                keys.get_interpol_keys_mut()
-                    .push_count(key_path, RangeOrPlural::Plural)?;
+            ParsedValue::Plurals(Plurals {
+                forms,
+                other,
+                count_key,
+                ..
+            }) => {
+                keys.get_interpol_keys_mut().push_count(
+                    key_path,
+                    RangeOrPlural::Plural,
+                    count_key.clone(),
+                )?;
                 for value in forms.values() {
                     value.get_keys_inner(key_path, keys, false)?;
                 }
@@ -921,7 +936,9 @@ impl ParsedValue {
                 .borrow()
                 .as_inner("flatten_string")
                 .flatten_string(tokens, locale_field),
-            ParsedValue::Plurals(plurals) => tokens.push(plurals.as_string_impl()),
+            ParsedValue::Plurals(plurals) => {
+                tokens.push(plurals.as_string_impl(&plurals.count_key))
+            }
         }
     }
 

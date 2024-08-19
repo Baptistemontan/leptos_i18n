@@ -11,11 +11,15 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::ParseBuffer;
 
-use crate::load_locales::{
-    locale::{LiteralType, LocalesOrNamespaces},
-    parsed_value::Literal,
-};
 use crate::utils::key::{Key, KeyPath};
+use crate::{
+    load_locales::{
+        locale::{LiteralType, LocalesOrNamespaces},
+        parsed_value::Literal,
+        plurals::Plurals,
+    },
+    utils::key::CACHED_VAR_COUNT_KEY,
+};
 
 use super::{
     declare_locales::parse_range_pairs,
@@ -90,7 +94,7 @@ impl RangeType {
 pub type RangesInner<T> = Vec<(Range<T>, ParsedValue)>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Ranges {
+pub enum UntypedRangesInner {
     I8(RangesInner<i8>),
     I16(RangesInner<i16>),
     I32(RangesInner<i32>),
@@ -101,6 +105,12 @@ pub enum Ranges {
     U64(RangesInner<u64>),
     F32(RangesInner<f32>),
     F64(RangesInner<f64>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Ranges {
+    pub count_key: Rc<Key>,
+    pub inner: UntypedRangesInner,
 }
 
 impl Ranges {
@@ -133,87 +143,100 @@ impl Ranges {
         match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
                 let count = *count;
-                match self {
-                    Ranges::F32(v) => {
+                match &self.inner {
+                    UntypedRangesInner::F32(v) => {
                         find_value(v, count as f32, args, foreign_key, locale, key_path)
                     }
-                    Ranges::F64(v) => find_value(v, count, args, foreign_key, locale, key_path),
-                    this => Err(Error::InvalidCountArgType {
+                    UntypedRangesInner::F64(v) => {
+                        find_value(v, count, args, foreign_key, locale, key_path)
+                    }
+                    _ => Err(Error::InvalidCountArgType {
                         locale: locale.clone(),
                         key_path: key_path.to_owned(),
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::F64,
-                        range_type: this.get_type(),
+                        range_type: self.get_type(),
                     }),
                 }
             }
             ParsedValue::Literal(Literal::Unsigned(count)) => {
                 let count = *count;
-                match self {
-                    Ranges::U64(v) => find_value(v, count, args, foreign_key, locale, key_path),
-                    Ranges::I8(v) => {
+                match &self.inner {
+                    UntypedRangesInner::U64(v) => {
+                        find_value(v, count, args, foreign_key, locale, key_path)
+                    }
+                    UntypedRangesInner::I8(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I16(v) => {
+                    UntypedRangesInner::I16(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I32(v) => {
+                    UntypedRangesInner::I32(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I64(v) => {
+                    UntypedRangesInner::I64(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::U8(v) => {
+                    UntypedRangesInner::U8(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::U16(v) => {
+                    UntypedRangesInner::U16(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::U32(v) => {
+                    UntypedRangesInner::U32(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    this => Err(Error::InvalidCountArgType {
+                    _ => Err(Error::InvalidCountArgType {
                         locale: locale.clone(),
                         key_path: key_path.to_owned(),
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::U64,
-                        range_type: this.get_type(),
+                        range_type: self.get_type(),
                     }),
                 }
             }
             ParsedValue::Literal(Literal::Signed(count)) => {
                 let count = *count;
-                match self {
-                    Ranges::U64(v) => {
+                match &self.inner {
+                    UntypedRangesInner::U64(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I8(v) => {
+                    UntypedRangesInner::I8(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I16(v) => {
+                    UntypedRangesInner::I16(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I32(v) => {
+                    UntypedRangesInner::I32(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::I64(v) => find_value(v, count, args, foreign_key, locale, key_path),
-                    Ranges::U8(v) => {
+                    UntypedRangesInner::I64(v) => {
+                        find_value(v, count, args, foreign_key, locale, key_path)
+                    }
+                    UntypedRangesInner::U8(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::U16(v) => {
+                    UntypedRangesInner::U16(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    Ranges::U32(v) => {
+                    UntypedRangesInner::U32(v) => {
                         find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
                     }
-                    this => Err(Error::InvalidCountArgType {
+                    _ => Err(Error::InvalidCountArgType {
                         locale: locale.clone(),
                         key_path: key_path.to_owned(),
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::I64,
-                        range_type: this.get_type(),
+                        range_type: self.get_type(),
                     }),
                 }
+            }
+            ParsedValue::Bloc(values) => {
+                let new_key = Plurals::find_variable(values, locale, key_path, foreign_key)?;
+                self.populate_with_new_key(new_key, args, foreign_key, locale, key_path)
+            }
+            ParsedValue::Variable { key, .. } => {
+                self.populate_with_new_key(key.clone(), args, foreign_key, locale, key_path)
             }
             _ => Err(Error::InvalidCountArg {
                 locale: locale.clone(),
@@ -223,8 +246,9 @@ impl Ranges {
         }
     }
 
-    pub fn populate(
+    fn populate_with_new_key(
         &self,
+        new_key: Rc<Key>,
         args: &HashMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
@@ -245,37 +269,92 @@ impl Ranges {
             }
             Ok(values)
         }
+        let ranges = match &self.inner {
+            UntypedRangesInner::I8(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I8)
+            }
+            UntypedRangesInner::I16(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I16)
+            }
+            UntypedRangesInner::I32(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I32)
+            }
+            UntypedRangesInner::I64(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I64)
+            }
+            UntypedRangesInner::U8(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U8)
+            }
+            UntypedRangesInner::U16(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U16)
+            }
+            UntypedRangesInner::U32(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U32)
+            }
+            UntypedRangesInner::U64(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U64)
+            }
+            UntypedRangesInner::F32(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::F32)
+            }
+            UntypedRangesInner::F64(v) => {
+                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::F64)
+            }
+        };
+        ranges
+            .map(|inner| Ranges {
+                count_key: new_key,
+                inner,
+            })
+            .map(ParsedValue::Ranges)
+    }
+
+    pub fn populate(
+        &self,
+        args: &HashMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<ParsedValue> {
         if let Some(count_arg) = args.get("var_count") {
             self.populate_with_count_arg(count_arg, args, foreign_key, locale, key_path)
         } else {
-            let ranges = match self {
-                Ranges::I8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I8),
-                Ranges::I16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I16),
-                Ranges::I32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I32),
-                Ranges::I64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I64),
-                Ranges::U8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U8),
-                Ranges::U16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U16),
-                Ranges::U32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U32),
-                Ranges::U64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U64),
-                Ranges::F32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F32),
-                Ranges::F64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F64),
-            };
-            ranges.map(ParsedValue::Ranges)
+            self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
         }
     }
 
     pub fn as_string_impl(&self) -> TokenStream {
-        match self {
-            Ranges::I8(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::I16(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::I32(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::I64(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::U8(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::U16(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::U32(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::U64(ranges) => Self::to_tokens_integers_string(ranges),
-            Ranges::F32(ranges) => Self::to_tokens_floats_string(ranges),
-            Ranges::F64(ranges) => Self::to_tokens_floats_string(ranges),
+        match &self.inner {
+            UntypedRangesInner::I8(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::I16(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::I32(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::I64(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::U8(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::U16(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::U32(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::U64(ranges) => {
+                Self::to_tokens_integers_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::F32(ranges) => {
+                Self::to_tokens_floats_string(ranges, &self.count_key)
+            }
+            UntypedRangesInner::F64(ranges) => {
+                Self::to_tokens_floats_string(ranges, &self.count_key)
+            }
         }
     }
 
@@ -302,17 +381,17 @@ impl Ranges {
             }
             Ok(())
         }
-        match self {
-            Ranges::I8(v) => inner(v, key_path, keys),
-            Ranges::I16(v) => inner(v, key_path, keys),
-            Ranges::I32(v) => inner(v, key_path, keys),
-            Ranges::I64(v) => inner(v, key_path, keys),
-            Ranges::U8(v) => inner(v, key_path, keys),
-            Ranges::U16(v) => inner(v, key_path, keys),
-            Ranges::U32(v) => inner(v, key_path, keys),
-            Ranges::U64(v) => inner(v, key_path, keys),
-            Ranges::F32(v) => inner(v, key_path, keys),
-            Ranges::F64(v) => inner(v, key_path, keys),
+        match &self.inner {
+            UntypedRangesInner::I8(v) => inner(v, key_path, keys),
+            UntypedRangesInner::I16(v) => inner(v, key_path, keys),
+            UntypedRangesInner::I32(v) => inner(v, key_path, keys),
+            UntypedRangesInner::I64(v) => inner(v, key_path, keys),
+            UntypedRangesInner::U8(v) => inner(v, key_path, keys),
+            UntypedRangesInner::U16(v) => inner(v, key_path, keys),
+            UntypedRangesInner::U32(v) => inner(v, key_path, keys),
+            UntypedRangesInner::U64(v) => inner(v, key_path, keys),
+            UntypedRangesInner::F32(v) => inner(v, key_path, keys),
+            UntypedRangesInner::F64(v) => inner(v, key_path, keys),
         }
     }
 
@@ -329,17 +408,17 @@ impl Ranges {
             }
             Ok(())
         }
-        match self {
-            Ranges::I8(v) => inner(v, f),
-            Ranges::I16(v) => inner(v, f),
-            Ranges::I32(v) => inner(v, f),
-            Ranges::I64(v) => inner(v, f),
-            Ranges::U8(v) => inner(v, f),
-            Ranges::U16(v) => inner(v, f),
-            Ranges::U32(v) => inner(v, f),
-            Ranges::U64(v) => inner(v, f),
-            Ranges::F32(v) => inner(v, f),
-            Ranges::F64(v) => inner(v, f),
+        match &self.inner {
+            UntypedRangesInner::I8(v) => inner(v, f),
+            UntypedRangesInner::I16(v) => inner(v, f),
+            UntypedRangesInner::I32(v) => inner(v, f),
+            UntypedRangesInner::I64(v) => inner(v, f),
+            UntypedRangesInner::U8(v) => inner(v, f),
+            UntypedRangesInner::U16(v) => inner(v, f),
+            UntypedRangesInner::U32(v) => inner(v, f),
+            UntypedRangesInner::U64(v) => inner(v, f),
+            UntypedRangesInner::F32(v) => inner(v, f),
+            UntypedRangesInner::F64(v) => inner(v, f),
         }
     }
 
@@ -356,36 +435,39 @@ impl Ranges {
             }
             Ok(())
         }
-        match self {
-            Ranges::I8(v) => inner(v, f),
-            Ranges::I16(v) => inner(v, f),
-            Ranges::I32(v) => inner(v, f),
-            Ranges::I64(v) => inner(v, f),
-            Ranges::U8(v) => inner(v, f),
-            Ranges::U16(v) => inner(v, f),
-            Ranges::U32(v) => inner(v, f),
-            Ranges::U64(v) => inner(v, f),
-            Ranges::F32(v) => inner(v, f),
-            Ranges::F64(v) => inner(v, f),
+        match &mut self.inner {
+            UntypedRangesInner::I8(v) => inner(v, f),
+            UntypedRangesInner::I16(v) => inner(v, f),
+            UntypedRangesInner::I32(v) => inner(v, f),
+            UntypedRangesInner::I64(v) => inner(v, f),
+            UntypedRangesInner::U8(v) => inner(v, f),
+            UntypedRangesInner::U16(v) => inner(v, f),
+            UntypedRangesInner::U32(v) => inner(v, f),
+            UntypedRangesInner::U64(v) => inner(v, f),
+            UntypedRangesInner::F32(v) => inner(v, f),
+            UntypedRangesInner::F64(v) => inner(v, f),
         }
     }
 
     pub const fn get_type(&self) -> RangeType {
-        match self {
-            Ranges::I8(_) => RangeType::I8,
-            Ranges::I16(_) => RangeType::I16,
-            Ranges::I32(_) => RangeType::I32,
-            Ranges::I64(_) => RangeType::I64,
-            Ranges::U8(_) => RangeType::U8,
-            Ranges::U16(_) => RangeType::U16,
-            Ranges::U32(_) => RangeType::U32,
-            Ranges::U64(_) => RangeType::U64,
-            Ranges::F32(_) => RangeType::F32,
-            Ranges::F64(_) => RangeType::F64,
+        match &self.inner {
+            UntypedRangesInner::I8(_) => RangeType::I8,
+            UntypedRangesInner::I16(_) => RangeType::I16,
+            UntypedRangesInner::I32(_) => RangeType::I32,
+            UntypedRangesInner::I64(_) => RangeType::I64,
+            UntypedRangesInner::U8(_) => RangeType::U8,
+            UntypedRangesInner::U16(_) => RangeType::U16,
+            UntypedRangesInner::U32(_) => RangeType::U32,
+            UntypedRangesInner::U64(_) => RangeType::U64,
+            UntypedRangesInner::F32(_) => RangeType::F32,
+            UntypedRangesInner::F64(_) => RangeType::F64,
         }
     }
 
-    fn to_tokens_integers<T: RangeInteger>(ranges: &[(Range<T>, ParsedValue)]) -> TokenStream {
+    fn to_tokens_integers<T: RangeInteger>(
+        ranges: &[(Range<T>, ParsedValue)],
+        count_key: &Key,
+    ) -> TokenStream {
         let match_arms = ranges.iter().map(|(range, value)| quote!(#range => #value));
 
         let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
@@ -405,7 +487,7 @@ impl Ranges {
         });
         let match_statement = quote! {
             {
-                match var_count() {
+                match #count_key() {
                     #(
                         #match_arms,
                     )*
@@ -426,6 +508,7 @@ impl Ranges {
 
     fn to_tokens_integers_string<T: RangeInteger>(
         ranges: &[(Range<T>, ParsedValue)],
+        count_key: &Key,
     ) -> TokenStream {
         let match_arms = ranges.iter().map(|(range, value)| {
             let value = value.as_string_impl();
@@ -434,7 +517,7 @@ impl Ranges {
 
         quote! {
             {
-                match *var_count {
+                match *#count_key {
                     #(
                         #match_arms,
                     )*
@@ -458,7 +541,10 @@ impl Ranges {
         }
     }
 
-    fn to_tokens_floats<T: RangeFloats>(ranges: &[(Range<T>, ParsedValue)]) -> TokenStream {
+    fn to_tokens_floats<T: RangeFloats>(
+        ranges: &[(Range<T>, ParsedValue)],
+        count_key: &Key,
+    ) -> TokenStream {
         let mut ifs = ranges
             .iter()
             .map(|(range, value)| match Self::to_condition(range) {
@@ -492,7 +578,7 @@ impl Ranges {
                 {
                     #captured_values
                     move || {
-                        let plural_count = var_count();
+                        let plural_count = #count_key();
                         #ifs
                     }
                 },
@@ -501,7 +587,10 @@ impl Ranges {
         }
     }
 
-    fn to_tokens_floats_string<T: RangeFloats>(ranges: &[(Range<T>, ParsedValue)]) -> TokenStream {
+    fn to_tokens_floats_string<T: RangeFloats>(
+        ranges: &[(Range<T>, ParsedValue)],
+        count_key: &Key,
+    ) -> TokenStream {
         let mut ifs = ranges.iter().map(|(range, value)| {
             let value = value.as_string_impl();
             match Self::to_condition(range) {
@@ -517,7 +606,7 @@ impl Ranges {
 
         quote! {
             {
-                let plural_count = *var_count;
+                let plural_count = *#count_key;
                 #ifs
             }
         }
@@ -527,32 +616,52 @@ impl Ranges {
     where
         A: ParseRanges<'a, 'de>,
     {
-        match self {
-            Ranges::I8(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::I16(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::I32(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::I64(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::U8(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::U16(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::U32(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::U64(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::F32(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
-            Ranges::F64(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
+        match &mut self.inner {
+            UntypedRangesInner::I8(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
+            UntypedRangesInner::I16(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::I32(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::I64(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::U8(ranges) => ParseRanges::deserialize_all_pairs(seq, ranges, seed),
+            UntypedRangesInner::U16(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::U32(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::U64(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::F32(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
+            UntypedRangesInner::F64(ranges) => {
+                ParseRanges::deserialize_all_pairs(seq, ranges, seed)
+            }
         }
     }
 
     pub fn from_type(range_type: RangeType) -> Self {
-        match range_type {
-            RangeType::I8 => Self::I8(vec![]),
-            RangeType::I16 => Self::I16(vec![]),
-            RangeType::I32 => Self::I32(vec![]),
-            RangeType::I64 => Self::I64(vec![]),
-            RangeType::U8 => Self::U8(vec![]),
-            RangeType::U16 => Self::U16(vec![]),
-            RangeType::U32 => Self::U32(vec![]),
-            RangeType::U64 => Self::U64(vec![]),
-            RangeType::F32 => Self::F32(vec![]),
-            RangeType::F64 => Self::F64(vec![]),
+        let inner = match range_type {
+            RangeType::I8 => UntypedRangesInner::I8(vec![]),
+            RangeType::I16 => UntypedRangesInner::I16(vec![]),
+            RangeType::I32 => UntypedRangesInner::I32(vec![]),
+            RangeType::I64 => UntypedRangesInner::I64(vec![]),
+            RangeType::U8 => UntypedRangesInner::U8(vec![]),
+            RangeType::U16 => UntypedRangesInner::U16(vec![]),
+            RangeType::U32 => UntypedRangesInner::U32(vec![]),
+            RangeType::U64 => UntypedRangesInner::U64(vec![]),
+            RangeType::F32 => UntypedRangesInner::F32(vec![]),
+            RangeType::F64 => UntypedRangesInner::F64(vec![]),
+        };
+        Ranges {
+            count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+            inner,
         }
     }
 
@@ -570,7 +679,10 @@ impl Ranges {
 
         let mut ranges = match type_or_range {
             TypeOrRange::Type(range_type) => Self::from_type(range_type),
-            TypeOrRange::Range(range) => Ranges::I32(vec![range]),
+            TypeOrRange::Range(range) => Ranges {
+                count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+                inner: UntypedRangesInner::I32(vec![range]),
+            },
         };
 
         ranges.deserialize_inner(seq, parsed_value_seed)?;
@@ -599,34 +711,54 @@ impl Ranges {
     }
 
     pub fn check_deserialization(&self) -> (bool, usize, bool) {
-        match self {
-            Ranges::I8(ranges) => Self::check_de_inner(ranges),
-            Ranges::I16(ranges) => Self::check_de_inner(ranges),
-            Ranges::I32(ranges) => Self::check_de_inner(ranges),
-            Ranges::I64(ranges) => Self::check_de_inner(ranges),
-            Ranges::U8(ranges) => Self::check_de_inner(ranges),
-            Ranges::U16(ranges) => Self::check_de_inner(ranges),
-            Ranges::U32(ranges) => Self::check_de_inner(ranges),
-            Ranges::U64(ranges) => Self::check_de_inner(ranges),
-            Ranges::F32(ranges) => Self::check_de_inner(ranges),
-            Ranges::F64(ranges) => Self::check_de_inner(ranges),
+        match &self.inner {
+            UntypedRangesInner::I8(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::I16(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::I32(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::I64(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::U8(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::U16(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::U32(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::U64(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::F32(ranges) => Self::check_de_inner(ranges),
+            UntypedRangesInner::F64(ranges) => Self::check_de_inner(ranges),
         }
     }
 }
 
 impl ToTokens for Ranges {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            Ranges::I8(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::I16(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::I32(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::I64(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::U8(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::U16(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::U32(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::U64(ranges) => Self::to_tokens_integers(ranges).to_tokens(tokens),
-            Ranges::F32(ranges) => Self::to_tokens_floats(ranges).to_tokens(tokens),
-            Ranges::F64(ranges) => Self::to_tokens_floats(ranges).to_tokens(tokens),
+        match &self.inner {
+            UntypedRangesInner::I8(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::I16(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::I32(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::I64(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::U8(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::U16(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::U32(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::U64(ranges) => {
+                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::F32(ranges) => {
+                Self::to_tokens_floats(ranges, &self.count_key).to_tokens(tokens)
+            }
+            UntypedRangesInner::F64(ranges) => {
+                Self::to_tokens_floats(ranges, &self.count_key).to_tokens(tokens)
+            }
         }
     }
 }

@@ -195,3 +195,14 @@ fn count_arg_to_range() {
     let fr = td!(Locale::fr, count_arg_to_range, arg = "fr");
     assert_eq_rendered!(fr, "fr zero");
 }
+
+#[test]
+fn renamed_ranges_count() {
+    let first_count = move || 0.0;
+    let second_count = move || 1;
+    let en = td!(Locale::en, renamed_ranges_count, first_count, second_count);
+    assert_eq_rendered!(en, "You are broke 1..5 | 6..10");
+    let fr = td!(Locale::fr, renamed_ranges_count, first_count, second_count);
+    assert_eq_rendered!(fr, "Vous êtes pauvre 1..5 | 6..10");
+}
+
