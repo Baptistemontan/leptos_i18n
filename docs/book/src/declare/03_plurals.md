@@ -53,11 +53,11 @@ For example in French, 0 is considered singular, so this could produce "0 choses
 
 ## Ordinal plurals
 
-What I describe above are "Cardinal" plurals, but they don't work with like "1rst place", "2nd place", ect..
+What I describe above are "Cardinal" plurals, but they don't work with like "1st place", "2nd place", ect..
 
 The English language use 4 ordinal plurals, and French 2:
 
-- one: "1rst place", "21rst place"
+- one: "1st place", "21st place"
 - two: "2nd place", "22nd place"
 - few: "3rd place", "33rd place"
 - other: "4th place", "5th place", "7th place"
@@ -71,7 +71,7 @@ You can use them by using the `_ordinal` suffix:
 
 ```json
 {
-  "key_ordinal_one": "{{ count }}rst place",
+  "key_ordinal_one": "{{ count }}st place",
   "key_ordinal_two": "{{ count }}nd place",
   "key_ordinal_few": "{{ count }}rd place",
   "key_ordinal_other": "{{ count }}th place"
