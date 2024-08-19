@@ -11,7 +11,10 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 leptos = "0.6"
 common = { path = "../common" }
-leptos_i18n = { path = "../../leptos_i18n", features = ["interpolate_display"] }
+leptos_i18n = { path = "../../leptos_i18n", features = [
+    "interpolate_display",
+    "track_locale_files",
+] }
 
 
 [package.metadata.leptos-i18n]

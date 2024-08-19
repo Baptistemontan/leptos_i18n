@@ -5,15 +5,17 @@ use std::{
     rc::Rc,
 };
 
+use quote::{quote, ToTokens};
+
 use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
-    parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
+    parsed_value::{InterpolOrLit, ParsedValue, ParsedValueSeed},
     plurals::{PluralForm, PluralRuleType, Plurals},
     tracking::track_file,
     warning::{emit_warning, Warning},
 };
-use crate::utils::key::{Key, KeyPath};
+use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
 
 macro_rules! define_by_format {
     (json => $($tt:tt)*) => {
@@ -199,6 +201,34 @@ impl LocalesOrNamespaces {
             Ok(LocalesOrNamespaces::Locales(locales))
         }
     }
+
+    pub fn merge_plurals_inner(locales: &mut [Locale], namespace: Option<Rc<Key>>) -> Result<()> {
+        let mut key_path = KeyPath::new(namespace);
+
+        for locale in locales {
+            let top_locale = locale.name.clone();
+            locale.merge_plurals(top_locale.clone(), &mut key_path)?;
+        }
+
+        Ok(())
+    }
+
+    // this step would be more optimized to be done during `check_locales` but plurals merging need to be done before foreign key resolution,
+    // which also need to be done before `check_locales`.
+    pub fn merge_plurals(&mut self) -> Result<()> {
+        match self {
+            LocalesOrNamespaces::NameSpaces(namespaces) => {
+                for namespace in namespaces {
+                    Self::merge_plurals_inner(
+                        &mut namespace.locales,
+                        Some(Rc::clone(&namespace.key)),
+                    )?;
+                }
+                Ok(())
+            }
+            LocalesOrNamespaces::Locales(locales) => Self::merge_plurals_inner(&mut *locales, None),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -330,11 +360,14 @@ impl Locale {
                     }
                 })
                 .collect::<Result<HashMap<_, _>>>()?;
-            let value = ParsedValue::Plurals(Plurals {
+            let plural = Plurals {
                 rule_type,
                 forms,
+                count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
                 other: Box::new(other),
-            });
+            };
+            plural.check_categories(&locale, key_path);
+            let value = ParsedValue::Plurals(plural);
             let key = key_path.pop_key().unwrap();
             self.keys.insert(key, value);
         }
@@ -384,15 +417,12 @@ impl Locale {
         let default_locale = locales.next().unwrap();
         let mut key_path = KeyPath::new(namespace);
 
-        default_locale.merge_plurals(default_locale.name.clone(), &mut key_path)?;
-
         let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
 
         let default_locale_name = &default_locale.name.name;
 
         for locale in locales {
             let top_locale = locale.name.clone();
-            locale.merge_plurals(top_locale.clone(), &mut key_path)?;
             locale.merge(
                 &mut default_keys,
                 default_locale_name,
@@ -425,9 +455,34 @@ impl Locale {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralType {
+    String,
+    Bool,
+    Signed,
+    Unsigned,
+    Float,
+}
+
+impl ToTokens for LiteralType {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        match self {
+            LiteralType::String => quote!(&'static str),
+            LiteralType::Bool => quote!(bool),
+            LiteralType::Signed => quote!(i64),
+            LiteralType::Unsigned => quote!(u64),
+            LiteralType::Float => quote!(f64),
+        }
+    }
+
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.to_token_stream());
+    }
+}
+
 #[derive(Debug)]
 pub enum LocaleValue {
-    Value(Option<InterpolationKeys>),
+    Value(InterpolOrLit),
     Subkeys {
         locales: Vec<Locale>,
         keys: BuildersKeysInner,

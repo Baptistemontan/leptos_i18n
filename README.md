@@ -395,10 +395,10 @@ But floats (`f32` and `f64`) are not accepted in match statements, so they expan
 The plural above would generate code similar to this:
 
 ```rust
-let plural_count = f32::from(count());
-if plural_count == 0.0 {
+let count = f32::from(count());
+if count == 0.0 {
   // render "You are broke"
-} else if (..0.0).contains(&plural_count) {
+} else if (..0.0).contains(&count) {
   // render "You owe money"
 } else {
   // render "You have {{ count }}€"
@@ -432,7 +432,7 @@ To supply the count for the plural in the `t!` macro, use `$`:
 
 ```rust
 let count = move || counter.get();
-t!(i18n, click_count, $ = count)
+t!(i18n, click_count, count = count)
 ```
 
 ### Subkeys

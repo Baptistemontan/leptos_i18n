@@ -26,7 +26,7 @@ impl DisplayBuilder {
 ///
 /// It has no uses outside of the internals of the `t!` macro.
 #[doc(hidden)]
-pub trait BuildStr: Sized {
+pub trait BuildLit: Sized {
     #[inline]
     fn builder(self) -> Self {
         self
@@ -50,9 +50,35 @@ pub trait BuildStr: Sized {
     }
 }
 
-impl BuildStr for &'static str {
+impl BuildLit for &'static str {
     #[inline]
     fn display_builder(self) -> DisplayBuilder {
         DisplayBuilder(Cow::Borrowed(self))
     }
 }
+
+impl BuildLit for bool {
+    #[inline]
+    fn display_builder(self) -> DisplayBuilder {
+        match self {
+            true => DisplayBuilder(Cow::Borrowed("true")),
+            false => DisplayBuilder(Cow::Borrowed("false")),
+        }
+    }
+}
+
+macro_rules! impl_build_lit_nums {
+    ($t:ty) => {
+        impl BuildLit for $t {
+            fn display_builder(self) -> DisplayBuilder {
+                DisplayBuilder(Cow::Owned(ToString::to_string(&self)))
+            }
+        }
+    };
+    ($t:ty, $($tt:tt)*) => {
+        impl_build_lit_nums!($t);
+        impl_build_lit_nums!($($tt)*);
+    }
+}
+
+impl_build_lit_nums!(u64, i64, f64);
