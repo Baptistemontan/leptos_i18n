@@ -22,6 +22,7 @@ use cfg_file::ConfigFile;
 use error::{Error, Result};
 use interpolate::Interpolation;
 use locale::{Locale, LocaleValue};
+use parsed_value::InterpolOrLit;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 
@@ -61,6 +62,8 @@ fn load_locales_inner(
     cfg_file: &ConfigFile,
     locales: &mut LocalesOrNamespaces,
 ) -> Result<TokenStream> {
+    locales.merge_plurals()?;
+
     ParsedValue::resolve_foreign_keys(locales, &cfg_file.default)?;
 
     let keys = Locale::check_locales(locales)?;
@@ -371,15 +374,23 @@ fn create_locale_type_inner(
 ) -> TokenStream {
     let default_match = get_default_match(default_locale, top_locales, locales, enum_ident);
 
-    let string_keys = keys
+    let literal_keys = keys
         .iter()
-        .filter(|(_, value)| matches!(value, LocaleValue::Value(None)))
-        .map(|(key, _)| key)
+        .filter_map(|(key, value)| match value {
+            LocaleValue::Value(InterpolOrLit::Lit(t)) => Some((key.clone(), t)),
+            _ => None,
+        })
         .collect::<Vec<_>>();
 
-    let string_fields = string_keys
+    let literal_fields = literal_keys
         .iter()
-        .map(|key| quote!(pub #key: &'static str))
+        .map(|(key, literal_type)| {
+            if cfg!(feature = "show_keys_only") {
+                quote!(pub #key: &'static str)
+            } else {
+                quote!(pub #key: #literal_type)
+            }
+        })
         .collect::<Vec<_>>();
 
     let subkeys = keys
@@ -449,11 +460,11 @@ fn create_locale_type_inner(
     let builders = keys
         .iter()
         .filter_map(|(key, value)| match value {
-            LocaleValue::Value(None) | LocaleValue::Subkeys { .. } => None,
-            LocaleValue::Value(Some(keys)) => Some((
+            LocaleValue::Value(InterpolOrLit::Interpol(keys)) => Some((
                 key,
                 Interpolation::new(key, enum_ident, keys, locales, &default_match, key_path),
             )),
+            _ => None,
         })
         .collect::<Vec<_>>();
 
@@ -473,19 +484,19 @@ fn create_locale_type_inner(
     let default_locale = locales.first().unwrap();
 
     let new_match_arms = locales.iter().enumerate().map(|(i, locale)| {
-        let filled_string_fields = string_keys.iter().filter_map(|&key| {
+        let filled_lit_fields = literal_keys.iter().filter_map(|(key, _)| {
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
                 return Some(quote!(#key: #key_str));
             }
             match locale.keys.get(key) {
-                Some(ParsedValue::String(str_value)) => Some(quote!(#key: #str_value)),
+                Some(ParsedValue::Literal(lit)) => Some(quote!(#key: #lit)),
                 _ => {
-                    let str_value = default_locale
+                    let lit = default_locale
                         .keys
                         .get(key)
-                        .and_then(ParsedValue::is_string)?;
-                    Some(quote!(#key: #str_value))
+                        .and_then(ParsedValue::is_literal)?;
+                    Some(quote!(#key: #lit))
                 }
             }
         });
@@ -495,7 +506,7 @@ fn create_locale_type_inner(
         let pattern = pattern.as_ref().unwrap_or(&default_match);
         quote! {
             #pattern => #type_ident {
-                #(#filled_string_fields,)*
+                #(#filled_lit_fields,)*
                 #(#init_builder_fields,)*
                 #(#subkeys_field_new,)*
             }
@@ -565,7 +576,7 @@ fn create_locale_type_inner(
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident {
-            #(#string_fields,)*
+            #(#literal_fields,)*
             #(#builder_fields,)*
             #(#subkeys_fields,)*
         }

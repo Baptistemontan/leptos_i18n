@@ -170,10 +170,6 @@ impl Interpolation {
                 formatters,
                 plural: infos.range_count,
             };
-            let key = match infos.range_count {
-                Some(_) => Rc::new(Key::new("plural_count").unwrap()),
-                None => key,
-            };
             let generic = format_ident!("__{}__", key.ident);
             Field {
                 key,
@@ -463,25 +459,11 @@ impl Interpolation {
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, default_match);
 
-        let range = fields.iter().any(|field| {
-            matches!(
-                field.var_or_comp,
-                VarOrComp::Var {
-                    plural: Some(_),
-                    ..
-                }
-            )
-        });
-
-        let var_count =
-            range.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
-
         quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
                 fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
-                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,
@@ -526,25 +508,11 @@ impl Interpolation {
 
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
 
-        let range = fields.iter().any(|field| {
-            matches!(
-                field.var_or_comp,
-                VarOrComp::Var {
-                    plural: Some(_),
-                    ..
-                }
-            )
-        });
-
-        let var_count =
-            range.then(|| quote!(let var_count = core::clone::Clone::clone(&plural_count);));
-
         quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
                 fn into_view(self) -> leptos::View {
                     #destructure
-                    #var_count
                     match #locale_field {
                         #(
                             #locales_impls,

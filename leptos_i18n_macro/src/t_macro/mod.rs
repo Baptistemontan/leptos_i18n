@@ -69,7 +69,7 @@ pub fn t_macro_inner(
         let inner = quote! {
             {
                 #[allow(unused)]
-                use leptos_i18n::__private::BuildStr;
+                use leptos_i18n::__private::BuildLit;
                 let _key = #get_key;
                 _key.#builder_fn().#build_fn()
             }

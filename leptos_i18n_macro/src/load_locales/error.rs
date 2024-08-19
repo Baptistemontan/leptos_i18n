@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display, path::PathBuf, rc::Rc};
+use std::{collections::HashSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
@@ -76,6 +76,29 @@ pub enum Error {
         locale: Rc<Key>,
         key_path: KeyPath,
     },
+    InvalidForeignKeyArgs {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        err: serde_json::Error,
+    },
+    InvalidCountArg {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        foreign_key: KeyPath,
+    },
+    InvalidCountArgType {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        foreign_key: KeyPath,
+        input_type: RangeType,
+        range_type: RangeType,
+    },
+    CountArgOutsideRange {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        foreign_key: KeyPath,
+        err: TryFromIntError,
+    },
 }
 
 impl Display for Error {
@@ -145,7 +168,7 @@ impl Display for Error {
             Error::RangeTypeMissmatch { key_path, type1, type2 } => write!(f, "Conflicting range value type at key \"{}\", found type {} but also type {}.", key_path, type1, type2),
             Error::InvalidKey(key) => write!(f, "invalid key {:?}, it can't be used as a rust identifier, try removing whitespaces and special characters.", key),
             Error::EmptyRange => write!(f, "empty ranges are not allowed"),
-            Error::InvalidRangeType(t) => write!(f, "invalid prange type {:?}", t),
+            Error::InvalidRangeType(t) => write!(f, "invalid range type {:?}", t),
             Error::NestedRanges => write!(f, "nested ranges are not allowed"),
             Error::InvalidFallback => write!(f, "fallbacks are only allowed in last position"),
             Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
@@ -159,9 +182,13 @@ impl Display for Error {
             Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key \"{}\" in locale {:?}, check for recursive foreign key.", key_path, locale),
             Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, key don't exist.", foreign_key, key_path, locale),
             Error::Custom(s) => f.write_str(s),
-            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to ranges, plurals or subkeys are not allowed.", foreign_key, key_path, locale),
+            Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to subkeys are not allowed.", foreign_key, key_path, locale),
             Error::UnknownFormatter { name, locale, key_path } => write!(f, "Unknown formatter {:?} at key \"{}\" in locale {:?}.", name, key_path, locale),
-            Error::ConflictingPluralRuleType { locale, key_path } => write!(f, "Found both ordinal and cardinal plurals for key \"{}\" in locale {:?}", key_path, locale),
+            Error::ConflictingPluralRuleType { locale, key_path } => write!(f, "Found both ordinal and cardinal plurals for key \"{}\" in locale {:?}.", key_path, locale),
+            Error::InvalidForeignKeyArgs { locale, key_path, err } => write!(f, "Malformed foreign key args in locale {:?} at key \"{}\": {}.", locale, key_path, err),
+            Error::InvalidCountArg { locale, key_path, foreign_key } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" for plurals or ranges can only be a literal number or a single variable.", locale, key_path, foreign_key),
+            Error::InvalidCountArgType { locale, key_path, foreign_key, input_type, range_type } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" of type {} for range of type {} is not allowed.", locale, key_path, foreign_key, input_type, range_type),
+            Error::CountArgOutsideRange { locale, key_path, foreign_key, err } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" is outside range: {}", locale, key_path, foreign_key, err),
         }
     }
 }
