@@ -173,7 +173,7 @@ There are variants of those with `init_*` instead of `provide_*` that returns th
 
 ```rust
 fn provide_*(..args) -> I18nContext<Locale> {
-    use_contex().unwrap_or_else(move || {
+    use_context().unwrap_or_else(move || {
         let ctx = init_*(..args);
         leptos::provide_context(ctx);
         ctx
