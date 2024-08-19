@@ -1,6 +1,6 @@
 # Foreign keys
 
-Foreign keys let you re-use already declared translations, you declare them like variables but with a '@' before the path:
+Foreign keys let you re-use already declared translations:
 
 ```json
 {
