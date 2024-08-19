@@ -297,6 +297,11 @@ impl ParsedValue {
         // possibility that the foreign key must be resolved too
         value.resolve_foreign_key(values, top_locale, default_locale, foreign_key_path)?;
 
+        // possibility that args must resolve too
+        for arg in args.values() {
+            arg.resolve_foreign_key(values, top_locale, default_locale, foreign_key_path)?;
+        }
+
         let value = value.populate(args, foreign_key_path, top_locale, key_path)?;
 
         let _ = std::mem::replace(foreign_key, ForeignKey::Set(Box::new(value)));
