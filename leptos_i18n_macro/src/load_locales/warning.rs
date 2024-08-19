@@ -5,6 +5,8 @@ use quote::{format_ident, quote};
 use crate::utils::key::{Key, KeyPath};
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 
+use super::plurals::{PluralForm, PluralRuleType};
+
 #[derive(Debug)]
 pub enum Warning {
     MissingKey {
@@ -14,6 +16,12 @@ pub enum Warning {
     SurplusKey {
         locale: Rc<Key>,
         key_path: KeyPath,
+    },
+    UnusedCategory {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        category: PluralForm,
+        rule_type: PluralRuleType,
     },
     #[cfg(feature = "track_locale_files")]
     NonUnicodePath {
@@ -44,6 +52,9 @@ impl Display for Warning {
                 "Key \"{}\" is present in locale {:?} but not in default locale, it is ignored",
                 key_path, locale
             ),
+            Warning::UnusedCategory { locale, key_path, category, rule_type } => {
+                write!(f, "at key \"{}\", locale {:?} does not use {} category {}, it is still kept but is useless.", key_path, locale, rule_type, category)
+            },
             #[cfg(feature = "track_locale_files")]
             Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, path),
             #[cfg(feature = "track_locale_files")]

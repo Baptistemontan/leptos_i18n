@@ -360,11 +360,13 @@ impl Locale {
                     }
                 })
                 .collect::<Result<HashMap<_, _>>>()?;
-            let value = ParsedValue::Plurals(Plurals {
+            let plural = Plurals {
                 rule_type,
                 forms,
                 other: Box::new(other),
-            });
+            };
+            plural.check_categories(&locale, key_path);
+            let value = ParsedValue::Plurals(plural);
             let key = key_path.pop_key().unwrap();
             self.keys.insert(key, value);
         }

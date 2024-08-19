@@ -1,9 +1,13 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
 use fixed_decimal::{FixedDecimal, FloatPrecision};
 use icu::plurals::{PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
+use std::fmt::Display;
 
 use crate::{
     load_locales::{
@@ -15,12 +19,24 @@ use crate::{
     utils::key::{Key, KeyPath},
 };
 
-use super::parsed_value::ParsedValue;
+use super::{
+    parsed_value::ParsedValue,
+    warning::{emit_warning, Warning},
+};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum PluralRuleType {
     Cardinal,
     Ordinal,
+}
+
+impl Display for PluralRuleType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PluralRuleType::Cardinal => write!(f, "cardinal"),
+            PluralRuleType::Ordinal => write!(f, "ordinal"),
+        }
+    }
 }
 
 impl From<PluralRuleType> for IcuRuleType {
@@ -57,6 +73,19 @@ pub enum PluralForm {
     Few,
     Many,
     Other,
+}
+
+impl Display for PluralForm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PluralForm::Zero => write!(f, "_zero"),
+            PluralForm::One => write!(f, "_one"),
+            PluralForm::Two => write!(f, "_two"),
+            PluralForm::Few => write!(f, "_few"),
+            PluralForm::Many => write!(f, "_many"),
+            PluralForm::Other => write!(f, "_other"),
+        }
+    }
 }
 
 impl PluralForm {
@@ -114,6 +143,28 @@ pub struct Plurals {
 }
 
 impl Plurals {
+    fn get_plural_rules(&self, locale: &Rc<Key>) -> PluralRules {
+        let locale = locale.name.parse::<icu::locid::Locale>().unwrap();
+        PluralRules::try_new(&locale.into(), self.rule_type.into()).unwrap()
+    }
+
+    pub fn check_categories(&self, locale: &Rc<Key>, key_path: &KeyPath) {
+        let plural_rules = self.get_plural_rules(locale);
+        let categs = self.forms.keys().copied().collect::<HashSet<_>>();
+        let used_categs = plural_rules
+            .categories()
+            .map(PluralForm::from_icu_category)
+            .collect::<HashSet<_>>();
+        for cat in categs.difference(&used_categs) {
+            emit_warning(Warning::UnusedCategory {
+                locale: locale.clone(),
+                key_path: key_path.to_owned(),
+                category: *cat,
+                rule_type: self.rule_type,
+            })
+        }
+    }
+
     pub fn as_string_impl(&self) -> TokenStream {
         let match_arms = self.forms.iter().map(|(form, value)| {
             let ts = value.as_string_impl();
@@ -148,9 +199,7 @@ impl Plurals {
             locale: &Rc<Key>,
             input: I,
         ) -> PluralCategory {
-            let locale = locale.name.parse::<icu::locid::Locale>().unwrap();
-            let plural_rules =
-                PluralRules::try_new(&locale.into(), plurals.rule_type.into()).unwrap();
+            let plural_rules = plurals.get_plural_rules(locale);
             plural_rules.category_for(input)
         }
 
