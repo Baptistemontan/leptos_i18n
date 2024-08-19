@@ -13,7 +13,7 @@ This will replace `$t(hello_world)` by the value of the key `hello_world`, makin
 
 You can point to any key other than ranges and keys containing subkeys.
 
-To point to subkeys you give the path by separating the the key by `.`: `$t(key.subkey.subsubkey)`.
+To point to subkeys you give the path by separating the key by `.`: `$t(key.subkey.subsubkey)`.
 
 When using namespaces you _must_ specify the namespace of the key you are looking for, using `:`: `$t(namespace:key)`.
 

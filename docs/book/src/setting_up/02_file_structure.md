@@ -1,6 +1,6 @@
 # File Structure
 
-Now that you have configured your locales, you can start writing your translations, this chapter covers where to put your files. We will cover how to write them in another section.
+Now that you have configured your locales, you can start writing your translations. This chapter covers where to put your files. We will cover how to write them in another section.
 
 By default you must put your files in the `./locales` directory, and each file must be `%{locale}.json`:
 

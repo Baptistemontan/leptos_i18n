@@ -12,7 +12,7 @@ If you were to have
 }
 ```
 
-this would produce "1 items", which is not good english.
+this would produce "1 items", which is not good English.
 
 This can be solved by defining 2 plural forms:
 
@@ -49,15 +49,15 @@ if item_count == 1 {
 
 Because all languages don't use the same plurals!
 
-For example in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is bad french (except in certain conditions, because french, exceptions are everywhere).
+For example in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is bad French (except in certain conditions, because French, exceptions are everywhere).
 
 ## Ordinal plurals
 
-What I describe above are "Cardinal" plurals, but they don't work with like "1rst place", "2nd place", ect..
+What I describe above are "Cardinal" plurals, but they don't work with like "1st place", "2nd place", ect..
 
 The English language use 4 ordinal plurals, and French 2:
 
-- one: "1rst place", "21rst place"
+- one: "1st place", "21st place"
 - two: "2nd place", "22nd place"
 - few: "3rd place", "33rd place"
 - other: "4th place", "5th place", "7th place"
@@ -71,7 +71,7 @@ You can use them by using the `_ordinal` suffix:
 
 ```json
 {
-  "key_ordinal_one": "{{ count }}rst place",
+  "key_ordinal_one": "{{ count }}st place",
   "key_ordinal_two": "{{ count }}nd place",
   "key_ordinal_few": "{{ count }}rd place",
   "key_ordinal_other": "{{ count }}th place"
@@ -82,7 +82,7 @@ You can use them by using the `_ordinal` suffix:
 
 ## How to know which to use:
 
-There are ressources online to help you find what you should use, my personnal favorite is the [unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
+There are resources online to help you find what you should use, my personal favorite is the [unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
 
 ## What if I need multiple counts ?
 
@@ -94,4 +94,4 @@ If you need multiple counts, for example:
 }
 ```
 
-There isn't a way to represent this in a single key, You will need `Foreign keys` that you can read about in a future chapter.
+There isn't a way to represent this in a single key, you will need `Foreign keys` that you can read about in a next chapter.

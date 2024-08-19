@@ -57,7 +57,7 @@ This make the variable needed to be `impl leptos_i18n::formatting::NumberFormatt
 - f32 \*
 - f64 \*
 
-> \* Is implemented for convenience, but use [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision, you may want to use your own.
+> \* Is implemented for convenience, but uses [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision, you may want to use your own.
 
 ### Arguments
 

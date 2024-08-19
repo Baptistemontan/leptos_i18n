@@ -51,7 +51,7 @@ hydrate = [
 ]
 ```
 
-There exist 3 examples using hydratation:
+There exist 3 examples using hydration:
 
 - [Hello World Actix](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_actix)
 - [Hello World Axum](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_axum)

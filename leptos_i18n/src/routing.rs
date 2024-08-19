@@ -111,7 +111,7 @@ fn update_path_effect<L: Locale>(
     }
 }
 
-fn correct_locale_prefix_effet<L: Locale>(
+fn correct_locale_prefix_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
 ) -> impl Fn(Option<()>) + 'static {
@@ -193,7 +193,7 @@ fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -
 
     // This variable is there to sync history changes, because we step out of the Leptos routes reactivity we don't get forward and backward history changes triggers
     // So we have to do it manually
-    // but chnaging the locale on history change will trigger the locale change effect, causing to change the URL again but with a wrong previous locale
+    // but changing the locale on history change will trigger the locale change effect, causing to change the URL again but with a wrong previous locale
     // so this variable sync them together on what is the locale currently in the URL.
     // it starts at None such that on the first render the effect don't change the locale instantly.
     let history_changed_locale = StoredValue::new(None);
@@ -205,7 +205,7 @@ fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -
         check_history_change(i18n, base_path, history_changed_locale),
     );
     // correct the url when using <a> that removes the locale prefix
-    create_effect(correct_locale_prefix_effet(i18n, base_path));
+    create_effect(correct_locale_prefix_effect(i18n, base_path));
 
     match redir {
         None => view! { <Outlet /> },

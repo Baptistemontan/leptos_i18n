@@ -16,6 +16,6 @@ locales = ["en", "fr"]
 There is 2 more optional values you can supply:
 
 - `namespaces`: This is to split your translations in multiple files, we will cover it in a later chapter
-- `locales-dir`: This is to have a custom path to the directory containing the locales files, it default to `"./locales"`.
+- `locales-dir`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
 
 Once this configuration is done, you can start writing your translations.

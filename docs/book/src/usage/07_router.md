@@ -57,7 +57,7 @@ This means that if `Counter` keep a count as a state, and you switch locale from
 With the way the default route is handled, if you have a `<A href=.. />` link in your application or use `leptos_router::use_navigate`,
 you don't have to worry about removing the locale prefix as this will trigger a redirection to the correct locale.
 
-This redirection also set `NavigateOptions.replace` to `true` so the intermidiate location will not show in the history.
+This redirection also set `NavigateOptions.replace` to `true` so the intermediate location will not show in the history.
 
 Basically, if you are at `"/fr/counter"` and trigger a redirection to `"/"`, this will trigger another redirection to `"/fr"`
 and the history will look like you directly navigated from `"/fr/counter"` to `"/fr"`.

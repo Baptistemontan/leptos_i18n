@@ -57,7 +57,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
 ///
 /// # Notes
 ///
-/// If your variable/component value is the same as the key, you remove the assignement, such that this:
+/// If your variable/component value is the same as the key, you remove the assignment, such that this:
 ///
 /// ```rust, ignore
 /// t!(i18n, $key, variable = variable, <component> = component, $other_key = $other_value, ..)
@@ -132,7 +132,7 @@ pub fn tu_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 /// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
 ///
-/// This is usefull if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
+/// This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 ///
 /// Usage:
 ///
@@ -186,7 +186,7 @@ pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 /// Just like the `t_display!` macro but takes the `Locale` as an argument instead of the context.
 ///
-/// This is usefull if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
+/// This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 ///
 /// Usage:
 ///
@@ -234,7 +234,7 @@ pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// ```rust, ignore
 /// let i18n = use_i18n();
-/// let i18n = scope_i18n!(i18n, namespace.sukeys);
+/// let i18n = scope_i18n!(i18n, namespace.subkeys);
 /// ```
 #[proc_macro]
 pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -295,7 +295,7 @@ pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream 
     utils::scoped::scope_locale(tokens)
 }
 
-/// Format a given value with a given formatter and retu:
+/// Format a given value with a given formatter and return:
 ///
 /// ```rust, ignore
 /// let i18n =  use_i18n();

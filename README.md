@@ -194,7 +194,7 @@ The context implement 3 key functions: `.get_locale()`, `.get_keys()` and `.set_
 
 ### Accessing the current locale
 
-You may need to know what locale is currenly used, for that you can call `.get_locale` on the context, it will return the `Locale` defined by the `load_locales!()` macro. This function actually call `.get` on a signal, this means you should call it in a function like any signal.
+You may need to know what locale is currently used, for that you can call `.get_locale` on the context, it will return the `Locale` defined by the `load_locales!()` macro. This function actually call `.get` on a signal, this means you should call it in a function like any signal.
 
 ### Accessing the keys
 
@@ -202,7 +202,7 @@ You can access the keys by calling `.get_keys` on the context, it will return th
 
 ### Setting a locale
 
-When the user make a request for your application, the request headers contains a weighted list of accepted locales, this library take them into account and try to match it against the loaded locales, but you probably want to give your users the possibility to manually choose there prefered locale, for that you can set the current locale with the `.set_locale` function:
+When the user make a request for your application, the request headers contains a weighted list of accepted locales, this library take them into account and try to match it against the loaded locales, but you probably want to give your users the possibility to manually choose there preferred locale, for that you can set the current locale with the `.set_locale` function:
 
 ```rust
 let i18n = use_i18n();
@@ -280,7 +280,7 @@ You may also need to interpolate components, to highlight some part of a text fo
 }
 ```
 
-You can supply them the same way as variables to the `t!` macro, just wrapped beetween `< >`. The supplied value must be a `T: Fn(leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
+You can supply them the same way as variables to the `t!` macro, just wrapped between `< >`. The supplied value must be a `T: Fn(leptos::ChildrenFn) -> impl IntoView + Clone + 'static`.
 
 ```rust
 let i18n = use_i18n();
@@ -329,7 +329,7 @@ If a variable or a component is only needed for one local, it is totally accepta
 
 When accessing the key it will return a builder that need the total keys of variables/components of every locales.
 
-If your value as the same name as the variable/component, you can drop the assignement, this:
+If your value as the same name as the variable/component, you can drop the assignment, this:
 
 ```rust
 t!(i18n, key, count = count, <b> = b, other_key = ..)
@@ -357,7 +357,7 @@ You declare them in a sequence of plurals with a sequence where the first elemen
 }
 ```
 
-The count can be a string `"0"` or a litteral `0`.
+The count can be a string `"0"` or a literal `0`.
 
 When using plurals, variable name `count` is reserved and takes as a value `T: Fn() -> N + Clone + 'static` where `N` is the specified type.
 By default `N` is `i32` but you can change that by specifying the type as the **first** value in the sequence:
@@ -383,7 +383,7 @@ The resulting code looks something like this:
 match N::from(count()) {
     0 => // render "You have not clicked yet",
     1 => // render "You clicked once",
-    2..=20 => // render "You clicked beetween 2 and 20 times"
+    2..=20 => // render "You clicked between 2 and 20 times"
     _ => // render "You clicked {{ count }} times"
 }
 ```
@@ -411,7 +411,7 @@ You are not required to use the `count` variable in the locale, but it must be p
 
 If multiple locales use plurals for the same key, the count type must be the same.
 
-(PS: Floats are generaly not a good idea for money.)
+(PS: Floats are generally not a good idea for money.)
 
 ```json
 {
@@ -486,7 +486,7 @@ Accessing your values with the `t!` macro will be like this:
 t!(i18n, $namespace.$key)
 ```
 
-To differentiate beetween namespaces and subkeys you can put `::` after the namespace (this is optionnal):
+To differentiate between namespaces and subkeys you can put `::` after the namespace (this is optional):
 
 ```rust
 t!(i18n, $namespace::$key.$subkey)
@@ -502,7 +502,7 @@ The `td!` macro works just like the `t!` macro but instead of taking the context
 td!(Locale::fr, $key, ...)
 ```
 
-This let you use a translation regardless of the the current locale, enabling the use of multiple locales at the same time:
+This let you use a translation regardless of the current locale, enabling the use of multiple locales at the same time:
 
 ```rust
 use crate::i18n::*;
@@ -572,7 +572,7 @@ Better compilation errors are generated for interpolations with 4 keys or less.
 This is a feature as this code is not "necessary" and could slow compile times,
 advice is to enable it for debug builds but disable it for release builds.
 
-The `show_keys_only` feature makes every translations to only display it's corresponding key, this is usefull to track untranslated strings in you application.
+The `show_keys_only` feature makes every translations to only display it's corresponding key, this is useful to track untranslated strings in you application.
 
 The `suppress_key_warnings` feature remove the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
 
@@ -584,7 +584,7 @@ The `track_locale_files` feature is to track files for rebuilds. The `load_local
 you may have noticed that if you use `cargo-leptos` with `watch-additional-files = ["locales"]` and running `cargo leptos watch`, even if the file changes and cargo-leptos triggers a rebuild nothing changes.
 This feature use a "trick" by using `include_bytes!()` to declare the use of a file, but I'm a bit sceptical of the impact on build time using this.
 I've already checked and it does not include the bytes in the final binary, even in debug, but it may slow down compilation time.
-If you use the `nighly` feature it use the [path tracking API](https://github.com/rust-lang/rust/issues/99515) so no trick using `include_bytes!` and the possible slowdown in compile times coming with it.
+If you use the `nightly` feature it use the [path tracking API](https://github.com/rust-lang/rust/issues/99515) so no trick using `include_bytes!` and the possible slowdown in compile times coming with it.
 
 ## Contributing
 

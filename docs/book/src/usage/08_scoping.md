@@ -1,7 +1,7 @@
 # Scoping
 
 If you are using subkeys or namespaces, access keys can get pretty big and repetitive,
-would'nt it be nice to scope a context to a namespace or subkeys ?
+wouldn't it be nice to scope a context to a namespace or subkeys ?
 
 Well this page explain how to do it!
 
@@ -45,7 +45,7 @@ t!(i18n, another_subvalue);
 
 ## The `use_i18n_scoped!` macro
 
-On the above exemple we do `let i18n = use_i18n();` but only access the context to scope it afterward, we could do
+On the above example we do `let i18n = use_i18n();` but only access the context to scope it afterward, we could do
 
 ```rust
 let i18n = scope_i18n!(use_i18n(), namespace.subkeys);
@@ -63,7 +63,7 @@ t!(i18n, more_subkeys.another_subvalue);
 
 ## The `scope_locale!` macro
 
-The above exemples are to scope a context, but maybe you use `td!` a lot and run into the same problems:
+The above examples are to scope a context, but maybe you use `td!` a lot and run into the same problems:
 
 ```rust
 fn foo(locale: Locale) {
@@ -98,12 +98,12 @@ fn foo(locale: Locale) {
 
 ## Caveat
 
-Unfortunatly, it looks too good te be true... What's the catch ? Where is the tradeoff ?
+Unfortunately, it looks too good to be true... What's the catch ? Where is the tradeoff ?
 
 To make this possible, it use a typestate pattern, but some of the types are hard to access as a user as they defined deep in the generated `i18n` module.
 This makes it difficult to write the type of a scoped context or a scoped locale.
 
-By default `I18nContext<L, S>` is only generic over `L` because the the `S` scope is the "default" one provided by `L`, so you can easily write `I18nContext<Locale>`.
+By default `I18nContext<L, S>` is only generic over `L` because the `S` scope is the "default" one provided by `L`, so you can easily write `I18nContext<Locale>`.
 But once you scope it the `S` parameters will look like `i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys`.
 
 Yes. This is the path to the struct holding the keys of `namespace.subkeys`.
@@ -122,5 +122,5 @@ Hummm, what is this closure for? it's just here for type inference and key check
 The function is even const (not for `scope_locale` tho, the only one that could really benefit from it lol, because trait functions can't be const...).
 
 But being a typestate using it or not actually result in the same code path.
-And with how agressive Rust is with inlining small functions, it probably compile to the exact same thing.
+And with how aggressive Rust is with inlining small functions, it probably compile to the exact same thing.
 So no runtime performance loss! Yeaah!

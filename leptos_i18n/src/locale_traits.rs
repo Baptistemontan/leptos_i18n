@@ -68,7 +68,7 @@ pub trait Locale<L: Locale = Self>:
     /// Create this type from a base locale, this is used for wrappers around a locale such as scopes.
     fn from_base_locale(locale: L) -> Self;
 
-    /// Map the locale with another value, this is usefull to change the locale of a scope.
+    /// Map the locale with another value, this is useful to change the locale of a scope.
     fn map_locale(self, locale: L) -> Self {
         Self::from_base_locale(locale)
     }
