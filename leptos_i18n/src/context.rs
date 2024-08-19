@@ -16,7 +16,7 @@ use crate::{
 
 /// This context is the heart of the i18n system:
 ///
-/// It servers as a signal to the the current locale and enable reactivity to locale change.
+/// It servers as a signal to the current locale and enable reactivity to locale change.
 ///
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug, Clone, Copy)]
@@ -407,9 +407,9 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 /// # Warning: Shadowing correctly
 ///
 /// There is a section on `leptos::provide_context` about shadowing, it is easy to screw it up.
-/// This is why you should be carefull about using this function.
+/// This is why you should be careful about using this function.
 ///
-/// The recommanded way is to use the `I18nSubContextProvider`.
+/// The recommended way is to use the `I18nSubContextProvider`.
 ///
 /// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with `Provider` or `provide_context`.
 #[deprecated = "see function documentation"]
