@@ -21,6 +21,8 @@ proc-macro2 = "1"
 quote = "1"
 syn = "2.0"
 toml = "0.8"
+icu = "1.5"
+fixed_decimal = { version = "0.5", features = ["ryu"] }
 
 [features]
 default = ["json_files"]

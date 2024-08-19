@@ -62,6 +62,8 @@ fn load_locales_inner(
     cfg_file: &ConfigFile,
     locales: &mut LocalesOrNamespaces,
 ) -> Result<TokenStream> {
+    locales.merge_plurals()?;
+
     ParsedValue::resolve_foreign_keys(locales, &cfg_file.default)?;
 
     let keys = Locale::check_locales(locales)?;

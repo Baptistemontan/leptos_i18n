@@ -181,9 +181,17 @@ fn f32_or_range_string() {
 
 #[test]
 fn args_to_range() {
-    let count = move || 0;
+    let count = move || 1;
     let en = td!(Locale::en, args_to_range, $ = count);
-    assert_eq_rendered!(en, "en");
+    assert_eq_rendered!(en, "en 1");
     let fr = td!(Locale::fr, args_to_range, $ = count);
-    assert_eq_rendered!(fr, "fr");
+    assert_eq_rendered!(fr, "fr 1");
+}
+
+#[test]
+fn count_arg_to_range() {
+    let en = td!(Locale::en, count_arg_to_range, arg = "en");
+    assert_eq_rendered!(en, "en zero");
+    let fr = td!(Locale::fr, count_arg_to_range, arg = "fr");
+    assert_eq_rendered!(fr, "fr zero");
 }

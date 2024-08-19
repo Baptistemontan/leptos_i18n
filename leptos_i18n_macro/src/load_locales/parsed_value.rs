@@ -374,12 +374,8 @@ impl ParsedValue {
                 .map(|value| value.populate(args, foreign_key, locale, key_path))
                 .collect::<Result<_>>()
                 .map(ParsedValue::Bloc),
-            ParsedValue::Ranges(ranges) => ranges
-                .populate(args, foreign_key, locale, key_path)
-                .map(ParsedValue::Ranges),
-            ParsedValue::Plurals(plurals) => plurals
-                .populate(args, foreign_key, locale, key_path)
-                .map(ParsedValue::Plurals),
+            ParsedValue::Ranges(ranges) => ranges.populate(args, foreign_key, locale, key_path),
+            ParsedValue::Plurals(plurals) => plurals.populate(args, foreign_key, locale, key_path),
             ParsedValue::Subkeys(_) => Err(Error::InvalidForeignKey {
                 foreign_key: foreign_key.to_owned(),
                 locale: Rc::clone(locale),

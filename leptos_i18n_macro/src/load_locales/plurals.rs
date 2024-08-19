@@ -1,12 +1,16 @@
 use std::{collections::HashMap, rc::Rc};
 
+use fixed_decimal::{FixedDecimal, FloatPrecision};
+use icu::plurals::{PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
 use crate::{
     load_locales::{
-        error::Result, interpolate::CACHED_LOCALE_FIELD_KEY, locale::LiteralType,
-        parsed_value::InterpolOrLit,
+        error::{Error, Result},
+        interpolate::CACHED_LOCALE_FIELD_KEY,
+        locale::LiteralType,
+        parsed_value::{InterpolOrLit, Literal},
     },
     utils::key::{Key, KeyPath},
 };
@@ -17,6 +21,15 @@ use super::parsed_value::ParsedValue;
 pub enum PluralRuleType {
     Cardinal,
     Ordinal,
+}
+
+impl From<PluralRuleType> for IcuRuleType {
+    fn from(value: PluralRuleType) -> Self {
+        match value {
+            PluralRuleType::Cardinal => IcuRuleType::Cardinal,
+            PluralRuleType::Ordinal => IcuRuleType::Ordinal,
+        }
+    }
 }
 
 impl ToTokens for PluralRuleType {
@@ -56,6 +69,17 @@ impl PluralForm {
             "many" => Some(PluralForm::Many),
             "other" => Some(PluralForm::Other),
             _ => None,
+        }
+    }
+
+    pub fn from_icu_category(cat: PluralCategory) -> Self {
+        match cat {
+            PluralCategory::Zero => PluralForm::Zero,
+            PluralCategory::One => PluralForm::One,
+            PluralCategory::Two => PluralForm::Two,
+            PluralCategory::Few => PluralForm::Few,
+            PluralCategory::Many => PluralForm::Many,
+            PluralCategory::Other => PluralForm::Other,
         }
     }
 }
@@ -111,13 +135,63 @@ impl Plurals {
         }}
     }
 
+    fn populate_with_count_arg(
+        &self,
+        count_arg: &ParsedValue,
+        args: &HashMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<ParsedValue> {
+        fn get_category<I: Into<PluralOperands>>(
+            plurals: &Plurals,
+            locale: &Rc<Key>,
+            input: I,
+        ) -> PluralCategory {
+            let locale = locale.name.parse::<icu::locid::Locale>().unwrap();
+            let plural_rules =
+                PluralRules::try_new(&locale.into(), plurals.rule_type.into()).unwrap();
+            plural_rules.category_for(input)
+        }
+
+        let category = match count_arg {
+            ParsedValue::Literal(Literal::Float(count)) => {
+                let count = FixedDecimal::try_from_f64(*count, FloatPrecision::Floating).unwrap();
+                get_category(self, locale, &count)
+            }
+            ParsedValue::Literal(Literal::Unsigned(count)) => get_category(self, locale, *count),
+            ParsedValue::Literal(Literal::Signed(count)) => get_category(self, locale, *count),
+            _ => {
+                return Err(Error::InvalidCountArg {
+                    locale: locale.clone(),
+                    key_path: key_path.to_owned(),
+                    foreign_key: foreign_key.to_owned(),
+                })
+            }
+        };
+
+        match PluralForm::from_icu_category(category) {
+            PluralForm::Other => self.other.populate(args, foreign_key, locale, key_path),
+            other_cat => self.forms.get(&other_cat).unwrap_or(&self.other).populate(
+                args,
+                foreign_key,
+                locale,
+                key_path,
+            ),
+        }
+    }
+
     pub fn populate(
         &self,
         args: &HashMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
-    ) -> Result<Self> {
+    ) -> Result<ParsedValue> {
+        if let Some(count_arg) = args.get("var_count") {
+            return self.populate_with_count_arg(count_arg, args, foreign_key, locale, key_path);
+        }
+
         let other = self.other.populate(args, foreign_key, locale, key_path)?;
         let mut forms = HashMap::new();
         for (form, value) in &self.forms {
@@ -125,11 +199,11 @@ impl Plurals {
             forms.insert(*form, value);
         }
 
-        Ok(Plurals {
+        Ok(ParsedValue::Plurals(Plurals {
             rule_type: self.rule_type,
             other: Box::new(other),
             forms,
-        })
+        }))
     }
 }
 

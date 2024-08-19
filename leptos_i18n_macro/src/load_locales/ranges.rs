@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     marker::PhantomData,
+    num::TryFromIntError,
     ops::{Bound, Not},
     rc::Rc,
     str::FromStr,
@@ -10,7 +11,10 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::ParseBuffer;
 
-use crate::load_locales::locale::{LiteralType, LocalesOrNamespaces};
+use crate::load_locales::{
+    locale::{LiteralType, LocalesOrNamespaces},
+    parsed_value::Literal,
+};
 use crate::utils::key::{Key, KeyPath};
 
 use super::{
@@ -100,13 +104,132 @@ pub enum Ranges {
 }
 
 impl Ranges {
+    pub fn populate_with_count_arg(
+        &self,
+        count_arg: &ParsedValue,
+        args: &HashMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Rc<Key>,
+        key_path: &KeyPath,
+    ) -> Result<ParsedValue> {
+        fn find_value<T: RangeNumber>(
+            v: &RangesInner<T>,
+            count: T,
+            args: &HashMap<String, ParsedValue>,
+            foreign_key: &KeyPath,
+            locale: &Rc<Key>,
+            key_path: &KeyPath,
+        ) -> Result<ParsedValue> {
+            for (range, value) in v {
+                if range.do_match(count) {
+                    return value.populate(args, foreign_key, locale, key_path);
+                }
+            }
+            unreachable!("plurals validity should already have been checked.");
+        }
+        fn try_from<T, U: TryFrom<T, Error = TryFromIntError>>(count: T) -> Result<U> {
+            TryFrom::try_from(count).map_err(|_| todo!())
+        }
+        match count_arg {
+            ParsedValue::Literal(Literal::Float(count)) => {
+                let count = *count;
+                match self {
+                    Ranges::F32(v) => {
+                        find_value(v, count as f32, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::F64(v) => find_value(v, count, args, foreign_key, locale, key_path),
+                    this => Err(Error::InvalidCountArgType {
+                        locale: locale.clone(),
+                        key_path: key_path.to_owned(),
+                        foreign_key: foreign_key.to_owned(),
+                        input_type: RangeType::F64,
+                        range_type: this.get_type(),
+                    }),
+                }
+            }
+            ParsedValue::Literal(Literal::Unsigned(count)) => {
+                let count = *count;
+                match self {
+                    Ranges::U64(v) => find_value(v, count, args, foreign_key, locale, key_path),
+                    Ranges::I8(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I16(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I32(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I64(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::U8(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::U16(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::U32(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    this => Err(Error::InvalidCountArgType {
+                        locale: locale.clone(),
+                        key_path: key_path.to_owned(),
+                        foreign_key: foreign_key.to_owned(),
+                        input_type: RangeType::U64,
+                        range_type: this.get_type(),
+                    }),
+                }
+            }
+            ParsedValue::Literal(Literal::Signed(count)) => {
+                let count = *count;
+                match self {
+                    Ranges::U64(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I8(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I16(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I32(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::I64(v) => find_value(v, count, args, foreign_key, locale, key_path),
+                    Ranges::U8(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::U16(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    Ranges::U32(v) => {
+                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
+                    }
+                    this => Err(Error::InvalidCountArgType {
+                        locale: locale.clone(),
+                        key_path: key_path.to_owned(),
+                        foreign_key: foreign_key.to_owned(),
+                        input_type: RangeType::I64,
+                        range_type: this.get_type(),
+                    }),
+                }
+            }
+            _ => Err(Error::InvalidCountArg {
+                locale: locale.clone(),
+                key_path: key_path.to_owned(),
+                foreign_key: foreign_key.to_owned(),
+            }),
+        }
+    }
+
     pub fn populate(
         &self,
         args: &HashMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
-    ) -> Result<Self> {
+    ) -> Result<ParsedValue> {
         fn inner<T: Clone>(
             v: &RangesInner<T>,
             args: &HashMap<String, ParsedValue>,
@@ -122,17 +245,22 @@ impl Ranges {
             }
             Ok(values)
         }
-        match self {
-            Ranges::I8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I8),
-            Ranges::I16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I16),
-            Ranges::I32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I32),
-            Ranges::I64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I64),
-            Ranges::U8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U8),
-            Ranges::U16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U16),
-            Ranges::U32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U32),
-            Ranges::U64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U64),
-            Ranges::F32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F32),
-            Ranges::F64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F64),
+        if let Some(count_arg) = args.get("var_count") {
+            self.populate_with_count_arg(count_arg, args, foreign_key, locale, key_path)
+        } else {
+            let ranges = match self {
+                Ranges::I8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I8),
+                Ranges::I16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I16),
+                Ranges::I32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I32),
+                Ranges::I64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::I64),
+                Ranges::U8(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U8),
+                Ranges::U16(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U16),
+                Ranges::U32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U32),
+                Ranges::U64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::U64),
+                Ranges::F32(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F32),
+                Ranges::F64(v) => inner(v, args, foreign_key, locale, key_path).map(Ranges::F64),
+            };
+            ranges.map(ParsedValue::Ranges)
         }
     }
 
@@ -528,6 +656,24 @@ pub trait RangeInteger: RangeNumber {}
 pub trait RangeFloats: RangeNumber {}
 
 impl<T: RangeNumber> Range<T> {
+    fn do_match(&self, count: T) -> bool {
+        match self {
+            Range::Exact(v) => *v == count,
+            Range::Bounds { start, end } => {
+                if matches!(start, Some(s) if *s > count) {
+                    return false;
+                }
+                match end {
+                    Bound::Included(e) => *e >= count,
+                    Bound::Excluded(e) => *e > count,
+                    Bound::Unbounded => true,
+                }
+            }
+            Range::Multiple(ranges) => ranges.iter().any(|range| range.do_match(count)),
+            Range::Fallback => true,
+        }
+    }
+
     fn flatten(self) -> Self {
         let Range::Multiple(ranges) = self else {
             return self;
