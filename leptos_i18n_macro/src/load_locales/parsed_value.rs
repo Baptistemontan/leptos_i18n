@@ -16,7 +16,7 @@ use std::fmt::Display;
 use super::{
     error::{Error, Result},
     interpolate::CACHED_LOCALE_FIELD_KEY,
-    locale::{Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
+    locale::{LiteralType, Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plurals::Plurals,
     ranges::{RangeType, Ranges},
 };
@@ -51,70 +51,6 @@ pub enum Literal {
     Bool(bool),
 }
 
-struct LiteralVisitor;
-
-impl<'de> Deserialize<'de> for Literal {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(LiteralVisitor)
-    }
-}
-
-impl<'de> Visitor<'de> for LiteralVisitor {
-    type Value = Literal;
-
-    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Literal::Bool(v))
-    }
-
-    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Literal::Signed(v))
-    }
-
-    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Literal::Float(v))
-    }
-
-    fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Literal::Unsigned(v))
-    }
-
-    fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Literal::String(v))
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Literal::String(v.to_string()))
-    }
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            formatter,
-            "a litteral such as a number, a string or a boolean"
-        )
-    }
-}
-
 impl Literal {
     pub fn is_string(&self) -> Option<&str> {
         match self {
@@ -142,6 +78,16 @@ impl Literal {
                 let s = format!("{}{}", v, other);
                 *self = Literal::String(s);
             }
+        }
+    }
+
+    pub fn get_type(&self) -> LiteralType {
+        match self {
+            Literal::String(_) => LiteralType::String,
+            Literal::Signed(_) => LiteralType::Signed,
+            Literal::Unsigned(_) => LiteralType::Unsigned,
+            Literal::Float(_) => LiteralType::Float,
+            Literal::Bool(_) => LiteralType::Bool,
         }
     }
 }
@@ -219,6 +165,31 @@ pub struct VarInfo {
 pub struct InterpolationKeys {
     components: HashSet<Rc<Key>>,
     variables: HashMap<Rc<Key>, VarInfo>,
+}
+
+#[derive(Debug)]
+pub enum InterpolOrLit {
+    Interpol(InterpolationKeys),
+    Lit(LiteralType),
+}
+
+impl InterpolOrLit {
+    pub fn get_interpol_keys_mut(&mut self) -> &mut InterpolationKeys {
+        match self {
+            InterpolOrLit::Interpol(keys) => keys,
+            InterpolOrLit::Lit(_) => {
+                *self = InterpolOrLit::Interpol(InterpolationKeys::default());
+                self.get_interpol_keys_mut()
+            }
+        }
+    }
+
+    pub fn is_interpol(&self) -> Option<&InterpolationKeys> {
+        match self {
+            InterpolOrLit::Interpol(keys) => Some(keys),
+            InterpolOrLit::Lit(_) => None,
+        }
+    }
 }
 
 impl InterpolationKeys {
@@ -426,57 +397,68 @@ impl ParsedValue {
     pub fn get_keys_inner(
         &self,
         key_path: &mut KeyPath,
-        keys: &mut Option<InterpolationKeys>,
+        keys: &mut InterpolOrLit,
+        is_top: bool,
     ) -> Result<()> {
         match self {
+            ParsedValue::Literal(lit_type) if is_top => {
+                *keys = InterpolOrLit::Lit(lit_type.get_type());
+            }
             ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable { key, formatter } => {
-                keys.get_or_insert_with(Default::default)
+                keys.get_interpol_keys_mut()
                     .push_var(key.clone(), *formatter);
             }
             ParsedValue::Component { key, inner } => {
-                keys.get_or_insert_with(Default::default)
-                    .push_comp(key.clone());
-                inner.get_keys_inner(key_path, keys)?;
+                keys.get_interpol_keys_mut().push_comp(key.clone());
+                inner.get_keys_inner(key_path, keys, false)?;
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.get_keys_inner(key_path, keys)?;
+                    value.get_keys_inner(key_path, keys, false)?;
                 }
             }
             ParsedValue::Ranges(ranges) => {
                 ranges.get_keys_inner(key_path, keys)?;
                 let range_type = ranges.get_type();
-                keys.get_or_insert_with(Default::default)
+                keys.get_interpol_keys_mut()
                     .push_count(key_path, RangeOrPlural::Range(range_type))?;
             }
             ParsedValue::ForeignKey(foreign_key) => {
                 foreign_key
                     .borrow()
                     .as_inner("get_keys_inner")
-                    .get_keys_inner(key_path, keys)?;
+                    .get_keys_inner(key_path, keys, false)?;
             }
             ParsedValue::Plurals(Plurals { forms, other, .. }) => {
-                keys.get_or_insert_with(Default::default)
+                keys.get_interpol_keys_mut()
                     .push_count(key_path, RangeOrPlural::Plural)?;
                 for value in forms.values() {
-                    value.get_keys_inner(key_path, keys)?;
+                    value.get_keys_inner(key_path, keys, false)?;
                 }
-                other.get_keys_inner(key_path, keys)?;
+                other.get_keys_inner(key_path, keys, false)?;
             }
         }
         Ok(())
     }
 
-    pub fn get_keys(&self, key_path: &mut KeyPath) -> Result<Option<InterpolationKeys>> {
-        let mut keys = None;
-        self.get_keys_inner(key_path, &mut keys)?;
+    pub fn get_keys(&self, key_path: &mut KeyPath) -> Result<InterpolOrLit> {
+        let mut keys = InterpolOrLit::Lit(LiteralType::String);
+
+        self.get_keys_inner(key_path, &mut keys, true)?;
         Ok(keys)
     }
 
     pub fn is_string(&self) -> Option<&str> {
         match self {
             ParsedValue::Literal(Literal::String(value)) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn is_literal(&self) -> Option<&Literal> {
+        match self {
+            ParsedValue::Literal(lit) => Some(lit),
             _ => None,
         }
     }
@@ -521,7 +503,7 @@ impl ParsedValue {
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
-        match (&mut *self, keys) {
+        match (&mut *self, &mut *keys) {
             // Default, do nothing
             (ParsedValue::Default, _) => Ok(()),
             // Both subkeys
@@ -533,17 +515,29 @@ impl ParsedValue {
                 locales.push(loc);
                 Ok(())
             }
-            // Both value
+            (ParsedValue::Literal(lit), LocaleValue::Value(interpol_or_lit)) => {
+                let other_lit_type = match interpol_or_lit {
+                    InterpolOrLit::Interpol(_) => return Ok(()),
+                    InterpolOrLit::Lit(lit_type) => *lit_type,
+                };
+                if lit.get_type() == other_lit_type {
+                    Ok(())
+                } else {
+                    // make builder with 0 fields.
+                    *interpol_or_lit = InterpolOrLit::Interpol(InterpolationKeys::default());
+                    Ok(())
+                }
+            }
             (
                 ParsedValue::Bloc(_)
                 | ParsedValue::Component { .. }
                 | ParsedValue::Ranges(_)
-                | ParsedValue::Literal(_)
                 | ParsedValue::Variable { .. }
                 | ParsedValue::Plurals(_)
                 | ParsedValue::ForeignKey(_),
-                LocaleValue::Value(keys),
-            ) => self.get_keys_inner(key_path, keys),
+                LocaleValue::Value(interpol_or_lit),
+            ) => self.get_keys_inner(key_path, interpol_or_lit, false),
+
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
@@ -882,12 +876,17 @@ impl ParsedValue {
             }
             ParsedValue::Component { key, inner } => {
                 let mut key_path = KeyPath::new(None);
-                let captured_keys = inner.get_keys(&mut key_path).unwrap().map(|keys| {
-                    let keys = keys
-                        .iter_keys()
-                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
-                    quote!(#(#keys)*)
-                });
+                let captured_keys =
+                    inner
+                        .get_keys(&mut key_path)
+                        .unwrap()
+                        .is_interpol()
+                        .map(|keys| {
+                            let keys = keys
+                                .iter_keys()
+                                .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
+                            quote!(#(#keys)*)
+                        });
 
                 let f = quote!({
                     #captured_keys
@@ -912,9 +911,12 @@ impl ParsedValue {
     fn flatten_string(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Literal(s) if s.is_string().is_some_and(str::is_empty) => {}
-            ParsedValue::Literal(s) => {
+            ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
+            ParsedValue::Literal(Literal::String(s)) => {
                 tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter)))
+            }
+            ParsedValue::Literal(s) => {
+                tokens.push(quote!(core::fmt::Display::fmt(&#s, __formatter)))
             }
             ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl()),
             ParsedValue::Variable { key, formatter } => {
@@ -1121,6 +1123,70 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         write!(
             formatter,
             "either a string, a sequence of ranges or a map of subkeys"
+        )
+    }
+}
+
+struct LiteralVisitor;
+
+impl<'de> Deserialize<'de> for Literal {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(LiteralVisitor)
+    }
+}
+
+impl<'de> Visitor<'de> for LiteralVisitor {
+    type Value = Literal;
+
+    fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Bool(v))
+    }
+
+    fn visit_i64<E>(self, v: i64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Signed(v))
+    }
+
+    fn visit_f64<E>(self, v: f64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Float(v))
+    }
+
+    fn visit_u64<E>(self, v: u64) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::Unsigned(v))
+    }
+
+    fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::String(v))
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Literal::String(v.to_string()))
+    }
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            formatter,
+            "a litteral such as a number, a string or a boolean"
         )
     }
 }

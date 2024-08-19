@@ -3,7 +3,12 @@ use std::collections::HashMap;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-use crate::{load_locales::interpolate::CACHED_LOCALE_FIELD_KEY, utils::key::KeyPath};
+use crate::{
+    load_locales::{
+        interpolate::CACHED_LOCALE_FIELD_KEY, locale::LiteralType, parsed_value::InterpolOrLit,
+    },
+    utils::key::KeyPath,
+};
 
 use super::parsed_value::ParsedValue;
 
@@ -120,16 +125,16 @@ impl ToTokens for Plurals {
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
         let other = &*self.other;
 
-        let mut captured_values = None;
+        let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
         let mut key_path = KeyPath::new(None);
 
         for value in self.forms.values().chain(Some(other)) {
             value
-                .get_keys_inner(&mut key_path, &mut captured_values)
+                .get_keys_inner(&mut key_path, &mut captured_values, false)
                 .unwrap();
         }
 
-        let captured_values = captured_values.map(|keys| {
+        let captured_values = captured_values.is_interpol().map(|keys| {
             let keys = keys
                 .iter_keys()
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));

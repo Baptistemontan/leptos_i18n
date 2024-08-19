@@ -9,13 +9,13 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::ParseBuffer;
 
-use crate::load_locales::locale::LocalesOrNamespaces;
+use crate::load_locales::locale::{LiteralType, LocalesOrNamespaces};
 use crate::utils::key::{Key, KeyPath};
 
 use super::{
     declare_locales::parse_range_pairs,
     error::{Error, Result},
-    parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
+    parsed_value::{InterpolOrLit, ParsedValue, ParsedValueSeed},
 };
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -126,18 +126,14 @@ impl Ranges {
         })
     }
 
-    pub fn get_keys_inner(
-        &self,
-        key_path: &mut KeyPath,
-        keys: &mut Option<InterpolationKeys>,
-    ) -> Result<()> {
+    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
         fn inner<T>(
             v: &RangesInner<T>,
             key_path: &mut KeyPath,
-            keys: &mut Option<InterpolationKeys>,
+            keys: &mut InterpolOrLit,
         ) -> Result<()> {
             for (_, value) in v {
-                value.get_keys_inner(key_path, keys)?;
+                value.get_keys_inner(key_path, keys, false)?;
             }
             Ok(())
         }
@@ -227,16 +223,16 @@ impl Ranges {
     fn to_tokens_integers<T: RangeInteger>(ranges: &[(Range<T>, ParsedValue)]) -> TokenStream {
         let match_arms = ranges.iter().map(|(range, value)| quote!(#range => #value));
 
-        let mut captured_values = None;
+        let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
         let mut key_path = KeyPath::new(None);
 
         for (_, value) in ranges {
             value
-                .get_keys_inner(&mut key_path, &mut captured_values)
+                .get_keys_inner(&mut key_path, &mut captured_values, false)
                 .unwrap();
         }
 
-        let captured_values = captured_values.map(|keys| {
+        let captured_values = captured_values.is_interpol().map(|keys| {
             let keys = keys
                 .iter_keys()
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
@@ -312,16 +308,16 @@ impl Ranges {
             #(else #ifs)*
         };
 
-        let mut captured_values = None;
+        let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
         let mut key_path = KeyPath::new(None);
 
         for (_, value) in ranges {
             value
-                .get_keys_inner(&mut key_path, &mut captured_values)
+                .get_keys_inner(&mut key_path, &mut captured_values, false)
                 .unwrap();
         }
 
-        let captured_values = captured_values.map(|keys| {
+        let captured_values = captured_values.is_interpol().map(|keys| {
             let keys = keys
                 .iter_keys()
                 .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));

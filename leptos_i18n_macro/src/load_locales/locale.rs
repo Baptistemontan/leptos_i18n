@@ -5,10 +5,12 @@ use std::{
     rc::Rc,
 };
 
+use quote::{quote, ToTokens};
+
 use super::{
     cfg_file::ConfigFile,
     error::{Error, Result},
-    parsed_value::{InterpolationKeys, ParsedValue, ParsedValueSeed},
+    parsed_value::{InterpolOrLit, ParsedValue, ParsedValueSeed},
     plurals::{PluralForm, PluralRuleType, Plurals},
     tracking::track_file,
     warning::{emit_warning, Warning},
@@ -425,9 +427,34 @@ impl Locale {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralType {
+    String,
+    Bool,
+    Signed,
+    Unsigned,
+    Float,
+}
+
+impl ToTokens for LiteralType {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        match self {
+            LiteralType::String => quote!(&'static str),
+            LiteralType::Bool => quote!(bool),
+            LiteralType::Signed => quote!(i64),
+            LiteralType::Unsigned => quote!(u64),
+            LiteralType::Float => quote!(f64),
+        }
+    }
+
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        tokens.extend(self.to_token_stream());
+    }
+}
+
 #[derive(Debug)]
 pub enum LocaleValue {
-    Value(Option<InterpolationKeys>),
+    Value(InterpolOrLit),
     Subkeys {
         locales: Vec<Locale>,
         keys: BuildersKeysInner,
