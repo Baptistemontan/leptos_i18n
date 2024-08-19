@@ -167,3 +167,15 @@ Providing `count` will create an error:
 ```rust
 t!(i18n, click_count, count = 12, count = || 5); // compilation error
 ```
+
+## What if I need multiple counts ?
+
+If you need multiple counts, for example:
+
+```json
+{
+  "key": "{{ boys_count }} boys and {{ girls_count }} girls"
+}
+```
+
+There isn't a way to represent this in a single key, You will need `Foreign keys` that you can read about in a future chapter.

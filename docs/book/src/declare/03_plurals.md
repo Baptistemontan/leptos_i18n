@@ -83,3 +83,15 @@ You can use them by using the `_ordinal` suffix:
 ## How to know which to use:
 
 There are ressources online to help you find what you should use, my personnal favorite is the [unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
+
+## What if I need multiple counts ?
+
+If you need multiple counts, for example:
+
+```json
+{
+  "key": "{{ boys_count }} boys and {{ girls_count }} girls"
+}
+```
+
+There isn't a way to represent this in a single key, You will need `Foreign keys` that you can read about in a future chapter.
