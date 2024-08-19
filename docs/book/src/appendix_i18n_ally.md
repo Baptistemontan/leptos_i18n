@@ -4,7 +4,7 @@ The [`i18n Ally`](https://marketplace.visualstudio.com/items?itemName=lokalise.i
 that have a bunch of features for managing, structuring and even automate translations, with the most notable one being an overlay over translations keys
 in the code displaying the corresponding translations.
 
-This is very helpfull, and this section is a guide for a minimal setup to make this extension work with `Leptos i18n`.
+This is very helpful, and this section is a guide for a minimal setup to make this extension work with `Leptos i18n`.
 
 ## Custom framework setup
 
@@ -34,7 +34,7 @@ monopoly: true
 
 ## Common settings
 
-There is multiple settings for the extension that you can set in `.vscode/settings.json`, those are all optionnal, here is non exhaustive list with their (default):
+There is multiple settings for the extension that you can set in `.vscode/settings.json`, those are all optional, here is non exhaustive list with their (default):
 
 - `i18n-ally.keystyle` (auto): this one can be `flat` (`"a.b.c": "..."`) or `nested` (`"a": { "b": { "c": "..." } }`), this is irrelevant to you if you don't use subkeys, but if you do, set it to `"nested"` as this is the style that this lib support.
 
@@ -46,8 +46,8 @@ There is multiple settings for the extension that you can set in `.vscode/settin
 
 - `i18n-ally.displayLanguage` (en): The locale that the overlay use.
 
-You can find other settings that could interest you in the [official doc](https://github.com/lokalise/i18n-ally/wiki/Configurations), with more informations about the settings mentionned above, with their default value.
+You can find other settings that could interest you in the [official doc](https://github.com/lokalise/i18n-ally/wiki/Configurations), with more information about the settings mentioned above, with their default value.
 
 ## Other features
 
-This extension offer some other interesting features that could interest you, I would suggest you to take a look at their [wiki](https://github.com/lokalise/i18n-ally/wiki) for mor informations.
+This extension offer some other interesting features that could interest you, I would suggest you to take a look at their [wiki](https://github.com/lokalise/i18n-ally/wiki) for more information.

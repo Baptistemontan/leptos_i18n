@@ -23,4 +23,4 @@ Then your file structures must look like this in the `/locales` directory:
 ```
 
 You can now make smaller files, with one for each sections of the website for example.
-This also allow the `common` namespace to use keys that the `home` namespace also use, without colliding.
+This also allows the `common` namespace to use keys that the `home` namespace also uses, without colliding.

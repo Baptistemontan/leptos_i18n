@@ -28,7 +28,7 @@ This features allow the `load_locales!` macro to generate more code for interpol
 
 #### `show_keys_only`
 
-This feature makes every translations to only display it's corresponding key, this is usefull to track untranslated strings in you application.
+This feature makes every translations to only display it's corresponding key, this is useful to track untranslated strings in you application.
 
 #### `suppress_key_warnings`
 

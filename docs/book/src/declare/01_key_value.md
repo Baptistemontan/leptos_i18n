@@ -1,6 +1,6 @@
 # Key-Value Pairs
 
-As expected, you declare your translations a key-value pairs:
+As expected, you declare your translations as key-value pairs:
 
 ```json
 {

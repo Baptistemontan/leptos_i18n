@@ -74,7 +74,7 @@ so the returned value as a lifetime bound to the "smallest" lifetime of the argu
 
 Just like the `td_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
 
-This is usefull if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
+This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 
 ```rust
 use crate::i18n::Locale;
