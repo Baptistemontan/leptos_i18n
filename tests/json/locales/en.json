@@ -56,5 +56,7 @@
   "ordinal_plural_ordinal_one": "{{ count }}st place",
   "ordinal_plural_ordinal_two": "{{ count }}nd place",
   "ordinal_plural_ordinal_few": "{{ count }}rd place",
-  "ordinal_plural_ordinal_other": "{{ count }}th place"
+  "ordinal_plural_ordinal_other": "{{ count }}th place",
+  "same_lit_type": true,
+  "mixed_lit_type": 59.89
 }

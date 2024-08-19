@@ -46,5 +46,7 @@
   "number_formatting": "{{ num, number }}",
   "cardinal_plural": "{{ count }}",
   "ordinal_plural_ordinal_one": "{{ count }}re place",
-  "ordinal_plural_ordinal_other": "{{ count }}e place"
+  "ordinal_plural_ordinal_other": "{{ count }}e place",
+  "same_lit_type": false,
+  "mixed_lit_type": true
 }

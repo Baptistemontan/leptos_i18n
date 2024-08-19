@@ -88,3 +88,19 @@ fn non_copy_arg() {
     check_impl_fn(&fr);
     assert_eq_rendered!(fr, "<span>count</span>");
 }
+
+#[test]
+fn same_lit_type() {
+    let en = td!(Locale::en, same_lit_type);
+    assert_eq_rendered!(en, "true");
+    let fr = td!(Locale::fr, same_lit_type);
+    assert_eq_rendered!(fr, "false");
+}
+
+#[test]
+fn mixed_lit_type() {
+    let en = td!(Locale::en, mixed_lit_type);
+    assert_eq_rendered!(en, "59.89");
+    let fr = td!(Locale::fr, mixed_lit_type);
+    assert_eq_rendered!(fr, "true");
+}
