@@ -8,6 +8,12 @@ Once you have set one up, you can add this crate to your project with
 cargo add leptos_i18n
 ```
 
+Or by adding this line to your `Cargo.toml` under `[dependencies]`:
+
+```toml
+leptos_i18n = "0.4"
+```
+
 ## `actix-web` Backend
 
 When compiling for the backend using `actix-web`, enable the `actix` feature:
@@ -20,8 +26,6 @@ ssr = [
     "leptos_i18n/actix",
 ]
 ```
-
-You can see an example using `actix-web` [here](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_actix)
 
 ## `axum` Backend
 
@@ -36,8 +40,6 @@ ssr = [
 ]
 ```
 
-You can see an example using `axum` [here](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_axum)
-
 ## Hydrate
 
 When compiling for the client, enable the `hydrate` feature:
@@ -51,12 +53,6 @@ hydrate = [
 ]
 ```
 
-There exist 3 examples using hydration:
-
-- [Hello World Actix](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_actix)
-- [Hello World Axum](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_axum)
-- [Using Workspace](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/workspace)
-
 ## Client Side Rendering
 
 When compiling for the client, enable the `csr` feature:
@@ -68,4 +64,4 @@ When compiling for the client, enable the `csr` feature:
 features = ["csr"]
 ```
 
-You can find an example using CSR [here](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/csr)
+You can find examples using CSR on the [github repo](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/csr)

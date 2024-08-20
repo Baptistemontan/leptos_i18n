@@ -9,7 +9,6 @@ edition = "2021"
 leptos = { version = "0.6", features = ["csr"] }
 leptos_meta = { version = "0.6", features = ["csr"] }
 leptos_i18n = { path = "../../../leptos_i18n", default-features = false, features = [
-    "debug_interpolations",
     "csr",
     "cookie",
     "yaml_files",

@@ -1,4 +1,4 @@
-This document contain what the `load_locales!` macro should expand to based on the given locales files, the only relevant feature flag enabled is `serde`, the relevant _not_ enabled feature flags are `debug_interpolations`, `suppress_key_warnings` and `nightly`.
+This document contain what the `load_locales!` macro should expand to based on the given locales files, the only relevant feature flag enabled is `serde`, the relevant _not_ enabled feature flags are `suppress_key_warnings` and `nightly`.
 
 None of the comments are part of the outputed code, they are here to explain the choices made that lead to this code.
 
@@ -217,7 +217,6 @@ pub mod i18n {
         // The build function is pointless work wise, as it just return itself
         // This code is to gate uncomplete builders,
         // if a key is missing you'll get a `builder function does not exist ...` type of error, instead of the obscure `IntoView is not implemented on super_weird_generics_whatever`. Not a lot better in itself, but from what I've seen the `IntoView` error span the whole `view!` macro, but the build function error span only the `t!` macro, which is a lot more helpfull.
-        // This also allow to generate variants of this function that can serves as better error feedback with the `debug_interpolations` feature.
         #[allow(non_camel_case_types)]
         impl<
             __var_count: Fn() -> u32 + core::clone::Clone + 'static,

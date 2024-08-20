@@ -24,11 +24,20 @@ writeable = "0.5"
 
 [features]
 default = ["cookie", "json_files"]
-nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
-cookie = []
-hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
+hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
+csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
+cookie = []
+sync = ["icu/sync"]
+experimental-islands = [
+    "leptos/experimental-islands",
+    "leptos_i18n_macro/experimental-islands",
+]
+
+nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
+
+# internal use, should be enabled via "actix" or "axum" feature.
 ssr = [
     "leptos/ssr",
     "leptos_meta/ssr",
@@ -36,22 +45,15 @@ ssr = [
     "leptos_router/ssr",
     "sync",
 ]
-csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
-experimental-islands = [
-    "leptos/experimental-islands",
-    "leptos_i18n_macro/experimental-islands",
-]
-sync = ["icu/sync"]
 
 # macro features
 serde = ["leptos_i18n_macro/serde"]
-debug_interpolations = ["leptos_i18n_macro/debug_interpolations"]
+show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
 json_files = ["leptos_i18n_macro/json_files"]
 yaml_files = ["leptos_i18n_macro/yaml_files"]
 interpolate_display = ["leptos_i18n_macro/interpolate_display"]
 track_locale_files = ["leptos_i18n_macro/track_locale_files"]
-show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 
 
 [package.metadata.cargo-all-features]
@@ -63,7 +65,6 @@ denylist = [
 
     # Only passed through to `leptos_i18n_macros`, exclude to save time:
     "serde",
-    "debug_interpolations",
     "suppress_key_warnings",
     "track_locale_files",
     "show_keys_only",

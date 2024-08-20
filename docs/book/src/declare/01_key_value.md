@@ -40,11 +40,9 @@ If a key is present in another locale but not in the default locale, this key wi
 
 You can specify multiple kinds of values:
 
-- String
-- Numbers
-- Boolean
+- Literals (String, Numbers, Boolean)
 - Interpolated String
 - Ranges
 - Plurals
 
-The next chapters of this section will cover them, apart for strings, those are self explanatory.
+The next chapters of this section will cover them, apart for literals, those are self explanatory.

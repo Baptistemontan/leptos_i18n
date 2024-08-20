@@ -25,17 +25,12 @@ locales = ["en", "fr"]
 Generate this enum:
 
 ```rust
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Default)]
 #[allow(non_camel_case_types)]
 pub enum Locale {
+    #[default]
     en,
     fr
-}
-
-impl Default for Locale {
-    fn default() -> Self {
-        Locale::en
-    }
 }
 ```
 
@@ -61,11 +56,28 @@ It contain an associated constant for each locale, where every field is populate
 }
 ```
 
+This will generate this struct:
+
+````rust
+pub struct I18nKeys {
+  pub hello_world: &'static str,
+}
+
+impl I18nKeys {
+  const en: Self = I18nKeys { hello_world: "Hello World!" };
+  const fr: Self = I18nKeys { hello_world: "Bonjour le Monde!" };
+}
+
 ```rust
 leptos_i18n::load_locales!();
 
 assert_eq!(i18n::I18nKeys::en.hello_world, "Hello World!");
 assert_eq!(i18n::I18nKeys::fr.hello_world, "Bonjour le Monde!");
-```
+````
 
-This way of accessing the values is possible but it's not practical and most importantly not reactive, we will cover in a later section the tool this crate give you to simplify it.
+This way of accessing the values is possible but it's not practical and most importantly not reactive, we will cover the `t!` macro later,
+which let you access the values based on the context:
+
+```rust
+t!(i18n, hello_world)
+```
