@@ -55,13 +55,12 @@ pub enum ListType {
 impl ListType {
     pub fn new_formatter(self, locale: &icu::locid::Locale, length: ListLength) -> ListFormatter {
         match self {
-            ListType::And => {
-                ListFormatter::try_new_and_with_length(&locale.into(), length).unwrap()
-            }
-            ListType::Or => ListFormatter::try_new_or_with_length(&locale.into(), length).unwrap(),
-            ListType::Unit => {
-                ListFormatter::try_new_unit_with_length(&locale.into(), length).unwrap()
-            }
+            ListType::And => ListFormatter::try_new_and_with_length(&locale.into(), length)
+                .expect("A list formatter"),
+            ListType::Or => ListFormatter::try_new_or_with_length(&locale.into(), length)
+                .expect("A list formatter"),
+            ListType::Unit => ListFormatter::try_new_unit_with_length(&locale.into(), length)
+                .expect("A list formatter"),
         }
     }
 }

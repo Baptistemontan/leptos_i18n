@@ -80,7 +80,9 @@ pub fn format_datetime_to_view<L: Locale>(
 
     move || {
         let datetime = datetime.to_icu_datetime();
-        datetime_formatter.format_to_string(&datetime).unwrap()
+        datetime_formatter
+            .format_to_string(&datetime)
+            .expect("The datetime formatter to return a formatted datetime.")
     }
 }
 
@@ -105,5 +107,7 @@ pub fn format_datetime_to_display<L: Locale>(
 ) -> impl Display {
     let datetime_formatter = super::get_datetime_formatter(locale, date_length, time_length);
     let date = datetime.as_icu_datetime();
-    datetime_formatter.format(date).unwrap()
+    datetime_formatter
+        .format(date)
+        .expect("The datetime formatter to return a formatted datetime.")
 }

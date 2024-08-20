@@ -481,7 +481,9 @@ fn create_locale_type_inner(
         })
         .collect();
 
-    let default_locale = locales.first().unwrap();
+    let default_locale = locales
+        .first()
+        .expect("There should be at least one Locale");
 
     let new_match_arms = locales.iter().enumerate().map(|(i, locale)| {
         let filled_lit_fields = literal_keys.iter().filter_map(|(key, _)| {
@@ -626,7 +628,9 @@ fn create_namespaces_types(
     let namespaces_ts = namespaces
         .iter()
         .map(|(namespace, namespace_module_ident)| {
-            let keys = keys.get(&namespace.key).unwrap();
+            let keys = keys
+                .get(&namespace.key)
+                .expect("There should be a namspace of that name.");
             let mut key_path = KeyPath::new(Some(namespace.key.clone()));
             let type_impl = create_locale_type_inner(
                 default_locale,
@@ -663,7 +667,11 @@ fn create_namespaces_types(
             quote!(#key: namespaces::#namespace_module_ident::#key::new(_locale))
         });
 
-    let locales = &namespaces.first().unwrap().0.locales;
+    let locales = &namespaces
+        .first()
+        .expect("There should be at least one namespace.")
+        .0
+        .locales;
 
     let const_values = locales.iter().map(|locale| {
         let locale_ident = &locale.name;

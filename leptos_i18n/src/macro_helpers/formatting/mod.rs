@@ -72,8 +72,8 @@ fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
     let locale = locale.as_icu_locale();
     with_formatters_mut(|formatters| {
         let num_formatter = formatters.num.entry(locale).or_insert_with(|| {
-            let formatter =
-                FixedDecimalFormatter::try_new(&locale.into(), Default::default()).unwrap();
+            let formatter = FixedDecimalFormatter::try_new(&locale.into(), Default::default())
+                .expect("A FixedDecimalFormatter");
             Box::leak(Box::new(formatter))
         });
         *num_formatter
@@ -85,7 +85,8 @@ fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static Da
         let locale = locale.as_icu_locale();
         let date_formatters = formatters.date.entry(locale).or_default();
         let date_formatter = date_formatters.entry(length).or_insert_with(|| {
-            let formatter = DateFormatter::try_new_with_length(&locale.into(), length).unwrap();
+            let formatter = DateFormatter::try_new_with_length(&locale.into(), length)
+                .expect("A DateFormatter");
             Box::leak(Box::new(formatter))
         });
         *date_formatter
@@ -97,7 +98,8 @@ fn get_time_formatter<L: Locale>(locale: L, length: length::Time) -> &'static Ti
         let locale = locale.as_icu_locale();
         let time_formatters = formatters.time.entry(locale).or_default();
         let time_formatter = time_formatters.entry(length).or_insert_with(|| {
-            let formatter = TimeFormatter::try_new_with_length(&locale.into(), length).unwrap();
+            let formatter = TimeFormatter::try_new_with_length(&locale.into(), length)
+                .expect("A TimeFormatter");
             Box::leak(Box::new(formatter))
         });
         *time_formatter
@@ -116,7 +118,8 @@ fn get_datetime_formatter<L: Locale>(
             .entry((date_length, time_length))
             .or_insert_with(|| {
                 let options = length::Bag::from_date_time_style(date_length, time_length);
-                let formatter = DateTimeFormatter::try_new(&locale.into(), options.into()).unwrap();
+                let formatter = DateTimeFormatter::try_new(&locale.into(), options.into())
+                    .expect("A DateTimeFormatter");
                 Box::leak(Box::new(formatter))
             });
         *datetime_formatter
@@ -150,7 +153,8 @@ pub fn get_plural_rules<L: Locale>(
         let locale = locale.as_icu_locale();
         let plural_rules = formatters.plural_rule.entry(locale).or_default();
         let plural_rules = plural_rules.entry(plural_rule_type).or_insert_with(|| {
-            let plural_rules = PluralRules::try_new(&locale.into(), plural_rule_type).unwrap();
+            let plural_rules =
+                PluralRules::try_new(&locale.into(), plural_rule_type).expect("A PluralRules");
             Box::leak(Box::new(plural_rules))
         });
         *plural_rules

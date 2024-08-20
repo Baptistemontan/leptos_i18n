@@ -253,7 +253,9 @@ impl ParsedValue {
         FOREIGN_KEYS.with(|foreign_keys| {
             let set = foreign_keys.borrow();
             for (locale, value_path) in &*set {
-                let value = values.get_value_at(locale, value_path).unwrap();
+                let value = values
+                    .get_value_at(locale, value_path)
+                    .expect("The foreign key to be present a that path.");
                 value.resolve_foreign_key(values, locale, default_locale, value_path)?;
             }
             Ok(())
