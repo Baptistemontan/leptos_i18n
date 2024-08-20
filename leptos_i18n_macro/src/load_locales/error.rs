@@ -5,8 +5,7 @@ use crate::utils::key::{Key, KeyPath};
 use quote::quote;
 
 #[derive(Debug)]
-pub enum Error {
-    Custom(String),
+pub(crate) enum Error {
     CargoDirEnvNotPresent(std::env::VarError),
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
@@ -18,10 +17,6 @@ pub enum Error {
     },
     DuplicateLocalesInConfig(HashSet<String>),
     DuplicateNamespacesInConfig(HashSet<String>),
-    MissingKeyInLocale {
-        locale: Rc<Key>,
-        key_path: KeyPath,
-    },
     SubKeyMissmatch {
         locale: Rc<Key>,
         key_path: KeyPath,
@@ -99,6 +94,14 @@ pub enum Error {
         foreign_key: KeyPath,
         err: TryFromIntError,
     },
+    UnexpectedToken {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        message: String,
+    },
+    RangeAndPluralsMix {
+        key_path: KeyPath,
+    },
 }
 
 impl Display for Error {
@@ -128,10 +131,6 @@ impl Display for Error {
             Error::LocaleFileDeser { path, err} => write!(f,
                 "Parsing of file {:?} failed: {}",
                 path, err
-            ),
-            Error::MissingKeyInLocale { key_path, locale } => write!(f,
-                "Some keys are different beetween locale files, locale {:?} is missing key: \"{}\"",
-                locale, key_path
             ),
             Error::RangeParse {
                 range,
@@ -181,7 +180,6 @@ impl Display for Error {
             Error::ExplicitDefaultInDefault(key_path) => write!(f, "Explicit defaults (null) are not allowed in default locale, at key \"{}\"", key_path),
             Error::RecursiveForeignKey { locale, key_path } => write!(f, "Borrow Error while linking foreign key at key \"{}\" in locale {:?}, check for recursive foreign key.", key_path, locale),
             Error::MissingForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, key don't exist.", foreign_key, key_path, locale),
-            Error::Custom(s) => f.write_str(s),
             Error::InvalidForeignKey { foreign_key, locale, key_path } => write!(f, "Invalid foreign key \"{}\" at key \"{}\" in locale {:?}, foreign key to subkeys are not allowed.", foreign_key, key_path, locale),
             Error::UnknownFormatter { name, locale, key_path } => write!(f, "Unknown formatter {:?} at key \"{}\" in locale {:?}.", name, key_path, locale),
             Error::ConflictingPluralRuleType { locale, key_path } => write!(f, "Found both ordinal and cardinal plurals for key \"{}\" in locale {:?}.", key_path, locale),
@@ -189,6 +187,8 @@ impl Display for Error {
             Error::InvalidCountArg { locale, key_path, foreign_key } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" for plurals or ranges can only be a literal number or a single variable.", locale, key_path, foreign_key),
             Error::InvalidCountArgType { locale, key_path, foreign_key, input_type, range_type } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" of type {} for range of type {} is not allowed.", locale, key_path, foreign_key, input_type, range_type),
             Error::CountArgOutsideRange { locale, key_path, foreign_key, err } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" is outside range: {}", locale, key_path, foreign_key, err),
+            Error::UnexpectedToken { locale, key_path, message } => write!(f, "Unexpected error occured while parsing key \"{}\" in locale {:?}: {}", key_path, locale, message),
+            Error::RangeAndPluralsMix { key_path } => write!(f, "mixing plurals and ranges are not supported yet, for key \"{}\"", key_path),
         }
     }
 }

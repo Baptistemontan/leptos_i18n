@@ -213,7 +213,11 @@ impl InterpolationKeys {
             (None, _) | (Some(RangeOrPlural::Plural), RangeOrPlural::Plural) => Ok(()),
             (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) if old == new => Ok(()),
             (Some(RangeOrPlural::Plural), RangeOrPlural::Range(_))
-            | (Some(RangeOrPlural::Range(_)), RangeOrPlural::Plural) => todo!(),
+            | (Some(RangeOrPlural::Range(_)), RangeOrPlural::Plural) => {
+                Err(Error::RangeAndPluralsMix {
+                    key_path: std::mem::take(key_path),
+                })
+            }
             (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) => {
                 Err(Error::RangeTypeMissmatch {
                     key_path: std::mem::take(key_path),
@@ -249,7 +253,9 @@ impl ParsedValue {
         FOREIGN_KEYS.with(|foreign_keys| {
             let set = foreign_keys.borrow();
             for (locale, value_path) in &*set {
-                let value = values.get_value_at(locale, value_path).unwrap();
+                let value = values
+                    .get_value_at(locale, value_path)
+                    .expect("The foreign key to be present a that path.");
                 value.resolve_foreign_key(values, locale, default_locale, value_path)?;
             }
             Ok(())
@@ -556,9 +562,10 @@ impl ParsedValue {
         let Some((args, rest)) = rest.rsplit_once(')') else {
             return (s.trim(), None);
         };
-        if !rest.trim().is_empty() {
-            todo!()
-        }
+
+        // TODO: what should we do with it ?
+        let _ = rest;
+
         let args = args
             .split(';')
             .filter_map(|s| s.split_once(':'))
@@ -639,7 +646,13 @@ impl ParsedValue {
                 '}' => {
                     depth = match depth.checked_sub(1) {
                         Some(v) => v,
-                        None => todo!(),
+                        None => {
+                            return Err(Error::UnexpectedToken {
+                                locale: locale.clone(),
+                                key_path: key_path.clone(),
+                                message: "malformed foreign key".to_string(),
+                            })
+                        }
                     };
                     if depth == 0 {
                         index = i;
@@ -653,7 +666,11 @@ impl ParsedValue {
         let (before, after) = s.split_at(index + '}'.len_utf8());
 
         let Some(after) = after.trim_start().strip_prefix(')') else {
-            todo!("parse_foreign_key_args_inner")
+            return Err(Error::UnexpectedToken {
+                locale: locale.clone(),
+                key_path: key_path.clone(),
+                message: "malformed foreign key".to_string(),
+            });
         };
 
         let args = Self::parse_foreign_key_args_inner(before, key_path, locale)?;

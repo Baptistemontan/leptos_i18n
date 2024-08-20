@@ -9,44 +9,16 @@
 //!
 //! It loads the translations at compile time and provides checks on translation keys, interpolation keys and the selected locale.
 //!
-//!
-//! Explore our [Examples](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples) to see it in action.
-//!
-//! # Learning by Example
+//! # Learning by examples
 //!
 //! If you want to see what Leptos i18n is capable of, check out
-//! the [examples](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples):
-//! - [`hello_world_actix`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_actix) is a simple example
-//!     to showcase the syntax and file structure to easily incorporate translations in you application using the actix backend
-//! - [`hello_world_axum`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/hello_world_axum) is like the actix hello world example
-//!     but uses axum as the backend, it showcases that the code you will write with this library will be the same using actix or axum as a backend.
-//! - [`counter`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/counter) is the classic
-//!     counter example, showing how you can interpolate values in the translations and switch locale without full reload.
-//! - [`counter_plurals`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/counter_plurals) is like the `counter` example
-//!     but show how you can use plurals to display different texts based on a count.
-//! - [`namespaces`](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/namespaces) show how to break down your translations
-//!     in multiple namespaces to avoid big files
+//! the [examples](https://github.com/Baptistemontan/leptos_i18n/tree/master/examples).
 //!
 //! Details on how to run each example can be found in its README.
 //!
 //! # In depth documentation
 //!
 //! You can find the [book](https://baptistemontan.github.io/leptos_i18n) on the github repo.
-//!
-//! # Feature Flags
-//! - `actix`: Enable this feature when building for the server with actix as the backend (can't be enabled with the `axum` feature).
-//! - `axum`: Enable this feature when building for the server with axum as the backend (can't be enabled with the `actix` feature).
-//! - `hydrate`: Enable this feature when building for the client with hydration.
-//! - `csr`: Enable this feature when building for the client with CSR.
-//! - `serde`: Enabling this feature implement `serde::Serialize` and `serde::Deserialize` for the locale enum.
-//! - `debug_interpolations`: Enable the macros to generate code to emit a warning if a key is supplied twice in interpolations and a better compilation error when a key is missing.
-//! - `show_keys_only`: This feature makes every translations to only display it's corresponding key, this is useful to track untranslated strings in you application.
-//! - `suppress_key_warnings`: Disable the warning emission of the `load_locales!()` macro when some keys are missing or ignored.
-//! - `json_files` (*Default*): Enable this feature if you use JSON files for declaring your locales.
-//! - `yaml_files`: Enable this feature if you use YAML files for declaring your locales (can't be used with `json_files`).
-//! - `cookie` (*Default*): Enable this feature to set a cookie on the client to remember the last locale set.
-//! - `nightly`: On `nightly` Rust, enables the function-call syntax on the i18n context to get/set the locale.
-//! - `track_locale_files`: Enable the tracking of locale files as dependencies, useful if you use some watcher. See the README for more infos.
 //!
 //! # A Simple Counter
 //!
@@ -78,6 +50,7 @@
 //! }
 //! ```
 //!
+//! ### Rust code:
 //!
 //! ```rust,ignore
 //! leptos_i18n::load_locales!();

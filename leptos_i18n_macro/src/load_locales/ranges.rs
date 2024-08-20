@@ -137,8 +137,18 @@ impl Ranges {
             }
             unreachable!("plurals validity should already have been checked.");
         }
-        fn try_from<T, U: TryFrom<T, Error = TryFromIntError>>(count: T) -> Result<U> {
-            TryFrom::try_from(count).map_err(|_| todo!())
+        fn try_from<T, U: TryFrom<T, Error = TryFromIntError>>(
+            count: T,
+            locale: &Rc<Key>,
+            key_path: &KeyPath,
+            foreign_key: &KeyPath,
+        ) -> Result<U> {
+            TryFrom::try_from(count).map_err(|err| Error::CountArgOutsideRange {
+                locale: locale.clone(),
+                key_path: key_path.to_owned(),
+                foreign_key: foreign_key.to_owned(),
+                err,
+            })
         }
         match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
@@ -165,27 +175,62 @@ impl Ranges {
                     UntypedRangesInner::U64(v) => {
                         find_value(v, count, args, foreign_key, locale, key_path)
                     }
-                    UntypedRangesInner::I8(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::I16(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::I32(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::I64(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::U8(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::U16(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::U32(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
+                    UntypedRangesInner::I8(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::I16(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::I32(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::I64(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::U8(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::U16(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::U32(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
                     _ => Err(Error::InvalidCountArgType {
                         locale: locale.clone(),
                         key_path: key_path.to_owned(),
@@ -198,30 +243,65 @@ impl Ranges {
             ParsedValue::Literal(Literal::Signed(count)) => {
                 let count = *count;
                 match &self.inner {
-                    UntypedRangesInner::U64(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::I8(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::I16(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::I32(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
+                    UntypedRangesInner::U64(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::I8(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::I16(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::I32(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
                     UntypedRangesInner::I64(v) => {
                         find_value(v, count, args, foreign_key, locale, key_path)
                     }
-                    UntypedRangesInner::U8(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::U16(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
-                    UntypedRangesInner::U32(v) => {
-                        find_value(v, try_from(count)?, args, foreign_key, locale, key_path)
-                    }
+                    UntypedRangesInner::U8(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::U16(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
+                    UntypedRangesInner::U32(v) => find_value(
+                        v,
+                        try_from(count, locale, key_path, foreign_key)?,
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    ),
                     _ => Err(Error::InvalidCountArgType {
                         locale: locale.clone(),
                         key_path: key_path.to_owned(),

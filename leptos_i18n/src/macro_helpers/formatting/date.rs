@@ -71,7 +71,9 @@ pub fn format_date_to_view<L: Locale>(
 
     move || {
         let date = date.to_icu_date();
-        date_formatter.format_to_string(&date).unwrap()
+        date_formatter
+            .format_to_string(&date)
+            .expect("The date formatter to return a formatted date.")
     }
 }
 
@@ -94,5 +96,7 @@ pub fn format_date_to_display<L: Locale>(
 ) -> impl Display {
     let date_formatter = super::get_date_formatter(locale, length);
     let date = date.as_icu_date();
-    date_formatter.format(date).unwrap()
+    date_formatter
+        .format(date)
+        .expect("The date formatter to return a formatted date.")
 }

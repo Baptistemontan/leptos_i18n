@@ -18,13 +18,28 @@ This feature must be enabled when building the client in ssr mode
 
 This feature must be enabled when building the client in csr mode
 
+#### `cookie` (Default)
+
+Set a cookie to remember the last chosen locale.
+
+#### `sync`
+
+This feature has no impact on the user.
+This feature allow the crate to use sync data types such as `Mutex` or `OnceLock`.
+Activated when the `actix` or `axum` feature is enabled.
+
+#### `experimental-islands`
+
+This feature is, as it's name says, experimental.
+This make this lib somewhat usable when using `islands` with Leptos.
+
 #### `serde`
 
 This feature implement `Serialize` and `Deserialize` for the `Locale` enum
 
-#### `debug_interpolations`
+#### `interpolate_display`
 
-This features allow the `load_locales!` macro to generate more code for interpolations, allowing better error reporting when keys are missing.
+This feature generate extra code for each interpolation to allow rendering them as a string instead of a `View`.
 
 #### `show_keys_only`
 
@@ -42,14 +57,10 @@ To enable when you use JSON files for your locales
 
 To enable when you use YAML files for your locales
 
-#### `cookie` (Default)
-
-Set a cookie to remember the last chosen locale.
-
 #### `nightly`
 
-- Enable the use of some nightly features, like directly calling the context to get/set the current locale.
-- Allow the `load_locale!` macro to emit better warnings.
+Enable the use of some nightly features, like directly calling the context to get/set the current locale.
+and allow the `load_locale!` macro to emit better warnings.
 
 #### `track_locale_files`
 

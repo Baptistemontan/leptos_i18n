@@ -235,7 +235,7 @@ fn make_route<V: IntoView>(
     .as_transparent()
     .and_then(|t| t.downcast_ref::<RouteDefinition>())
     .cloned()
-    .unwrap()
+    .expect("Route component should return a transparent RouteDefinition")
 }
 
 #[doc(hidden)]

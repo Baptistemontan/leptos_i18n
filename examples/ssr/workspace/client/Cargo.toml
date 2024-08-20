@@ -14,10 +14,7 @@ actix-web = { version = "4.4", optional = true, features = ["macros"] }
 leptos = "0.6"
 leptos_meta = "0.6"
 leptos_actix = { version = "0.6", optional = true }
-leptos_i18n = { workspace = true, features = [
-    "debug_interpolations",
-    "track_locale_files",
-] }
+leptos_i18n = { workspace = true, features = ["track_locale_files"] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }

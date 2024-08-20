@@ -45,13 +45,15 @@ impl_into_fixed_decimal!(
 
 impl IntoFixedDecimal for f32 {
     fn to_fixed_decimal(self) -> FixedDecimal {
-        FixedDecimal::try_from_f64(Into::into(self), FloatPrecision::Floating).unwrap()
+        FixedDecimal::try_from_f64(Into::into(self), FloatPrecision::Floating)
+            .expect("A FixedDecimal from a f32")
     }
 }
 
 impl IntoFixedDecimal for f64 {
     fn to_fixed_decimal(self) -> FixedDecimal {
-        FixedDecimal::try_from_f64(self, FloatPrecision::Floating).unwrap()
+        FixedDecimal::try_from_f64(self, FloatPrecision::Floating)
+            .expect("A FixedDecimal from a f64")
     }
 }
 

@@ -41,7 +41,7 @@ JSON being the default, you can change that by first removing the defaults featu
 [dependencies]
 leptos_i18n = {
     default-features = false,
-    features = ["yaml_files"] # other default features: ["cookie"]
+    features = ["yaml_files"]
 }
 ```
 

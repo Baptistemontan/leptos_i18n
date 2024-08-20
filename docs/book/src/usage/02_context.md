@@ -57,7 +57,6 @@ pub fn Foo() -> impl IntoView {
 
     create_effect(|_| {
         let locale = i18n.get_locale();
-
         match locale {
             Locale::en => {
                 log!("locale en");

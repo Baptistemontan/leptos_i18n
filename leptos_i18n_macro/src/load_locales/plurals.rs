@@ -145,7 +145,10 @@ pub struct Plurals {
 
 impl Plurals {
     fn get_plural_rules(&self, locale: &Rc<Key>) -> PluralRules {
-        let locale = locale.name.parse::<icu::locid::Locale>().unwrap();
+        let locale = locale
+            .name
+            .parse::<icu::locid::Locale>()
+            .expect("Invalid locale name");
         PluralRules::try_new(&locale.into(), self.rule_type.into()).unwrap()
     }
 

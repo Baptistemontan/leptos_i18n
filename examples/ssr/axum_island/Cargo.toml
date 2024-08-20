@@ -16,7 +16,6 @@ leptos_axum = { version = "0.6", optional = true, features = [
     "experimental-islands",
 ] }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
-    "debug_interpolations",
     "track_locale_files",
     "experimental-islands",
 ] }

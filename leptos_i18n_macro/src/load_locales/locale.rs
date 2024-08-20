@@ -368,7 +368,9 @@ impl Locale {
             };
             plural.check_categories(&locale, key_path);
             let value = ParsedValue::Plurals(plural);
-            let key = key_path.pop_key().unwrap();
+            let key = key_path
+                .pop_key()
+                .expect("The KeyPath should not be empty.");
             self.keys.insert(key, value);
         }
 
@@ -414,7 +416,7 @@ impl Locale {
         namespace: Option<Rc<Key>>,
     ) -> Result<BuildersKeysInner> {
         let mut locales = locales.iter_mut();
-        let default_locale = locales.next().unwrap();
+        let default_locale = locales.next().expect("There should be at least one Locale");
         let mut key_path = KeyPath::new(namespace);
 
         let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
