@@ -6,9 +6,15 @@ pub trait InterpolateVar: IntoView + Clone + 'static {}
 impl<T: IntoView + Clone + 'static> InterpolateVar for T {}
 
 /// Marker trait for a type that can be used as an interpolation component.
-pub trait InterpolateComp<O: IntoView>: Fn(leptos::ChildrenFn) -> O + Clone + 'static {}
+pub trait InterpolateComp<O: IntoView>:
+    Fn(leptos::children::ChildrenFn) -> O + Clone + 'static
+{
+}
 
-impl<O: IntoView, T: Fn(leptos::ChildrenFn) -> O + Clone + 'static> InterpolateComp<O> for T {}
+impl<O: IntoView, T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static> InterpolateComp<O>
+    for T
+{
+}
 
 /// Marker trait for a type that can be used to produce a count for a range key.
 pub trait InterpolateRangeCount<T>: Fn() -> T + Clone + 'static {}

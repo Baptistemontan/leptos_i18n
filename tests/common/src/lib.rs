@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-pub use leptos::*;
+pub use leptos::prelude::*;
 
 pub fn render_to_string<'a, T: 'a>(view: T) -> Oco<'a, str>
 where

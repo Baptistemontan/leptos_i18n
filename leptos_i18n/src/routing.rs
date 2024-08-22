@@ -1,7 +1,10 @@
-use std::rc::Rc;
-
-use leptos::*;
-use leptos_router::*;
+use leptos::{either::Either, ev, prelude::*};
+use leptos_router::{
+    components::*,
+    hooks::{use_location, use_navigate},
+    location::Location,
+    ChooseView, NavigateOptions, SsrMode,
+};
 
 use crate::{use_i18n_context, I18nContext, Locale};
 
@@ -176,7 +179,10 @@ fn maybe_redirect<L: Locale>(previously_resolved_locale: L, base_path: &str) -> 
     Some(new_path)
 }
 
-fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -> impl IntoView {
+fn outlet_wrapper<L: Locale>(
+    route_locale: Option<L>,
+    base_path: &'static str,
+) -> impl ChooseView<Dom> {
     let i18n = use_i18n_context::<L>();
 
     let previously_resolved_locale = i18n.get_locale_untracked();
@@ -198,99 +204,46 @@ fn outlet_wrapper<L: Locale>(route_locale: Option<L>, base_path: &'static str) -
     // it starts at None such that on the first render the effect don't change the locale instantly.
     let history_changed_locale = StoredValue::new(None);
 
-    create_effect(update_path_effect(i18n, base_path, history_changed_locale));
+    Effect::new(update_path_effect(i18n, base_path, history_changed_locale));
     // listen for history changes
-    leptos::window_event_listener(
+    window_event_listener(
         ev::popstate,
         check_history_change(i18n, base_path, history_changed_locale),
     );
     // correct the url when using <a> that removes the locale prefix
-    create_effect(correct_locale_prefix_effect(i18n, base_path));
+    Effect::new(correct_locale_prefix_effect(i18n, base_path));
 
     match redir {
-        None => view! { <Outlet /> },
-        Some(path) => view! { <Redirect path=path/> },
+        None => Either::Left(move || view! { <Outlet /> }),
+        Some(path) => Either::Right(move || view! { <Redirect path={ path.clone() }/> }),
     }
 }
 
-fn make_route<V: IntoView>(
-    path: &str,
-    children: Option<Children>,
-    view: impl Fn() -> V + 'static,
-    ssr: SsrMode,
-    methods: &'static [Method],
-    data: Option<Loader>,
-    trailing_slash: Option<TrailingSlash>,
-) -> RouteDefinition {
-    Route(RouteProps {
-        path,
-        view,
-        ssr,
-        methods,
-        data,
-        trailing_slash,
-        children,
-    })
-    .into_view()
-    .as_transparent()
-    .and_then(|t| t.downcast_ref::<RouteDefinition>())
-    .cloned()
-    .expect("Route component should return a transparent RouteDefinition")
-}
+// fn make_route<V: IntoView>(
+//     path: &str,
+//     children: Option<Children>,
+//     view: impl Fn() -> V + 'static,
+//     ssr: SsrMode,
+// ) -> NestedRoute {
+//     Route(path, view, ssr)
+// }
+
+// struct I18nParamSegment<L, Chil, View> {}
+
+// type StaticStrSegment = StaticSegment<&'static str>;
+
+// type OutputRoute<Chil, View, L> = NestedRoute<StaticStrSegment, Chil, (), View, Dom>;
 
 #[doc(hidden)]
-pub fn i18n_routing<L: Locale, E, F>(
+pub fn i18n_routing<L: Locale, View>(
     base_path: &'static str,
-    children: Option<Children>,
+    children: Option<leptos::children::Children>,
     ssr: SsrMode,
-    methods: &'static [Method],
-    data: Option<Loader>,
-    trailing_slash: Option<TrailingSlash>,
-    view: F,
-) -> RouteDefinition
-where
-    E: IntoView,
-    F: Fn() -> E + 'static,
+    view: View,
+) where
+    View: IntoView,
 {
-    let mut root_route: RouteDefinition = make_route(
-        "",
-        None,
-        view,
-        ssr,
-        methods,
-        data.clone(),
-        Some(TrailingSlash::Drop),
-    );
-
-    let default_route = make_route(
-        "",
-        children,
-        move || outlet_wrapper::<L>(None, base_path),
-        ssr,
-        methods,
-        data.clone(),
-        trailing_slash.clone(),
-    );
-
-    // probably the worst hack here:
-    // leptos_router swap routes base on the id,
-    // so if we want to keep the state of the page when the locale change we just give all routes the same id.
-    // we can just clone the default route and swap the path, then when roots resolution is done it sees all the different routes
-    // but in execution only one route will be active and will never be swapped out.
-    // the whole file is about keeping track of the locale suffix ourselves and fixing the URL every changes
-    let mut locale_routes: Vec<RouteDefinition> = L::get_all()
-        .iter()
-        .copied()
-        .map(|l| RouteDefinition {
-            path: l.to_string(),
-            view: Rc::new(move || outlet_wrapper::<L>(Some(l), base_path).into_view()),
-            ..default_route.clone()
-        })
-        .collect();
-
-    locale_routes.push(default_route);
-
-    root_route.children = locale_routes;
-
-    root_route
+    let _ = move || outlet_wrapper::<L>(None, base_path);
+    let _ = (children, ssr, view);
+    unimplemented!("i18n routing is a WIP.")
 }

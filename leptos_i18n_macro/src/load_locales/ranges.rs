@@ -576,13 +576,10 @@ impl Ranges {
         };
 
         quote! {
-            leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    move || #match_statement
-                },
-
-            )
+            {
+                #captured_values
+                move || #match_statement
+            },
         }
     }
 
@@ -654,16 +651,13 @@ impl Ranges {
         });
 
         quote! {
-            leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    move || {
-                        let plural_count = #count_key();
-                        #ifs
-                    }
-                },
-
-            )
+            {
+                #captured_values
+                move || {
+                    let plural_count = #count_key();
+                    #ifs
+                }
+            },
         }
     }
 

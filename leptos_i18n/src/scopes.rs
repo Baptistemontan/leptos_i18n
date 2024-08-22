@@ -10,7 +10,7 @@ use icu::locid;
 use crate::{I18nContext, Locale, LocaleKeys};
 
 /// Represent a scope in a locale.
-pub trait Scope<L: Locale>: 'static {
+pub trait Scope<L: Locale>: 'static + Send + Sync {
     /// The keys of the scopes
     type Keys: LocaleKeys<Locale = L>;
 }

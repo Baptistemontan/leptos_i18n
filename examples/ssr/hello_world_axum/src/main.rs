@@ -6,7 +6,7 @@ async fn main() {
     use axum::{routing::post, Router};
     use hello_world_axum::app::App;
     use hello_world_axum::fileserv::file_and_error_handler;
-    use leptos::*;
+    use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use tokio::net::TcpListener;
 

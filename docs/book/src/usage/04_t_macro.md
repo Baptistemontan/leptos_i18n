@@ -4,7 +4,7 @@ To access your translations the `t!` macro is used, you can access a string with
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -23,7 +23,7 @@ If some variables are declared for this key, you can pass them like this:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -42,7 +42,7 @@ If your variable has the same name as the value, you can pass it directly:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -63,7 +63,7 @@ You can pass anything that implement `IntoView + Clone + 'static`, you can pass 
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -92,7 +92,7 @@ If some components are declared for this key, you can pass them like this:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -112,7 +112,7 @@ If your variable as the same name as the component, you can pass it directly:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -165,7 +165,7 @@ You can access subkeys by simply separating the path with `.`:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -188,7 +188,7 @@ Namespaces are implemented as subkeys, you first access the namespace then the k
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {

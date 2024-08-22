@@ -60,20 +60,13 @@ pub fn t_macro_inner(
                     let _builder = _builder.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _builder.#build_fn()
+                _builder.#build_fn().into_view()
             }
         };
 
         (inner, Some(params))
     } else {
-        let inner = quote! {
-            {
-                #[allow(unused)]
-                use leptos_i18n::__private::BuildLit;
-                let _key = #get_key;
-                _key.#builder_fn().#build_fn()
-            }
-        };
+        let inner = quote!(#get_key);
         (inner, None)
     };
 

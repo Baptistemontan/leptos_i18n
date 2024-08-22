@@ -887,13 +887,13 @@ impl ParsedValue {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
-            ParsedValue::Literal(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
+            ParsedValue::Literal(s) => tokens.push(quote!(#s)),
             ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
-                    leptos::IntoView::into_view(#ts)
+                    #ts
                 }});
             }
             ParsedValue::Component { key, inner } => {
@@ -915,11 +915,11 @@ impl ParsedValue {
                     move || Into::into(#inner)
                 });
                 let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
+                tokens.push(quote!(core::clone::Clone::clone(&#key)(#boxed_fn)));
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens, locale_field)
+                    value.flatten(tokens, locale_field);
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
@@ -1023,7 +1023,8 @@ impl ToTokens for ParsedValue {
         match &tokens[..] {
             [] => quote!(leptos::View::default()),
             [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
+            // TODO: check if it fits in a tuple
+            values => quote!((#(#values,)*)),
         }
     }
 

@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -25,7 +25,7 @@ pub fn App() -> impl IntoView {
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, set_counter) = create_signal(0);
+    let (counter, set_counter) = RwSignal::new(0).split();
 
     let inc = move |_| set_counter.update(|count| *count += 1);
 

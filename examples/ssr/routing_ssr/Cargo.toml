@@ -10,9 +10,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = "0.6"
-leptos_meta = "0.6"
-leptos_axum = { version = "0.6", optional = true }
+leptos = { git = "https://github.com/leptos-rs/leptos" }
+leptos_meta = { git = "https://github.com/leptos-rs/leptos" }
+leptos_axum = { git = "https://github.com/leptos-rs/leptos", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
     "track_locale_files",
 ] }
@@ -25,7 +25,7 @@ log = "0.4"
 tower = { version = "0.4.13", optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
 
-leptos_router = "0.6"
+leptos_router = { git = "https://github.com/leptos-rs/leptos" }
 
 [features]
 hydrate = [

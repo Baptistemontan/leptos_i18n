@@ -360,18 +360,16 @@ impl ToTokens for Plurals {
         let count_key = &self.count_key;
 
         quote! {
-            leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
-                    move || {
-                        match _plural_rules.category_for(#count_key()) {
-                            #(#match_arms,)*
-                            _ => #other,
-                        }
+            {
+                #captured_values
+                let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
+                move || {
+                    match _plural_rules.category_for(#count_key()) {
+                        #(#match_arms,)*
+                        _ => #other,
                     }
-                },
-            )
+                }
+            },
         }
     }
 }

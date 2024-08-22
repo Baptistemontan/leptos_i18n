@@ -53,7 +53,7 @@ impl<
 }
 
 /// Marker trait for types that produce a `T: DateTimeInput<Calendar = AnyCalendar>`.
-pub trait DateTimeFormatterInputFn: 'static + Clone {
+pub trait DateTimeFormatterInputFn: 'static + Clone + Send + Sync {
     /// The returned `T: DateTimeInput<Calendar = AnyCalendar>`.
     type DateTime: DateTimeInput<Calendar = AnyCalendar>;
 
@@ -61,7 +61,9 @@ pub trait DateTimeFormatterInputFn: 'static + Clone {
     fn to_icu_datetime(&self) -> Self::DateTime;
 }
 
-impl<T: IntoIcuDateTime, F: Fn() -> T + Clone + 'static> DateTimeFormatterInputFn for F {
+impl<T: IntoIcuDateTime, F: Fn() -> T + Clone + Send + Sync + 'static> DateTimeFormatterInputFn
+    for F
+{
     type DateTime = T::DateTime;
 
     fn to_icu_datetime(&self) -> Self::DateTime {

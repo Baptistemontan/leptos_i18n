@@ -1,3 +1,4 @@
+use core::panic;
 use std::rc::Rc;
 
 use proc_macro2::{Span, TokenStream};
@@ -5,9 +6,9 @@ use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
+use super::locale::Locale;
 use super::parsed_value::InterpolationKeys;
 use super::parsed_value::RangeOrPlural;
-use super::{locale::Locale, parsed_value::ParsedValue};
 use crate::utils::formatter::Formatter;
 use crate::utils::key::{Key, KeyPath};
 
@@ -50,6 +51,46 @@ struct Field {
     key: Rc<Key>,
     generic: syn::Ident,
     var_or_comp: VarOrComp,
+}
+
+#[derive(Debug, Clone)]
+enum EitherOfWrapper {
+    Single,
+    Duo,
+    Multiple(syn::Ident),
+}
+
+impl EitherOfWrapper {
+    pub fn new(size: usize) -> EitherOfWrapper {
+        match size {
+            0 => {
+                unreachable!("0 locales ? how is this possible ? should have been checked by now.")
+            }
+            1 => EitherOfWrapper::Single,
+            2 => EitherOfWrapper::Duo,
+            3..=16 => EitherOfWrapper::Multiple(format_ident!("EitherOf{}", size)),
+            17.. => panic!("Can only support up to 16 locales for now"),
+        }
+    }
+
+    pub fn wrap<T: ToTokens>(&self, i: usize, ts: T) -> TokenStream {
+        const LETTERS: &[char; 16] = &[
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q',
+        ];
+        match self {
+            EitherOfWrapper::Single => ts.into_token_stream(),
+            EitherOfWrapper::Duo if i == 0 => {
+                quote!(l_i18n_crate::__private::leptos::either::Either::Left(#ts))
+            }
+            EitherOfWrapper::Duo => {
+                quote!(l_i18n_crate::__private::leptos::either::Either::Right(#ts))
+            }
+            EitherOfWrapper::Multiple(ident) => {
+                let variant = format_ident!("{}", LETTERS[i]);
+                quote!(#ident::#variant(#ts))
+            }
+        }
+    }
 }
 
 impl Field {
@@ -201,7 +242,6 @@ impl Interpolation {
         enum_ident: &syn::Ident,
         keys: &InterpolationKeys,
         locales: &[Locale],
-        default_match: &TokenStream,
         key_path: &KeyPath,
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
@@ -243,22 +283,14 @@ impl Interpolation {
             &locale_field,
             &fields,
             locales,
-            default_match,
             key_path,
         );
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
         let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
-            let display_impl = Self::display_impl(
-                key,
-                &ident,
-                enum_ident,
-                &locale_field,
-                &fields,
-                locales,
-                default_match,
-            );
+            let display_impl =
+                Self::display_impl(key, &ident, enum_ident, &locale_field, &fields, locales);
             let builder_display =
                 Self::builder_string_build_fns(enum_ident, &typed_builder_name, &fields);
             (display_impl, builder_display)
@@ -447,7 +479,6 @@ impl Interpolation {
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
-        default_match: &TokenStream,
     ) -> TokenStream {
         let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
@@ -456,8 +487,7 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
-        let locales_impls =
-            Self::create_locale_string_impl(key, enum_ident, locales, default_match);
+        let locales_impls = Self::create_locale_string_impl(key, enum_ident, locales);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -482,7 +512,6 @@ impl Interpolation {
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
-        default_match: &TokenStream,
         key_path: &KeyPath,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
@@ -493,10 +522,10 @@ impl Interpolation {
             let key = key_path.to_string_with_key(key);
             return quote! {
                 #[allow(non_camel_case_types)]
-                impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
-                    fn into_view(self) -> leptos::View {
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    pub fn into_view(self) -> impl l_i18n_crate::__private::leptos::IntoView {
                         let _ = self;
-                        leptos::IntoView::into_view(#key)
+                        #key
                     }
                 }
             };
@@ -506,12 +535,12 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
+        let locales_impls = Self::create_locale_impl(key, enum_ident, locales);
 
         quote! {
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
-                fn into_view(self) -> leptos::View {
+            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                pub fn into_view(self) -> impl l_i18n_crate::__private::leptos::IntoView {
                     #destructure
                     match #locale_field {
                         #(
@@ -527,9 +556,8 @@ impl Interpolation {
         key: &'a Key,
         enum_ident: &'a syn::Ident,
         locales: &'a [Locale],
-        default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        let mut default_match = default_match.clone();
+        let either_wrapper = EitherOfWrapper::new(locales.len());
         locales
             .iter()
             .enumerate()
@@ -537,18 +565,11 @@ impl Interpolation {
             .filter_map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
-                let value = match locale.keys.get(key) {
-                    None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| #enum_ident::#locale_key));
-                        return None;
-                    }
-                    Some(value) => value,
-                };
+                let value = locale.keys.get(key)?;
 
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(#enum_ident::#locale_key => { #value }),
-                };
+                let wrapped_value = either_wrapper.wrap(i, value);
+
+                let ts = quote!(#enum_ident::#locale_key => { #wrapped_value });
                 Some(ts)
             })
     }
@@ -557,31 +578,14 @@ impl Interpolation {
         key: &'a Key,
         enum_ident: &'a syn::Ident,
         locales: &'a [Locale],
-        default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        let mut default_match = default_match.clone();
-        locales
-            .iter()
-            .enumerate()
-            .rev()
-            .filter_map(move |(i, locale)| {
-                let locale_key = &locale.top_locale_name;
+        locales.iter().rev().filter_map(move |locale| {
+            let locale_key = &locale.top_locale_name;
 
-                let value = match locale.keys.get(key) {
-                    None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| #enum_ident::#locale_key));
-                        return None;
-                    }
-                    Some(value) => value,
-                };
+            let value = locale.keys.get(key)?.as_string_impl();
 
-                let value = value.as_string_impl();
-
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(#enum_ident::#locale_key => { #value }),
-                };
-                Some(ts)
-            })
+            let ts = quote!(#enum_ident::#locale_key => { #value });
+            Some(ts)
+        })
     }
 }

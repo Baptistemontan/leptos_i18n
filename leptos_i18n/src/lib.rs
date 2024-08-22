@@ -55,7 +55,7 @@
 //! ```rust,ignore
 //! leptos_i18n::load_locales!();
 //! use i18n::*; // `i18n` module created by the macro above
-//! use leptos::*;
+//! use leptos::prelude::*;
 //!
 //! #[component]
 //! pub fn App() -> impl IntoView {

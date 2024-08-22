@@ -10,7 +10,7 @@ The main focus is ease of use with leptos, a typical component using this crate 
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 fn Counter() -> impl IntoView {

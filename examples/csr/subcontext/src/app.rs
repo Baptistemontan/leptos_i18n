@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_i18n::context::{I18nSubContextProvider, I18nSubContextProviderWithRoot};
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;

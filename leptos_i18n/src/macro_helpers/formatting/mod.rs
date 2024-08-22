@@ -48,24 +48,12 @@ struct Formatters {
 // making possible to return values borrowing from the formatter,
 // such as all *Formatter::format(..) returned values.
 
-#[cfg(not(feature = "sync"))]
-thread_local! {
-  static FORMATTERS: std::cell::RefCell<Formatters> = Default::default();
-}
-
-#[cfg(not(feature = "sync"))]
-fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
-    FORMATTERS.with_borrow_mut(f)
-}
-
-#[cfg(feature = "sync")]
 static FORMATTERS: std::sync::OnceLock<std::sync::Mutex<Formatters>> = std::sync::OnceLock::new();
 
-#[cfg(feature = "sync")]
 fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
     let mutex = FORMATTERS.get_or_init(Default::default);
     let mut guard = mutex.lock().unwrap();
-    f(&mut *guard)
+    f(&mut guard)
 }
 
 fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {

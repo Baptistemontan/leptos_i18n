@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_router::*;
 
 #[component]
