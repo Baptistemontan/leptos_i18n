@@ -3,9 +3,7 @@ use leptos::prelude::*;
 use crate::Locale;
 
 pub fn fetch_locale<L: Locale>(current_cookie: Option<L>) -> Memo<L> {
-    // TODO
-    // let accepted_locales = leptos_use::use_locales();
-    let accepted_locales = RwSignal::new(vec!["en"]);
+    let accepted_locales = leptos_use::use_locales();
     let accepted_locale =
         Memo::new(move |_| accepted_locales.with(|accepted| L::find_locale(accepted)));
     if cfg!(feature = "ssr") {
