@@ -15,7 +15,11 @@ leptos_i18n_macro = { workspace = true }
 leptos = { git = "https://github.com/leptos-rs/leptos" }
 leptos_meta = { git = "https://github.com/leptos-rs/leptos" }
 leptos_router = { git = "https://github.com/leptos-rs/leptos" }
-leptos-use = { git = "https://github.com/Synphonyte/leptos-use", branch = "leptos-0.7" }
+leptos-use = { git = "https://github.com/Synphonyte/leptos-use", branch = "leptos-0.7", default-features = false, features = [
+    "use_locales",
+    "use_cookie",
+] }
+# leptos-use = { path = "../../../leptos-use" }
 codee = "0.1"
 icu = { version = "1.5", features = ["sync"] }
 typed-builder = "0.19"
