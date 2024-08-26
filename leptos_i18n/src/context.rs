@@ -537,8 +537,8 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
 
 // get locale
 #[cfg(feature = "nightly")]
-impl<T: Locale, S: Scope<L>> FnOnce<()> for I18nContext<T, S> {
-    type Output = T;
+impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
+    type Output = L;
     #[inline]
     extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -546,7 +546,7 @@ impl<T: Locale, S: Scope<L>> FnOnce<()> for I18nContext<T, S> {
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locale, S: Scope<L>> FnMut<()> for I18nContext<T, S> {
+impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
     #[inline]
     extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -554,7 +554,7 @@ impl<T: Locale, S: Scope<L>> FnMut<()> for I18nContext<T, S> {
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locale, S: Scope<L>> Fn<()> for I18nContext<T, S> {
+impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
     #[inline]
     extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -563,26 +563,26 @@ impl<T: Locale, S: Scope<L>> Fn<()> for I18nContext<T, S> {
 
 // set locale
 #[cfg(feature = "nightly")]
-impl<T: Locale, S: Scope<L>> FnOnce<(T,)> for I18nContext<T, S> {
+impl<L: Locale, S: Scope<L>> FnOnce<(L,)> for I18nContext<L, S> {
     type Output = ();
     #[inline]
-    extern "rust-call" fn call_once(self, (locale,): (T,)) -> Self::Output {
+    extern "rust-call" fn call_once(self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locale, S: Scope<L>> FnMut<(T,)> for I18nContext<T, S> {
+impl<L: Locale, S: Scope<L>> FnMut<(L,)> for I18nContext<L, S> {
     #[inline]
-    extern "rust-call" fn call_mut(&mut self, (locale,): (T,)) -> Self::Output {
+    extern "rust-call" fn call_mut(&mut self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<T: Locale, S: Scope<L>> Fn<(T,)> for I18nContext<T, S> {
+impl<L: Locale, S: Scope<L>> Fn<(L,)> for I18nContext<L, S> {
     #[inline]
-    extern "rust-call" fn call(&self, (locale,): (T,)) -> Self::Output {
+    extern "rust-call" fn call(&self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
 }
