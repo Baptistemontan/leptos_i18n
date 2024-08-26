@@ -20,7 +20,7 @@ leptos-use = { git = "https://github.com/Synphonyte/leptos-use", branch = "lepto
     "use_cookie",
 ] }
 # leptos-use = { path = "../../../leptos-use" }
-codee = "0.1"
+codee = "0.2"
 icu = { version = "1.5", features = ["sync"] }
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
