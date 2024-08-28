@@ -11,7 +11,10 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::ParseBuffer;
 
-use crate::utils::key::{Key, KeyPath};
+use crate::utils::{
+    key::{Key, KeyPath},
+    EitherOfWrapper,
+};
 use crate::{
     load_locales::{
         locale::{LiteralType, LocalesOrNamespaces},
@@ -548,7 +551,11 @@ impl Ranges {
         ranges: &[(Range<T>, ParsedValue)],
         count_key: &Key,
     ) -> TokenStream {
-        let match_arms = ranges.iter().map(|(range, value)| quote!(#range => #value));
+        let either_of = EitherOfWrapper::new(ranges.len());
+        let match_arms = ranges.iter().enumerate().map(|(i, (range, value))| {
+            let ts = either_of.wrap(i, value);
+            quote!(#range => { #ts })
+        });
 
         let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
         let mut key_path = KeyPath::new(None);
@@ -622,12 +629,14 @@ impl Ranges {
         ranges: &[(Range<T>, ParsedValue)],
         count_key: &Key,
     ) -> TokenStream {
-        let mut ifs = ranges
-            .iter()
-            .map(|(range, value)| match Self::to_condition(range) {
+        let either_of = EitherOfWrapper::new(ranges.len());
+        let mut ifs = ranges.iter().enumerate().map(|(i, (range, value))| {
+            let value = either_of.wrap(i, value);
+            match Self::to_condition(range) {
                 None => quote!({ #value }),
                 Some(condition) => quote!(if #condition { #value }),
-            });
+            }
+        });
         let first = ifs.next();
         let ifs = quote! {
             #first

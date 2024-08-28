@@ -912,9 +912,10 @@ impl ParsedValue {
 
                 let f = quote!({
                     #captured_keys
-                    move || Into::into(#inner)
+                    move || #inner
                 });
-                let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
+                let boxed_fn =
+                    quote!(l_i18n_crate::__private::leptos::children::ToChildren::to_children(#f));
                 tokens.push(quote!(core::clone::Clone::clone(&#key)(#boxed_fn)));
             }
             ParsedValue::Bloc(values) => {
@@ -1021,7 +1022,7 @@ impl ToTokens for ParsedValue {
         self.flatten(&mut tokens, &locale_field);
 
         match &tokens[..] {
-            [] => quote!(leptos::View::default()),
+            [] => quote!(None::<()>),
             [value] => value.clone(),
             // TODO: check if it fits in a tuple
             values => quote!((#(#values,)*)),

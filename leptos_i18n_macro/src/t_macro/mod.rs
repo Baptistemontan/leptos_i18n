@@ -60,7 +60,7 @@ pub fn t_macro_inner(
                     let _builder = _builder.#interpolations;
                 )*
                 #[deny(deprecated)]
-                _builder.#build_fn().into_view()
+                _builder.#build_fn()
             }
         };
 
@@ -76,7 +76,7 @@ pub fn t_macro_inner(
 impl OutputType {
     pub fn build_fns(self) -> (TokenStream, TokenStream) {
         match self {
-            OutputType::View => (quote!(builder), quote!(build)),
+            OutputType::View => (quote!(builder), quote!(build().into_view)),
             OutputType::String => (quote!(display_builder), quote!(build_string)),
             OutputType::Display => (quote!(display_builder), quote!(build_display)),
         }

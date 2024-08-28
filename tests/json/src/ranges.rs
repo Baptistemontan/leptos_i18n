@@ -205,4 +205,3 @@ fn renamed_ranges_count() {
     let fr = td!(Locale::fr, renamed_ranges_count, first_count, second_count);
     assert_eq_rendered!(fr, "Vous êtes pauvre 1..5 | 6..10");
 }
-
