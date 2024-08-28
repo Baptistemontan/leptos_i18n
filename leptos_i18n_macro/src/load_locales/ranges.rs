@@ -586,7 +586,7 @@ impl Ranges {
             {
                 #captured_values
                 move || #match_statement
-            },
+            }
         }
     }
 
@@ -666,7 +666,7 @@ impl Ranges {
                     let plural_count = #count_key();
                     #ifs
                 }
-            },
+            }
         }
     }
 

@@ -375,7 +375,7 @@ impl ToTokens for Plurals {
                         _ => #other,
                     }
                 }
-            },
+            }
         }
     }
 }
