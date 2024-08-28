@@ -17,7 +17,7 @@ leptos_meta = "0.6.14"
 leptos_router = "0.6.14"
 leptos-use = "0.12"
 codee = "0.1"
-icu = "1.5"
+icu = { version = "1.5", features = ["sync"] }
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
@@ -29,7 +29,6 @@ axum = ["ssr", "leptos-use/axum"]
 hydrate = ["leptos/hydrate", "leptos_meta/hydrate", "leptos_router/hydrate"]
 csr = ["leptos/csr", "leptos_meta/csr", "leptos_router/csr"]
 cookie = []
-sync = ["icu/sync"]
 experimental-islands = [
     "leptos/experimental-islands",
     "leptos_i18n_macro/experimental-islands",
@@ -38,13 +37,7 @@ experimental-islands = [
 nightly = ["leptos/nightly", "leptos_meta/nightly", "leptos_i18n_macro/nightly"]
 
 # internal use, should be enabled via "actix" or "axum" feature.
-ssr = [
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos-use/ssr",
-    "leptos_router/ssr",
-    "sync",
-]
+ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
 
 # macro features
 serde = ["leptos_i18n_macro/serde"]

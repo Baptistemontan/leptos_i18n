@@ -19,6 +19,7 @@ pub use nums::*;
 pub use time::*;
 
 use crate::Locale;
+use crate::__private::StaticLock;
 use icu::datetime::options::length;
 use icu::datetime::{DateFormatter, DateTimeFormatter, TimeFormatter};
 use icu::decimal::FixedDecimalFormatter;
@@ -47,30 +48,11 @@ struct Formatters {
 // The reason we leak the formatter is so that we can get a static ref,
 // making possible to return values borrowing from the formatter,
 // such as all *Formatter::format(..) returned values.
-
-#[cfg(not(feature = "sync"))]
-thread_local! {
-  static FORMATTERS: std::cell::RefCell<Formatters> = Default::default();
-}
-
-#[cfg(not(feature = "sync"))]
-fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
-    FORMATTERS.with_borrow_mut(f)
-}
-
-#[cfg(feature = "sync")]
-static FORMATTERS: std::sync::OnceLock<std::sync::Mutex<Formatters>> = std::sync::OnceLock::new();
-
-#[cfg(feature = "sync")]
-fn with_formatters_mut<T>(f: impl FnOnce(&mut Formatters) -> T) -> T {
-    let mutex = FORMATTERS.get_or_init(Default::default);
-    let mut guard = mutex.lock().unwrap();
-    f(&mut *guard)
-}
+static FORMATTERS: StaticLock<Formatters> = StaticLock::new();
 
 fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
     let locale = locale.as_icu_locale();
-    with_formatters_mut(|formatters| {
+    FORMATTERS.with_mut(|formatters| {
         let num_formatter = formatters.num.entry(locale).or_insert_with(|| {
             let formatter = FixedDecimalFormatter::try_new(&locale.into(), Default::default())
                 .expect("A FixedDecimalFormatter");
@@ -81,7 +63,7 @@ fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
 }
 
 fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static DateFormatter {
-    with_formatters_mut(|formatters| {
+    FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let date_formatters = formatters.date.entry(locale).or_default();
         let date_formatter = date_formatters.entry(length).or_insert_with(|| {
@@ -94,7 +76,7 @@ fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static Da
 }
 
 fn get_time_formatter<L: Locale>(locale: L, length: length::Time) -> &'static TimeFormatter {
-    with_formatters_mut(|formatters| {
+    FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let time_formatters = formatters.time.entry(locale).or_default();
         let time_formatter = time_formatters.entry(length).or_insert_with(|| {
@@ -111,7 +93,7 @@ fn get_datetime_formatter<L: Locale>(
     date_length: length::Date,
     time_length: length::Time,
 ) -> &'static DateTimeFormatter {
-    with_formatters_mut(|formatters| {
+    FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let datetime_formatters = formatters.datetime.entry(locale).or_default();
         let datetime_formatter = datetime_formatters
@@ -131,7 +113,7 @@ fn get_list_formatter<L: Locale>(
     list_type: list::ListType,
     length: ListLength,
 ) -> &'static ListFormatter {
-    with_formatters_mut(|formatters| {
+    FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let list_formatters = formatters.list.entry(locale).or_default();
         let list_formatter = list_formatters
@@ -149,7 +131,7 @@ pub fn get_plural_rules<L: Locale>(
     locale: L,
     plural_rule_type: PluralRuleType,
 ) -> &'static PluralRules {
-    with_formatters_mut(|formatters| {
+    FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let plural_rules = formatters.plural_rule.entry(locale).or_default();
         let plural_rules = plural_rules.entry(plural_rule_type).or_insert_with(|| {

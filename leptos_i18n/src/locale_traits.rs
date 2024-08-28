@@ -22,6 +22,8 @@ pub trait Locale<L: Locale = Self>:
     + PartialEq
     + Eq
     + Hash
+    + Send
+    + Sync
 {
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = L>;
@@ -77,7 +79,7 @@ pub trait Locale<L: Locale = Self>:
 /// Trait implemented the struct representing the translation keys
 ///
 /// You will probably never need to use it has it only serves the internals of the library.
-pub trait LocaleKeys: 'static + Clone + Copy {
+pub trait LocaleKeys: 'static + Clone + Copy + Send + Sync {
     /// The associated enum representing the supported locales
     type Locale: Locale;
 

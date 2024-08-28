@@ -105,6 +105,7 @@ mod locale_traits;
 mod macro_helpers;
 mod routing;
 mod scopes;
+mod static_lock;
 
 pub mod display;
 
@@ -125,6 +126,7 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::i18n_routing;
+    pub use crate::static_lock::*;
     pub use icu::locid;
     pub use leptos;
     pub use leptos_i18n_macro::declare_locales;
