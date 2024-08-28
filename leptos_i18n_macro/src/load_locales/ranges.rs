@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     marker::PhantomData,
     num::TryFromIntError,
     ops::{Bound, Not},
@@ -114,10 +114,30 @@ pub struct Ranges {
 }
 
 impl Ranges {
+    pub fn get_strings<'a>(&'a self, strings: &mut Vec<&'a str>) {
+        fn inner<'a, T>(inner: &'a RangesInner<T>, strings: &mut Vec<&'a str>) {
+            for (_, v) in inner {
+                v.get_strings(strings);
+            }
+        }
+        match &self.inner {
+            UntypedRangesInner::I8(v) => inner(v, strings),
+            UntypedRangesInner::I16(v) => inner(v, strings),
+            UntypedRangesInner::I32(v) => inner(v, strings),
+            UntypedRangesInner::I64(v) => inner(v, strings),
+            UntypedRangesInner::U8(v) => inner(v, strings),
+            UntypedRangesInner::U16(v) => inner(v, strings),
+            UntypedRangesInner::U32(v) => inner(v, strings),
+            UntypedRangesInner::U64(v) => inner(v, strings),
+            UntypedRangesInner::F32(v) => inner(v, strings),
+            UntypedRangesInner::F64(v) => inner(v, strings),
+        }
+    }
+
     pub fn populate_with_count_arg(
         &self,
         count_arg: &ParsedValue,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -125,7 +145,7 @@ impl Ranges {
         fn find_value<T: RangeNumber>(
             v: &RangesInner<T>,
             count: T,
-            args: &HashMap<String, ParsedValue>,
+            args: &BTreeMap<String, ParsedValue>,
             foreign_key: &KeyPath,
             locale: &Rc<Key>,
             key_path: &KeyPath,
@@ -329,14 +349,14 @@ impl Ranges {
     fn populate_with_new_key(
         &self,
         new_key: Rc<Key>,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
     ) -> Result<ParsedValue> {
         fn inner<T: Clone>(
             v: &RangesInner<T>,
-            args: &HashMap<String, ParsedValue>,
+            args: &BTreeMap<String, ParsedValue>,
             foreign_key: &KeyPath,
             locale: &Rc<Key>,
             key_path: &KeyPath,
@@ -391,7 +411,7 @@ impl Ranges {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -403,37 +423,37 @@ impl Ranges {
         }
     }
 
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl(&self, index: &mut usize) -> TokenStream {
         match &self.inner {
             UntypedRangesInner::I8(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::I16(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::I32(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::I64(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U8(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U16(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U32(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U64(ranges) => {
-                Self::to_tokens_integers_string(ranges, &self.count_key)
+                Self::to_tokens_integers_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::F32(ranges) => {
-                Self::to_tokens_floats_string(ranges, &self.count_key)
+                Self::to_tokens_floats_string(ranges, &self.count_key, index)
             }
             UntypedRangesInner::F64(ranges) => {
-                Self::to_tokens_floats_string(ranges, &self.count_key)
+                Self::to_tokens_floats_string(ranges, &self.count_key, index)
             }
         }
     }
@@ -547,8 +567,12 @@ impl Ranges {
     fn to_tokens_integers<T: RangeInteger>(
         ranges: &[(Range<T>, ParsedValue)],
         count_key: &Key,
+        index: &mut usize,
     ) -> TokenStream {
-        let match_arms = ranges.iter().map(|(range, value)| quote!(#range => #value));
+        let match_arms = ranges.iter().map(|(range, value)| {
+            let ts = value.to_token_stream(Some(index));
+            quote!(#range => #ts)
+        });
 
         let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
         let mut key_path = KeyPath::new(None);
@@ -589,9 +613,10 @@ impl Ranges {
     fn to_tokens_integers_string<T: RangeInteger>(
         ranges: &[(Range<T>, ParsedValue)],
         count_key: &Key,
+        index: &mut usize,
     ) -> TokenStream {
         let match_arms = ranges.iter().map(|(range, value)| {
-            let value = value.as_string_impl();
+            let value = value.as_string_impl(Some(index));
             quote!(#range => #value)
         });
 
@@ -624,13 +649,15 @@ impl Ranges {
     fn to_tokens_floats<T: RangeFloats>(
         ranges: &[(Range<T>, ParsedValue)],
         count_key: &Key,
+        index: &mut usize,
     ) -> TokenStream {
-        let mut ifs = ranges
-            .iter()
-            .map(|(range, value)| match Self::to_condition(range) {
-                None => quote!({ #value }),
-                Some(condition) => quote!(if #condition { #value }),
-            });
+        let mut ifs = ranges.iter().map(|(range, value)| {
+            let ts = value.to_token_stream(Some(index));
+            match Self::to_condition(range) {
+                None => quote!({ #ts }),
+                Some(condition) => quote!(if #condition { #ts }),
+            }
+        });
         let first = ifs.next();
         let ifs = quote! {
             #first
@@ -670,9 +697,10 @@ impl Ranges {
     fn to_tokens_floats_string<T: RangeFloats>(
         ranges: &[(Range<T>, ParsedValue)],
         count_key: &Key,
+        index: &mut usize,
     ) -> TokenStream {
         let mut ifs = ranges.iter().map(|(range, value)| {
-            let value = value.as_string_impl();
+            let value = value.as_string_impl(Some(index));
             match Self::to_condition(range) {
                 None => quote!({ #value }),
                 Some(condition) => quote!(if #condition { #value }),
@@ -804,40 +832,38 @@ impl Ranges {
             UntypedRangesInner::F64(ranges) => Self::check_de_inner(ranges),
         }
     }
-}
 
-impl ToTokens for Ranges {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    pub fn to_token_stream(&self, index: &mut usize) -> TokenStream {
         match &self.inner {
             UntypedRangesInner::I8(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::I16(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::I32(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::I64(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U8(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U16(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U32(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::U64(ranges) => {
-                Self::to_tokens_integers(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_integers(ranges, &self.count_key, index)
             }
             UntypedRangesInner::F32(ranges) => {
-                Self::to_tokens_floats(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_floats(ranges, &self.count_key, index)
             }
             UntypedRangesInner::F64(ranges) => {
-                Self::to_tokens_floats(ranges, &self.count_key).to_tokens(tokens)
+                Self::to_tokens_floats(ranges, &self.count_key, index)
             }
         }
     }

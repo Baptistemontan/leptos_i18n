@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fs::File,
     path::{Path, PathBuf},
     rc::Rc,
@@ -100,12 +100,12 @@ pub enum LocalesOrNamespaces {
 }
 
 #[derive(Default, Debug)]
-pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
+pub struct BuildersKeysInner(pub BTreeMap<Rc<Key>, LocaleValue>);
 
 pub enum BuildersKeys<'a> {
     NameSpaces {
         namespaces: &'a [Namespace],
-        keys: HashMap<Rc<Key>, BuildersKeysInner>,
+        keys: BTreeMap<Rc<Key>, BuildersKeysInner>,
     },
     Locales {
         locales: &'a [Locale],
@@ -235,7 +235,7 @@ impl LocalesOrNamespaces {
 pub struct Locale {
     pub top_locale_name: Rc<Key>,
     pub name: Rc<Key>,
-    pub keys: HashMap<Rc<Key>, ParsedValue>,
+    pub keys: BTreeMap<Rc<Key>, ParsedValue>,
 }
 
 impl Locale {
@@ -254,6 +254,16 @@ impl Locale {
                 }
             }
         }
+    }
+
+    pub fn get_strings(&self, key: &Rc<Key>) -> Vec<&str> {
+        let Some(value) = self.keys.get(key) else {
+            return vec![];
+        };
+
+        let mut strings = vec![];
+        value.get_strings(&mut strings);
+        strings
     }
 
     fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
@@ -313,10 +323,10 @@ impl Locale {
     pub fn merge_plurals(&mut self, locale: Rc<Key>, key_path: &mut KeyPath) -> Result<()> {
         let keys = std::mem::take(&mut self.keys);
         #[allow(clippy::type_complexity)]
-        let mut possible_plurals: HashMap<
+        let mut possible_plurals: BTreeMap<
             String,
-            HashMap<PluralForm, (Rc<Key>, PluralRuleType, ParsedValue)>,
-        > = HashMap::new();
+            BTreeMap<PluralForm, (Rc<Key>, PluralRuleType, ParsedValue)>,
+        > = BTreeMap::new();
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
                 key_path.push_key(key.clone());
@@ -359,7 +369,7 @@ impl Locale {
                         })
                     }
                 })
-                .collect::<Result<HashMap<_, _>>>()?;
+                .collect::<Result<BTreeMap<_, _>>>()?;
             let plural = Plurals {
                 rule_type,
                 forms,
@@ -380,14 +390,14 @@ impl Locale {
     pub fn merge(
         &mut self,
         keys: &mut BuildersKeysInner,
-        default_locale: &str,
+        default_locale: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
-            if let Some(value) = self.keys.get_mut(key) {
-                value.merge(keys, default_locale, Rc::clone(&self.name), key_path)?;
+            if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
+                value.merge(def, keys, Rc::clone(&self.name), key_path)?;
             } else {
                 emit_warning(Warning::MissingKey {
                     locale: top_locale.clone(),
@@ -421,16 +431,9 @@ impl Locale {
 
         let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
 
-        let default_locale_name = &default_locale.name.name;
-
         for locale in locales {
             let top_locale = locale.name.clone();
-            locale.merge(
-                &mut default_keys,
-                default_locale_name,
-                top_locale,
-                &mut key_path,
-            )?;
+            locale.merge(&mut default_keys, default_locale, top_locale, &mut key_path)?;
         }
 
         Ok(default_keys)
@@ -439,7 +442,7 @@ impl Locale {
     pub fn check_locales(locales: &mut LocalesOrNamespaces) -> Result<BuildersKeys> {
         match locales {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
-                let mut keys = HashMap::with_capacity(namespaces.len());
+                let mut keys = BTreeMap::new();
                 for namespace in &mut *namespaces {
                     let k = Self::check_locales_inner(
                         &mut namespace.locales,
@@ -499,13 +502,13 @@ pub struct LocaleSeed {
 }
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
-    type Value = HashMap<Rc<Key>, ParsedValue>;
+    type Value = BTreeMap<Rc<Key>, ParsedValue>;
 
     fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
-        let mut keys = HashMap::new();
+        let mut keys = BTreeMap::new();
 
         while let Some(locale_key) = map.next_key()? {
             self.key_path.push_key(Rc::clone(&locale_key));

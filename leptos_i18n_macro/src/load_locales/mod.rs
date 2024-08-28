@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     ops::{Deref, Not},
     path::PathBuf,
     rc::Rc,
@@ -346,34 +346,17 @@ impl<'a> Subkeys<'a> {
     }
 }
 
-fn get_default_match(
-    default_locale: &Key,
-    top_locales: &HashSet<&Key>,
-    locales: &[Locale],
-    enum_ident: &syn::Ident,
-) -> TokenStream {
-    let current_keys = locales
-        .iter()
-        .map(|locale| &*locale.top_locale_name)
-        .collect();
-    let missing_keys = top_locales.difference(&current_keys);
-    quote!(#enum_ident::#default_locale #(| #enum_ident::#missing_keys)*)
-}
-
 #[allow(clippy::too_many_arguments)]
 fn create_locale_type_inner(
-    default_locale: &Key,
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
-    top_locales: &HashSet<&Key>,
+    top_locales: &BTreeSet<&Key>,
     locales: &[Locale],
-    keys: &HashMap<Rc<Key>, LocaleValue>,
+    keys: &BTreeMap<Rc<Key>, LocaleValue>,
     key_path: &mut KeyPath,
     original_ident: &syn::Ident,
 ) -> TokenStream {
-    let default_match = get_default_match(default_locale, top_locales, locales, enum_ident);
-
     let literal_keys = keys
         .iter()
         .filter_map(|(key, value)| match value {
@@ -407,7 +390,6 @@ fn create_locale_type_inner(
         let subkey_mod_ident = &sk.mod_key;
         key_path.push_key(sk.original_key.clone());
         let subkey_impl = create_locale_type_inner(
-            default_locale,
             &sk.key,
             Some(type_ident),
             enum_ident,
@@ -462,7 +444,7 @@ fn create_locale_type_inner(
         .filter_map(|(key, value)| match value {
             LocaleValue::Value(InterpolOrLit::Interpol(keys)) => Some((
                 key,
-                Interpolation::new(key, enum_ident, keys, locales, &default_match, key_path),
+                Interpolation::new(key, enum_ident, keys, locales, key_path),
             )),
             _ => None,
         })
@@ -470,7 +452,7 @@ fn create_locale_type_inner(
 
     let builder_fields = builders.iter().map(|(key, inter)| {
         let inter_ident = &inter.ident;
-        quote!(pub #key: builders::#inter_ident)
+        quote!(pub #key: &'static builders::#inter_ident)
     });
 
     let init_builder_fields: Vec<TokenStream> = builders
@@ -485,7 +467,7 @@ fn create_locale_type_inner(
         .first()
         .expect("There should be at least one Locale");
 
-    let new_match_arms = locales.iter().enumerate().map(|(i, locale)| {
+    let new_match_arms = locales.iter().map(|locale| {
         let filled_lit_fields = literal_keys.iter().filter_map(|(key, _)| {
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
@@ -504,10 +486,8 @@ fn create_locale_type_inner(
         });
 
         let ident = &locale.top_locale_name;
-        let pattern = (i != 0).then(|| quote!(#enum_ident::#ident));
-        let pattern = pattern.as_ref().unwrap_or(&default_match);
         quote! {
-            #pattern => #type_ident {
+            #enum_ident::#ident => #type_ident {
                 #(#filled_lit_fields,)*
                 #(#init_builder_fields,)*
                 #(#subkeys_field_new,)*
@@ -610,12 +590,11 @@ fn create_namespace_mod_ident(namespace_ident: &syn::Ident) -> syn::Ident {
 }
 
 fn create_namespaces_types(
-    default_locale: &Key,
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     namespaces: &[Namespace],
-    top_locales: &HashSet<&Key>,
-    keys: &HashMap<Rc<Key>, BuildersKeysInner>,
+    top_locales: &BTreeSet<&Key>,
+    keys: &BTreeMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -633,7 +612,6 @@ fn create_namespaces_types(
                 .expect("There should be a namspace of that name.");
             let mut key_path = KeyPath::new(Some(namespace.key.clone()));
             let type_impl = create_locale_type_inner(
-                default_locale,
                 &namespace.key.ident,
                 Some(keys_ident),
                 enum_ident,
@@ -735,18 +713,11 @@ fn create_locale_type(
     enum_ident: &syn::Ident,
 ) -> TokenStream {
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
-    let default_locale = cfg_file.default.as_ref();
     match keys {
-        BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
-            default_locale,
-            keys_ident,
-            enum_ident,
-            namespaces,
-            &top_locales,
-            &keys,
-        ),
+        BuildersKeys::NameSpaces { namespaces, keys } => {
+            create_namespaces_types(keys_ident, enum_ident, namespaces, &top_locales, &keys)
+        }
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
-            default_locale,
             keys_ident,
             None,
             enum_ident,

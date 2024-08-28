@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -15,7 +15,7 @@ use std::fmt::Display;
 
 use super::{
     error::{Error, Result},
-    interpolate::CACHED_LOCALE_FIELD_KEY,
+    interpolate::{CACHED_LOCALE_FIELD_KEY, CACHED_TRANSLATIONS_FIELD_KEY},
     locale::{LiteralType, Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plurals::Plurals,
     ranges::{RangeType, Ranges},
@@ -24,7 +24,7 @@ use super::{
 use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
-    pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
+    pub static FOREIGN_KEYS: RefCell<BTreeSet<(Rc<Key>, KeyPath)>> = const { RefCell::new(BTreeSet::new()) };
 }
 
 macro_rules! nested_result_try {
@@ -38,7 +38,7 @@ macro_rules! nested_result_try {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForeignKey {
-    NotSet(KeyPath, HashMap<String, ParsedValue>),
+    NotSet(KeyPath, BTreeMap<String, ParsedValue>),
     Set(Box<ParsedValue>),
 }
 
@@ -157,14 +157,14 @@ impl RangeOrPlural {
 
 #[derive(Debug, Default)]
 pub struct VarInfo {
-    pub formatters: HashSet<Formatter>,
+    pub formatters: BTreeSet<Formatter>,
     pub range_count: Option<RangeOrPlural>,
 }
 
 #[derive(Debug, Default)]
 pub struct InterpolationKeys {
-    components: HashSet<Rc<Key>>,
-    variables: HashMap<Rc<Key>, VarInfo>,
+    components: BTreeSet<Rc<Key>>,
+    variables: BTreeMap<Rc<Key>, VarInfo>,
 }
 
 #[derive(Debug)]
@@ -246,6 +246,27 @@ impl InterpolationKeys {
 }
 
 impl ParsedValue {
+    pub fn get_strings<'a>(&'a self, strings: &mut Vec<&'a str>) {
+        match self {
+            ParsedValue::Ranges(ranges) => ranges.get_strings(strings),
+            ParsedValue::Plurals(plurals) => plurals.get_strings(strings),
+            ParsedValue::Literal(Literal::String(s)) if !s.is_empty() => strings.push(s.as_str()),
+            ParsedValue::Component { inner, .. } => {
+                inner.get_strings(strings);
+            }
+            ParsedValue::Bloc(bloc) => {
+                for v in bloc {
+                    v.get_strings(strings);
+                }
+            }
+            ParsedValue::ForeignKey(_) => {}
+            ParsedValue::Literal(_) => {}
+            ParsedValue::Variable { .. } => {}
+            ParsedValue::Subkeys(_) => {}
+            ParsedValue::Default => {}
+        }
+    }
+
     pub fn resolve_foreign_keys(
         values: &LocalesOrNamespaces,
         default_locale: &Rc<Key>,
@@ -364,7 +385,7 @@ impl ParsedValue {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -506,20 +527,24 @@ impl ParsedValue {
 
     pub fn merge(
         &mut self,
+        def: &Self,
         keys: &mut LocaleValue,
-        default_locale: &str,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
             // Default, do nothing
-            (ParsedValue::Default, _) => Ok(()),
+            (value @ ParsedValue::Default, _) => {
+                *value = def.clone();
+                Ok(())
+            }
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
+                let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
                 loc.merge(keys, default_locale, top_locale, key_path)?;
                 locales.push(loc);
                 Ok(())
@@ -607,8 +632,8 @@ impl ParsedValue {
         s: &str,
         key_path: &KeyPath,
         locale: &Rc<Key>,
-    ) -> Result<HashMap<String, ParsedValue>> {
-        let args = match serde_json::from_str::<HashMap<String, Literal>>(s) {
+    ) -> Result<BTreeMap<String, ParsedValue>> {
+        let args = match serde_json::from_str::<BTreeMap<String, Literal>>(s) {
             Ok(args) => args,
             Err(err) => {
                 return Err(Error::InvalidForeignKeyArgs {
@@ -618,7 +643,7 @@ impl ParsedValue {
                 })
             }
         };
-        let mut parsed_args = HashMap::new();
+        let mut parsed_args = BTreeMap::new();
 
         for (key, arg) in args {
             let parsed_value = match arg {
@@ -636,7 +661,7 @@ impl ParsedValue {
         s: &'a str,
         key_path: &KeyPath,
         locale: &Rc<Key>,
-    ) -> Result<(HashMap<String, ParsedValue>, &'a str)> {
+    ) -> Result<(BTreeMap<String, ParsedValue>, &'a str)> {
         let mut depth = 0usize;
         let mut index = 0usize;
 
@@ -689,7 +714,7 @@ impl ParsedValue {
         let (args, after) = if sep == ',' {
             nested_result_try!(Self::parse_foreign_key_args(after, key_path, locale))
         } else {
-            (HashMap::new(), after)
+            (BTreeMap::new(), after)
         };
 
         let this = ParsedValue::ForeignKey(RefCell::new(ForeignKey::new(
@@ -883,12 +908,23 @@ impl ParsedValue {
         }
     }
 
-    fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
+    fn flatten(
+        &self,
+        tokens: &mut Vec<TokenStream>,
+        locale_field: &Key,
+        translations_field: &Key,
+        index: &mut usize,
+    ) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
+            ParsedValue::Literal(Literal::String(_)) => {
+                let tuple_index = syn::Index::from(*index);
+                tokens.push(quote!(leptos::IntoView::into_view(#translations_field.#tuple_index)));
+                *index += 1;
+            }
             ParsedValue::Literal(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
-            ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
+            ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream(index)),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
@@ -910,69 +946,107 @@ impl ParsedValue {
                             quote!(#(#keys)*)
                         });
 
+                let ts = inner.to_token_stream(Some(index));
+
                 let f = quote!({
                     #captured_keys
-                    move || Into::into(#inner)
+                    move || Into::into(#ts)
                 });
                 let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
                 tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens, locale_field)
+                    value.flatten(tokens, locale_field, translations_field, index);
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten")
-                .flatten(tokens, locale_field),
-            ParsedValue::Plurals(plurals) => tokens.push(plurals.to_token_stream()),
+                .flatten(tokens, locale_field, translations_field, index),
+            ParsedValue::Plurals(plurals) => tokens.push(plurals.to_token_stream(index)),
         }
     }
 
-    fn flatten_string(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
+    fn flatten_string(
+        &self,
+        tokens: &mut Vec<TokenStream>,
+        locale_field: &Key,
+        translations_field: &Key,
+        index: &mut usize,
+    ) {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
-            ParsedValue::Literal(Literal::String(s)) => {
-                tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter)))
+            ParsedValue::Literal(Literal::String(_)) => {
+                let tuple_index = syn::Index::from(*index);
+                tokens.push(
+                    quote!(core::fmt::Display::fmt(#translations_field.#tuple_index, __formatter)),
+                );
+                *index += 1;
             }
             ParsedValue::Literal(s) => {
                 tokens.push(quote!(core::fmt::Display::fmt(&#s, __formatter)))
             }
-            ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl()),
+            ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl(index)),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_fmt(key, locale_field);
                 tokens.push(ts);
             }
             ParsedValue::Component { key, inner } => {
-                let inner = inner.as_string_impl();
+                let inner = inner.as_string_impl(Some(index));
                 tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten_string(tokens, locale_field)
+                    value.flatten_string(tokens, locale_field, translations_field, index);
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten_string")
-                .flatten_string(tokens, locale_field),
+                .flatten_string(tokens, locale_field, translations_field, index),
             ParsedValue::Plurals(plurals) => {
-                tokens.push(plurals.as_string_impl(&plurals.count_key))
+                tokens.push(plurals.as_string_impl(&plurals.count_key, index))
             }
         }
     }
 
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl(&self, index: Option<&mut usize>) -> TokenStream {
         let mut tokens = Vec::new();
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
-        self.flatten_string(&mut tokens, &locale_field);
+        let translations_field = CACHED_TRANSLATIONS_FIELD_KEY.with(Clone::clone);
+        let mut i = 0;
+        self.flatten_string(
+            &mut tokens,
+            &locale_field,
+            &translations_field,
+            index.unwrap_or(&mut i),
+        );
 
         match &tokens[..] {
             [] => quote!(Ok(())),
             [value] => value.clone(),
             values => quote!({ #(#values?;)* Ok(()) }),
+        }
+    }
+
+    pub fn to_token_stream(&self, index: Option<&mut usize>) -> TokenStream {
+        let mut tokens = Vec::new();
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let translations_field = CACHED_TRANSLATIONS_FIELD_KEY.with(Clone::clone);
+        let mut i = 0;
+        self.flatten(
+            &mut tokens,
+            &locale_field,
+            &translations_field,
+            index.unwrap_or(&mut i),
+        );
+
+        match &tokens[..] {
+            [] => quote!(leptos::View::default()),
+            [value] => value.clone(),
+            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
         }
     }
 }
@@ -981,7 +1055,7 @@ impl ForeignKey {
     pub fn new(
         current_key_path: KeyPath,
         target_key_path: KeyPath,
-        args: HashMap<String, ParsedValue>,
+        args: BTreeMap<String, ParsedValue>,
         locale: &Rc<Key>,
     ) -> Self {
         FOREIGN_KEYS.with(|foreign_keys| {
@@ -1011,24 +1085,6 @@ impl ForeignKey {
             ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner_mut).", call_site),
             ForeignKey::Set(inner) => inner,
         }
-    }
-}
-
-impl ToTokens for ParsedValue {
-    fn to_token_stream(&self) -> TokenStream {
-        let mut tokens = Vec::new();
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
-        self.flatten(&mut tokens, &locale_field);
-
-        match &tokens[..] {
-            [] => quote!(leptos::View::default()),
-            [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
-        }
-    }
-
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.to_token_stream().to_tokens(tokens)
     }
 }
 

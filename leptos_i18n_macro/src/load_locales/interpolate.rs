@@ -5,14 +5,17 @@ use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
+use super::locale::Locale;
 use super::parsed_value::InterpolationKeys;
+use super::parsed_value::ParsedValue;
 use super::parsed_value::RangeOrPlural;
-use super::{locale::Locale, parsed_value::ParsedValue};
 use crate::utils::formatter::Formatter;
 use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
     pub static CACHED_LOCALE_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_locale").unwrap());
+    pub static CACHED_DUMMY_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_dummy").unwrap());
+    pub static CACHED_TRANSLATIONS_FIELD_KEY: Rc<Key> = Rc::new(Key::new("__i18n_translations__").unwrap());
 }
 
 enum EitherIter<A, B> {
@@ -197,11 +200,10 @@ impl Interpolation {
     }
 
     pub fn new(
-        key: &Key,
+        key: &Rc<Key>,
         enum_ident: &syn::Ident,
         keys: &InterpolationKeys,
         locales: &[Locale],
-        default_match: &TokenStream,
         key_path: &KeyPath,
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
@@ -211,6 +213,7 @@ impl Interpolation {
         let dummy_ident = format_ident!("{}_dummy", ident);
 
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let dummy_field = CACHED_DUMMY_FIELD_KEY.with(Clone::clone);
         let into_view_field = Key::new("_into_views_marker").unwrap();
 
         let typed_builder_name = format_ident!("{}Builder", ident);
@@ -218,10 +221,13 @@ impl Interpolation {
         let fields = Self::make_fields(keys);
 
         let type_def = Self::create_types(
+            key,
             &ident,
+            locales,
             &dummy_ident,
             enum_ident,
             &locale_field,
+            &dummy_field,
             &into_view_field,
             &fields,
         );
@@ -229,9 +235,8 @@ impl Interpolation {
         let dummy_impl = Self::dummy_impl(
             &ident,
             &dummy_ident,
-            enum_ident,
             &typed_builder_name,
-            &locale_field,
+            &dummy_field,
             &into_view_field,
             &fields,
         );
@@ -239,11 +244,11 @@ impl Interpolation {
         let into_view_impl = Self::into_view_impl(
             key,
             &ident,
-            enum_ident,
+            &dummy_ident,
+            &dummy_field,
             &locale_field,
             &fields,
             locales,
-            default_match,
             key_path,
         );
 
@@ -253,14 +258,14 @@ impl Interpolation {
             let display_impl = Self::display_impl(
                 key,
                 &ident,
-                enum_ident,
+                &dummy_ident,
+                &dummy_field,
                 &locale_field,
                 &fields,
                 locales,
-                default_match,
             );
             let builder_display =
-                Self::builder_string_build_fns(enum_ident, &typed_builder_name, &fields);
+                Self::builder_string_build_fns(&dummy_ident, &typed_builder_name, &fields);
             (display_impl, builder_display)
         } else {
             (quote!(), quote!())
@@ -287,7 +292,7 @@ impl Interpolation {
     }
 
     fn builder_string_build_fns(
-        enum_ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
         typed_builder_name: &syn::Ident,
         fields: &[Field],
     ) -> TokenStream {
@@ -303,7 +308,7 @@ impl Interpolation {
 
         quote! {
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #((#marker,),)*)> {
+            impl<#(#left_generics,)*> #typed_builder_name<#(#right_generics,)* ((&'static #dummy_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #((#marker,),)*)> {
                 #[inline]
                 pub fn build_display(self) -> impl std::fmt::Display {
                     self.build()
@@ -319,9 +324,9 @@ impl Interpolation {
 
     fn display_builder_fn(
         ident: &syn::Ident,
-        enum_ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
         typed_builder_name: &syn::Ident,
-        locale_field: &Key,
+        dummy_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
     ) -> TokenStream {
@@ -334,8 +339,8 @@ impl Interpolation {
             .map(|_| quote!(()));
 
         quote! {
-            pub fn display_builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
-                #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
+            pub fn display_builder<#(#left_generics,)*>(&'static self) -> #typed_builder_name<#(#right_generics,)* ((&'static #dummy_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
+                #ident::builder().#dummy_field(self).#into_view_field(core::marker::PhantomData)
             }
         }
     }
@@ -344,9 +349,8 @@ impl Interpolation {
     fn dummy_impl(
         ident: &syn::Ident,
         dummy_ident: &syn::Ident,
-        enum_ident: &syn::Ident,
         typed_builder_name: &syn::Ident,
-        locale_field: &Key,
+        dummy_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
     ) -> TokenStream {
@@ -359,9 +363,9 @@ impl Interpolation {
         let display_builder_fn = if cfg!(feature = "interpolate_display") {
             Self::display_builder_fn(
                 ident,
-                enum_ident,
+                dummy_ident,
                 typed_builder_name,
-                locale_field,
+                dummy_field,
                 into_view_field,
                 fields,
             )
@@ -373,14 +377,8 @@ impl Interpolation {
 
         quote! {
             impl #dummy_ident {
-                pub const fn new(#locale_field: #enum_ident) -> Self {
-                    Self {
-                        #locale_field
-                    }
-                }
-
-                pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#empty_builder_marker,)*)> {
-                    #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
+                pub fn builder<#(#left_generics,)*>(&'static self) -> #typed_builder_name<#(#right_generics,)* ((&'static #dummy_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#empty_builder_marker,)*)> {
+                    #ident::builder().#dummy_field(self).#into_view_field(core::marker::PhantomData)
                 }
 
                 #display_builder_fn
@@ -388,11 +386,15 @@ impl Interpolation {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn create_types(
+        key: &Rc<Key>,
         ident: &syn::Ident,
+        locales: &[Locale],
         dummy_ident: &syn::Ident,
         enum_ident: &syn::Ident,
         locale_field: &Key,
+        dummy_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
     ) -> TokenStream {
@@ -406,20 +408,74 @@ impl Interpolation {
             #into_view_field: core::marker::PhantomData<(#(#into_views,)*)>
         };
 
+        let strings = locales
+            .iter()
+            .map(|locale| {
+                let name = locale.top_locale_name.clone();
+                let strings = locale.get_strings(key);
+                (name, strings)
+            })
+            .collect::<Vec<_>>();
+
+        let variants = strings.iter().map(|(key, s)| {
+            let static_iter = std::iter::repeat_with(|| quote!(&'static str)).take(s.len());
+            quote!(#key((#(#static_iter,)*)))
+        });
+
+        let consts = strings.iter().map(|(key, strings)| {
+            let const_name = format_ident!("CONST_{}", key.ident);
+            quote!(const #const_name: &'static Self = &Self::#key((#(#strings,)*));)
+        });
+
+        let top_locale_match_arms = locales.iter().map(|locale| {
+            let name = &locale.top_locale_name;
+            quote!(Self::#name(_) => #enum_ident::#name)
+        });
+
+        let new_match_arms = strings.iter().map(|(key, _)| {
+            let const_name = format_ident!("CONST_{}", key.ident);
+            quote!(#enum_ident::#key => Self::#const_name)
+        });
+
         quote! {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-            pub struct #dummy_ident {
-                #locale_field: #enum_ident
+            pub enum #dummy_ident {
+                #(
+                    #variants,
+                )*
             }
 
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::__private::typed_builder::TypedBuilder)]
             #[builder(crate_module_path = l_i18n_crate::typed_builder)]
             pub struct #ident<#(#generics,)*> {
-                #locale_field: #enum_ident,
+                #dummy_field: &'static #dummy_ident,
                 #into_views_marker,
                 #(#fields,)*
+            }
+
+            impl #dummy_ident {
+                #(
+                    #[allow(non_upper_case_globals)]
+                    #consts
+                )*
+
+                pub const fn new(#locale_field: #enum_ident) -> &'static Self {
+                    match #locale_field {
+                        #(
+                            #new_match_arms,
+                        )*
+                    }
+                }
+
+                pub const fn get_locale(&self) -> #enum_ident {
+                    match self {
+                        #(
+                            #top_locale_match_arms,
+                        )*
+                    }
+                }
             }
         }
     }
@@ -443,28 +499,28 @@ impl Interpolation {
     fn display_impl(
         key: &Key,
         ident: &syn::Ident,
-        enum_ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
+        dummy_field: &Key,
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
-        default_match: &TokenStream,
     ) -> TokenStream {
         let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
 
         let fields_key = fields.iter().map(|f| &*f.key);
 
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
+        let destructure = quote!(let Self { #(#fields_key,)* #dummy_field, .. } = self;);
 
-        let locales_impls =
-            Self::create_locale_string_impl(key, enum_ident, locales, default_match);
+        let locales_impls = Self::create_locale_string_impl(key, dummy_ident, locales);
 
         quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
                 fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
-                    match #locale_field {
+                    let #locale_field = #dummy_field.get_locale();
+                    match #dummy_field {
                         #(
                             #locales_impls,
                         )*
@@ -478,11 +534,11 @@ impl Interpolation {
     fn into_view_impl(
         key: &Key,
         ident: &syn::Ident,
-        enum_ident: &syn::Ident,
+        dummy_ident: &syn::Ident,
+        dummy_field: &Key,
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
-        default_match: &TokenStream,
         key_path: &KeyPath,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
@@ -504,16 +560,17 @@ impl Interpolation {
 
         let fields_key = fields.iter().map(|f| &*f.key);
 
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
+        let destructure = quote!(let Self { #(#fields_key,)* #dummy_field, .. } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, enum_ident, locales, default_match);
+        let locales_impls = Self::create_locale_impl(key, dummy_ident, locales);
 
         quote! {
             #[allow(non_camel_case_types)]
             impl<#(#left_generics,)*> leptos::IntoView for #ident<#(#right_generics,)*> {
                 fn into_view(self) -> leptos::View {
                     #destructure
-                    match #locale_field {
+                    let #locale_field = #dummy_field.get_locale();
+                    match #dummy_field {
                         #(
                             #locales_impls,
                         )*
@@ -523,65 +580,40 @@ impl Interpolation {
         }
     }
 
+    fn create_locale_impl_inner<'a>(
+        key: &'a Key,
+        dummy_ident: &'a syn::Ident,
+        locales: &'a [Locale],
+        mut f: impl FnMut(&ParsedValue) -> TokenStream + 'a,
+    ) -> impl Iterator<Item = TokenStream> + 'a {
+        let translations_field = CACHED_TRANSLATIONS_FIELD_KEY.with(Clone::clone);
+        locales.iter().filter_map(move |locale| {
+            let locale_key = &locale.top_locale_name;
+
+            let value = f(locale.keys.get(key)?);
+
+            let ts = quote!(#dummy_ident::#locale_key(#translations_field) => { #value });
+            Some(ts)
+        })
+    }
+
     fn create_locale_impl<'a>(
         key: &'a Key,
-        enum_ident: &'a syn::Ident,
+        dummy_ident: &'a syn::Ident,
         locales: &'a [Locale],
-        default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        let mut default_match = default_match.clone();
-        locales
-            .iter()
-            .enumerate()
-            .rev()
-            .filter_map(move |(i, locale)| {
-                let locale_key = &locale.top_locale_name;
-
-                let value = match locale.keys.get(key) {
-                    None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| #enum_ident::#locale_key));
-                        return None;
-                    }
-                    Some(value) => value,
-                };
-
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(#enum_ident::#locale_key => { #value }),
-                };
-                Some(ts)
-            })
+        Self::create_locale_impl_inner(key, dummy_ident, locales, |value| {
+            value.to_token_stream(None)
+        })
     }
 
     fn create_locale_string_impl<'a>(
         key: &'a Key,
-        enum_ident: &'a syn::Ident,
+        dummy_ident: &'a syn::Ident,
         locales: &'a [Locale],
-        default_match: &TokenStream,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        let mut default_match = default_match.clone();
-        locales
-            .iter()
-            .enumerate()
-            .rev()
-            .filter_map(move |(i, locale)| {
-                let locale_key = &locale.top_locale_name;
-
-                let value = match locale.keys.get(key) {
-                    None | Some(ParsedValue::Default) => {
-                        default_match.extend(quote!(| #enum_ident::#locale_key));
-                        return None;
-                    }
-                    Some(value) => value,
-                };
-
-                let value = value.as_string_impl();
-
-                let ts = match i == 0 {
-                    true => quote!(#default_match => { #value }),
-                    false => quote!(#enum_ident::#locale_key => { #value }),
-                };
-                Some(ts)
-            })
+        Self::create_locale_impl_inner(key, dummy_ident, locales, |value| {
+            value.as_string_impl(None)
+        })
     }
 }

@@ -254,19 +254,19 @@ impl Formatter {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Formatter::Number => {
-                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key)))
+                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, #locale_field, core::clone::Clone::clone(#key)))
             }
             Formatter::Date(length) => {
-                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length))
+                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, #locale_field, #key, #length))
             }
             Formatter::Time(length) => {
-                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length))
+                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, #locale_field, #key, #length))
             }
             Formatter::DateTime(date_length, time_length) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #date_length, #time_length))
+                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, #locale_field, #key, #date_length, #time_length))
             }
             Formatter::List(list_type, list_style) => {
-                quote!(l_i18n_crate::__private::format_list_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
+                quote!(l_i18n_crate::__private::format_list_to_formatter(__formatter, #locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
             }
         }
     }
