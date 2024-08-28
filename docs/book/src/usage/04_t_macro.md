@@ -29,7 +29,7 @@ use leptos::prelude::*;
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
 
     view! {
         {/* "click_count": "you clicked {{ count }} times" */}
@@ -48,7 +48,7 @@ use leptos::prelude::*;
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
 
     let count = move || counter.get();
 
@@ -69,7 +69,7 @@ use leptos::prelude::*;
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
 
     let count = view!{
         <b>
@@ -98,7 +98,7 @@ use leptos::prelude::*;
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
     let count = move || counter.get();
 
     view! {
@@ -118,7 +118,7 @@ use leptos::prelude::*;
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
     let count = move || counter.get();
 
     let b = |children| view!{ <b>{children}</b> };

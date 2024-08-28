@@ -25,7 +25,7 @@ pub fn App() -> impl IntoView {
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, set_counter) = RwSignal::new(0).split();
+    let (counter, set_counter) = signal(0);
 
     let inc = move |_| set_counter.update(|count| *count += 1);
 

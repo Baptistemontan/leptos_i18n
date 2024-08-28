@@ -160,7 +160,7 @@ where
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<L, FromToStringCodec>(cookie_name, cookie_options)
     } else {
-        let (lang_cookie, set_lang_cookie) = RwSignal::<Option<L>>::new(None).split();
+        let (lang_cookie, set_lang_cookie) = signal(None);
         (lang_cookie.into(), set_lang_cookie)
     };
 
@@ -306,7 +306,7 @@ where
             leptos_use::use_cookie_with_options::<L, FromToStringCodec>(cookie_name, cookie_options)
         }
         _ => {
-            let (lang_cookie, set_lang_cookie) = RwSignal::<Option<L>>::new(None).split();
+            let (lang_cookie, set_lang_cookie) = signal(None);
             (lang_cookie.into(), set_lang_cookie)
         }
     };

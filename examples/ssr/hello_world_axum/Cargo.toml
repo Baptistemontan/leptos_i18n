@@ -31,7 +31,6 @@ hydrate = [
     "dep:wasm-bindgen",
     "leptos/hydrate",
     "leptos_i18n/hydrate",
-    "leptos_meta/hydrate",
 ]
 ssr = [
     "dep:axum",
