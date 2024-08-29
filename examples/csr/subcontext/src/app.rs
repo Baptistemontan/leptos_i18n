@@ -25,14 +25,14 @@ pub fn App() -> impl IntoView {
 fn Opposite() -> impl IntoView {
     let i18n = use_i18n();
 
-    let sub_context_locale = move || neg_locale(i18n.get_locale());
+    let sub_context_locale = Signal::derive(move || neg_locale(i18n.get_locale()));
     view! {
         <h2>{t!(i18n, examples.opposite)}</h2>
-        <I18nSubContextProvider
+        <I18nSubContextProvider<Locale, _>
             initial_locale=sub_context_locale
         >
             <Counter />
-        </I18nSubContextProvider>
+        </I18nSubContextProvider<Locale, _>>
     }
 }
 
@@ -43,12 +43,12 @@ fn Cookie() -> impl IntoView {
 
     view! {
         <h2>{t!(i18n, examples.cookie)}</h2>
-        <I18nSubContextProvider
-            initial_locale=move || Locale::fr
+        <I18nSubContextProvider<Locale, _>
+            initial_locale=Signal::derive(move || Locale::fr)
             cookie_name="cookie_example_locale"
         >
             <Counter />
-        </I18nSubContextProvider>
+        </I18nSubContextProvider<Locale, _>>
     }
 }
 
@@ -68,14 +68,14 @@ fn Main() -> impl IntoView {
 fn LangAttr() -> impl IntoView {
     let i18n = use_i18n();
 
-    let div_ref = create_node_ref();
+    let div_ref = NodeRef::new();
 
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot<Locale, _> root_element=div_ref>
+        <div node_ref=div_ref>
+            <I18nSubContextProviderWithRoot<Locale, _, _> root_element=div_ref>
                 <Counter />
-            </I18nSubContextProviderWithRoot<Locale, _>>
+            </I18nSubContextProviderWithRoot<Locale, _, _>>
         </div>
     }
 }
@@ -85,20 +85,20 @@ fn LangAttr() -> impl IntoView {
 fn All() -> impl IntoView {
     let i18n = use_i18n();
 
-    let div_ref = create_node_ref();
+    let div_ref = NodeRef::new();
 
-    let sub_context_locale = move || neg_locale(i18n.get_locale());
+    let sub_context_locale = Signal::derive(move || neg_locale(i18n.get_locale()));
 
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot
+        <div node_ref=div_ref >
+            <I18nSubContextProviderWithRoot<Locale, _, _>
                 root_element=div_ref
                 initial_locale=sub_context_locale
                 cookie_name="all_example_locale"
             >
                 <Counter />
-            </I18nSubContextProviderWithRoot>
+            </I18nSubContextProviderWithRoot<Locale, _, _>>
         </div>
     }
 }

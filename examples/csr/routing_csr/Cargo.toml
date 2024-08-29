@@ -13,9 +13,7 @@ serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1" }
 wasm-bindgen = { version = "0.2" }
 
-leptos_router = { git = "https://github.com/leptos-rs/leptos", features = [
-    "csr",
-] }
+leptos_router = { git = "https://github.com/leptos-rs/leptos" }
 
 [package.metadata.leptos-i18n]
 default = "en"
