@@ -31,10 +31,8 @@ fn Counter() -> impl IntoView {
 
     let count = move || counter.get();
 
-    let b = |children: ChildrenFn| view! { <b>{children}</b> };
-
     view! {
-        <p>{t!(i18n, click_count, count, <b>)}</p>
-        <button on:click=inc>{t!(i18n, click_to_inc, <i> = |children| view! { <i>{children}</i> })}</button>
+        <p>{t!(i18n, click_count, count, <b> = <b />)}</p>
+        <button on:click=inc>{t!(i18n, click_to_inc, <i> = <i />)}</button>
     }
 }
