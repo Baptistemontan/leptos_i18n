@@ -28,12 +28,12 @@ tower-http = { version = "0.5", features = ["fs"], optional = true }
 leptos_router = { git = "https://github.com/leptos-rs/leptos" }
 
 [features]
+default = ["hydrate", "ssr"]
 hydrate = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
     "leptos/hydrate",
     "leptos_i18n/hydrate",
-    "leptos_router/hydrate",
 ]
 ssr = [
     "dep:axum",

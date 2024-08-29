@@ -9,7 +9,6 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-files = { git = "https://github.com/leptos-rs/leptos", optional = true }
 actix-web = { version = "4.4", optional = true, features = ["macros"] }
 leptos = { git = "https://github.com/leptos-rs/leptos" }
 leptos_meta = { git = "https://github.com/leptos-rs/leptos" }
@@ -20,6 +19,7 @@ console_error_panic_hook = { version = "0.1", optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 
 [features]
+default = ["hydrate", "ssr"]
 hydrate = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
@@ -28,7 +28,6 @@ hydrate = [
 ]
 ssr = [
     "dep:actix-web",
-    "dep:actix-files",
     "dep:leptos_actix",
     "leptos/ssr",
     "leptos_meta/ssr",

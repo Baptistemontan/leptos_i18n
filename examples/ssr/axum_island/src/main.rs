@@ -17,7 +17,7 @@ async fn main() {
     // <https://github.com/leptos-rs/start-axum#executing-a-server-on-a-remote-machine-without-the-toolchain>
     // Alternately a file can be specified such as Some("Cargo.toml")
     // The file would need to be included with the executable when moved to deployment
-    let conf = get_configuration(None).await.unwrap();
+    let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
     let addr = leptos_options.site_addr;
     let routes = generate_route_list(App);
@@ -31,7 +31,7 @@ async fn main() {
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
-    logging::log!("listening on http://{}", &addr);
+    leptos::logging::log!("listening on http://{}", &addr);
     let listener = TcpListener::bind(&addr).await.unwrap();
     axum::serve(listener, app.into_make_service())
         .await

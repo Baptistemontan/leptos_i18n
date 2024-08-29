@@ -148,10 +148,9 @@ fn load_locales_inner(
             mod routing {
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::__private as l_i18n_crate_priv;
-                use l_i18n_crate_priv::leptos_router;
                 #[leptos::component(transparent)]
                 #[allow(non_snake_case)]
-                pub fn I18nRoute<View>(
+                pub fn I18nRoute<View, Chil>(
                     /// The base path of this application.
                     /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
                     /// the expected base path is `/foo/`.
@@ -165,14 +164,13 @@ fn load_locales_inner(
                     view: View,
                     /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming.
                     #[prop(optional)]
-                    ssr: leptos_router::SsrMode,
+                    ssr: l_i18n_crate_priv::leptos_router::SsrMode,
                     /// `children` may be empty or include nested routes.
-                    #[prop(optional)]
-                    children: Option<leptos::children::Children>,
-                ) -> impl leptos::IntoView
-                    where View: leptos::IntoView,
+                    children: l_i18n_crate_priv::leptos_router::components::RouteChildren<Chil>,
+                ) -> impl l_i18n_crate_priv::leptos_router::MatchNestedRoutes<l_i18n_crate_priv::leptos::prelude::Dom> + Clone
+                    where View: l_i18n_crate_priv::leptos_router::ChooseView<l_i18n_crate_priv::leptos::prelude::Dom>,
                 {
-                    l_i18n_crate_priv::i18n_routing::<#enum_ident, View>(base_path, children, ssr, view)
+                    l_i18n_crate_priv::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
                 }
             }
 

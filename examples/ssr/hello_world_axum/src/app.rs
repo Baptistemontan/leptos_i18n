@@ -30,7 +30,7 @@ pub fn App() -> impl IntoView {
             {t!{ i18n,
                 click_count,
                 count,
-                <b> = |children| view!{ <b>{children}</b> },
+                <b> = <b />,
             }}
         </p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>

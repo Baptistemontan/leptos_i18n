@@ -14,9 +14,7 @@ leptos = { git = "https://github.com/leptos-rs/leptos", features = [
     "experimental-islands",
 ] }
 leptos_meta = { git = "https://github.com/leptos-rs/leptos" }
-leptos_axum = { git = "https://github.com/leptos-rs/leptos", optional = true, features = [
-    "experimental-islands",
-] }
+leptos_axum = { git = "https://github.com/leptos-rs/leptos", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
     "track_locale_files",
     "experimental-islands",
@@ -31,6 +29,7 @@ tower = { version = "0.4.13", optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
 
 [features]
+default = ["hydrate", "ssr"]
 hydrate = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",

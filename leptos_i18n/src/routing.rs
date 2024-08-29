@@ -3,7 +3,7 @@ use leptos_router::{
     components::*,
     hooks::{use_location, use_navigate},
     location::Location,
-    ChooseView, NavigateOptions, SsrMode,
+    ChooseView, MatchNestedRoutes, NavigateOptions, SsrMode,
 };
 
 use crate::{use_i18n_context, I18nContext, Locale};
@@ -235,13 +235,14 @@ fn outlet_wrapper<L: Locale>(
 // type OutputRoute<Chil, View, L> = NestedRoute<StaticStrSegment, Chil, (), View, Dom>;
 
 #[doc(hidden)]
-pub fn i18n_routing<L: Locale, View>(
+pub fn i18n_routing<L: Locale, View, Chil>(
     base_path: &'static str,
-    children: Option<leptos::children::Children>,
+    children: RouteChildren<Chil>,
     ssr: SsrMode,
     view: View,
-) where
-    View: IntoView,
+) -> impl MatchNestedRoutes<Dom> + Clone
+where
+    View: ChooseView<Dom>,
 {
     let _ = move || outlet_wrapper::<L>(None, base_path);
     let _ = (children, ssr, view);
