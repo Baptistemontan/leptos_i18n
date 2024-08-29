@@ -2,15 +2,13 @@
 
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
-use tachys::{html, reactive_graph::OwnedView};
-// use html::{AnyElement, ElementType};
 use leptos::{
+    attr::Attribute,
     html::{ElementType, Html},
     prelude::*,
-    text_prop::TextProp,
 };
-// use leptos_meta::*;
 use leptos_use::UseCookieOptions;
+use tachys::{html, reactive_graph::OwnedView};
 
 use crate::{
     fetch_locale::{self, signal_maybe_once_then},
@@ -24,11 +22,19 @@ use crate::{
 /// It servers as a signal to the current locale and enable reactivity to locale change.
 ///
 /// You access the translations and read/update the current locale through it.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
     locale_signal: RwSignal<L>,
     scope_marker: PhantomData<S>,
 }
+
+impl<L: Locale, S: Scope<L>> Clone for I18nContext<L, S> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Copy for I18nContext<L, S> {}
 
 impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale subscribing to any changes.
@@ -79,15 +85,6 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     }
 }
 
-fn set_html_lang_attr(_lang: impl Into<TextProp>) {
-    // Html(HtmlProps {
-    //     lang: Some(lang.into()),
-    //     dir: None,
-    //     class: None,
-    //     attributes: vec![],
-    // });
-}
-
 /// Cookies options for functions initializing or providing a `I18nContext`
 pub type CookieOptions<L> = UseCookieOptions<
     L,
@@ -95,17 +92,12 @@ pub type CookieOptions<L> = UseCookieOptions<
     <FromToStringCodec as codee::Decoder<L>>::Error,
 >;
 
-enum HtmlOrNodeRef<El: ElementType + 'static> {
-    Html,
-    Custom(NodeRef<El>),
-}
-
 const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
 fn init_context_inner<L, El>(
-    root_element: Option<HtmlOrNodeRef<El>>,
+    root_element: Option<NodeRef<El>>,
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
 ) -> I18nContext<L>
@@ -119,14 +111,7 @@ where
         locale_signal.set(initial_locale.get());
     });
 
-    let _node_ref = match root_element {
-        Some(HtmlOrNodeRef::Html) => {
-            set_html_lang_attr(move || locale_signal.get().as_str());
-            NodeRef::new()
-        }
-        Some(HtmlOrNodeRef::Custom(node_ref)) => node_ref,
-        None => NodeRef::new(),
-    };
+    let _node_ref = root_element.unwrap_or_default();
 
     Effect::new_isomorphic(move |_| {
         let new_lang = locale_signal.get();
@@ -148,7 +133,7 @@ where
 /// *********************************************
 
 fn init_context_with_options<L, El>(
-    root_element: Option<HtmlOrNodeRef<El>>,
+    root_element: Option<NodeRef<El>>,
     enable_cookie: bool,
     cookie_name: &str,
     cookie_options: CookieOptions<L>,
@@ -178,7 +163,7 @@ pub fn init_i18n_context_with_options<L: Locale>(
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
     let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
     init_context_with_options::<L, Html>(
-        Some(HtmlOrNodeRef::Html),
+        None,
         enable_cookie,
         cookie_name,
         cookie_options.unwrap_or_default(),
@@ -210,7 +195,7 @@ where
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
     let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
     init_context_with_options::<L, El>(
-        Some(HtmlOrNodeRef::Custom(root_element)),
+        Some(root_element),
         enable_cookie,
         cookie_name,
         cookie_options.unwrap_or_default(),
@@ -329,8 +314,6 @@ where
             initial_locale.or(cookie).unwrap_or(parent_locale)
         }
     });
-
-    let root_element = root_element.map(HtmlOrNodeRef::Custom);
 
     init_context_inner::<L, El>(root_element, set_lang_cookie, initial_locale_listener)
 }
@@ -486,6 +469,16 @@ pub fn I18nSubContextProvider<L: Locale, Chil: IntoView>(
 ) -> impl IntoView {
     let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
     run_as_children(ctx, children)
+}
+
+#[doc(hidden)]
+pub fn render_html_attr<L: Locale, S: Scope<L>>(ctx: I18nContext<L, S>) -> impl IntoView {
+    fn inner(f: impl Fn() -> &'static str + Send + Sync + Copy + 'static) -> impl Attribute<Dom> {
+        leptos::attr::lang(f)
+    }
+    let lang_attr = inner(move || ctx.get_locale().as_str());
+
+    leptos_meta::Html().add_any_attr(lang_attr)
 }
 
 /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.

@@ -123,6 +123,7 @@ pub use scopes::{ConstScope, Scope};
 
 #[doc(hidden)]
 pub mod __private {
+    pub use crate::context::render_html_attr;
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::i18n_routing;
