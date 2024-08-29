@@ -135,7 +135,7 @@ fn load_locales_inner(
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::__private::leptos;
                 use leptos::prelude::*;
-                
+
 
                 #[#island_or_component]
                 #[allow(non_snake_case)]
@@ -359,9 +359,9 @@ fn create_locale_type_inner(
         .iter()
         .map(|(key, literal_type)| {
             if cfg!(feature = "show_keys_only") {
-                quote!(pub #key: &'static str)
+                quote!(pub #key: l_i18n_crate::__private::LitWrapper<&'static str>)
             } else {
-                quote!(pub #key: #literal_type)
+                quote!(pub #key: l_i18n_crate::__private::LitWrapper<#literal_type>)
             }
         })
         .collect::<Vec<_>>();
@@ -461,16 +461,18 @@ fn create_locale_type_inner(
         let filled_lit_fields = literal_keys.iter().filter_map(|(key, _)| {
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
-                return Some(quote!(#key: #key_str));
+                return Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#key_str)));
             }
             match locale.keys.get(key) {
-                Some(ParsedValue::Literal(lit)) => Some(quote!(#key: #lit)),
+                Some(ParsedValue::Literal(lit)) => {
+                    Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#lit)))
+                }
                 _ => {
                     let lit = default_locale
                         .keys
                         .get(key)
                         .and_then(ParsedValue::is_literal)?;
-                    Some(quote!(#key: #lit))
+                    Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#lit)))
                 }
             }
         });

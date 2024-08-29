@@ -73,7 +73,7 @@ impl DisplayComponent for DisplayComp<'_> {
     {
         write!(f, "<{}", self.comp_name)?;
         for (attr_name, attr) in self.attrs {
-            write!(f, "{}=\"{}\"", attr_name, attr)?;
+            write!(f, " {}=\"{}\"", attr_name, attr)?;
         }
         f.write_str(">")?;
         children(f)?;

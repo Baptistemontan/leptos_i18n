@@ -66,7 +66,13 @@ pub fn t_macro_inner(
 
         (inner, Some(params))
     } else {
-        let inner = quote!(#get_key);
+        let inner = quote! {
+            {
+                let _builder = #get_key.#builder_fn();
+                #[deny(deprecated)]
+                _builder.#build_fn()
+            }
+        };
         (inner, None)
     };
 

@@ -455,7 +455,7 @@ fn run_as_children<L: Locale, Chil: IntoView>(
     ctx: I18nContext<L>,
     children: TypedChildren<Chil>,
 ) -> impl IntoView {
-    let owner = owner::Owner::current()
+    let owner = Owner::current()
         .expect("no current reactive Owner found")
         .child();
     let children = children.into_inner();

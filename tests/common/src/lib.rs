@@ -9,7 +9,8 @@ where
     let rendered = view.into_view().to_html();
     let comment_removed = remove_html_comments(rendered);
     let hk_removed = remove_hk(comment_removed);
-    decode_special_chars(hk_removed)
+    let weird_removed = remove_weird_stuff(hk_removed);
+    decode_special_chars(weird_removed)
 }
 
 fn remove_noise(s: String, start_delim: &str, end_delim: &str) -> String {
@@ -25,6 +26,16 @@ fn remove_noise(s: String, start_delim: &str, end_delim: &str) -> String {
     }
     output_str.push_str(s);
     output_str
+}
+
+fn remove_weird_stuff(s: String) -> String {
+    let Some((before, after)) = s.split_once("<!>") else {
+        return s;
+    };
+
+    let mut s = before.to_string();
+    s.extend(after.split("<!>"));
+    s
 }
 
 fn remove_html_comments(s: String) -> String {

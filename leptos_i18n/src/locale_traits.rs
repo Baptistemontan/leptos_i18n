@@ -105,7 +105,7 @@ mod test {
         },
     }
 
-    use crate::{self as leptos_i18n, scope_locale, Locale as _};
+    use crate::{self as leptos_i18n, scope_locale, Locale as _, __private::LitWrapper};
     use i18n::Locale;
 
     #[test]
@@ -129,8 +129,8 @@ mod test {
     #[test]
     fn test_scope() {
         let en_sk = scope_locale!(Locale::en, sk);
-        assert_eq!(en_sk.get_keys().ssk, "test en");
+        assert_eq!(en_sk.get_keys().ssk, LitWrapper::new("test en"));
         let fr_sk = en_sk.map_locale(Locale::fr);
-        assert_eq!(fr_sk.get_keys().ssk, "test fr");
+        assert_eq!(fr_sk.get_keys().ssk, LitWrapper::new("test fr"));
     }
 }

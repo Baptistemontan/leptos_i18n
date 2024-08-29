@@ -506,20 +506,23 @@ impl ParsedValue {
 
     pub fn merge(
         &mut self,
+        def: &Self,
         keys: &mut LocaleValue,
-        default_locale: &str,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
-            // Default, do nothing
-            (ParsedValue::Default, _) => Ok(()),
+            (value @ ParsedValue::Default, _) => {
+                *value = def.clone();
+                Ok(())
+            }
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
+                let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
                 loc.merge(keys, default_locale, top_locale, key_path)?;
                 locales.push(loc);
                 Ok(())
