@@ -105,7 +105,7 @@ where
     L: Locale,
     El: ElementType + 'static + Clone,
 {
-    let locale_signal = RwSignal::new(L::default());
+    let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
     Effect::new_isomorphic(move |_| {
         locale_signal.set(initial_locale.get());
