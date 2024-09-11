@@ -157,14 +157,10 @@ fn App() -> impl IntoView {
 
 ## Context options
 
-You may want to customize the context behavior, such as how the cookie is set or what element should receive the `"lang"` attribute,
+You may want to customize the context behavior, such as how the cookie is set or if the root `<html>` element should receive the "lang" attribute,
 for this you can use some helpers in the `leptos_i18n::context` module:
 
 `provide_i18n_context_with_options` takes options for the cookie, such as the name, if the cookie should be enabled (will always be `false` if the `cookie` feature is not enabled), and some options about how the cookie is set.
-
-`provide_i18n_context_with_root` takes a `leptos::NodeRef` to an element to set the `"lang"` HTML attribute on.
-
-`provide_i18n_context_with_options_and_root` is a combination of both the above.
 
 There are variants of those with `init_*` instead of `provide_*` that returns the context without providing it.
 
@@ -179,3 +175,25 @@ fn provide_*(..args) -> I18nContext<Locale> {
     })
 }
 ```
+
+## "lang" html attribute
+
+You may want to add a "lang" attribute on a html element such that
+
+```html
+<div lang="fr"></div>
+```
+
+You could do it yourself by tracking the locale and setting the attribute yourself, but there is a simpler way:
+
+The `I18nContext` implement `Directive` from leptos to set the "lang" attribute, so you can just do
+
+```rust
+let i18n = use_i18n();
+
+view! {
+    <div use:i18n />
+}
+```
+
+And it will set the "lang" attribute for you on the `<div>` element !

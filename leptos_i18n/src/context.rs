@@ -2,13 +2,9 @@
 
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
-use leptos::{
-    attr::Attribute,
-    html::{ElementType, Html},
-    prelude::*,
-};
+use leptos::{attr::Attribute, prelude::*};
 use leptos_use::UseCookieOptions;
-use tachys::{html, reactive_graph::OwnedView};
+use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView};
 
 use crate::{
     fetch_locale::{self, signal_maybe_once_then},
@@ -85,6 +81,21 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     }
 }
 
+impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
+    for I18nContext<L, S>
+{
+    type Cloneable = Self;
+
+    fn run(&self, _el: <R as Renderer>::Element, _param: ()) {
+        // let _ = el.attr("lang", self.get_locale().as_str());
+        todo!()
+    }
+
+    fn into_cloneable(self) -> Self::Cloneable {
+        self
+    }
+}
+
 /// Cookies options for functions initializing or providing a `I18nContext`
 pub type CookieOptions<L> = UseCookieOptions<
     L,
@@ -96,29 +107,18 @@ const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
-fn init_context_inner<L, El>(
-    root_element: Option<NodeRef<El>>,
+fn init_context_inner<L: Locale>(
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
+) -> I18nContext<L> {
     let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
     Effect::new_isomorphic(move |_| {
         locale_signal.set(initial_locale.get());
     });
 
-    let _node_ref = root_element.unwrap_or_default();
-
     Effect::new_isomorphic(move |_| {
         let new_lang = locale_signal.get();
-        // TODO
-        // if let Some(el) = node_ref.get() {
-        //     // let _ = el.attr("lang", new_lang.as_str());
-        // }
         set_lang_cookie.set(Some(new_lang));
     });
 
@@ -132,16 +132,11 @@ where
 /// * CONTEXT
 /// *********************************************
 
-fn init_context_with_options<L, El>(
-    root_element: Option<NodeRef<El>>,
+fn init_context_with_options<L: Locale>(
     enable_cookie: bool,
     cookie_name: &str,
     cookie_options: CookieOptions<L>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
+) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<L, FromToStringCodec>(cookie_name, cookie_options)
     } else {
@@ -151,7 +146,7 @@ where
 
     let initial_locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
 
-    init_context_inner::<L, El>(root_element, set_lang_cookie, initial_locale)
+    init_context_inner::<L>(set_lang_cookie, initial_locale)
 }
 
 /// Same as `init_i18n_context` but with some cookies options.
@@ -162,40 +157,7 @@ pub fn init_i18n_context_with_options<L: Locale>(
 ) -> I18nContext<L> {
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
     let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
-    init_context_with_options::<L, Html>(
-        None,
-        enable_cookie,
-        cookie_name,
-        cookie_options.unwrap_or_default(),
-    )
-}
-
-/// Same as `init_i18n_context` but takes a root element to bind the `"lang"` HTML attribute.
-/// (That attribute will not be set on ssr, only on the client.)
-pub fn init_i18n_context_with_root<L, El>(root_element: NodeRef<El>) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
-    init_i18n_context_with_options_and_root::<L, El>(None, None, None, root_element)
-}
-
-/// Same as `init_i18n_context` but with some cookies options and a root element to bind the `"lang"` HTML attribute.
-/// (That attribute will not be set on ssr, only on the client.)
-pub fn init_i18n_context_with_options_and_root<L, El>(
-    enable_cookie: Option<bool>,
-    cookie_name: Option<&str>,
-    cookie_options: Option<CookieOptions<L>>,
-    root_element: NodeRef<El>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
-    let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
-    let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
-    init_context_with_options::<L, El>(
-        Some(root_element),
+    init_context_with_options(
         enable_cookie,
         cookie_name,
         cookie_options.unwrap_or_default(),
@@ -204,7 +166,7 @@ where
 
 /// Initialize a `I18nContext` without providing it.
 pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
-    init_i18n_context_with_options::<L>(None, None, None)
+    init_i18n_context_with_options(None, None, None)
 }
 
 /// Initialize and provide a `I18nContext`.
@@ -229,44 +191,7 @@ pub fn provide_i18n_context_with_options<L: Locale>(
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
     use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_options::<L>(enable_cookie, cookie_name, cookie_options);
-        provide_context(ctx);
-        ctx
-    })
-}
-
-/// Same as `provide_i18n_context`  but takes a root element to bind the `"lang"` HTML attribute.
-pub fn provide_i18n_context_with_root<L, El>(root_element: NodeRef<El>) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
-    use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_root::<L, El>(root_element);
-        provide_context(ctx);
-        ctx
-    })
-}
-
-/// Same as `provide_i18n_context`  but with some cookies options and a root element to bind the `"lang"` HTML attribute.
-/// (That attribute will not be set on ssr, only on the client.)
-pub fn provide_i18n_context_with_options_and_root<L, El>(
-    enable_cookie: Option<bool>,
-    cookie_name: Option<&str>,
-    cookie_options: Option<CookieOptions<L>>,
-    root_element: NodeRef<El>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
-    use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_options_and_root::<L, El>(
-            enable_cookie,
-            cookie_name,
-            cookie_options,
-            root_element,
-        );
+        let ctx = init_i18n_context_with_options(enable_cookie, cookie_name, cookie_options);
         provide_context(ctx);
         ctx
     })
@@ -276,16 +201,11 @@ where
 /// * SUB CONTEXT
 /// *********************************************
 
-fn init_subcontext_with_options<L, El>(
-    root_element: Option<NodeRef<El>>,
+fn init_subcontext_with_options<L: Locale>(
     initial_locale: Signal<Option<L>>,
     cookie_name: Option<&str>,
     cookie_options: CookieOptions<L>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
+) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = match cookie_name {
         Some(cookie_name) if ENABLE_COOKIE => {
             leptos_use::use_cookie_with_options::<L, FromToStringCodec>(cookie_name, cookie_options)
@@ -315,7 +235,7 @@ where
         }
     });
 
-    init_context_inner::<L, El>(root_element, set_lang_cookie, initial_locale_listener)
+    init_context_inner::<L>(set_lang_cookie, initial_locale_listener)
 }
 
 fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) -> Signal<Option<L>> {
@@ -341,65 +261,11 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 ) -> I18nContext<L> {
     let initial_locale = derive_initial_locale_signal(initial_locale);
 
-    init_subcontext_with_options::<L, html::element::Html>(
-        None,
+    init_subcontext_with_options::<L>(
         initial_locale,
         cookie_name,
         cookie_options.unwrap_or_default(),
     )
-}
-
-/// Same as `init_i18n_subcontext` but with some options
-///
-/// The `cookie_name` option make it possible to save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-/// If none no cookie will be set.
-///
-/// The `root_element` is a `NodeRef` to an element that will receive the HTML `"lang"` attribute.
-/// (That attribute will not be set on ssr, only on the client.)
-///
-/// The locale to init the subcontext with is determined in this order:
-/// - locale in the cookie
-/// - `initial_locale` if set
-/// - locale of the parent context
-/// - if no parent context, use the same resolution used by a main context.
-pub fn init_i18n_subcontext_with_options_and_root<L, El>(
-    initial_locale: Option<Signal<L>>,
-    cookie_name: Option<&str>,
-    cookie_options: Option<CookieOptions<L>>,
-    root_element: NodeRef<El>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
-    let initial_locale = derive_initial_locale_signal(initial_locale);
-
-    init_subcontext_with_options::<L, El>(
-        Some(root_element),
-        initial_locale,
-        cookie_name,
-        cookie_options.unwrap_or_default(),
-    )
-}
-
-/// Same as `init_i18n_subcontext` but with some options
-///
-/// The `root_element` is a `NodeRef` to an element that will receive the HTML `"lang"` attribute.
-/// (That attribute will not be set on ssr, only on the client.)
-///
-/// The locale to init the subcontext with is determined in this order:
-/// - `initial_locale` if set
-/// - locale of the parent context
-/// - if no parent context, use the same resolution used by a main context.
-pub fn init_i18n_subcontext_with_root<L, El>(
-    initial_locale: Option<Signal<L>>,
-    root_element: NodeRef<El>,
-) -> I18nContext<L>
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-{
-    init_i18n_subcontext_with_options_and_root::<L, El>(initial_locale, None, None, root_element)
 }
 
 /// Initialize a `I18nContext` subcontext without providing it.
@@ -479,43 +345,6 @@ pub fn render_html_attr<L: Locale, S: Scope<L>>(ctx: I18nContext<L, S>) -> impl 
     let lang_attr = inner(move || ctx.get_locale().as_str());
 
     leptos_meta::Html().add_any_attr(lang_attr)
-}
-
-/// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
-///
-/// Like `I18nSubContextProvider` but can be given a `root_element: NodeRef` to set the `"lang"` attribute on.
-/// (That attribute will not be set on ssr, only on the client.)
-#[leptos::component]
-#[allow(non_snake_case)]
-pub fn I18nSubContextProviderWithRoot<L, El, Chil>(
-    children: TypedChildren<Chil>,
-    /// The initial locale for this subcontext.
-    /// Default to the locale set in the cookie if set and some,
-    /// if not use the parent context locale.
-    /// if no parent context, use the default locale.
-    #[prop(optional, into)]
-    initial_locale: Option<Signal<L>>,
-    /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-    #[prop(optional)]
-    cookie_name: Option<&'static str>,
-    /// Options for the cookie.
-    #[prop(optional)]
-    cookie_options: Option<CookieOptions<L>>,
-    /// A `NodeRef` to an element that will receive the HTML `"lang"` attribute.
-    root_element: NodeRef<El>,
-) -> impl IntoView
-where
-    L: Locale,
-    El: ElementType + 'static + Clone,
-    Chil: IntoView,
-{
-    let ctx = init_i18n_subcontext_with_options_and_root::<L, El>(
-        initial_locale,
-        cookie_name,
-        cookie_options,
-        root_element,
-    );
-    run_as_children(ctx, children)
 }
 
 /// Return the `I18nContext` previously set.

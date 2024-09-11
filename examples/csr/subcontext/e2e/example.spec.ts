@@ -14,7 +14,6 @@ type XPaths = {
   opposite: string;
   cookie: string;
   langAttr: string;
-  all: string;
 };
 
 const LNG_BUTTON_XPATH: XPaths = {
@@ -22,7 +21,6 @@ const LNG_BUTTON_XPATH: XPaths = {
   opposite: "xpath=//html/body/button[4]",
   cookie: "xpath=//html/body/button[6]",
   langAttr: "xpath=//html/body/div[1]/button[2]",
-  all: "xpath=//html/body/div[2]/button[2]",
 };
 
 const INC_BUTTON_XPATH: XPaths = {
@@ -30,28 +28,24 @@ const INC_BUTTON_XPATH: XPaths = {
   opposite: "xpath=//html/body/button[3]",
   cookie: "xpath=//html/body/button[5]",
   langAttr: "xpath=//html/body/div[1]/button[1]",
-  all: "xpath=//html/body/div[2]/button[1]",
 };
 const COUNTER_XPATH: XPaths = {
   main: "xpath=//html/body/p[1]",
   opposite: "xpath=//html/body/p[2]",
   cookie: "xpath=//html/body/p[3]",
   langAttr: "xpath=//html/body/div[1]/p",
-  all: "xpath=//html/body/div[2]/p",
 };
 const LOCALES_XPATH: XPaths = {
   main: "xpath=//html/body/h1[1]",
   opposite: "xpath=//html/body/h1[2]",
   cookie: "xpath=//html/body/h1[3]",
   langAttr: "xpath=//html/body/div[1]/h1",
-  all: "xpath=//html/body/div[2]/h1",
 };
 const TITLES_XPATH: XPaths = {
   main: "xpath=//html/body/h2[1]",
   opposite: "xpath=//html/body/h2[2]",
   cookie: "xpath=//html/body/h2[3]",
   langAttr: "xpath=//html/body/h2[4]",
-  all: "xpath=//html/body/h2[5]",
 };
 
 const test = base.extend(
