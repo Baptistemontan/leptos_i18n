@@ -35,36 +35,42 @@ impl<L: Locale, S: Scope<L>> Copy for I18nContext<L, S> {}
 impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale subscribing to any changes.
     #[inline]
+    #[track_caller]
     pub fn get_locale(self) -> L {
         self.locale_signal.get()
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
+    #[track_caller]
     pub fn get_locale_untracked(self) -> L {
         self.locale_signal.get_untracked()
     }
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
+    #[track_caller]
     pub fn get_keys(self) -> &'static S::Keys {
         LocaleKeys::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
+    #[track_caller]
     pub fn get_keys_untracked(self) -> &'static S::Keys {
         LocaleKeys::from_locale(self.get_locale_untracked())
     }
 
     /// Set the locale and notify all subscribers
     #[inline]
+    #[track_caller]
     pub fn set_locale(self, lang: L) {
         self.locale_signal.set(lang)
     }
 
     /// Set the locale but does not notify the subscribers
     #[inline]
+    #[track_caller]
     pub fn set_locale_untracked(self, lang: L) {
         let mut guard = self.locale_signal.write_untracked();
         *guard = lang;
@@ -87,8 +93,9 @@ impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
     type Cloneable = Self;
 
     fn run(&self, _el: <R as Renderer>::Element, _param: ()) {
-        // let _ = el.attr("lang", self.get_locale().as_str());
-        todo!()
+        // TODO
+        leptos::logging::debug_warn!("use:i18n directive is a WIP.");
+        // R::set_attribute(&el, "lang", self.get_locale().as_str());
     }
 
     fn into_cloneable(self) -> Self::Cloneable {
