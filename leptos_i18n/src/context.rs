@@ -81,7 +81,7 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     }
 }
 
-impl<T: ?Sized, L: Locale, S: Scope<L>> Directive<T, ()> for I18nContext<L, S> {
+impl<L: Locale, S: Scope<L>> Directive<HtmlElement<html::AnyElement>, ()> for I18nContext<L, S> {
     fn run(&self, el: HtmlElement<html::AnyElement>, _param: ()) {
         let _ = el.attr("lang", self.get_locale().as_str());
     }
