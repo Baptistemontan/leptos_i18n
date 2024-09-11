@@ -1,6 +1,6 @@
 use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::context::{I18nSubContextProvider, I18nSubContextProviderWithRoot};
+use leptos_i18n::context::I18nSubContextProvider;
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;
 
@@ -68,14 +68,12 @@ fn Main() -> impl IntoView {
 fn LangAttr() -> impl IntoView {
     let i18n = use_i18n();
 
-    let div_ref = create_node_ref();
-
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot<Locale, _> root_element=div_ref>
+        <div use:i18n >
+            <I18nSubContextProvider>
                 <Counter />
-            </I18nSubContextProviderWithRoot<Locale, _>>
+            </I18nSubContextProvider>
         </div>
     }
 }
@@ -85,20 +83,14 @@ fn LangAttr() -> impl IntoView {
 fn All() -> impl IntoView {
     let i18n = use_i18n();
 
-    let div_ref = create_node_ref();
-
     let sub_context_locale = move || neg_locale(i18n.get_locale());
 
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot
-                root_element=div_ref
-                initial_locale=sub_context_locale
-                cookie_name="all_example_locale"
-            >
+        <div use:i18n >
+            <I18nSubContextProvider>
                 <Counter />
-            </I18nSubContextProviderWithRoot>
+            </I18nSubContextProvider>
         </div>
     }
 }
