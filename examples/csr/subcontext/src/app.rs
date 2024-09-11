@@ -1,6 +1,6 @@
 use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::context::I18nSubContextProvider;
+use leptos_i18n::context::{I18nSubContextProvider, init_i18n_subcontext};
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;
 
@@ -25,6 +25,7 @@ fn Opposite() -> impl IntoView {
     let i18n = use_i18n();
 
     let sub_context_locale = move || neg_locale(i18n.get_locale());
+
     view! {
         <h2>{t!(i18n, examples.opposite)}</h2>
         <I18nSubContextProvider
@@ -67,12 +68,13 @@ fn Main() -> impl IntoView {
 fn LangAttr() -> impl IntoView {
     let i18n = use_i18n();
 
+    let i18n_sub = init_i18n_subcontext::<Locale>(None);
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div use:i18n >
-            <I18nSubContextProvider<Locale>>
+        <div use:i18n_sub >
+            <Provider value=i18n_sub>
                 <Counter />
-            </I18nSubContextProvider<Locale>>
+            </Provider>
         </div>
     }
 }
