@@ -3,6 +3,7 @@
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
 use leptos::*;
+use leptos_dom::Directive;
 use leptos_meta::*;
 use leptos_use::UseCookieOptions;
 
@@ -18,11 +19,19 @@ use crate::{
 /// It servers as a signal to the current locale and enable reactivity to locale change.
 ///
 /// You access the translations and read/update the current locale through it.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
     locale_signal: RwSignal<L>,
     scope_marker: PhantomData<S>,
 }
+
+impl<L: Locale, S: Scope<L>> Clone for I18nContext<L, S> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Copy for I18nContext<L, S> {}
 
 impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale subscribing to any changes.
@@ -69,6 +78,12 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
             locale_signal: self.locale_signal,
             scope_marker: PhantomData,
         }
+    }
+}
+
+impl<T: ?Sized, L: Locale, S: Scope<L>> Directive<T, ()> for I18nContext<L, S> {
+    fn run(&self, el: HtmlElement<html::AnyElement>, _param: ()) {
+        let _ = el.attr("lang", self.get_locale().as_str());
     }
 }
 
@@ -325,7 +340,12 @@ pub fn I18nSubContextProvider<L: Locale>(
     #[prop(optional)]
     cookie_options: Option<CookieOptions<L>>,
 ) -> impl IntoView {
-    let ctx = init_i18n_subcontext_with_options::<L>(set_lang_attr_on_html, initial_locale, cookie_name, cookie_options);
+    let ctx = init_i18n_subcontext_with_options::<L>(
+        set_lang_attr_on_html,
+        initial_locale,
+        cookie_name,
+        cookie_options,
+    );
     leptos::run_as_child(move || {
         provide_context(ctx);
         children()
