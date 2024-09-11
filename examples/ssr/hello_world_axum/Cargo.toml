@@ -10,9 +10,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = { git = "https://github.com/leptos-rs/leptos" }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos" }
-leptos_axum = { git = "https://github.com/leptos-rs/leptos", optional = true }
+leptos = { version = "0.7.0-beta" }
+leptos_meta = { version = "0.7.0-beta" }
+leptos_axum = { version = "0.7.0-beta", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
     "track_locale_files",
 ] }

@@ -8,10 +8,8 @@ edition = "2021"
 [dependencies]
 actix-files = "0.6"
 actix-web = { version = "4.4", features = ["macros"] }
-leptos = { git = "https://github.com/leptos-rs/leptos", features = ["ssr"] }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos", features = [
-    "ssr",
-] }
-leptos_actix = { git = "https://github.com/leptos-rs/leptos" }
+leptos = { version = "0.7.0-beta", features = ["ssr"] }
+leptos_meta = { version = "0.7.0-beta", features = ["ssr"] }
+leptos_actix = { version = "0.7.0-beta" }
 serde = { version = "1", features = ["derive"] }
 client = { path = "../client", features = ["ssr"] }
