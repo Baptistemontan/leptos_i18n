@@ -8,6 +8,7 @@ async fn main() {
     use hello_world_axum::fileserv::file_and_error_handler;
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
+    use leptos_meta::MetaTags;
     use tokio::net::TcpListener;
 
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
@@ -25,7 +26,28 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
-        .leptos_routes(&leptos_options, routes, App)
+        .leptos_routes(&leptos_options, routes, {
+            let leptos_options = leptos_options.clone();
+            move || {
+                use leptos::prelude::*;
+
+                view! {
+                    <!DOCTYPE html>
+                    <html>
+                        <head>
+                            <meta charset="utf-8"/>
+                            <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                            <AutoReload options=leptos_options.clone() />
+                            <HydrationScripts options=leptos_options.clone()/>
+                            <MetaTags/>
+                        </head>
+                        <body>
+                            <App/>
+                        </body>
+                    </html>
+                }
+            }
+        })
         .fallback(file_and_error_handler)
         .with_state(leptos_options);
 

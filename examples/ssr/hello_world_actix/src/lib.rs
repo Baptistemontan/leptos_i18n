@@ -1,6 +1,7 @@
 #![deny(warnings)]
 
 pub mod app;
+
 leptos_i18n::load_locales!();
 
 #[cfg(feature = "hydrate")]

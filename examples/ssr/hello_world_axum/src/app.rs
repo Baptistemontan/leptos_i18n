@@ -2,6 +2,7 @@ use crate::i18n::*;
 use leptos::prelude::*;
 
 #[component]
+#[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
@@ -24,6 +25,7 @@ pub fn App() -> impl IntoView {
     let count = move || counter.get();
 
     view! {
+        <RenderLangAttr i18n />
         <h1>{t!(i18n, hello_world)}</h1>
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
         <p>

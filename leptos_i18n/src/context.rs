@@ -120,7 +120,7 @@ fn init_context_inner<L: Locale>(
 ) -> I18nContext<L> {
     let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
-    Effect::new_isomorphic(move |_| {
+    Effect::new(move |_| {
         locale_signal.set(initial_locale.get());
     });
 
