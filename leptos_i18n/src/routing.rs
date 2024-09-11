@@ -246,5 +246,7 @@ where
 {
     let _ = move || outlet_wrapper::<L>(None, base_path);
     let _ = (children, ssr, view);
-    unimplemented!("i18n routing is a WIP.")
+    if true {
+        unimplemented!("i18n routing is a WIP.")
+    }
 }
