@@ -157,7 +157,7 @@ fn App() -> impl IntoView {
 
 ## Context options
 
-You may want to customize the context behavior, such as how the cookie is set or what element should receive the `"lang"` attribute,
+You may want to customize the context behavior, such as how the cookie is set or if the root `<html>` element should receive the "lang" attribute,
 for this you can use some helpers in the `leptos_i18n::context` module:
 
 `provide_i18n_context_with_options` takes options for the cookie, such as the name, if the cookie should be enabled (will always be `false` if the `cookie` feature is not enabled), and some options about how the cookie is set.
