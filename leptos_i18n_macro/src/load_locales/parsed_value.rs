@@ -1018,17 +1018,32 @@ impl ForeignKey {
     }
 }
 
+fn fit_in_16_tuple(values: &mut [TokenStream]) -> TokenStream {
+    let values_len = values.len();
+    if values_len <= 16 {
+        match values {
+            [] => quote!(None::<()>),
+            [value] => std::mem::take(value),
+            values => quote!((#(#values,)*)),
+        }
+    } else {
+        // ceil to avoid rounding down, if not for exemple a size of 36 will yield 18 chunks of size 2
+        let chunk_size = values_len.div_ceil(16);
+        let values = values.chunks_mut(chunk_size).map(fit_in_16_tuple);
+        quote!((#(#values,)*))
+    }
+}
+
 impl ToTokens for ParsedValue {
     fn to_token_stream(&self) -> TokenStream {
         let mut tokens = Vec::new();
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
         self.flatten(&mut tokens, &locale_field);
 
-        match &tokens[..] {
+        match &mut tokens[..] {
             [] => quote!(None::<()>),
-            [value] => value.clone(),
-            // TODO: check if it fits in a tuple
-            values => quote!((#(#values,)*)),
+            [value] => std::mem::take(value),
+            values => fit_in_16_tuple(values),
         }
     }
 
