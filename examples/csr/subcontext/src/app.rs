@@ -16,7 +16,6 @@ pub fn App() -> impl IntoView {
         <Opposite />
         <Cookie />
         <LangAttr />
-        <All />
     }
 }
 
@@ -71,26 +70,9 @@ fn LangAttr() -> impl IntoView {
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
         <div use:i18n >
-            <I18nSubContextProvider>
+            <I18nSubContextProvider<Locale>>
                 <Counter />
-            </I18nSubContextProvider>
-        </div>
-    }
-}
-
-#[component]
-#[allow(non_snake_case)]
-fn All() -> impl IntoView {
-    let i18n = use_i18n();
-
-    let sub_context_locale = move || neg_locale(i18n.get_locale());
-
-    view! {
-        <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div use:i18n >
-            <I18nSubContextProvider>
-                <Counter />
-            </I18nSubContextProvider>
+            </I18nSubContextProvider<Locale>>
         </div>
     }
 }
