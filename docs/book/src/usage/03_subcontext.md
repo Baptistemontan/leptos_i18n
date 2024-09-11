@@ -125,7 +125,3 @@ that function is useless without the `cookie` feature.
 
 - `cookie_name` is an option to a name for a cookie to be set to keep state of the chosen locale
 - `cookie_options` is an option to some options for a cookie.
-
-`init_i18n_subcontext_with_root` takes a `leptos::NodeRef` to an element to set the `"lang"` HTML attribute on.
-
-`init_i18n_subcontext_with_options_and_root` is a combination of both the above.
