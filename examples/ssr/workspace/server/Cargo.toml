@@ -12,4 +12,4 @@ leptos = { version = "0.7.0-beta", features = ["ssr"] }
 leptos_meta = { version = "0.7.0-beta", features = ["ssr"] }
 leptos_actix = { version = "0.7.0-beta" }
 serde = { version = "1", features = ["derive"] }
-client = { path = "../client", features = ["ssr"] }
+client = { path = "../client", default-features = false, features = ["ssr"] }

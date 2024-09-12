@@ -2,6 +2,7 @@ use crate::i18n::*;
 use leptos::prelude::*;
 
 #[component]
+#[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
@@ -22,6 +23,7 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
+#[allow(non_snake_case)]
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 
@@ -32,6 +34,7 @@ fn Counter() -> impl IntoView {
     let count = move || counter.get();
 
     view! {
+        <RenderLangAttr i18n />
         <p>{t!(i18n, click_count, count)}</p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>
     }
