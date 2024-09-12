@@ -92,10 +92,12 @@ impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
 {
     type Cloneable = Self;
 
-    fn run(&self, _el: <R as Renderer>::Element, _param: ()) {
-        // TODO
-        leptos::logging::debug_warn!("use:i18n directive is a WIP.");
-        // R::set_attribute(&el, "lang", self.get_locale().as_str());
+    fn run(&self, el: <R as Renderer>::Element, _param: ()) {
+        let this = *self;
+        Effect::new(move || {
+            let locale = this.get_locale();
+            R::set_attribute(&el, "lang", locale.as_str());
+        });
     }
 
     fn into_cloneable(self) -> Self::Cloneable {
