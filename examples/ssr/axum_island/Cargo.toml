@@ -51,7 +51,7 @@ locales = ["en", "fr"]
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   
-output-name = "hello_world_axum"
+output-name = "axum_island"
 # The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
 # When NOT using cargo-leptos this must be updated to "." or the counters will not work. The above warning still applies if you do switch to cargo-leptos later.
 site-root = "target/site"

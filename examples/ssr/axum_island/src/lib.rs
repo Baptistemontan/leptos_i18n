@@ -1,8 +1,7 @@
 #![deny(warnings)]
 
 pub mod app;
-#[cfg(feature = "ssr")]
-pub mod fileserv;
+
 leptos_i18n::load_locales!();
 
 #[cfg(feature = "hydrate")]
