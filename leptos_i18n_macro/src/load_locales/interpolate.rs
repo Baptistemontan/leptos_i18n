@@ -414,8 +414,8 @@ impl Interpolation {
             }
 
             #[allow(non_camel_case_types, non_snake_case)]
-            #[derive(l_i18n_crate::__private::typed_builder::TypedBuilder)]
-            #[builder(crate_module_path = l_i18n_crate::typed_builder)]
+            #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
+            #[builder(crate_module_path = l_i18n_crate::reexports::typed_builder)]
             pub struct #ident<#(#generics,)*> {
                 #locale_field: #enum_ident,
                 #into_views_marker,
