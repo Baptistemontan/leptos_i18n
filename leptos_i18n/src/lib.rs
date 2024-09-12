@@ -141,8 +141,6 @@ pub mod __private {
     pub use crate::static_lock::*;
     pub use icu::locid;
     pub use leptos_i18n_macro::declare_locales;
-    pub use leptos_router;
-    pub use typed_builder;
 }
 
 /// Reexports of backend libraries, mostly about formatting.
@@ -150,7 +148,9 @@ pub mod reexports {
     pub use fixed_decimal;
     pub use icu;
     pub use leptos;
+    pub use leptos_router;
     pub use serde;
+    pub use typed_builder;
     pub use wasm_bindgen;
 }
 

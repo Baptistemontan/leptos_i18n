@@ -887,13 +887,15 @@ impl ParsedValue {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
-            ParsedValue::Literal(s) => tokens.push(quote!(leptos::IntoView::into_view(#s))),
+            ParsedValue::Literal(s) => {
+                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(#s)))
+            }
             ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
-                    leptos::IntoView::into_view(#ts)
+                    l_i18n_crate::reexports::leptos::IntoView::into_view(#ts)
                 }});
             }
             ParsedValue::Component { key, inner } => {
@@ -914,8 +916,8 @@ impl ParsedValue {
                     #captured_keys
                     move || Into::into(#inner)
                 });
-                let boxed_fn = quote!(leptos::ToChildren::to_children(#f));
-                tokens.push(quote!(leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
+                let boxed_fn = quote!(l_i18n_crate::reexports::leptos::ToChildren::to_children(#f));
+                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
@@ -1021,9 +1023,11 @@ impl ToTokens for ParsedValue {
         self.flatten(&mut tokens, &locale_field);
 
         match &tokens[..] {
-            [] => quote!(leptos::View::default()),
+            [] => quote!(l_i18n_crate::reexports::leptos::View::default()),
             [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
+            values => {
+                quote!(l_i18n_crate::reexports::leptos::CollectView::collect_view([#(#values,)*]))
+            }
         }
     }
 
