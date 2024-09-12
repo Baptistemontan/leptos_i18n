@@ -257,7 +257,7 @@ fn create_locales_enum(
     quote! {
         use l_i18n_crate::reexports::serde as serde;
 
-        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
             #(#locales,)*
@@ -266,6 +266,24 @@ fn create_locales_enum(
         impl Default for #enum_ident {
             fn default() -> Self {
                 #enum_ident::#default
+            }
+        }
+
+        impl l_i18n_crate::reexports::serde::Serialize for #enum_ident {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: l_i18n_crate::reexports::serde::Serializer,
+            {
+                l_i18n_crate::reexports::serde::Serialize::serialize(l_i18n_crate::Locale::as_str(*self), serializer)
+            }
+        }
+
+        impl<'de> l_i18n_crate::reexports::serde::Deserialize<'de> for #enum_ident {
+            fn deserialize<D>(deserializer: D) -> Result<#enum_ident, D::Error>
+            where
+                D: l_i18n_crate::reexports::serde::de::Deserializer<'de>,
+            {
+                l_i18n_crate::reexports::serde::de::Deserializer::deserialize_str(deserializer, l_i18n_crate::__private::LocaleVisitor::<#enum_ident>::new())
             }
         }
 
