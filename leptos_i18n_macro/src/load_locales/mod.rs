@@ -255,7 +255,9 @@ fn create_locales_enum(
         .collect::<Vec<_>>();
 
     quote! {
-        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, l_i18n_crate::reexports::serde::Serialize, l_i18n_crate::reexports::serde::Deserialize)]
+        use l_i18n_crate::reexports::serde as serde;
+
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
             #(#locales,)*
