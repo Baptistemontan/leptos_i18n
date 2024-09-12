@@ -61,7 +61,17 @@
 //! pub fn App() -> impl IntoView {
 //!     leptos_meta::provide_meta_context();
 //!
-//!     let i18n = provide_i18n_context();
+//!     view! {
+//!         <I18nContextProvider>
+//!             <Counter />
+//!             <SwitchLang />
+//!         </I18nContextProvider>
+//!     }
+//! }
+//!
+//! #[component]
+//! fn SwitchLang() -> impl IntoView {
+//!     let i18n = use_i18n();
 //!
 //!     let on_switch = move |_| {
 //!         let new_lang = match i18n.get_locale() {
@@ -73,7 +83,6 @@
 //!
 //!     view! {
 //!         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
-//!         <Counter />
 //!     }
 //! }
 //!
@@ -131,7 +140,6 @@ pub mod __private {
     pub use crate::routing::i18n_routing;
     pub use crate::static_lock::*;
     pub use icu::locid;
-    pub use leptos;
     pub use leptos_i18n_macro::declare_locales;
     pub use leptos_router;
     pub use typed_builder;
@@ -141,6 +149,7 @@ pub mod __private {
 pub mod reexports {
     pub use fixed_decimal;
     pub use icu;
+    pub use leptos;
     pub use serde;
     pub use wasm_bindgen;
 }

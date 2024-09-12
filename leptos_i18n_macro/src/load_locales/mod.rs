@@ -102,14 +102,14 @@ fn load_locales_inner(
         ]);
     }
 
-    let provider = if cfg!(feature = "experimental-islands") {
+    let providers = if cfg!(feature = "experimental-islands") {
         macros_reexport.push(quote!(ti));
         quote! {
             #[leptos::island]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
                 #[prop(optional)]
-                set_lang_attr_on_html: bool,
+                set_lang_attr_on_html: Option<bool>,
                 #[prop(optional)]
                 enable_cookie: Option<bool>,
                 #[prop(optional)]
@@ -124,6 +124,29 @@ fn load_locales_inner(
                     children
                 )
             }
+
+            /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
+            #[leptos::island]
+            #[allow(non_snake_case)]
+            pub fn I18nSubContextProvider(
+                children: leptos::Children,
+                /// The initial locale for this subcontext.
+                /// Default to the locale set in the cookie if set and some,
+                /// if not use the parent context locale.
+                /// if no parent context, use the default locale.
+                #[prop(optional, into)]
+                initial_locale: Option<leptos::Signal<#enum_ident>>,
+                /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
+                #[prop(optional)]
+                cookie_name: Option<&'static str>,
+            ) -> impl leptos::IntoView {
+                l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
+                    children,
+                    initial_locale,
+                    cookie_name,
+                    None
+                )
+            }
         }
     } else {
         quote! {
@@ -131,7 +154,7 @@ fn load_locales_inner(
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
                 #[prop(optional)]
-                set_lang_attr_on_html: bool,
+                set_lang_attr_on_html: Option<bool>,
                 #[prop(optional)]
                 enable_cookie: Option<bool>,
                 #[prop(optional)]
@@ -146,6 +169,31 @@ fn load_locales_inner(
                     cookie_name,
                     cookie_options,
                     children
+                )
+            }
+
+            /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
+            #[leptos::component]
+            #[allow(non_snake_case)]
+            pub fn I18nSubContextProvider(
+                children: leptos::Children,
+                /// The initial locale for this subcontext.
+                /// Default to the locale set in the cookie if set and some,
+                /// if not use the parent context locale.
+                /// if no parent context, use the default locale.
+                #[prop(optional, into)]
+                initial_locale: Option<leptos::Signal<#enum_ident>>,
+                /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
+                #[prop(optional)]
+                cookie_name: Option<&'static str>,
+                #[prop(optional)]
+                cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
+            ) -> impl leptos::IntoView {
+                l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
+                    children,
+                    initial_locale,
+                    cookie_name,
+                    cookie_options
                 )
             }
         }
@@ -175,10 +223,10 @@ fn load_locales_inner(
                 l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None)
             }
 
-            mod provider {
+            mod providers {
                 use super::{l_i18n_crate, #enum_ident};
 
-                #provider
+                #providers
             }
 
             mod routing {
@@ -225,7 +273,7 @@ fn load_locales_inner(
                 }
             }
 
-            pub use provider::I18nContextProvider;
+            pub use providers::{I18nContextProvider, I18nSubContextProvider};
             pub use routing::I18nRoute;
 
             #macros_reexport

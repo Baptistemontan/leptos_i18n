@@ -293,7 +293,7 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 /// There is a section on [`leptos::provide_context`] about shadowing, it is easy to screw it up.
 /// This is why you should be careful about using this function.
 ///
-/// The recommended way is to use the [`I18nSubContextProvider`].
+/// The recommended way is to use the `I18nSubContextProvider`.
 ///
 /// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with [`leptos::Provider`] or [`leptos::provide_context`]:
 ///
@@ -307,23 +307,11 @@ pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> 
     provide_context(ctx);
     ctx
 }
-
-/// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
-#[component]
-#[allow(non_snake_case)]
-pub fn I18nSubContextProvider<L: Locale>(
+#[doc(hidden)]
+pub fn i18n_sub_context_provider_inner<L: Locale>(
     children: Children,
-    /// The initial locale for this subcontext.
-    /// Default to the locale set in the cookie if set and some,
-    /// if not use the parent context locale.
-    /// if no parent context, use the default locale.
-    #[prop(optional, into)]
     initial_locale: Option<Signal<L>>,
-    /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-    #[prop(optional)]
     cookie_name: Option<&'static str>,
-    /// Options for the cookie.
-    #[prop(optional)]
     cookie_options: Option<CookieOptions<L>>,
 ) -> impl IntoView {
     let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
@@ -345,7 +333,7 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
 
 #[doc(hidden)]
 pub fn provide_i18n_context_component_inner<L: Locale>(
-    set_lang_attr_on_html: bool,
+    set_lang_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
     cookie_name: Option<&str>,
     cookie_options: Option<CookieOptions<L>>,
@@ -353,7 +341,7 @@ pub fn provide_i18n_context_component_inner<L: Locale>(
 ) -> impl IntoView {
     use leptos_meta::Html;
     let i18n = provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options);
-    if set_lang_attr_on_html {
+    if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
         let children = children();
         view! {

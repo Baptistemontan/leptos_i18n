@@ -1,6 +1,6 @@
 use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::context::{init_i18n_subcontext, I18nSubContextProvider};
+use leptos_i18n::context::init_i18n_subcontext;
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;
 
