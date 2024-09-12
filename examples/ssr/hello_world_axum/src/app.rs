@@ -2,6 +2,7 @@ use crate::i18n::*;
 use leptos::*;
 
 #[component]
+#[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
@@ -12,6 +13,8 @@ pub fn App() -> impl IntoView {
     }
 }
 
+#[component]
+#[allow(non_snake_case)]
 pub fn Home() -> impl IntoView {
     let i18n = use_i18n();
 

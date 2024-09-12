@@ -26,7 +26,6 @@ fixed_decimal = { version = "0.5", features = ["ryu"] }
 
 [features]
 default = ["json_files"]
-serde = []
 nightly = []
 suppress_key_warnings = []
 json_files = []

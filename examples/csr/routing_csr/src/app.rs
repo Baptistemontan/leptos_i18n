@@ -24,6 +24,7 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
+#[allow(non_snake_case)]
 pub fn SwitchLang() -> impl IntoView {
     let i18n = use_i18n();
 

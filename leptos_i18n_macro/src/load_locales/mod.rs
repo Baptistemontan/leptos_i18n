@@ -254,14 +254,8 @@ fn create_locales_enum(
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
 
-    let derives = if cfg!(feature = "serde") {
-        quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)])
-    } else {
-        quote!(#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)])
-    };
-
     quote! {
-        #derives
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, l_i18n_crate::reexports::serde::Serialize, l_i18n_crate::reexports::serde::Deserialize)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
             #(#locales,)*

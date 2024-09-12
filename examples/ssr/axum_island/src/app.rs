@@ -2,6 +2,7 @@ use crate::i18n::*;
 use leptos::*;
 
 #[component]
+#[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     view! {
         <I18nContextProvider>
@@ -15,6 +16,7 @@ pub fn App() -> impl IntoView {
 }
 
 #[island]
+#[allow(non_snake_case)]
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 
@@ -38,6 +40,7 @@ fn Counter() -> impl IntoView {
 }
 
 #[island]
+#[allow(non_snake_case)]
 fn ChangeLang() -> impl IntoView {
     let i18n = use_i18n();
 

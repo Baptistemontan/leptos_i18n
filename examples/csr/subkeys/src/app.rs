@@ -2,6 +2,7 @@ use crate::i18n::*;
 use leptos::*;
 
 #[component]
+#[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
@@ -14,6 +15,7 @@ pub fn App() -> impl IntoView {
 }
 
 #[component]
+#[allow(non_snake_case)]
 pub fn SwitchLang() -> impl IntoView {
     let i18n = use_i18n();
 
@@ -31,6 +33,7 @@ pub fn SwitchLang() -> impl IntoView {
 }
 
 #[component]
+#[allow(non_snake_case)]
 fn Subkeys() -> impl IntoView {
     let i18n = use_i18n_scoped!(subkeys);
 

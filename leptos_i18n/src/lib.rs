@@ -141,6 +141,7 @@ pub mod __private {
 pub mod reexports {
     pub use fixed_decimal;
     pub use icu;
+    pub use serde;
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.
