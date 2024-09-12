@@ -236,7 +236,7 @@ macro_rules! ti {
 /// ```rust, ignore
 /// use crate::i18n::*;
 ///
-/// leptos_i18n::make_i18n_island(HelloWold, hello_world);
+/// leptos_i18n::make_i18n_island(HelloWorld, hello_world);
 ///
 /// #[component]
 /// fn App() -> impl IntoView {
