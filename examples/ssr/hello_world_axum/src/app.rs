@@ -5,8 +5,14 @@ use leptos::*;
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
-    provide_i18n_context();
+    view! {
+        <I18nContextProvider>
+            <Home />
+        </I18nContextProvider>
+    }
+}
 
+pub fn Home() -> impl IntoView {
     let i18n = use_i18n();
 
     let (counter, set_counter) = create_signal(0);

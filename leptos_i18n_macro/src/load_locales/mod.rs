@@ -126,9 +126,11 @@ fn load_locales_inner(
                 l_i18n_crate::use_i18n_context()
             }
 
-            #[inline]
+            #[deprecated(
+                note = "It is now preferred to use the <I18nContextProvider> component"
+            )]
             pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<#enum_ident> {
-                l_i18n_crate::provide_i18n_context()
+                l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None)
             }
 
             mod provider {
@@ -136,9 +138,24 @@ fn load_locales_inner(
 
                 #[leptos::#island_or_component]
                 #[allow(non_snake_case)]
-                pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
-                    super::provide_i18n_context();
-                    children()
+                pub fn I18nContextProvider(
+                    #[prop(default = false)]
+                    set_lang_attr_on_html: bool,
+                    #[prop(optional)]
+                    enable_cookie: Option<bool>,
+                    #[prop(optional)]
+                    cookie_name: Option<&'static str>,
+                    #[prop(optional)]
+                    cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
+                    children: leptos::Children
+                ) -> impl leptos::IntoView {
+                    l_i18n_crate::context::provide_i18n_context_component_inner(
+                        set_lang_attr_on_html,
+                        enable_cookie,
+                        cookie_name,
+                        cookie_options,
+                        children
+                    )
                 }
             }
 

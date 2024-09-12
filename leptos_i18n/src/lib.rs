@@ -113,7 +113,10 @@ pub use macro_helpers::formatting;
 
 pub use locale_traits::{Locale, LocaleKeys};
 
-pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
+pub use context::{use_i18n_context, I18nContext};
+
+#[allow(deprecated)]
+pub use context::provide_i18n_context;
 
 pub use leptos_i18n_macro::{
     load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,

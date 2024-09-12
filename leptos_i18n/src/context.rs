@@ -4,7 +4,6 @@ use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
 use leptos::*;
 use leptos_dom::Directive;
-use leptos_meta::*;
 use leptos_use::UseCookieOptions;
 
 use crate::{
@@ -87,15 +86,6 @@ impl<L: Locale, S: Scope<L>> Directive<HtmlElement<html::AnyElement>, ()> for I1
     }
 }
 
-fn set_html_lang_attr(lang: impl Into<TextProp>) {
-    Html(HtmlProps {
-        lang: Some(lang.into()),
-        dir: None,
-        class: None,
-        attributes: vec![],
-    });
-}
-
 /// Cookies options for functions initializing or providing a `I18nContext`
 pub type CookieOptions<L> = UseCookieOptions<
     L,
@@ -108,7 +98,6 @@ const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
 fn init_context_inner<L: Locale>(
-    set_lang_attr_on_html: bool,
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
 ) -> I18nContext<L> {
@@ -117,10 +106,6 @@ fn init_context_inner<L: Locale>(
     create_isomorphic_effect(move |_| {
         locale_signal.set(initial_locale.get());
     });
-
-    if set_lang_attr_on_html {
-        set_html_lang_attr(move || locale_signal.get().as_str());
-    }
 
     create_isomorphic_effect(move |_| {
         let new_lang = locale_signal.get();
@@ -138,7 +123,6 @@ fn init_context_inner<L: Locale>(
 /// *********************************************
 
 fn init_context_with_options<L: Locale>(
-    set_lang_attr_on_html: bool,
     enable_cookie: bool,
     cookie_name: &str,
     cookie_options: CookieOptions<L>,
@@ -152,12 +136,11 @@ fn init_context_with_options<L: Locale>(
 
     let initial_locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
 
-    init_context_inner::<L>(set_lang_attr_on_html, set_lang_cookie, initial_locale)
+    init_context_inner::<L>(set_lang_cookie, initial_locale)
 }
 
 /// Same as `init_i18n_context` but with some cookies options.
 pub fn init_i18n_context_with_options<L: Locale>(
-    set_lang_attr_on_html: bool,
     enable_cookie: Option<bool>,
     cookie_name: Option<&str>,
     cookie_options: Option<CookieOptions<L>>,
@@ -165,7 +148,6 @@ pub fn init_i18n_context_with_options<L: Locale>(
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
     let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
     init_context_with_options(
-        set_lang_attr_on_html,
         enable_cookie,
         cookie_name,
         cookie_options.unwrap_or_default(),
@@ -174,7 +156,7 @@ pub fn init_i18n_context_with_options<L: Locale>(
 
 /// Initialize a `I18nContext` without providing it.
 pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
-    init_i18n_context_with_options(true, None, None, None)
+    init_i18n_context_with_options(None, None, None)
 }
 
 /// Initialize and provide a `I18nContext`.
@@ -184,6 +166,9 @@ pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
 /// It returns the newly created context.
 ///
 /// If called when a context is already present it will not overwrite it and just return the current context.
+#[deprecated(
+    note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
+)]
 pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().unwrap_or_else(|| {
         let ctx = init_i18n_context();
@@ -192,23 +177,29 @@ pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
     })
 }
 
-/// Same as `provide_i18n_context`  but with some cookies options.
-pub fn provide_i18n_context_with_options<L: Locale>(
-    set_lang_attr_on_html: bool,
+#[doc(hidden)]
+pub fn provide_i18n_context_with_options_inner<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<&str>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
     use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_options(
-            set_lang_attr_on_html,
-            enable_cookie,
-            cookie_name,
-            cookie_options,
-        );
+        let ctx = init_i18n_context_with_options(enable_cookie, cookie_name, cookie_options);
         provide_context(ctx);
         ctx
     })
+}
+
+/// Same as `provide_i18n_context`  but with some cookies options.
+#[deprecated(
+    note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
+)]
+pub fn provide_i18n_context_with_options<L: Locale>(
+    enable_cookie: Option<bool>,
+    cookie_name: Option<&str>,
+    cookie_options: Option<CookieOptions<L>>,
+) -> I18nContext<L> {
+    provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options)
 }
 
 /// *********************************************
@@ -216,7 +207,6 @@ pub fn provide_i18n_context_with_options<L: Locale>(
 /// *********************************************
 
 fn init_subcontext_with_options<L: Locale>(
-    set_lang_attr_on_html: bool,
     initial_locale: Signal<Option<L>>,
     cookie_name: Option<&str>,
     cookie_options: CookieOptions<L>,
@@ -250,11 +240,7 @@ fn init_subcontext_with_options<L: Locale>(
         }
     });
 
-    init_context_inner::<L>(
-        set_lang_attr_on_html,
-        set_lang_cookie,
-        initial_locale_listener,
-    )
+    init_context_inner::<L>(set_lang_cookie, initial_locale_listener)
 }
 
 fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) -> Signal<Option<L>> {
@@ -274,7 +260,6 @@ fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) ->
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 pub fn init_i18n_subcontext_with_options<L: Locale>(
-    set_lang_attr_on_html: bool,
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<&str>,
     cookie_options: Option<CookieOptions<L>>,
@@ -282,7 +267,6 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
     let initial_locale = derive_initial_locale_signal(initial_locale);
 
     init_subcontext_with_options::<L>(
-        set_lang_attr_on_html,
         initial_locale,
         cookie_name,
         cookie_options.unwrap_or_default(),
@@ -298,7 +282,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
-    init_i18n_subcontext_with_options(false, initial_locale, None, None)
+    init_i18n_subcontext_with_options(initial_locale, None, None)
 }
 
 /// This function should not be used, it is only there to serves as documentation point.
@@ -306,13 +290,18 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 ///
 /// # Warning: Shadowing correctly
 ///
-/// There is a section on `leptos::provide_context` about shadowing, it is easy to screw it up.
+/// There is a section on [`leptos::provide_context`] about shadowing, it is easy to screw it up.
 /// This is why you should be careful about using this function.
 ///
-/// The recommended way is to use the `I18nSubContextProvider`.
+/// The recommended way is to use the [`I18nSubContextProvider`].
 ///
-/// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with `Provider` or `provide_context`.
-#[deprecated = "see function documentation"]
+/// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with [`leptos::Provider`] or [`leptos::provide_context`]:
+///
+/// ```rust, ignore
+/// let i18n = init_i18n_subcontext();
+/// leptos::provide_context(i18n);
+/// ```
+#[deprecated(note = "see function documentation")]
 pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     let ctx = init_i18n_subcontext(initial_locale);
     provide_context(ctx);
@@ -324,9 +313,6 @@ pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> 
 #[allow(non_snake_case)]
 pub fn I18nSubContextProvider<L: Locale>(
     children: Children,
-    /// Should the "lang" hmtl attribute be set on the root <html> element
-    #[prop(default = false)]
-    set_lang_attr_on_html: bool,
     /// The initial locale for this subcontext.
     /// Default to the locale set in the cookie if set and some,
     /// if not use the parent context locale.
@@ -340,12 +326,7 @@ pub fn I18nSubContextProvider<L: Locale>(
     #[prop(optional)]
     cookie_options: Option<CookieOptions<L>>,
 ) -> impl IntoView {
-    let ctx = init_i18n_subcontext_with_options::<L>(
-        set_lang_attr_on_html,
-        initial_locale,
-        cookie_name,
-        cookie_options,
-    );
+    let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
     leptos::run_as_child(move || {
         provide_context(ctx);
         children()
@@ -360,6 +341,28 @@ pub fn I18nSubContextProvider<L: Locale>(
 #[inline]
 pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
+}
+
+#[doc(hidden)]
+pub fn provide_i18n_context_component_inner<L: Locale>(
+    set_lang_attr_on_html: bool,
+    enable_cookie: Option<bool>,
+    cookie_name: Option<&str>,
+    cookie_options: Option<CookieOptions<L>>,
+    children: Children,
+) -> impl IntoView {
+    use leptos_meta::Html;
+    let i18n = provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options);
+    if set_lang_attr_on_html {
+        let lang = move || i18n.get_locale().as_str();
+        let children = children();
+        view! {
+            <Html lang />
+            {children}
+        }
+    } else {
+        children()
+    }
 }
 
 // get locale

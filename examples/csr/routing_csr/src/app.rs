@@ -5,7 +5,27 @@ use leptos_router::*;
 #[component]
 #[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
-    let i18n = provide_i18n_context();
+    leptos_meta::provide_meta_context();
+
+    view! {
+        <I18nContextProvider>
+            <Router>
+                <Routes>
+                    <I18nRoute view=Outlet >
+                        <Route path="/" view=Home />
+                        <Route path="/counter" view=Counter />
+                    </I18nRoute>
+                </Routes>
+                <br/>
+                <SwitchLang />
+            </Router>
+        </I18nContextProvider>
+    }
+}
+
+#[component]
+pub fn SwitchLang() -> impl IntoView {
+    let i18n = use_i18n();
 
     let on_switch = move |_| {
         let new_lang = match i18n.get_locale() {
@@ -16,16 +36,7 @@ pub fn App() -> impl IntoView {
     };
 
     view! {
-        <Router>
-            <Routes>
-                <I18nRoute view=Outlet >
-                    <Route path="/" view=Home />
-                    <Route path="/counter" view=Counter />
-                </I18nRoute>
-            </Routes>
-            <br/>
-            <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
-        </Router>
+        <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
     }
 }
 

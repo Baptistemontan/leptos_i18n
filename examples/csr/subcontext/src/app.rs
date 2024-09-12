@@ -1,6 +1,6 @@
 use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::context::{I18nSubContextProvider, init_i18n_subcontext};
+use leptos_i18n::context::{init_i18n_subcontext, I18nSubContextProvider};
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;
 
@@ -9,13 +9,13 @@ use leptos_i18n::Locale as _;
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
-    provide_i18n_context();
-
     view! {
-        <Main />
-        <Opposite />
-        <Cookie />
-        <LangAttr />
+        <I18nContextProvider>
+            <Main />
+            <Opposite />
+            <Cookie />
+            <LangAttr />
+        </I18nContextProvider>
     }
 }
 
