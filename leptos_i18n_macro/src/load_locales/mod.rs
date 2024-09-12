@@ -102,11 +102,53 @@ fn load_locales_inner(
         ]);
     }
 
-    let island_or_component = if cfg!(feature = "experimental-islands") {
+    let provider = if cfg!(feature = "experimental-islands") {
         macros_reexport.push(quote!(ti));
-        quote!(island)
+        quote! {
+            #[leptos::island]
+            #[allow(non_snake_case)]
+            pub fn I18nContextProvider(
+                #[prop(optional)]
+                set_lang_attr_on_html: bool,
+                #[prop(optional)]
+                enable_cookie: Option<bool>,
+                #[prop(optional)]
+                cookie_name: Option<&'static str>,
+                children: leptos::Children
+            ) -> impl leptos::IntoView {
+                l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
+                    set_lang_attr_on_html,
+                    enable_cookie,
+                    cookie_name,
+                    None,
+                    children
+                )
+            }
+        }
     } else {
-        quote!(component)
+        quote! {
+            #[leptos::component]
+            #[allow(non_snake_case)]
+            pub fn I18nContextProvider(
+                #[prop(optional)]
+                set_lang_attr_on_html: bool,
+                #[prop(optional)]
+                enable_cookie: Option<bool>,
+                #[prop(optional)]
+                cookie_name: Option<&'static str>,
+                #[prop(optional)]
+                cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
+                children: leptos::Children
+            ) -> impl leptos::IntoView {
+                l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
+                    set_lang_attr_on_html,
+                    enable_cookie,
+                    cookie_name,
+                    cookie_options,
+                    children
+                )
+            }
+        }
     };
 
     let macros_reexport = quote!(pub use #crate_path::{#(#macros_reexport,)*};);
@@ -136,27 +178,7 @@ fn load_locales_inner(
             mod provider {
                 use super::{l_i18n_crate, #enum_ident};
 
-                #[leptos::#island_or_component]
-                #[allow(non_snake_case)]
-                pub fn I18nContextProvider(
-                    #[prop(default = false)]
-                    set_lang_attr_on_html: bool,
-                    #[prop(optional)]
-                    enable_cookie: Option<bool>,
-                    #[prop(optional)]
-                    cookie_name: Option<&'static str>,
-                    #[prop(optional)]
-                    cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
-                    children: leptos::Children
-                ) -> impl leptos::IntoView {
-                    l_i18n_crate::context::provide_i18n_context_component_inner(
-                        set_lang_attr_on_html,
-                        enable_cookie,
-                        cookie_name,
-                        cookie_options,
-                        children
-                    )
-                }
+                #provider
             }
 
             mod routing {
