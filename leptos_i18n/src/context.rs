@@ -5,6 +5,7 @@ use core::marker::PhantomData;
 use leptos::*;
 use leptos_dom::Directive;
 use leptos_use::UseCookieOptions;
+use std::borrow::Cow;
 
 use crate::{
     fetch_locale::{self, signal_maybe_once_then},
@@ -124,11 +125,11 @@ fn init_context_inner<L: Locale>(
 
 fn init_context_with_options<L: Locale>(
     enable_cookie: bool,
-    cookie_name: &str,
+    cookie_name: Cow<str>,
     cookie_options: CookieOptions<L>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
-        leptos_use::use_cookie_with_options::<L, FromToStringCodec>(cookie_name, cookie_options)
+        leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
     } else {
         let (lang_cookie, set_lang_cookie) = create_signal::<Option<L>>(None);
         (lang_cookie.into(), set_lang_cookie)
@@ -142,11 +143,11 @@ fn init_context_with_options<L: Locale>(
 /// Same as `init_i18n_context` but with some cookies options.
 pub fn init_i18n_context_with_options<L: Locale>(
     enable_cookie: Option<bool>,
-    cookie_name: Option<&str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
-    let cookie_name = cookie_name.unwrap_or(COOKIE_PREFERED_LANG);
+    let cookie_name = cookie_name.unwrap_or(Cow::Borrowed(COOKIE_PREFERED_LANG));
     init_context_with_options(
         enable_cookie,
         cookie_name,
@@ -180,7 +181,7 @@ pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
 #[doc(hidden)]
 pub fn provide_i18n_context_with_options_inner<L: Locale>(
     enable_cookie: Option<bool>,
-    cookie_name: Option<&str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
     use_context().unwrap_or_else(move || {
@@ -196,7 +197,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
 )]
 pub fn provide_i18n_context_with_options<L: Locale>(
     enable_cookie: Option<bool>,
-    cookie_name: Option<&str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
     provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options)
@@ -208,13 +209,14 @@ pub fn provide_i18n_context_with_options<L: Locale>(
 
 fn init_subcontext_with_options<L: Locale>(
     initial_locale: Signal<Option<L>>,
-    cookie_name: Option<&str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: CookieOptions<L>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = match cookie_name {
-        Some(cookie_name) if ENABLE_COOKIE => {
-            leptos_use::use_cookie_with_options::<L, FromToStringCodec>(cookie_name, cookie_options)
-        }
+        Some(cookie_name) if ENABLE_COOKIE => leptos_use::use_cookie_with_options::<
+            L,
+            FromToStringCodec,
+        >(&cookie_name, cookie_options),
         _ => {
             let (lang_cookie, set_lang_cookie) = create_signal::<Option<L>>(None);
             (lang_cookie.into(), set_lang_cookie)
@@ -261,7 +263,7 @@ fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) ->
 /// - if no parent context, use the same resolution used by a main context.
 pub fn init_i18n_subcontext_with_options<L: Locale>(
     initial_locale: Option<Signal<L>>,
-    cookie_name: Option<&str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
     let initial_locale = derive_initial_locale_signal(initial_locale);
@@ -307,11 +309,12 @@ pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> 
     provide_context(ctx);
     ctx
 }
+
 #[doc(hidden)]
 pub fn i18n_sub_context_provider_inner<L: Locale>(
     children: Children,
     initial_locale: Option<Signal<L>>,
-    cookie_name: Option<&'static str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> impl IntoView {
     let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
@@ -335,7 +338,7 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
 pub fn provide_i18n_context_component_inner<L: Locale>(
     set_lang_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
-    cookie_name: Option<&str>,
+    cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
     children: Children,
 ) -> impl IntoView {

@@ -112,8 +112,8 @@ fn load_locales_inner(
                 set_lang_attr_on_html: Option<bool>,
                 #[prop(optional)]
                 enable_cookie: Option<bool>,
-                #[prop(optional)]
-                cookie_name: Option<&'static str>,
+                #[prop(optional, into)]
+                cookie_name: Option<std::borrow::Cow<'static, str>>,
                 children: l_i18n_crate::reexports::leptos::Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
@@ -138,7 +138,7 @@ fn load_locales_inner(
                 initial_locale: Option<#enum_ident>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 #[prop(optional)]
-                cookie_name: Option<&'static str>,
+                cookie_name: Option<std::borrow::Cow<'static, str>>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
                     children,
@@ -157,8 +157,8 @@ fn load_locales_inner(
                 set_lang_attr_on_html: Option<bool>,
                 #[prop(optional)]
                 enable_cookie: Option<bool>,
-                #[prop(optional)]
-                cookie_name: Option<&'static str>,
+                #[prop(optional, into)]
+                cookie_name: Option<std::borrow::Cow<'static, str>>,
                 #[prop(optional)]
                 cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
                 children: l_i18n_crate::reexports::leptos::Children
@@ -184,8 +184,8 @@ fn load_locales_inner(
                 #[prop(optional, into)]
                 initial_locale: Option<l_i18n_crate::reexports::leptos::Signal<#enum_ident>>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-                #[prop(optional)]
-                cookie_name: Option<&'static str>,
+                #[prop(optional, into)]
+                cookie_name: Option<std::borrow::Cow<'static, str>>,
                 #[prop(optional)]
                 cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
             ) -> impl IntoView {
@@ -276,6 +276,7 @@ fn load_locales_inner(
 
             pub use providers::{I18nContextProvider, I18nSubContextProvider};
             pub use routing::I18nRoute;
+            pub use l_i18n_crate::Locale as LocaleTrait;
 
             #macros_reexport
 
@@ -326,8 +327,6 @@ fn create_locales_enum(
         .collect::<Vec<_>>();
 
     quote! {
-        use l_i18n_crate::reexports::serde as serde;
-
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
