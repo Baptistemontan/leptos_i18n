@@ -6,8 +6,8 @@ The context is a wrapper around a `RwSignal` of the current locale, every getter
 
 ## Provide the context
 
-The `load_locales!` macro generates the `provide_i18n_context` function in the `i18n` module,
-you can use this function in a component to make the context accessible to all child components.
+The `load_locales!` macro generates the `I18nContextProvider` component in the `i18n` module,
+you can use this component to make the context accessible to all child components.
 
 ```rust
 use crate::i18n::*;
@@ -16,10 +16,10 @@ use leptos::*;
 // root of the application
 #[component]
 pub fn App() -> impl IntoView {
-    provide_i18n_context();
-
     view! {
-        /* */
+        <I18nContextProvider>
+            /* */
+        </I18nContextProvider>
     }
 }
 ```
@@ -107,75 +107,67 @@ If you enable the `nightly` feature you can directly call the context`i18n(new_l
 
 A non-reactive counterpart to `set_locale` exist: `set_locale_untracked`.
 
-## `"lang"` HTML attribute
-
-When creating a context, it listens to any changes to the locale and update the `<html>` element `"lang"` attribute according to the set locale.
-
 ## `cookie` feature
 
 When using the `cookie` feature the context will set a cookie whenever the locale changes,
 this cookie will be used to decide what locale to use on the page load in CSR,
 and on request to the server in SSR by looking at the request headers.
 
-## Note on island
-
-If you use the `experimental-islands` feature from Leptos this will not work and cause an error on the client:
-
-```rust
-#[component]
-fn App() -> impl IntoView {
-    provide_i18n_context();
-
-    view! {
-        <HomePage />
-    }
-}
-
-#[island]
-fn HomePage() -> impl IntoView {
-    let i18n = use_i18n();
-    view! {
-        <p>{t!(i18n, hello_world)}</p>
-    }
-}
-```
-
-Because `App` is only rendered on the server, and the code is never called on the client, thus the context is never provided on the client, making `use_i18n` panic when trying to access it.
-
-To fix it first enable the `experimental-islands` feature for `leptos_i18n` and use the `I18nContextProvider` component exported by the `i18n` module:
-
-```rust
-#[component]
-fn App() -> impl IntoView {
-    view! {
-        <I18nContextProvider>
-            <HomePage />
-        </I18nContextProvider>
-    }
-}
-```
-
 ## Context options
 
-You may want to customize the context behavior, such as how the cookie is set or what element should receive the `"lang"` attribute,
-for this you can use some helpers in the `leptos_i18n::context` module:
+The `I18nContextProvider` component accept multiple props, all optionnal (except children)
 
-`provide_i18n_context_with_options` takes options for the cookie, such as the name, if the cookie should be enabled (will always be `false` if the `cookie` feature is not enabled), and some options about how the cookie is set.
+- `children`: obviously
+- `set_lang_attr_on_html`: should or not set the "lang" attribute on the root `<html>` element (default to true)
+- `enable_cookie`: should set a cookie to keep track of the locale when page reload (default to true) (do nothing without the "cookie" feature)
+- `cookie_name`: give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
+- `cookie_options`: options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
 
-`provide_i18n_context_with_root` takes a `leptos::NodeRef` to an element to set the `"lang"` HTML attribute on.
+## Note on island
 
-`provide_i18n_context_with_options_and_root` is a combination of both the above.
-
-There are variants of those with `init_*` instead of `provide_*` that returns the context without providing it.
-
-`provide_*` functions are basically:
+If you use the `experimental-islands` feature from Leptos the `I18nContextProvider` loose one prop: `cookie_options`, because it is not serializable. If you need it you can use the `init_context_with_options` function and provide the context yourself:
 
 ```rust
-fn provide_*(..args) -> I18nContext<Locale> {
-    use_context().unwrap_or_else(move || {
-        let ctx = init_*(..args);
-        leptos::provide_context(ctx);
-        ctx
-    })
+use leptos_i18n::init_context_with_options;
+use crate::i18n::*;
+use leptos_meta::Html;
+use leptos::*;
+
+#[island]
+fn MyI18nProvider(
+    enable_cookie: bool,
+    cookie_name: &str,
+    children: Children
+) -> impl IntoView {
+    let my_cookie_options = /* create your options here */;
+    let i18n = init_context_with_options::<Locale>(enable_cookie, cookie_name, my_cookie_options);
+    provide_context(i18n);
+    let lang = move || i18n.get_locale().as_str();
+    view! {
+        <Html lang />
+        {children}
+    }
 }
 ```
+
+## "lang" html attribute
+
+You may want to add a "lang" attribute on a html element such that
+
+```html
+<div lang="fr"></div>
+```
+
+You could do it yourself by tracking the locale and setting the attribute yourself, but there is a simpler way:
+
+The `I18nContext` implement `Directive` from leptos to set the "lang" attribute, so you can just do
+
+```rust
+let i18n = use_i18n();
+
+view! {
+    <div use:i18n />
+}
+```
+
+And it will set the "lang" attribute for you on the `<div>` element !

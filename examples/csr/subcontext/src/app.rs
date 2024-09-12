@@ -1,6 +1,6 @@
 use crate::i18n::*;
 use leptos::*;
-use leptos_i18n::context::{I18nSubContextProvider, I18nSubContextProviderWithRoot};
+use leptos_i18n::context::init_i18n_subcontext;
 use leptos_i18n::I18nContext;
 use leptos_i18n::Locale as _;
 
@@ -9,14 +9,13 @@ use leptos_i18n::Locale as _;
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
-    provide_i18n_context();
-
     view! {
-        <Main />
-        <Opposite />
-        <Cookie />
-        <LangAttr />
-        <All />
+        <I18nContextProvider>
+            <Main />
+            <Opposite />
+            <Cookie />
+            <LangAttr />
+        </I18nContextProvider>
     }
 }
 
@@ -26,6 +25,7 @@ fn Opposite() -> impl IntoView {
     let i18n = use_i18n();
 
     let sub_context_locale = move || neg_locale(i18n.get_locale());
+
     view! {
         <h2>{t!(i18n, examples.opposite)}</h2>
         <I18nSubContextProvider
@@ -68,37 +68,13 @@ fn Main() -> impl IntoView {
 fn LangAttr() -> impl IntoView {
     let i18n = use_i18n();
 
-    let div_ref = create_node_ref();
-
+    let i18n_sub = init_i18n_subcontext::<Locale>(None);
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot<Locale, _> root_element=div_ref>
+        <div use:i18n_sub >
+            <Provider value=i18n_sub>
                 <Counter />
-            </I18nSubContextProviderWithRoot<Locale, _>>
-        </div>
-    }
-}
-
-#[component]
-#[allow(non_snake_case)]
-fn All() -> impl IntoView {
-    let i18n = use_i18n();
-
-    let div_ref = create_node_ref();
-
-    let sub_context_locale = move || neg_locale(i18n.get_locale());
-
-    view! {
-        <h2>{t!(i18n, examples.lang_attr)}</h2>
-        <div _ref=div_ref >
-            <I18nSubContextProviderWithRoot
-                root_element=div_ref
-                initial_locale=sub_context_locale
-                cookie_name="all_example_locale"
-            >
-                <Counter />
-            </I18nSubContextProviderWithRoot>
+            </Provider>
         </div>
     }
 }

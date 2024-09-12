@@ -600,7 +600,7 @@ impl Ranges {
         };
 
         quote! {
-            leptos::IntoView::into_view(
+            l_i18n_crate::reexports::leptos::IntoView::into_view(
                 {
                     #captured_values
                     move || #match_statement
@@ -681,7 +681,7 @@ impl Ranges {
         });
 
         quote! {
-            leptos::IntoView::into_view(
+            l_i18n_crate::reexports::leptos::IntoView::into_view(
                 {
                     #captured_values
                     move || {
