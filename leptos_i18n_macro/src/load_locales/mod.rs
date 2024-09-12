@@ -137,7 +137,7 @@ fn load_locales_inner(
                 #[prop(optional)]
                 initial_locale: Option<#enum_ident>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-                #[prop(optional)]
+                #[prop(optional, into)]
                 cookie_name: Option<std::borrow::Cow<'static, str>>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
