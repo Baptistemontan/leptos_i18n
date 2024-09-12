@@ -134,15 +134,15 @@ fn load_locales_inner(
                 /// Default to the locale set in the cookie if set and some,
                 /// if not use the parent context locale.
                 /// if no parent context, use the default locale.
-                #[prop(optional, into)]
-                initial_locale: Option<l_i18n_crate::reexports::leptos::Signal<#enum_ident>>,
+                #[prop(optional)]
+                initial_locale: Option<#enum_ident>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 #[prop(optional)]
                 cookie_name: Option<&'static str>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
                     children,
-                    initial_locale,
+                    initial_locale.map(|l| l_i18n_crate::reexports::leptos::Signal::derive(move || l)),
                     cookie_name,
                     None
                 )
