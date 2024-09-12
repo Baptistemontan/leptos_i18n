@@ -22,6 +22,7 @@ typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
+wasm-bindgen = "0.2.93"
 
 [features]
 default = ["cookie", "json_files"]

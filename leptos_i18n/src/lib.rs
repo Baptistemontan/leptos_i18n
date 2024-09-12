@@ -131,6 +131,7 @@ pub mod __private {
     pub use crate::routing::i18n_routing;
     pub use crate::static_lock::*;
     pub use icu::locid;
+    // pub use intern;
     pub use leptos;
     pub use leptos_i18n_macro::declare_locales;
     pub use leptos_router;
@@ -142,6 +143,7 @@ pub mod reexports {
     pub use fixed_decimal;
     pub use icu;
     pub use serde;
+    pub use wasm_bindgen;
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.

@@ -291,9 +291,10 @@ fn create_locales_enum(
             type Keys = #keys_ident;
 
             fn as_str(self) -> &'static str {
-                match self {
+                let s = match self {
                     #(#as_str_match_arms,)*
-                }
+                };
+                l_i18n_crate::reexports::wasm_bindgen::intern(s)
             }
 
             fn as_icu_locale(self) -> &'static l_i18n_crate::__private::locid::Locale {
