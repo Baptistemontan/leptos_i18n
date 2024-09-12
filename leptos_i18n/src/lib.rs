@@ -131,7 +131,6 @@ pub mod __private {
     pub use crate::routing::i18n_routing;
     pub use crate::static_lock::*;
     pub use icu::locid;
-    // pub use intern;
     pub use leptos;
     pub use leptos_i18n_macro::declare_locales;
     pub use leptos_router;

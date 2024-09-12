@@ -138,3 +138,12 @@ impl<'de, L: Locale> serde::de::Visitor<'de> for LocaleVisitor<L> {
         Self::visit_str(self, &v)
     }
 }
+
+#[doc(hidden)]
+pub fn intern(s: &str) -> &str {
+    if cfg!(any(feature = "csr", feature = "hydrate")) {
+        wasm_bindgen::intern(s)
+    } else {
+        s
+    }
+}
