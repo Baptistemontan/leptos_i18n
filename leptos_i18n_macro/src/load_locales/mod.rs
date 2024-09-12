@@ -276,7 +276,7 @@ fn load_locales_inner(
 
             pub use providers::{I18nContextProvider, I18nSubContextProvider};
             pub use routing::I18nRoute;
-            pub use l_i18n_crate::Locale as LocaleTrait;
+            pub use l_i18n_crate::Locale as I18nLocaleTrait;
 
             #macros_reexport
 
