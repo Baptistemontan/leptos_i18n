@@ -36,36 +36,42 @@ impl<L: Locale, S: Scope<L>> Copy for I18nContext<L, S> {}
 impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale subscribing to any changes.
     #[inline]
+    #[track_caller]
     pub fn get_locale(self) -> L {
         self.locale_signal.get()
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
+    #[track_caller]
     pub fn get_locale_untracked(self) -> L {
         self.locale_signal.get_untracked()
     }
 
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
+    #[track_caller]
     pub fn get_keys(self) -> &'static S::Keys {
         LocaleKeys::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
+    #[track_caller]
     pub fn get_keys_untracked(self) -> &'static S::Keys {
         LocaleKeys::from_locale(self.get_locale_untracked())
     }
 
     /// Set the locale and notify all subscribers
     #[inline]
+    #[track_caller]
     pub fn set_locale(self, lang: L) {
         self.locale_signal.set(lang)
     }
 
     /// Set the locale but does not notify the subscribers
     #[inline]
+    #[track_caller]
     pub fn set_locale_untracked(self, lang: L) {
         self.locale_signal.set_untracked(lang)
     }
@@ -98,6 +104,7 @@ const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
+#[track_caller]
 fn init_context_inner<L: Locale>(
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
@@ -123,6 +130,7 @@ fn init_context_inner<L: Locale>(
 /// * CONTEXT
 /// *********************************************
 
+#[track_caller]
 fn init_context_with_options<L: Locale>(
     enable_cookie: bool,
     cookie_name: Cow<str>,
@@ -141,6 +149,7 @@ fn init_context_with_options<L: Locale>(
 }
 
 /// Same as `init_i18n_context` but with some cookies options.
+#[track_caller]
 pub fn init_i18n_context_with_options<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
@@ -156,6 +165,7 @@ pub fn init_i18n_context_with_options<L: Locale>(
 }
 
 /// Initialize a `I18nContext` without providing it.
+#[track_caller]
 pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
     init_i18n_context_with_options(None, None, None)
 }
@@ -170,6 +180,7 @@ pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
 #[deprecated(
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
+#[track_caller]
 pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().unwrap_or_else(|| {
         let ctx = init_i18n_context();
@@ -179,6 +190,7 @@ pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
 }
 
 #[doc(hidden)]
+#[track_caller]
 pub fn provide_i18n_context_with_options_inner<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
@@ -195,6 +207,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
 #[deprecated(
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
+#[track_caller]
 pub fn provide_i18n_context_with_options<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
@@ -207,6 +220,7 @@ pub fn provide_i18n_context_with_options<L: Locale>(
 /// * SUB CONTEXT
 /// *********************************************
 
+#[track_caller]
 fn init_subcontext_with_options<L: Locale>(
     initial_locale: Signal<Option<L>>,
     cookie_name: Option<Cow<str>>,
@@ -245,6 +259,7 @@ fn init_subcontext_with_options<L: Locale>(
     init_context_inner::<L>(set_lang_cookie, initial_locale_listener)
 }
 
+#[track_caller]
 fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) -> Signal<Option<L>> {
     initial_locale
         .map(|s| Signal::derive(move || Some(s.get())))
@@ -261,6 +276,7 @@ fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) ->
 /// - `initial_locale` if set
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
+#[track_caller]
 pub fn init_i18n_subcontext_with_options<L: Locale>(
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
@@ -283,6 +299,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 /// - `initial_locale` if set
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
+#[track_caller]
 pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     init_i18n_subcontext_with_options(initial_locale, None, None)
 }
@@ -304,6 +321,7 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 /// leptos::provide_context(i18n);
 /// ```
 #[deprecated(note = "see function documentation")]
+#[track_caller]
 pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     let ctx = init_i18n_subcontext(initial_locale);
     provide_context(ctx);
@@ -311,6 +329,7 @@ pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> 
 }
 
 #[doc(hidden)]
+#[track_caller]
 pub fn i18n_sub_context_provider_inner<L: Locale>(
     children: Children,
     initial_locale: Option<Signal<L>>,
@@ -330,11 +349,13 @@ pub fn i18n_sub_context_provider_inner<L: Locale>(
 ///
 /// Panics if the context is missing.
 #[inline]
+#[track_caller]
 pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
 }
 
 #[doc(hidden)]
+#[track_caller]
 pub fn provide_i18n_context_component_inner<L: Locale>(
     set_lang_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
@@ -361,6 +382,7 @@ pub fn provide_i18n_context_component_inner<L: Locale>(
 impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
     type Output = L;
     #[inline]
+    #[track_caller]
     extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
         self.get_locale()
     }
@@ -369,6 +391,7 @@ impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
     #[inline]
+    #[track_caller]
     extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
         self.get_locale()
     }
@@ -377,6 +400,7 @@ impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
     #[inline]
+    #[track_caller]
     extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
         self.get_locale()
     }
@@ -387,6 +411,7 @@ impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
 impl<L: Locale, S: Scope<L>> FnOnce<(L,)> for I18nContext<L, S> {
     type Output = ();
     #[inline]
+    #[track_caller]
     extern "rust-call" fn call_once(self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
@@ -395,6 +420,7 @@ impl<L: Locale, S: Scope<L>> FnOnce<(L,)> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> FnMut<(L,)> for I18nContext<L, S> {
     #[inline]
+    #[track_caller]
     extern "rust-call" fn call_mut(&mut self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
@@ -403,6 +429,7 @@ impl<L: Locale, S: Scope<L>> FnMut<(L,)> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> Fn<(L,)> for I18nContext<L, S> {
     #[inline]
+    #[track_caller]
     extern "rust-call" fn call(&self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }

@@ -212,6 +212,7 @@ fn load_locales_inner(
             #locale_type
 
             #[inline]
+            #[track_caller]
             pub fn use_i18n() -> l_i18n_crate::I18nContext<#enum_ident> {
                 l_i18n_crate::use_i18n_context()
             }
@@ -219,6 +220,7 @@ fn load_locales_inner(
             #[deprecated(
                 note = "It is now preferred to use the <I18nContextProvider> component"
             )]
+            #[track_caller]
             pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<#enum_ident> {
                 l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None)
             }
