@@ -389,10 +389,13 @@ impl Locale {
             if let Some(value) = self.keys.get_mut(key) {
                 value.merge(keys, default_locale, Rc::clone(&self.name), key_path)?;
             } else {
-                emit_warning(Warning::MissingKey {
-                    locale: top_locale.clone(),
-                    key_path: key_path.clone(),
-                });
+                emit_warning(
+                    Warning::MissingKey {
+                        locale: top_locale.clone(),
+                        key_path: key_path.clone(),
+                    },
+                    None,
+                );
             }
             key_path.pop_key();
         }
@@ -401,10 +404,13 @@ impl Locale {
         for key in self.keys.keys() {
             if !keys.0.contains_key(key) {
                 key_path.push_key(Rc::clone(key));
-                emit_warning(Warning::SurplusKey {
-                    locale: top_locale.clone(),
-                    key_path: key_path.clone(),
-                });
+                emit_warning(
+                    Warning::SurplusKey {
+                        locale: top_locale.clone(),
+                        key_path: key_path.clone(),
+                    },
+                    None,
+                );
             }
         }
 

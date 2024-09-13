@@ -34,8 +34,6 @@ impl ConfigFile {
     pub fn new(manifest_dir_path: &mut PathBuf) -> Result<ConfigFile> {
         manifest_dir_path.push("Cargo.toml");
 
-        #[allow(clippy::needless_borrows_for_generic_args)]
-        // see https://github.com/rust-lang/rust-clippy/issues/12856
         let cfg_file_str =
             std::fs::read_to_string(&manifest_dir_path).map_err(Error::ManifestNotFound)?;
 
