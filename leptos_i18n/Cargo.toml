@@ -15,8 +15,11 @@ leptos_i18n_macro = { workspace = true }
 leptos = "0.6.14"
 leptos_meta = "0.6.14"
 leptos_router = "0.6.14"
-leptos-use = "0.12"
-codee = "0.1"
+leptos-use = { version = "0.13", default-features = false, features = [
+    "use_locales",
+    "use_cookie",
+] }
+codee = "0.2"
 icu = { version = "1.5", features = ["sync"] }
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
