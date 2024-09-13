@@ -1,6 +1,7 @@
-This document contain what the `load_locales!` macro should expand to based on the given locales files, the only relevant feature flag enabled is `serde`, the relevant _not_ enabled feature flags are `suppress_key_warnings` and `nightly`.
+This document contain a cleaned up version of the expanded `load_locales!` macro.
 
-None of the comments are part of the outputed code, they are here to explain the choices made that lead to this code.
+_note_: this document is purely for curiosity, don't expect it to be kept in sync with every changes, it may be out of date or even never updated.
+This macro is where most of the changes are made, either new features or improvement, keeping it in sync every time is time consumming, so for now I try to at least update it for new major releases.
 
 `Cargo.toml`:
 
@@ -15,13 +16,15 @@ locales = ["en", "fr"]
 ```json
 {
   "hello_world": "Hello World!",
-  "plural": [
+  "range": [
     "u32",
     ["Zero", 0],
     ["One", 1],
     ["2..=5", "2..=5"],
     ["{{ count }}"]
   ],
+  "plural_one": "one item",
+  "plural_other": "{{ count }} items",
   "some_subkeys": {
     "subkey_1": "This is subkey 1"
   },
@@ -34,7 +37,9 @@ locales = ["en", "fr"]
 ```json
 {
   "hello_world": "Bonjour le monde!",
-  "plural": "<b>interpolate</b>",
+  "range": "<b>interpolate</b>",
+  "plural_one": "un truc",
+  "plural_other": "{{ count }} trucs",
   "some_subkeys": {
     "subkey_1": "Sous clé numéro 1"
   }
@@ -44,13 +49,18 @@ locales = ["en", "fr"]
 Expected expanded code of the `load_locales!` macro :
 
 ```rust
-// originally directly outputed the code, now output all code in it's own module. Changed that in `v0.2` beta
 pub mod i18n {
-    #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    // the reason this exist is to easily swap the crate path,
+    // there is an internal macro to declare translations without the need for configuration/translation files,
+    // and if we want to use it inside the crate the path `leptos_i18n` is not present at root, so it must be swapped with `crate`.
+    // Maybe one day I'll add a parameter to `load_locales` to give a custom path for the crate, or/and make the internal macro public.
+    use leptos_i18n as l_i18n_crate;
+
+    #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
     #[allow(non_camel_case_types)]
     pub enum Locale {
         en,
-        fr
+        fr,
     }
 
     impl Default for Locale {
@@ -59,21 +69,96 @@ pub mod i18n {
         }
     }
 
-    impl leptos_i18n::Locale for Locale {
+    impl l_i18n_crate::reexports::serde::Serialize for Locale {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: l_i18n_crate::reexports::serde::Serializer,
+        {
+            l_i18n_crate::reexports::serde::Serialize::serialize(
+                l_i18n_crate::Locale::as_str(*self),
+                serializer,
+            )
+        }
+    }
+
+    impl<'de> l_i18n_crate::reexports::serde::Deserialize<'de> for Locale {
+        fn deserialize<D>(deserializer: D) -> Result<Locale, D::Error>
+        where
+            D: l_i18n_crate::reexports::serde::de::Deserializer<'de>,
+        {
+            l_i18n_crate::reexports::serde::de::Deserializer::deserialize_str(
+                deserializer,
+                l_i18n_crate::__private::LocaleVisitor::<Locale>::new(),
+            )
+        }
+    }
+
+    impl l_i18n_crate::Locale for Locale {
+
         type Keys = I18nKeys;
 
         fn as_str(self) -> &'static str {
-            match self {
+            let s = match self {
                 Locale::en => "en",
                 Locale::fr => "fr",
+            };
+            l_i18n_crate::__private::intern(s)
+        }
+
+        fn as_icu_locale(self) -> &'static l_i18n_crate::__private::locid::Locale {
+            const EN_LANGID: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!("en");
+            const FR_LANGID: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!("fr");
+            match self {
+                Locale::en => EN_LANGID,
+                Locale::fr => FR_LANGID,
             }
         }
-        fn from_str(s: &str) -> Option<Self> {
-            match s {
-                "en" => Some(Locale::en),
-                "fr" => Some(Locale::fr),
-                _ => None
+
+        fn get_all() -> &'static [Self] {
+            &[Locale::en, Locale::fr]
+        }
+
+        fn to_base_locale(self) -> Self {
+            self
+        }
+
+        fn from_base_locale(locale: Self) -> Self {
+            locale
+        }
+    }
+
+    impl core::str::FromStr for Locale {
+        type Err = ();
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.trim() {
+                "en" => Ok(Locale::en),
+                "fr" => Ok(Locale::fr),
+                _ => Err(()),
             }
+        }
+    }
+
+    impl core::convert::AsRef<l_i18n_crate::__private::locid::LanguageIdentifier> for Locale {
+        fn as_ref(&self) -> &l_i18n_crate::__private::locid::LanguageIdentifier {
+            l_i18n_crate::Locale::as_langid(*self)
+        }
+    }
+
+    impl core::convert::AsRef<l_i18n_crate::__private::locid::Locale> for Locale {
+        fn as_ref(&self) -> &l_i18n_crate::__private::locid::Locale {
+            l_i18n_crate::Locale::as_icu_locale(*self)
+        }
+    }
+
+    impl core::convert::AsRef<str> for Locale {
+        fn as_ref(&self) -> &str {
+            l_i18n_crate::Locale::as_str(*self)
+        }
+    }
+
+    impl core::fmt::Display for Locale {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            core::fmt::Display::fmt(l_i18n_crate::Locale::as_str(*self), f)
         }
     }
 
@@ -82,15 +167,12 @@ pub mod i18n {
     pub struct I18nKeys {
         pub hello_world: &'static str,
         pub key_present_only_in_default: &'static str,
-        pub plural: builders::plural_builder<builders::EmptyInterpolateValue, builders::EmptyInterpolateValue>,
+        pub range: builders::range_builder_dummy,
+        pub plural: builders::plural_builder_dummy,
         pub some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys,
     }
 
     impl I18nKeys {
-        // Cool thing about making it all compile time is that you can even make a constante value at compile time,
-        // one of the problem is that with all the pointers for each translations the type can grow quite big,
-        // so instead of re-creating the type eache time you want to access the values you return a static ref to a value
-        // created at compile time.
         #[allow(non_upper_case_globals)]
         pub const en: Self = Self::new(Locale::en);
         #[allow(non_upper_case_globals)]
@@ -98,24 +180,33 @@ pub mod i18n {
 
         pub const fn new(_locale: Locale) -> Self {
             match _locale {
-                Locale::en => I18nKeys {
-                    hello_world: "Hello World!",
-                    key_present_only_in_default: "english default",
-                    plural: builders::plural_builder::new(_locale),
-                    some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_locale),
-                },
-                Locale::fr => I18nKeys {
-                    hello_world: "Bonjour le monde!",
-                    // keys present in default but not in another locale is defaulted to the default locale value
-                    key_present_only_in_default: "english default",
-                    plural: builders::plural_builder::new(_locale),
-                    some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(_locale),
+                Locale::en => {
+                    I18nKeys {
+                        hello_world: "Hello World!",
+                        key_present_only_in_default: "english default",
+                        range: builders::range_builder_dummy::new(_locale),
+                        plural: builders::plural_builder_dummy::new(_locale),
+                        some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(
+                            _locale,
+                        ),
+                    }
+                }
+                Locale::fr => {
+                    I18nKeys {
+                        hello_world: "Bonjour le monde!",
+                        key_present_only_in_default: "english default",
+                        range: builders::range_builder_dummy::new(_locale),
+                        plural: builders::plural_builder_dummy::new(_locale),
+                        some_subkeys: subkeys::sk_some_subkeys::some_subkeys_subkeys::new(
+                            _locale,
+                        ),
+                    }
                 }
             }
         }
     }
 
-    impl leptos_i18n::LocaleKeys for I18nKeys {
+    impl l_i18n_crate::LocaleKeys for I18nKeys {
         type Locale = Locale;
         fn from_locale(_locale: Locale) -> &'static Self {
             match _locale {
@@ -125,120 +216,274 @@ pub mod i18n {
         }
     }
 
-    // Builders type have there own module
     #[doc(hidden)]
     pub mod builders {
-        use super::Locale;
+        use super::{Locale, l_i18n_crate};
 
-        // this type is a marker for an empty field
-        // as a ZST this makes the empty builder the same size as Locale
         #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct EmptyInterpolateValue;
-
         #[allow(non_camel_case_types, non_snake_case)]
-        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct plural_builder<__var_count, __comp_b> {
+        pub struct range_builder_dummy {
             _locale: Locale,
-            var_count: __var_count,
-            comp_b: __comp_b
         }
 
-        impl plural_builder<EmptyInterpolateValue, EmptyInterpolateValue> {
-            pub const fn new(_locale: Locale) -> Self {
-                Self {
-                    _locale,
-                    var_count: EmptyInterpolateValue,
-                    comp_b: EmptyInterpolateValue
-                }
-            }
+        #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
+        #[builder(crate_module_path = l_i18n_crate::reexports::typed_builder)]
+        #[allow(non_camel_case_types, non_snake_case)]
+        pub struct range_builder<__comp_b__, __into_view_comp_b__, __var_count__> {
+            _locale: Locale,
+            _into_views_marker: core::marker::PhantomData<(__into_view_comp_b__,)>,
+            comp_b: __comp_b__,
+            var_count: __var_count__,
         }
 
         #[allow(non_camel_case_types)]
         impl<
-            __var_count: Fn() -> u32 + core::clone::Clone + 'static,
-            __comp_b: Fn(leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static
-        > leptos::IntoView for plural_builder<__var_count, __comp_b> {
-            fn into_view(self) -> leptos::View {
-                let Self { _locale, var_count, comp_b } = self;
+            __comp_b__: l_i18n_crate::__private::InterpolateComp<__into_view_comp_b__>,
+            __into_view_comp_b__: l_i18n_crate::reexports::leptos::IntoView,
+            __var_count__: 'static + ::core::clone::Clone
+                + l_i18n_crate::__private::InterpolateVar
+                + l_i18n_crate::__private::InterpolateRangeCount<u32>,
+        > l_i18n_crate::reexports::leptos::IntoView
+        for range_builder<__comp_b__, __into_view_comp_b__, __var_count__> {
+            fn into_view(self) -> l_i18n_crate::reexports::leptos::View {
+                let Self { comp_b, var_count, _locale, .. } = self;
                 match _locale {
-                    Locale::en => {
-                        leptos::IntoView::into_view(
-                            {
-                                let var_count = core::clone::Clone::clone(&var_count);
-                                move || match var_count() {
-                                    0u32 => leptos::IntoView::into_view("Zero"),
-                                    1u32 => leptos::IntoView::into_view("One"),
-                                    2u32..=5u32 => leptos::IntoView::into_view("2..=5"),
-                                    _ => leptos::IntoView::into_view(core::clone::Clone::clone(&var_count))
-                                }
-                            },
-                        )
-                        // one thing I want to revisit is the amount of clones,
-                        // it's not obvious here but every variable/components/ect could be used multiple times
-                        // and without the clones the function would be `FnOnce`, which can't be turned into a `View`
-                        // The block return a function because `var_count` could be a wrapper for a signal, needing reactivity.
-                    },
                     Locale::fr => {
-                        leptos::IntoView::into_view(core::clone::Clone::clone(&comp_b)(
-                            leptos::ToChildren::to_children({
-                                move || Into::into(leptos::IntoView::into_view("interpolate"))
-                            })
-                        ))
+                        l_i18n_crate::reexports::leptos::IntoView::into_view(
+                            core::clone::Clone::clone(
+                                &comp_b,
+                            )(
+                                l_i18n_crate::reexports::leptos::ToChildren::to_children({
+                                    move || Into::into(
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                            "interpolate",
+                                        ),
+                                    )
+                                }),
+                            ),
+                        )
+                    }
+                    Locale::en => {
+                        l_i18n_crate::reexports::leptos::IntoView::into_view({
+                            let var_count = core::clone::Clone::clone(&var_count);
+                            move || {
+                                match var_count() {
+                                    0u32 => {
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view("Zero")
+                                    }
+                                    1u32 => {
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view("One")
+                                    }
+                                    2u32..=5u32 => {
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                            "2..=5",
+                                        )
+                                    }
+                                    _ => {
+                                        let var_count = core::clone::Clone::clone(&var_count);
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                            var_count,
+                                        )
+                                    }
+                                }
+                            }
+                        })
                     }
                 }
             }
         }
 
         #[allow(non_camel_case_types)]
-        impl<__var_count, __comp_b> plural_builder<__var_count, __comp_b> {
-            #[inline]
-            pub fn var_count<__T>(self, var_count: __T) -> plural_builder<impl Fn() -> u32 + core::clone::Clone + 'static, __comp_b>
-                where __T: Fn() -> u32 + core::clone::Clone + 'static
-            {
-                let Self { _locale, comp_b, .. } = self;
-                plural_builder { _locale, var_count, comp_b }
+        impl<__comp_b__, __into_view_comp_b__, __var_count__> core::fmt::Debug
+        for range_builder<__comp_b__, __into_view_comp_b__, __var_count__> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.debug_struct("range_builder").finish()
             }
         }
 
-        #[allow(non_camel_case_types)]
-        impl<__var_count, __comp_b> plural_builder<__var_count, __comp_b> {
-            #[inline]
-            pub fn comp_b<__O, __T>(self, comp_b: __T) -> plural_builder<__var_count, impl Fn(leptos::ChildrenFn) ->  leptos::View + core::clone::Clone + 'static>
-            where
-                __O: leptos::IntoView,
-                __T: Fn(leptos::ChildrenFn) -> __O + core::clone::Clone + 'static
-            {
-                let Self { _locale, var_count, .. } = self;
-                let comp_b = move |children| leptos::IntoView::into_view(comp_b(children));
-                plural_builder { _locale, var_count, comp_b }
+        impl range_builder_dummy {
+            pub const fn new(_locale: Locale) -> Self {
+                Self { _locale }
+            }
+
+            pub fn builder<
+                __comp_b__: l_i18n_crate::__private::InterpolateComp<
+                        __into_view_comp_b__,
+                    >,
+                __into_view_comp_b__: l_i18n_crate::reexports::leptos::IntoView,
+                __var_count__: 'static + ::core::clone::Clone
+                    + l_i18n_crate::__private::InterpolateVar
+                    + l_i18n_crate::__private::InterpolateRangeCount<u32>,
+            >(
+                self,
+            ) -> range_builderBuilder<
+                __comp_b__,
+                __into_view_comp_b__,
+                __var_count__,
+                (
+                    (Locale,),
+                    (core::marker::PhantomData<(__into_view_comp_b__,)>,),
+                    (),
+                    (),
+                ),
+            > {
+                range_builder::builder()
+                    ._locale(self._locale)
+                    ._into_views_marker(core::marker::PhantomData)
             }
         }
 
-        // The build function is pointless work wise, as it just return itself
-        // This code is to gate uncomplete builders,
-        // if a key is missing you'll get a `builder function does not exist ...` type of error, instead of the obscure `IntoView is not implemented on super_weird_generics_whatever`. Not a lot better in itself, but from what I've seen the `IntoView` error span the whole `view!` macro, but the build function error span only the `t!` macro, which is a lot more helpfull.
+        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+        #[allow(non_camel_case_types, non_snake_case)]
+        pub struct plural_builder_dummy {
+            _locale: Locale,
+        }
+
+        #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
+        #[builder(crate_module_path = l_i18n_crate::reexports::typed_builder)]
+        #[allow(non_camel_case_types, non_snake_case)]
+        pub struct plural_builder<__var_count__> {
+            _locale: Locale,
+            _into_views_marker: core::marker::PhantomData<()>,
+            var_count: __var_count__,
+        }
+        #[automatically_derived]
+        impl<__var_count__> plural_builder<__var_count__> {
+            /**
+                Create a builder for building `plural_builder`.
+                On the builder, call `._locale(...)`, `._into_views_marker(...)`, `.var_count(...)` to set the values of the fields.
+                Finally, call `.build()` to create the instance of `plural_builder`.
+                */
+            #[allow(dead_code, clippy::default_trait_access)]
+            pub fn builder() -> plural_builderBuilder<__var_count__, ((), (), ())> {
+                plural_builderBuilder {
+                    fields: ((), (), ()),
+                    phantom: ::core::default::Default::default(),
+                }
+            }
+        }
+        #[must_use]
+        #[doc(hidden)]
+        #[allow(dead_code, non_camel_case_types, non_snake_case)]
+        pub struct plural_builderBuilder<
+            __var_count__,
+            TypedBuilderFields = ((), (), ()),
+        > {
+            fields: TypedBuilderFields,
+            phantom: ::core::marker::PhantomData<
+                (::core::marker::PhantomData<__var_count__>),
+            >,
+        }
+
         #[allow(non_camel_case_types)]
         impl<
-            __var_count: Fn() -> u32 + core::clone::Clone + 'static,
-            __comp_b: Fn(leptos::ChildrenFn) -> leptos::View + core::clone::Clone + 'static
-        > plural_builder<__var_count, __comp_b> {
-            #[inline]
-            pub fn build(self) -> Self {
-                self
+            __var_count__: 'static + ::core::clone::Clone
+                + l_i18n_crate::__private::InterpolateVar
+                + l_i18n_crate::__private::InterpolatePluralCount,
+        > l_i18n_crate::reexports::leptos::IntoView for plural_builder<__var_count__> {
+            fn into_view(self) -> l_i18n_crate::reexports::leptos::View {
+                let Self { var_count, _locale, .. } = self;
+                match _locale {
+                    Locale::fr => {
+                        l_i18n_crate::reexports::leptos::IntoView::into_view({
+                            let var_count = core::clone::Clone::clone(&var_count);
+                            let _plural_rules = l_i18n_crate::__private::get_plural_rules(
+                                _locale,
+                                l_i18n_crate::reexports::icu::plurals::PluralRuleType::Cardinal,
+                            );
+                            move || {
+                                match _plural_rules.category_for(var_count()) {
+                                    l_i18n_crate::reexports::icu::plurals::PluralCategory::One => {
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                            "un truc",
+                                        )
+                                    }
+                                    _ => {
+                                        l_i18n_crate::reexports::leptos::CollectView::collect_view([
+                                            {
+                                                let var_count = core::clone::Clone::clone(&var_count);
+                                                l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                                    var_count,
+                                                )
+                                            },
+                                            l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                                " trucs",
+                                            ),
+                                        ])
+                                    }
+                                }
+                            }
+                        })
+                    }
+                    Locale::en => {
+                        l_i18n_crate::reexports::leptos::IntoView::into_view({
+                            let var_count = core::clone::Clone::clone(&var_count);
+                            let _plural_rules = l_i18n_crate::__private::get_plural_rules(
+                                _locale,
+                                l_i18n_crate::reexports::icu::plurals::PluralRuleType::Cardinal,
+                            );
+                            move || {
+                                match _plural_rules.category_for(var_count()) {
+                                    l_i18n_crate::reexports::icu::plurals::PluralCategory::One => {
+                                        l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                            "one item",
+                                        )
+                                    }
+                                    _ => {
+                                        l_i18n_crate::reexports::leptos::CollectView::collect_view([
+                                            {
+                                                let var_count = core::clone::Clone::clone(&var_count);
+                                                l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                                    var_count,
+                                                )
+                                            },
+                                            l_i18n_crate::reexports::leptos::IntoView::into_view(
+                                                " items",
+                                            ),
+                                        ])
+                                    }
+                                }
+                            }
+                        })
+                    }
+                }
+            }
+        }
+
+        #[allow(non_camel_case_types)]
+        impl<__var_count__> core::fmt::Debug for plural_builder<__var_count__> {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                f.debug_struct("plural_builder").finish()
+            }
+        }
+
+        impl plural_builder_dummy {
+            pub const fn new(_locale: Locale) -> Self {
+                Self { _locale }
+            }
+            pub fn builder<
+                __var_count__: 'static + ::core::clone::Clone
+                    + l_i18n_crate::__private::InterpolateVar
+                    + l_i18n_crate::__private::InterpolatePluralCount,
+            >(
+                self,
+            ) -> plural_builderBuilder<
+                __var_count__,
+                ((Locale,), (core::marker::PhantomData<()>,), ()),
+            > {
+                plural_builder::builder()
+                    ._locale(self._locale)
+                    ._into_views_marker(core::marker::PhantomData)
             }
         }
     }
 
-    // Subkeys have there own modules
     #[doc(hidden)]
     pub mod subkeys {
-        use super::Locale;
+        use super::{Locale, l_i18n_crate};
 
-        // and each subkeys have the own modules
-        // this is because it's the same function that is called to make the subkeys type that the one that make the `I18nKeys` type,
-        // so if this has some builders, or some subkeys, it will create a `builders`/`subkeys` module.
         pub mod sk_some_subkeys {
-            use super::Locale;
+            use super::{Locale, l_i18n_crate};
 
             #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
             #[allow(non_camel_case_types, non_snake_case)]
@@ -249,50 +494,147 @@ pub mod i18n {
             impl some_subkeys_subkeys {
                 pub const fn new(_locale: Locale) -> Self {
                     match _locale {
-                        Locale::en => Self {
-                            subkey_1: "This is subkey 1",
-                        },
-                        Locale::fr => Self {
-                            subkey_1: "Sous clé numéro 1",
+                        Locale::en => {
+                            some_subkeys_subkeys {
+                                subkey_1: "This is subkey 1",
+                            }
+                        }
+                        Locale::fr => {
+                            some_subkeys_subkeys {
+                                subkey_1: "Sous clé numéro 1",
+                            }
                         }
                     }
+                }
+            }
+
+            impl l_i18n_crate::LocaleKeys for some_subkeys_subkeys {
+                type Locale = Locale;
+                fn from_locale(_locale: Locale) -> &'static Self {
+                    &<super::super::I18nKeys as l_i18n_crate::LocaleKeys>::from_locale(
+                            _locale,
+                        )
+                        .some_subkeys
                 }
             }
         }
     }
 
-    // create wrapper function to avoid needing to type the `Locale` type every time.
-    // also shorten the function name.
     #[inline]
-    pub fn use_i18n() -> leptos_i18n::I18nContext<Locale> {
-        leptos_i18n::use_i18n_context()
+    pub fn use_i18n() -> l_i18n_crate::I18nContext<Locale> {
+        l_i18n_crate::use_i18n_context()
     }
 
-    // same here
-    #[inline]
-    pub fn provide_i18n_context() -> leptos_i18n::I18nContext<Locale> {
-        leptos_i18n::provide_i18n_context()
+    #[deprecated(
+        note = "It is now preferred to use the <I18nContextProvider> component"
+    )]
+    pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<Locale> {
+        l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None)
     }
 
-    mod provider {
-        // #[leptos::island] if the `experimental-islands` feature is enabled
-        #[leptos::component]
-        #[allow(non_snake_case)]
-        pub fn I18nContextProvider(children: leptos::Children) -> impl leptos::IntoView {
-            super::provide_i18n_context();
-            children()
+    mod providers {
+        use super::{l_i18n_crate, Locale};
+        use l_i18n_crate::reexports::leptos::IntoView;
+
+        quote! {
+            #[l_i18n_crate::reexports::leptos::component]
+            #[allow(non_snake_case)]
+            pub fn I18nContextProvider(
+                #[prop(optional)]
+                set_lang_attr_on_html: Option<bool>,
+                #[prop(optional)]
+                enable_cookie: Option<bool>,
+                #[prop(optional, into)]
+                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                #[prop(optional)]
+                cookie_options: Option<l_i18n_crate::context::CookieOptions<Locale>>,
+                children: l_i18n_crate::reexports::leptos::Children
+            ) -> impl IntoView {
+                l_i18n_crate::context::provide_i18n_context_component_inner::<Locale>(
+                    set_lang_attr_on_html,
+                    enable_cookie,
+                    cookie_name,
+                    cookie_options,
+                    children
+                )
+            }
+
+            #[l_i18n_crate::reexports::leptos::component]
+            #[allow(non_snake_case)]
+            pub fn I18nSubContextProvider(
+                children: l_i18n_crate::reexports::leptos::Children,
+                #[prop(optional, into)]
+                initial_locale: Option<l_i18n_crate::reexports::leptos::Signal<Locale>>,
+                #[prop(optional, into)]
+                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                #[prop(optional)]
+                cookie_options: Option<l_i18n_crate::context::CookieOptions<Locale>>,
+            ) -> impl IntoView {
+                l_i18n_crate::context::i18n_sub_context_provider_inner::<Locale>(
+                    children,
+                    initial_locale,
+                    cookie_name,
+                    cookie_options
+                )
+            }
         }
     }
-    pub use provider::I18nContextProvider; // this is to avoid bloat with the generated struct of the component
 
-    // re-export `t!` and `td!` to just need to do `use i18n::*` and basically import everything you need.
-    pub use leptos_i18n::{t, td};
 
-    // `Diagnostic` is a nightly feature, so this is a trick to output custom warning messages:
-    // calling depreacted functions with a custom note.
+    mod routing {
+        use super::{l_i18n_crate, Locale};
+        use l_i18n_crate::reexports::leptos_router;
+        use l_i18n_crate::reexports::leptos::IntoView;
+        #[l_i18n_crate::reexports::leptos::component(transparent)]
+        #[allow(non_snake_case)]
+        pub fn I18nRoute<E, F>(
+            /// The base path of this application.
+            /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
+            /// the expected base path is `/foo/`.
+            /// Defaults to `"/"``.
+            #[prop(default = "/")]
+            base_path: &'static str,
+            /// The view that should be shown when this route is matched. This can be any function
+            /// that returns a type that implements [`IntoView`] (like `|| view! { <p>"Show this"</p> })`
+            /// or `|| view! { <MyComponent/>` } or even, for a component with no props, `MyComponent`).
+            /// If you use nested routes you can just set it to `view=Outlet`
+            view: F,
+            /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming.
+            #[prop(optional)]
+            ssr: leptos_router::SsrMode,
+            /// The HTTP methods that this route can handle (defaults to only `GET`).
+            #[prop(default = &[leptos_router::Method::Get])]
+            methods: &'static [leptos_router::Method],
+            /// A data-loading function that will be called when the route is matched. Its results can be
+            /// accessed with [`use_route_data`](crate::use_route_data).
+            #[prop(optional, into)]
+            data: Option<leptos_router::Loader>,
+            /// How this route should handle trailing slashes in its path.
+            /// Overrides any setting applied to [`crate::components::Router`].
+            /// Serves as a default for any inner Routes.
+            #[prop(optional)]
+            trailing_slash: Option<leptos_router::TrailingSlash>,
+            /// `children` may be empty or include nested routes.
+            #[prop(optional)]
+            children: Option<l_i18n_crate::reexports::leptos::Children>,
+        ) -> impl IntoView
+            where E: l_i18n_crate::reexports::leptos::IntoView,
+            F: Fn() -> E + 'static
+        {
+            l_i18n_crate::__private::i18n_routing::<Locale, E, F>(base_path, children, ssr, methods, data, trailing_slash, view)
+        }
+    }
+
+    pub use providers::{I18nContextProvider, I18nSubContextProvider};
+    pub use routing::I18nRoute;
+    pub use l_i18n_crate::Locale as I18nLocaleTrait;
+    pub use leptos_i18n::{t, td, tu, use_i18n_scoped, scope_i18n, scope_locale};
+
     #[allow(unused)]
     fn warnings() {
-        #[deprecated(note = "Missing key \"key_present_only_in_default\" in locale \"fr\"")]
+        #[deprecated(
+            note = "Missing key \"key_present_only_in_default\" in locale \"fr\""
+        )]
         fn w0() {
             unimplemented!()
         }
