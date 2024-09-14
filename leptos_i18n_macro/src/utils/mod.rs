@@ -75,14 +75,14 @@ impl EitherOfWrapper {
         match self {
             EitherOfWrapper::Single => ts.into_token_stream(),
             EitherOfWrapper::Duo if i == 0 => {
-                quote!(l_i18n_crate::__private::leptos::either::Either::Left(#ts))
+                quote!(l_i18n_crate::reexports::leptos::either::Either::Left(#ts))
             }
             EitherOfWrapper::Duo => {
-                quote!(l_i18n_crate::__private::leptos::either::Either::Right(#ts))
+                quote!(l_i18n_crate::reexports::leptos::either::Either::Right(#ts))
             }
             EitherOfWrapper::Multiple(ident) => {
                 let variant = format_ident!("{}", LETTERS[i]);
-                quote!(l_i18n_crate::__private::leptos::either::#ident::#variant(#ts))
+                quote!(l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
             }
         }
     }
