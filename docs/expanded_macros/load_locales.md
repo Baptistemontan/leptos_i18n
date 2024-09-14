@@ -156,6 +156,12 @@ pub mod i18n {
         }
     }
 
+    impl core::convert::AsRef<Self> for Locale {
+        fn as_ref(&self) -> &Self {
+            self
+        }
+    }
+
     impl core::fmt::Display for Locale {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
             core::fmt::Display::fmt(l_i18n_crate::Locale::as_str(*self), f)
@@ -347,33 +353,6 @@ pub mod i18n {
             _into_views_marker: core::marker::PhantomData<()>,
             var_count: __var_count__,
         }
-        #[automatically_derived]
-        impl<__var_count__> plural_builder<__var_count__> {
-            /**
-                Create a builder for building `plural_builder`.
-                On the builder, call `._locale(...)`, `._into_views_marker(...)`, `.var_count(...)` to set the values of the fields.
-                Finally, call `.build()` to create the instance of `plural_builder`.
-                */
-            #[allow(dead_code, clippy::default_trait_access)]
-            pub fn builder() -> plural_builderBuilder<__var_count__, ((), (), ())> {
-                plural_builderBuilder {
-                    fields: ((), (), ()),
-                    phantom: ::core::default::Default::default(),
-                }
-            }
-        }
-        #[must_use]
-        #[doc(hidden)]
-        #[allow(dead_code, non_camel_case_types, non_snake_case)]
-        pub struct plural_builderBuilder<
-            __var_count__,
-            TypedBuilderFields = ((), (), ()),
-        > {
-            fields: TypedBuilderFields,
-            phantom: ::core::marker::PhantomData<
-                (::core::marker::PhantomData<__var_count__>),
-            >,
-        }
 
         #[allow(non_camel_case_types)]
         impl<
@@ -534,21 +513,29 @@ pub mod i18n {
 
     mod providers {
         use super::{l_i18n_crate, Locale};
-        use l_i18n_crate::reexports::leptos::IntoView;
+        use l_i18n_crate::reexports::leptos;
+        use leptos::{IntoView, Children, Signal};
+        use std::borrow::Cow;
+        use l_i18n_crate::context::CookieOptions;
 
         quote! {
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
+                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
+                /// Enable the use of a cookie to save the choosen locale (default to true).
+                /// Does nothing without the "cookie" feature
                 #[prop(optional)]
                 enable_cookie: Option<bool>,
+                /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
-                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                cookie_name: Option<Cow<'static, str>>,
+                /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
-                cookie_options: Option<l_i18n_crate::context::CookieOptions<Locale>>,
-                children: l_i18n_crate::reexports::leptos::Children
+                cookie_options: Option<CookieOptions<Locale>>,
+                children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_inner::<Locale>(
                     set_lang_attr_on_html,
@@ -562,13 +549,19 @@ pub mod i18n {
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
             pub fn I18nSubContextProvider(
-                children: l_i18n_crate::reexports::leptos::Children,
+                children: Children,
+                /// The initial locale for this subcontext.
+                /// Default to the locale set in the cookie if set and some,
+                /// if not use the parent context locale.
+                /// if no parent context, use the default locale.
                 #[prop(optional, into)]
-                initial_locale: Option<l_i18n_crate::reexports::leptos::Signal<Locale>>,
+                initial_locale: Option<Signal<Locale>>,
+                /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 #[prop(optional, into)]
-                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                cookie_name: Option<Cow<'static, str>>,
+                /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
-                cookie_options: Option<l_i18n_crate::context::CookieOptions<Locale>>,
+                cookie_options: Option<CookieOptions<Locale>>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<Locale>(
                     children,
@@ -584,7 +577,9 @@ pub mod i18n {
     mod routing {
         use super::{l_i18n_crate, Locale};
         use l_i18n_crate::reexports::leptos_router;
-        use l_i18n_crate::reexports::leptos::IntoView;
+        use l_i18n_crate::reexports::leptos;
+        use leptos::{IntoView, Children};
+        use leptos_router::{Loader, Method, TrailingSlash, SsrMode};
         #[l_i18n_crate::reexports::leptos::component(transparent)]
         #[allow(non_snake_case)]
         pub fn I18nRoute<E, F>(
@@ -603,22 +598,22 @@ pub mod i18n {
             #[prop(optional)]
             ssr: leptos_router::SsrMode,
             /// The HTTP methods that this route can handle (defaults to only `GET`).
-            #[prop(default = &[leptos_router::Method::Get])]
-            methods: &'static [leptos_router::Method],
+            #[prop(default = &[Method::Get])]
+            methods: &'static [Method],
             /// A data-loading function that will be called when the route is matched. Its results can be
             /// accessed with [`use_route_data`](crate::use_route_data).
             #[prop(optional, into)]
-            data: Option<leptos_router::Loader>,
+            data: Option<Loader>,
             /// How this route should handle trailing slashes in its path.
             /// Overrides any setting applied to [`crate::components::Router`].
             /// Serves as a default for any inner Routes.
             #[prop(optional)]
-            trailing_slash: Option<leptos_router::TrailingSlash>,
+            trailing_slash: Option<TrailingSlash>,
             /// `children` may be empty or include nested routes.
             #[prop(optional)]
-            children: Option<l_i18n_crate::reexports::leptos::Children>,
+            children: Option<Children>,
         ) -> impl IntoView
-            where E: l_i18n_crate::reexports::leptos::IntoView,
+            where E: IntoView,
             F: Fn() -> E + 'static
         {
             l_i18n_crate::__private::i18n_routing::<Locale, E, F>(base_path, children, ssr, methods, data, trailing_slash, view)
