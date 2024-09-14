@@ -24,6 +24,7 @@ icu = { version = "1.5", features = ["sync"] }
 typed-builder = "0.19"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
+serde = "1.0"
 wasm-bindgen = "0.2.93"
 
 [features]
@@ -44,7 +45,6 @@ nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 ssr = ["leptos/ssr", "leptos_meta/ssr", "leptos-use/ssr", "leptos_router/ssr"]
 
 # macro features
-serde = ["leptos_i18n_macro/serde"]
 show_keys_only = ["leptos_i18n_macro/show_keys_only"]
 suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
 json_files = ["leptos_i18n_macro/json_files"]

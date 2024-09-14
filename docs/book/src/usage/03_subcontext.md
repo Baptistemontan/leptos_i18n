@@ -2,9 +2,9 @@
 
 You may want to have sections of you application to use the translations but be isolated from the "main" locale, this is what sub-context are for.
 
-## Why not just use `provide_i18n_context` ?
+## Why not just use `I18nContextProvider` ?
 
-`provide_i18n_context` does not shadow any context if one already exist,
+`I18nContextProvider` does not shadow any context if one already exist,
 this is because it should only be one "main" context, or they will battle for the cookie, the "lang" attribute, the routing, ect..
 
 `init_i18n_subcontext_*` functions create a context that does not battle with the main context and makes it more obvious that a sub context is created, improving code clarity.
@@ -32,7 +32,7 @@ fn opposite_context() {
 }
 ```
 
-If it is not supplied, it takes the "main" context locale as a default, and if no "main" context exist (yes you can use sub-context as a "main" context if you want) it uses the same locale resolution as the normal context.
+If it is not supplied, it takes the parent context locale as a default, and if no parent context exist (yes you can use sub-context as a "main" context if you want) it uses the same locale resolution as the normal context.
 
 ## Providing a sub-context
 
@@ -49,10 +49,11 @@ use leptos_i18n::context::provide_i18n_subcontext;
 
 #[component]
 fn Foo() -> impl IntoView {
-    provide_i18n_context();
     view! {
-        <Sub />
-        <Home />
+        <I18nContextProvider>
+            <Sub />
+            <Home />
+        </I18nContextProvider>
     }
 }
 
@@ -73,7 +74,7 @@ fn Home() -> impl IntoView {
 }
 ```
 
-This will actually make the sub-context provided in the `<Sub />` component replace the main context and leak into the `<Home />` component.
+This will actually make the sub-context provided in the `<Sub />` component replace the parent context and leak into the `<Home />` component.
 
 `leptos::provide_context` has a section about shadowing in there docs, the best approach is to use a provider:
 
@@ -89,21 +90,21 @@ fn Sub() -> impl IntoView {
 }
 ```
 
-So this crate has a `I18nSubContextProvider` in the `context` module:
+So this crate has a `I18nSubContextProvider` generated in the `i18n` module:
 
 ```rust
 use crate::i18n::*;
 use leptos::prelude::*;
-use leptos_i18n::context::I18nSubContextProvider;
 
 #[component]
 fn Foo() -> impl IntoView {
-    provide_i18n_context();
     view! {
-        <I18nSubContextProvider>
-            <Sub />
-        </I18nSubContextProvider>
-        <Home />
+        <I18nContextProvider>
+            <I18nSubContextProvider>
+                <Sub />
+            </I18nSubContextProvider>
+            <Home />
+        </I18nContextProvider>
     }
 }
 

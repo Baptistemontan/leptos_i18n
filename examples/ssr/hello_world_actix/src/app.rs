@@ -6,8 +6,16 @@ use leptos::prelude::*;
 pub fn App() -> impl IntoView {
     leptos_meta::provide_meta_context();
 
-    provide_i18n_context();
+    view! {
+        <I18nContextProvider>
+            <Home />
+        </I18nContextProvider>
+    }
+}
 
+#[component]
+#[allow(non_snake_case)]
+pub fn Home() -> impl IntoView {
     let i18n = use_i18n();
 
     let on_switch = move |_| {

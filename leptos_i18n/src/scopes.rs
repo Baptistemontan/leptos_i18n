@@ -125,6 +125,12 @@ impl<L: Locale, S: Scope<L>> AsRef<str> for ScopedLocale<L, S> {
     }
 }
 
+impl<L: Locale, Sc: Scope<L>> AsRef<L> for ScopedLocale<L, Sc> {
+    fn as_ref(&self) -> &L {
+        &self.locale
+    }
+}
+
 impl<L: Locale, S: Scope<L>> Hash for ScopedLocale<L, S> {
     fn hash<H>(&self, state: &mut H)
     where
@@ -170,5 +176,24 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
             locale,
             scope_marker: PhantomData,
         }
+    }
+}
+
+impl<L: Locale, Sc: Scope<L>> serde::Serialize for ScopedLocale<L, Sc> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(&self.to_base_locale(), serializer)
+    }
+}
+
+impl<'de, L: Locale, S: Scope<L>> serde::Deserialize<'de> for ScopedLocale<L, S> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let base_locale: L = serde::Deserialize::deserialize(deserializer)?;
+        Ok(Self::from_base_locale(base_locale))
     }
 }

@@ -17,6 +17,7 @@ pub trait Locale<L: Locale = Self>:
     + AsRef<locid::LanguageIdentifier>
     + AsRef<locid::Locale>
     + AsRef<str>
+    + AsRef<L>
     + std::fmt::Display
     + std::fmt::Debug
     + PartialEq
@@ -24,6 +25,8 @@ pub trait Locale<L: Locale = Self>:
     + Hash
     + Send
     + Sync
+    + serde::Serialize
+    + serde::de::DeserializeOwned
 {
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = L>;

@@ -4,7 +4,6 @@ use leptos::prelude::*;
 #[component]
 #[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
-    // use the `I18nContextProvider` instead of `provide_i18n_context` to provide the context to all island in the application.
     view! {
         <I18nContextProvider>
             <h1>

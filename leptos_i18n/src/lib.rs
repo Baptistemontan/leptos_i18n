@@ -61,7 +61,17 @@
 //! pub fn App() -> impl IntoView {
 //!     leptos_meta::provide_meta_context();
 //!
-//!     let i18n = provide_i18n_context();
+//!     view! {
+//!         <I18nContextProvider>
+//!             <Counter />
+//!             <SwitchLang />
+//!         </I18nContextProvider>
+//!     }
+//! }
+//!
+//! #[component]
+//! fn SwitchLang() -> impl IntoView {
+//!     let i18n = use_i18n();
 //!
 //!     let on_switch = move |_| {
 //!         let new_lang = match i18n.get_locale() {
@@ -73,7 +83,6 @@
 //!
 //!     view! {
 //!         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
-//!         <Counter />
 //!     }
 //! }
 //!
@@ -113,7 +122,10 @@ pub use macro_helpers::formatting;
 
 pub use locale_traits::{Locale, LocaleKeys};
 
-pub use context::{provide_i18n_context, use_i18n_context, I18nContext};
+pub use context::{use_i18n_context, I18nContext};
+
+#[allow(deprecated)]
+pub use context::provide_i18n_context;
 
 pub use leptos_i18n_macro::{
     load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,
@@ -129,16 +141,18 @@ pub mod __private {
     pub use crate::routing::i18n_routing;
     pub use crate::static_lock::*;
     pub use icu::locid;
-    pub use leptos;
     pub use leptos_i18n_macro::declare_locales;
-    pub use leptos_router;
-    pub use typed_builder;
 }
 
 /// Reexports of backend libraries, mostly about formatting.
 pub mod reexports {
     pub use fixed_decimal;
     pub use icu;
+    pub use leptos;
+    pub use leptos_router;
+    pub use serde;
+    pub use typed_builder;
+    pub use wasm_bindgen;
 }
 
 /// Utility macro for using reactive translations in a non reactive component when using islands.
@@ -232,7 +246,7 @@ macro_rules! ti {
 /// ```rust, ignore
 /// use crate::i18n::*;
 ///
-/// leptos_i18n::make_i18n_island(HelloWold, hello_world);
+/// leptos_i18n::make_i18n_island(HelloWorld, hello_world);
 ///
 /// #[component]
 /// fn App() -> impl IntoView {

@@ -918,7 +918,7 @@ impl ParsedValue {
                     move || #inner
                 });
                 let boxed_fn =
-                    quote!(l_i18n_crate::__private::leptos::children::ToChildren::to_children(#f));
+                    quote!(l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f));
                 tokens.push(quote!(core::clone::Clone::clone(&#key)(#boxed_fn)));
             }
             ParsedValue::Bloc(values) => {
