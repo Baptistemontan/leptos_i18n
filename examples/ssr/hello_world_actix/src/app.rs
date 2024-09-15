@@ -27,7 +27,6 @@ pub fn Home() -> impl IntoView {
     };
 
     view! {
-        <RenderLangAttr i18n />
         <h1>{t!(i18n, hello_world)}</h1>
         <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
     }

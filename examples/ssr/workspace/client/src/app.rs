@@ -44,7 +44,6 @@ fn Counter() -> impl IntoView {
     let count = move || counter.get();
 
     view! {
-        <RenderLangAttr i18n />
         <p>{t!(i18n, click_count, count)}</p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>
     }
