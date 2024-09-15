@@ -2,7 +2,8 @@
 
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
-use leptos::{attr::Attribute, children, either::Either, prelude::*};
+use leptos::{children, either::Either, prelude::*};
+use leptos_meta::Html;
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
 use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView};
@@ -375,16 +376,6 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
     run_as_children(ctx, children)
 }
 
-#[doc(hidden)]
-pub fn render_html_attr<L: Locale, S: Scope<L>>(ctx: I18nContext<L, S>) -> impl IntoView {
-    fn inner(f: impl Fn() -> &'static str + Send + Sync + Copy + 'static) -> impl Attribute<Dom> {
-        leptos::attr::lang(f)
-    }
-    let lang_attr = inner(move || ctx.get_locale().as_str());
-
-    leptos_meta::Html().add_any_attr(lang_attr)
-}
-
 /// Return the `I18nContext` previously set.
 ///
 /// ## Panic
@@ -404,13 +395,11 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     cookie_options: Option<CookieOptions<L>>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
-    use leptos_meta::Html;
     let i18n = provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options);
     let children = children();
     if set_lang_attr_on_html.unwrap_or(true) {
-        let lang = move || i18n.get_locale().as_str();
         Either::Left(view! {
-            <Html attr:lang=lang />
+            <Html use:i18n />
             {children}
         })
     } else {

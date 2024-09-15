@@ -285,22 +285,8 @@ fn load_locales_inner(
                 }
             }
 
-            mod html_lang_renderer {
-                use super::{l_i18n_crate, #enum_ident};
-                use l_i18n_crate::reexports::leptos;
-                use leptos::prelude::*;
-
-
-                #[component]
-                #[allow(non_snake_case)]
-                pub fn RenderLangAttr<S: l_i18n_crate::Scope<#enum_ident>>(i18n: l_i18n_crate::I18nContext<#enum_ident, S>) -> impl IntoView {
-                    l_i18n_crate::__private::render_html_attr(i18n)
-                }
-            }
-
             pub use providers::{I18nContextProvider, I18nSubContextProvider};
             pub use routing::I18nRoute;
-            pub use html_lang_renderer::RenderLangAttr;
             pub use l_i18n_crate::Locale as I18nLocaleTrait;
 
             #macros_reexport
