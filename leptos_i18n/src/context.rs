@@ -96,6 +96,7 @@ impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
 
     fn run(&self, el: <R as Renderer>::Element, _param: ()) {
         let this = *self;
+        leptos::logging::log!("test");
         Effect::new(move || {
             let locale = this.get_locale();
             R::set_attribute(&el, "lang", locale.as_str());
@@ -398,8 +399,9 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     let i18n = provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options);
     let children = children();
     if set_lang_attr_on_html.unwrap_or(true) {
+        let lang = move || i18n.get_locale().as_str();
         Either::Left(view! {
-            <Html use:i18n />
+            <Html attr:lang=lang />
             {children}
         })
     } else {
