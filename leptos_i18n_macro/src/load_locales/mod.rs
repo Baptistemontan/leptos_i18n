@@ -105,6 +105,9 @@ fn load_locales_inner(
     let providers = if cfg!(feature = "experimental-islands") {
         macros_reexport.push(quote!(ti));
         quote! {
+            use leptos::children::Children;
+            use leptos::prelude::RenderHtml;
+
             /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::island]
             #[allow(non_snake_case)]
@@ -121,7 +124,7 @@ fn load_locales_inner(
                 cookie_name: Option<Cow<'static, str>>,
                 children: Children
             ) -> impl IntoView {
-                l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
+                l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
                     set_lang_attr_on_html,
                     enable_cookie,
                     cookie_name,
@@ -145,9 +148,9 @@ fn load_locales_inner(
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
             ) -> impl IntoView {
-                l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
+                l_i18n_crate::context::i18n_sub_context_provider_island::<#enum_ident>(
                     children,
-                    initial_locale.map(|l| l_i18n_crate::reexports::leptos::Signal::derive(move || l)),
+                    initial_locale,
                     cookie_name,
                     None
                 )
@@ -155,6 +158,8 @@ fn load_locales_inner(
         }
     } else {
         quote! {
+            use leptos::prelude::TypedChildren;
+
             /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
@@ -174,7 +179,7 @@ fn load_locales_inner(
                 cookie_options: Option<CookieOptions<#enum_ident>>,
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
-                l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident, Chil>(
+                l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
                     set_lang_attr_on_html,
                     enable_cookie,
                     cookie_name,
@@ -240,7 +245,7 @@ fn load_locales_inner(
             mod providers {
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::reexports::leptos;
-                use leptos::prelude::{IntoView, TypedChildren, Signal};
+                use leptos::prelude::{IntoView, Signal};
                 use std::borrow::Cow;
                 use l_i18n_crate::context::CookieOptions;
 
