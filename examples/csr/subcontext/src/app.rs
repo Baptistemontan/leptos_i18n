@@ -28,11 +28,11 @@ fn Opposite() -> impl IntoView {
 
     view! {
         <h2>{t!(i18n, examples.opposite)}</h2>
-        <I18nSubContextProvider<Locale, _>
+        <I18nSubContextProvider
             initial_locale=sub_context_locale
         >
             <Counter />
-        </I18nSubContextProvider<Locale, _>>
+        </I18nSubContextProvider>
     }
 }
 
@@ -43,12 +43,12 @@ fn Cookie() -> impl IntoView {
 
     view! {
         <h2>{t!(i18n, examples.cookie)}</h2>
-        <I18nSubContextProvider<Locale, _>
+        <I18nSubContextProvider
             initial_locale=Signal::derive(move || Locale::fr)
             cookie_name="cookie_example_locale"
         >
             <Counter />
-        </I18nSubContextProvider<Locale, _>>
+        </I18nSubContextProvider>
     }
 }
 
