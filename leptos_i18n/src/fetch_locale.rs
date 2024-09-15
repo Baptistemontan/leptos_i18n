@@ -42,7 +42,13 @@ fn fetch_locale_ssr<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<
 fn fetch_locale_hydrate<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
     let base_locale = leptos::document()
         .document_element()
-        .and_then(|el| el.get_attribute("lang"))
+        .and_then(|el| match el.get_attribute("lang") {
+            None => {
+                leptos::logging::debug_warn!("No \"lang\" attribute found on <html> element. With hydrate this attribute must be set to the used locale as it is used to determine what locale the server has choosen. Either use the `set_lang_attr_on_html` props on <I18nContextProvider> or manually set it.");
+                None
+            }
+            Some(lang) => Some(lang),
+        })
         .and_then(|lang| L::from_str(&lang).ok())
         .or(current_cookie);
 
