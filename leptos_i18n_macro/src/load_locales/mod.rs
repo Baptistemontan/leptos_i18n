@@ -278,7 +278,7 @@ fn load_locales_inner(
                     ssr: SsrMode,
                     /// `children` may be empty or include nested routes.
                     children: RouteChildren<Chil>,
-                ) -> impl MatchNestedRoutes<Dom> + Clone
+                ) -> <#enum_ident as l_i18n_crate::Locale>::Routes<View, Chil, Dom>
                     where View: ChooseView<Dom>,
                 {
                     l_i18n_crate::__private::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
@@ -337,6 +337,15 @@ fn create_locales_enum(
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
 
+    let routes = std::iter::repeat(quote!(
+        l_i18n_crate::__private::I18nNestedRoute<Self, View, Chil, R>
+    ))
+    .take(locales.len() + 1);
+
+    let make_routes = locales.iter().map(|locale| {
+        quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route)))
+    });
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -370,6 +379,7 @@ fn create_locales_enum(
 
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
+            type Routes<View, Chil, R> = (#(#routes,)*);
 
             fn as_str(self) -> &'static str {
                 let s = match self {
@@ -397,6 +407,19 @@ fn create_locales_enum(
 
             fn from_base_locale(locale: Self) -> Self {
                 locale
+            }
+
+            fn make_routes<View, Chil, R>(
+                base_route: l_i18n_crate::__private::BaseRoute<View, Chil, R>,
+                base_path: &'static str
+            ) -> Self::Routes<View, Chil, R>
+                where R: l_i18n_crate::reexports::leptos::prelude::Renderer,
+                View: l_i18n_crate::reexports::leptos_router::ChooseView<R>
+             {
+                (
+                    #(#make_routes,)*
+                    l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route)
+                )
             }
         }
 

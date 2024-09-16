@@ -1,9 +1,8 @@
+use std::sync::Arc;
+
 use leptos::{either::Either, ev, prelude::*};
 use leptos_router::{
-    components::*,
-    hooks::{use_location, use_navigate},
-    location::Location,
-    ChooseView, MatchNestedRoutes, NavigateOptions, SsrMode,
+    components::*, hooks::{use_location, use_navigate}, location::Location, ChooseView, MatchInterface, MatchNestedRoutes, MatchParams, NavigateOptions, NestedRoute, PathSegment, SsrMode, StaticSegment
 };
 
 use crate::{use_i18n_context, I18nContext, Locale};
@@ -101,14 +100,20 @@ fn update_path_effect<L: Locale>(
 
         let new_path = get_new_path(&location, base_path, new_locale, Some(prev_loc));
 
-        navigate(
-            &new_path,
-            NavigateOptions {
-                resolve: false,
-                scroll: false,
-                ..Default::default()
-            },
-        );
+        let navigate = navigate.clone();
+
+        // TODO FIXME: see https://github.com/leptos-rs/leptos/issues/2979
+        // It works for now, but it is not ideal.
+        request_animation_frame(move || {
+            navigate(
+                &new_path,
+                NavigateOptions {
+                    resolve: false,
+                    scroll: false,
+                    ..Default::default()
+                },
+            );
+        });
 
         new_locale
     }
@@ -130,15 +135,22 @@ fn correct_locale_prefix_effect<L: Locale>(
 
         let new_path = get_new_path(&location, base_path, current_locale, path_locale);
 
-        navigate(
-            &new_path,
-            NavigateOptions {
-                resolve: false,
-                replace: true,
-                scroll: false,
-                ..Default::default()
-            },
-        )
+        let navigate = navigate.clone();
+
+        // TODO FIXME: see https://github.com/leptos-rs/leptos/issues/2979
+        // It works for now, but it is not ideal.
+        request_animation_frame(move || {
+            navigate(
+                &new_path,
+                NavigateOptions {
+                    resolve: false,
+                    replace: true,
+                    scroll: false,
+                    ..Default::default()
+                },
+            );
+        });
+
     }
 }
 
@@ -179,10 +191,44 @@ fn maybe_redirect<L: Locale>(previously_resolved_locale: L, base_path: &str) -> 
     Some(new_path)
 }
 
-fn outlet_wrapper<L: Locale>(
+#[doc(hidden)]
+#[derive(Clone)]
+pub struct RedirectView(Arc<dyn Fn() -> leptos::prelude::View<()> + Send + Sync>);
+
+struct ViewWrapper<View>(Arc<dyn Fn() -> Either<View, RedirectView> + Send + Sync>);
+
+impl<View> Clone for ViewWrapper<View> {
+    fn clone(&self) -> Self {
+        ViewWrapper(self.0.clone())
+    }
+}
+
+impl<R: Renderer> ChooseView<R> for RedirectView {
+    type Output = leptos::prelude::View<()>;
+
+    async fn choose(self) -> Self::Output {
+        self.0()
+    }
+
+    async fn preload(&self) {}
+}
+
+impl<R: Renderer, View: ChooseView<R>> ChooseView<R> for ViewWrapper<View> {
+    type Output = Either<View::Output, <RedirectView as ChooseView<R>>::Output>;
+
+    async fn choose(self) -> Self::Output {
+        let inner = self.0();
+        ChooseView::choose(inner).await
+    }
+
+    async fn preload(&self) {}
+}
+
+fn view_wrapper<R: Renderer, L: Locale, View: ChooseView<R>>(
+    view: View,
     route_locale: Option<L>,
     base_path: &'static str,
-) -> impl ChooseView<Dom> {
+) -> Either<View, RedirectView> {
     let i18n = use_i18n_context::<L>();
 
     let previously_resolved_locale = i18n.get_locale_untracked();
@@ -205,48 +251,258 @@ fn outlet_wrapper<L: Locale>(
     let history_changed_locale = StoredValue::new(None);
 
     Effect::new(update_path_effect(i18n, base_path, history_changed_locale));
+
     // listen for history changes
-    window_event_listener(
+    let handle = window_event_listener(
         ev::popstate,
         check_history_change(i18n, base_path, history_changed_locale),
     );
+
+    on_cleanup(move || handle.remove());
+
     // correct the url when using <a> that removes the locale prefix
     Effect::new(correct_locale_prefix_effect(i18n, base_path));
 
+    
     match redir {
-        None => Either::Left(move || view! { <Outlet /> }),
-        Some(path) => Either::Right(move || view! { <Redirect path={ path.clone() }/> }),
+        None => Either::Left(view),
+        Some(path) => {
+            let view = Arc::new(move || view! { <Redirect path={ path.clone() }/> });
+            Either::Right(RedirectView(view))
+        },
     }
 }
-
-// fn make_route<V: IntoView>(
-//     path: &str,
-//     children: Option<Children>,
-//     view: impl Fn() -> V + 'static,
-//     ssr: SsrMode,
-// ) -> NestedRoute {
-//     Route(path, view, ssr)
-// }
-
-// struct I18nParamSegment<L, Chil, View> {}
-
-// type StaticStrSegment = StaticSegment<&'static str>;
-
-// type OutputRoute<Chil, View, L> = NestedRoute<StaticStrSegment, Chil, (), View, Dom>;
 
 #[doc(hidden)]
 pub fn i18n_routing<L: Locale, View, Chil>(
     base_path: &'static str,
     children: RouteChildren<Chil>,
-    ssr: SsrMode,
+    ssr_mode: SsrMode,
     view: View,
-) -> impl MatchNestedRoutes<Dom> + Clone
+) -> L::Routes<View, Chil, Dom>
 where
     View: ChooseView<Dom>,
 {
-    let _ = move || outlet_wrapper::<L>(None, base_path);
-    let _ = (children, ssr, view);
-    if true {
-        unimplemented!("i18n routing is a WIP.")
+    let children = children.into_inner();
+    let base_route = NestedRoute::new(StaticSegment(""), view).ssr_mode(ssr_mode).child(children);
+    let base_route = Arc::new(base_route);
+    
+    L::make_routes(base_route, base_path)
+}
+
+#[doc(hidden)]
+pub struct I18nNestedRoute<L, View, Chil, R> {
+    route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>,
+    locale: Option<L>,
+    base_path: &'static str
+}
+
+impl<L: Clone, View, Chil, R> Clone for I18nNestedRoute<L, View, Chil, R> {
+    fn clone(&self) -> Self {
+        let route = self.route.clone();
+        let locale = self.locale.clone();
+        let base_path = self.base_path;
+        I18nNestedRoute {
+            route,
+            locale,
+            base_path
+        }
+    }
+}
+
+impl<R: Renderer, L: Locale, View: ChooseView<R>, Chil> I18nNestedRoute<L, View, Chil, R> {
+    pub fn new(
+        locale: Option<L>,
+        base_path: &'static str,
+        route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>,
+    ) -> Self {
+        Self { route, locale, base_path }
+    }
+}
+
+
+// what you will see after this comment is an absolute fuckery. 
+// The goal here is to create N + 1 routes where N is the number of locales (last being for empty).
+// not very difficult.
+// but if you do it the "normal" way, changing locales will rebuild the entire tree, making the application loose state when it does'nt need to.
+// So, we want to create N + 1 routes, that are "the same"
+// Leptos differentiate them with their "RouteId"
+// So we basically create N+1 route with the same route id
+// All the stupidity you will see under this comment is done just to archieve this.
+
+#[doc(hidden)]
+pub type BaseRoute<View, Chil, R> = Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>;
+
+
+// This function could be replaced with `StaticSegment::test` but the returned "PartialPathMatch" as incorrect lifetime so it is not usable as a public API.
+fn test_path<L: Locale>(locale: L, path: &str) -> Option<(&str, &str)> {
+    let locale = locale.as_str();
+    let mut matched_len = 0;
+    let mut test = path.chars().peekable();
+    let mut this = locale.chars();
+    let mut has_matched = false;
+    // match an initial /
+    if let Some('/') = test.peek() {
+        test.next();
+        matched_len += 1;
+    }
+
+    for char in test {
+        let n = this.next();
+        // when we get a closing /, stop matching
+        if char == '/' || n.is_none() {
+            break;
+        }
+        // if the next character in the path matches the
+        // next character in the segment, add it to the match
+        else if Some(char) == n {
+            has_matched = true;
+            matched_len += char.len_utf8();
+        }
+        // otherwise, this route doesn't match and we should
+        // return None
+        else {
+            return None;
+        }
+    }
+
+    // build the match object
+    // the remaining is built from the path in, with the slice moved
+    // by the length of this match
+    let (matched, remaining) = path.split_at(matched_len);
+    has_matched.then_some((matched, remaining))
+}
+
+#[doc(hidden)]
+pub struct I18nRouteMatch<L, R, View, Chil> where 
+    R: Renderer,
+    Chil: MatchNestedRoutes<R>,
+    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
+        Clone,
+    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: 'static,
+    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
+    View: ChooseView<R> + Clone,
+    View::Output: Render<R> + RenderHtml<R> + Send + 'static
+{
+    locale: Option<L>,
+    base_path: &'static str,
+    matched: String,
+    inner_match: <NestedRoute<StaticSegment<&'static str>, Chil, (), View, R> as MatchNestedRoutes<R>>::Match
+}
+
+impl<L, R, View, Chil> MatchParams for I18nRouteMatch<L, R, View, Chil>
+where
+    R: Renderer,
+    Chil: MatchNestedRoutes<R>,
+    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
+        Clone,
+    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: 'static,
+    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
+    View: ChooseView<R> + Clone,
+    View::Output: Render<R> + RenderHtml<R> + Send + 'static,
+{
+    type Params = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R> as MatchNestedRoutes<R>>::Match as MatchParams>::Params;
+
+    fn to_params(&self) -> Self::Params {
+        MatchParams::to_params(&self.inner_match)
+    }
+}
+
+impl<L, R, View, Chil> MatchInterface<R> for I18nRouteMatch<L, R, View, Chil>
+where
+    L: Locale,
+    R: Renderer,
+    Chil: MatchNestedRoutes<R>,
+    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
+        Clone,
+    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: 'static,
+    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
+    View: ChooseView<R> + Clone + Sync,
+    View::Output: Render<R> + RenderHtml<R> + Send + 'static,
+{
+    type Child = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R> as MatchNestedRoutes<R>>::Match as MatchInterface<R>>::Child;
+
+    type View = Either<<View as ChooseView<R>>::Output, <RedirectView as ChooseView<R>>::Output>;
+
+    fn as_id(&self) -> leptos_router::RouteMatchId {
+        MatchInterface::<R>::as_id(&self.inner_match)
+    }
+
+    fn as_matched(&self) -> &str {
+        &self.matched
+    }
+
+    fn into_view_and_child(self) -> (impl ChooseView<R, Output = Self::View>, Option<Self::Child>) {
+        let (view, child) = MatchInterface::<R>::into_view_and_child(self.inner_match);
+        let new_view = Arc::new(move || view_wrapper(view.clone(), self.locale, self.base_path));
+        (ViewWrapper(new_view), child)
+    }
+}
+
+impl<R, L: Locale, View, Chil> MatchNestedRoutes<R> for I18nNestedRoute<L, View, Chil, R>
+where
+    R: Renderer,
+    Chil: MatchNestedRoutes<R>,
+    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
+        Clone,
+    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: 'static,
+    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
+    View: ChooseView<R> + Clone + Sync,
+    View::Output: Render<R> + RenderHtml<R> + Send + 'static,
+{
+    type Data = ();
+
+    type View = View::Output;
+
+    type Match = I18nRouteMatch<L, R, View, Chil>;
+
+    fn match_nested<'a>(
+        &'a self,
+        path: &'a str,
+    ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
+        if let Some(locale) = self.locale {
+            test_path(locale, path)
+                .and_then(|(matched, remaining)| {
+                    let (inner_match, remaining) =
+                        MatchNestedRoutes::<R>::match_nested(&*self.route, remaining);
+                    let (route_match_id, inner_match) = inner_match?;
+                    let matched = matched.to_string();
+                    let route_match = I18nRouteMatch {
+                        locale: Some(locale),
+                        matched,
+                        inner_match,
+                        base_path: self.base_path
+                    };
+                    Some((Some((route_match_id, route_match)), remaining))
+                })
+                .unwrap_or((None, path))
+        } else {
+            let (inner_match, remaining) = MatchNestedRoutes::<R>::match_nested(&*self.route, path);
+            inner_match
+                .map(|(route_match_id, inner_match)| {
+                    let route_match = I18nRouteMatch {
+                        locale: None,
+                        matched: String::new(),
+                        inner_match,
+                        base_path: self.base_path
+                    };
+                    (Some((route_match_id, route_match)), remaining)
+                })
+                .unwrap_or((None, path))
+        }
+    }
+
+    fn generate_routes(&self) -> impl IntoIterator<Item = leptos_router::GeneratedRouteData> + '_ {
+        MatchNestedRoutes::<R>::generate_routes(&*self.route).into_iter().map(|mut generated_route| {
+            if let (Some(locale), Some(first)) = (self.locale, generated_route.segments.first_mut()) {
+                // replace the empty segment set by the inner route with the locale one
+                *first = PathSegment::Static(locale.as_str().into())
+            }
+            generated_route
+        })
     }
 }

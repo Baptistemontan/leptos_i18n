@@ -96,7 +96,6 @@ impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
 
     fn run(&self, el: <R as Renderer>::Element, _param: ()) {
         let this = *self;
-        leptos::logging::log!("test");
         Effect::new(move || {
             let locale = this.get_locale();
             R::set_attribute(&el, "lang", locale.as_str());

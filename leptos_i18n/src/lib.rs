@@ -137,7 +137,7 @@ pub use scopes::{ConstScope, Scope};
 pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
-    pub use crate::routing::i18n_routing;
+    pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
     pub use crate::static_lock::*;
     pub use icu::locid;
     pub use leptos_i18n_macro::declare_locales;

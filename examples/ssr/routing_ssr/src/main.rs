@@ -25,7 +25,10 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
-        .leptos_routes(&leptos_options, routes, App)
+        .leptos_routes(&leptos_options, routes, {
+            let leptos_options = leptos_options.clone();
+            move || shell(leptos_options.clone())
+        })
         .fallback(file_and_error_handler)
         .with_state(leptos_options);
 
@@ -37,5 +40,29 @@ async fn main() {
         .await
         .unwrap();
 }
+
+#[cfg(feature = "ssr")]
+pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::prelude::IntoView {
+    use leptos::prelude::*;
+    use leptos_meta::MetaTags;
+    use routing_ssr::app::App;
+
+    view! {
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options/>
+                <MetaTags/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
+    }
+}
+
 #[cfg(not(feature = "ssr"))]
 fn main() {}
