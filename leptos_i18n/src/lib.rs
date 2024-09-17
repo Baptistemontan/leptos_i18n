@@ -201,15 +201,10 @@ macro_rules! ti {
         {
             mod inner {
                 use super::*;
-                #[leptos::island]
-                pub fn $island_name() -> impl IntoView {
-                    let i18n = use_i18n();
-                    leptos::view! { <>{t!(i18n, $($tt)*)}</> }
-                }
+                $crate::make_i18n_island!($island_name, $($tt)*);
             }
-            use inner::$island_name;
 
-            || view! { <$island_name /> }
+            || view! { <inner::$island_name /> }
         }
     };
 }
@@ -265,10 +260,9 @@ macro_rules! ti {
 #[macro_export]
 macro_rules! make_i18n_island {
     ($island_name: ident, $($tt:tt)*) => {
-        #[leptos::island]
+        #[island]
         pub fn $island_name() -> impl IntoView {
-            let i18n = use_i18n();
-            leptos::view! { <>{t!(i18n, $($tt)*)}</> }
+            t!(use_i18n(), $($tt)*)
         }
     };
 }
