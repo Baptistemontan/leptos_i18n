@@ -167,12 +167,15 @@ impl Plurals {
             .map(PluralForm::from_icu_category)
             .collect::<BTreeSet<_>>();
         for cat in categs.difference(&used_categs) {
-            emit_warning(Warning::UnusedCategory {
-                locale: locale.clone(),
-                key_path: key_path.to_owned(),
-                category: *cat,
-                rule_type: self.rule_type,
-            })
+            emit_warning(
+                Warning::UnusedCategory {
+                    locale: locale.clone(),
+                    key_path: key_path.to_owned(),
+                    category: *cat,
+                    rule_type: self.rule_type,
+                },
+                None,
+            );
         }
     }
 

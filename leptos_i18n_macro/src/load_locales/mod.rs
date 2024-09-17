@@ -105,16 +105,18 @@ fn load_locales_inner(
     let providers = if cfg!(feature = "experimental-islands") {
         macros_reexport.push(quote!(ti));
         quote! {
+            /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::island]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
-                #[prop(optional)]
+                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 set_lang_attr_on_html: Option<bool>,
-                #[prop(optional)]
+                /// Enable the use of a cookie to save the choosen locale (default to true).
+                /// Does nothing without the "cookie" feature
                 enable_cookie: Option<bool>,
-                #[prop(optional, into)]
-                cookie_name: Option<std::borrow::Cow<'static, str>>,
-                children: l_i18n_crate::reexports::leptos::Children
+                /// Specify a name for the cookie, default to the library default.
+                cookie_name: Option<Cow<'static, str>>,
+                children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
                     set_lang_attr_on_html,
@@ -125,20 +127,18 @@ fn load_locales_inner(
                 )
             }
 
-            /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
+            /// Create and provide a i18n subcontext for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::island]
             #[allow(non_snake_case)]
             pub fn I18nSubContextProvider(
-                children: l_i18n_crate::reexports::leptos::Children,
+                children: Children,
                 /// The initial locale for this subcontext.
                 /// Default to the locale set in the cookie if set and some,
                 /// if not use the parent context locale.
                 /// if no parent context, use the default locale.
-                #[prop(optional)]
                 initial_locale: Option<#enum_ident>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-                #[prop(optional, into)]
-                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                cookie_name: Option<Cow<'static, str>>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
                     children,
@@ -150,18 +150,24 @@ fn load_locales_inner(
         }
     } else {
         quote! {
+            /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
+                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
+                /// Enable the use of a cookie to save the choosen locale (default to true).
+                /// Does nothing without the "cookie" feature
                 #[prop(optional)]
                 enable_cookie: Option<bool>,
+                /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
-                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                cookie_name: Option<Cow<'static, str>>,
+                /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
-                cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
-                children: l_i18n_crate::reexports::leptos::Children
+                cookie_options: Option<CookieOptions<#enum_ident>>,
+                children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
                     set_lang_attr_on_html,
@@ -176,18 +182,19 @@ fn load_locales_inner(
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
             pub fn I18nSubContextProvider(
-                children: l_i18n_crate::reexports::leptos::Children,
+                children: Children,
                 /// The initial locale for this subcontext.
                 /// Default to the locale set in the cookie if set and some,
                 /// if not use the parent context locale.
                 /// if no parent context, use the default locale.
                 #[prop(optional, into)]
-                initial_locale: Option<l_i18n_crate::reexports::leptos::Signal<#enum_ident>>,
+                initial_locale: Option<Signal<#enum_ident>>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 #[prop(optional, into)]
-                cookie_name: Option<std::borrow::Cow<'static, str>>,
+                cookie_name: Option<Cow<'static, str>>,
+                /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
-                cookie_options: Option<l_i18n_crate::context::CookieOptions<#enum_ident>>,
+                cookie_options: Option<CookieOptions<#enum_ident>>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
                     children,
@@ -212,6 +219,7 @@ fn load_locales_inner(
             #locale_type
 
             #[inline]
+            #[track_caller]
             pub fn use_i18n() -> l_i18n_crate::I18nContext<#enum_ident> {
                 l_i18n_crate::use_i18n_context()
             }
@@ -219,13 +227,17 @@ fn load_locales_inner(
             #[deprecated(
                 note = "It is now preferred to use the <I18nContextProvider> component"
             )]
+            #[track_caller]
             pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<#enum_ident> {
                 l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None)
             }
 
             mod providers {
                 use super::{l_i18n_crate, #enum_ident};
-                use l_i18n_crate::reexports::leptos::IntoView;
+                use l_i18n_crate::reexports::leptos;
+                use leptos::{IntoView, Children, Signal};
+                use std::borrow::Cow;
+                use l_i18n_crate::context::CookieOptions;
 
                 #providers
             }
@@ -233,7 +245,10 @@ fn load_locales_inner(
             mod routing {
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::reexports::leptos_router;
-                use l_i18n_crate::reexports::leptos::IntoView;
+                use l_i18n_crate::reexports::leptos;
+                use leptos::{IntoView, Children};
+                use leptos_router::{Loader, Method, TrailingSlash, SsrMode};
+
                 #[l_i18n_crate::reexports::leptos::component(transparent)]
                 #[allow(non_snake_case)]
                 pub fn I18nRoute<E, F>(
@@ -250,24 +265,24 @@ fn load_locales_inner(
                     view: F,
                     /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming.
                     #[prop(optional)]
-                    ssr: leptos_router::SsrMode,
+                    ssr: SsrMode,
                     /// The HTTP methods that this route can handle (defaults to only `GET`).
-                    #[prop(default = &[leptos_router::Method::Get])]
-                    methods: &'static [leptos_router::Method],
+                    #[prop(default = &[Method::Get])]
+                    methods: &'static [Method],
                     /// A data-loading function that will be called when the route is matched. Its results can be
                     /// accessed with [`use_route_data`](crate::use_route_data).
                     #[prop(optional, into)]
-                    data: Option<leptos_router::Loader>,
+                    data: Option<Loader>,
                     /// How this route should handle trailing slashes in its path.
                     /// Overrides any setting applied to [`crate::components::Router`].
                     /// Serves as a default for any inner Routes.
                     #[prop(optional)]
-                    trailing_slash: Option<leptos_router::TrailingSlash>,
+                    trailing_slash: Option<TrailingSlash>,
                     /// `children` may be empty or include nested routes.
                     #[prop(optional)]
-                    children: Option<l_i18n_crate::reexports::leptos::Children>,
+                    children: Option<Children>,
                 ) -> impl IntoView
-                    where E: l_i18n_crate::reexports::leptos::IntoView,
+                    where E: IntoView,
                     F: Fn() -> E + 'static
                 {
                     l_i18n_crate::__private::i18n_routing::<#enum_ident, E, F>(base_path, children, ssr, methods, data, trailing_slash, view)
@@ -415,6 +430,12 @@ fn create_locales_enum(
         impl core::convert::AsRef<str> for #enum_ident {
             fn as_ref(&self) -> &str {
                 l_i18n_crate::Locale::as_str(*self)
+            }
+        }
+
+        impl core::convert::AsRef<Self> for #enum_ident {
+            fn as_ref(&self) -> &Self {
+                self
             }
         }
 

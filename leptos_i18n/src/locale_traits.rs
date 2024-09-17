@@ -17,6 +17,7 @@ pub trait Locale<L: Locale = Self>:
     + AsRef<locid::LanguageIdentifier>
     + AsRef<locid::Locale>
     + AsRef<str>
+    + AsRef<L>
     + std::fmt::Display
     + std::fmt::Debug
     + PartialEq

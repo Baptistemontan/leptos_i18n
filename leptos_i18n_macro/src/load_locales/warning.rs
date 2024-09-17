@@ -1,11 +1,18 @@
+use proc_macro::Span;
 use proc_macro2::TokenStream;
-#[cfg(not(feature = "nightly"))]
 use quote::{format_ident, quote};
 
 use crate::utils::key::{Key, KeyPath};
 use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use super::plurals::{PluralForm, PluralRuleType};
+
+#[derive(Debug)]
+struct SpannedWarning {
+    #[allow(unused)]
+    span: Span,
+    warning: Warning,
+}
 
 #[derive(Debug)]
 pub enum Warning {
@@ -23,7 +30,6 @@ pub enum Warning {
         category: PluralForm,
         rule_type: PluralRuleType,
     },
-    #[cfg(feature = "track_locale_files")]
     NonUnicodePath {
         locale: Rc<Key>,
         namespace: Option<Rc<Key>>,
@@ -32,12 +38,14 @@ pub enum Warning {
 }
 
 thread_local! {
-    pub static WARNINGS: RefCell<Vec<Warning>> = const { RefCell::new(Vec::new()) };
+    pub static WARNINGS: RefCell<Vec<SpannedWarning>> = const { RefCell::new(Vec::new()) };
 }
 
-pub fn emit_warning(warning: Warning) {
+pub fn emit_warning(warning: Warning, span: Option<Span>) {
     if !cfg!(feature = "suppress_key_warnings") {
-        WARNINGS.with(|warnings| warnings.borrow_mut().push(warning));
+        let span = span.unwrap_or_else(Span::call_site);
+        let spanned_warning = SpannedWarning { span, warning };
+        WARNINGS.with(|warnings| warnings.borrow_mut().push(spanned_warning));
     }
 }
 
@@ -55,18 +63,15 @@ impl Display for Warning {
             Warning::UnusedCategory { locale, key_path, category, rule_type } => {
                 write!(f, "at key \"{}\", locale {:?} does not use {} category {}, it is still kept but is useless.", key_path, locale, rule_type, category)
             },
-            #[cfg(feature = "track_locale_files")]
             Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, path),
-            #[cfg(feature = "track_locale_files")]
             Warning::NonUnicodePath { locale, namespace: Some(ns), path } => write!(f, "File path for locale {:?} in namespace {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, ns, path),
         }
     }
 }
 
-impl Warning {
-    #[cfg(not(feature = "nightly"))]
+impl SpannedWarning {
     fn to_fn(&self, index: usize) -> TokenStream {
-        let msg = self.to_string();
+        let msg = self.warning.to_string();
         let fn_name = format_ident!("w{}", index);
         quote! {
             #[deprecated(note = #msg)]
@@ -76,21 +81,22 @@ impl Warning {
         }
     }
 
-    #[cfg(feature = "nightly")]
     fn emit(&self) {
-        use proc_macro::{Diagnostic, Span};
+        #[cfg(feature = "nightly")]
+        {
+            use proc_macro::Diagnostic;
 
-        Diagnostic::spanned(
-            Span::call_site(),
-            proc_macro::Level::Warning,
-            self.to_string(),
-        )
-        .emit();
+            Diagnostic::spanned(
+                self.span,
+                proc_macro::Level::Warning,
+                self.warning.to_string(),
+            )
+            .emit();
+        }
     }
 }
 
-#[cfg(not(feature = "nightly"))]
-fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
+fn generate_warnings_inner(warnings: &[SpannedWarning]) -> TokenStream {
     let warning_fns = warnings.iter().enumerate().map(|(i, w)| w.to_fn(i));
 
     let fn_calls = (0..warnings.len()).map(|i| {
@@ -112,24 +118,20 @@ fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
     }
 }
 
-#[cfg(not(feature = "nightly"))]
 pub fn generate_warnings() -> Option<TokenStream> {
     WARNINGS.with(|cell| {
         let ws = cell.borrow();
-        if ws.is_empty() {
-            None
+        if cfg!(not(feature = "nightly")) {
+            if ws.is_empty() {
+                None
+            } else {
+                Some(generate_warnings_inner(&ws))
+            }
         } else {
-            Some(generate_warnings_inner(&ws))
+            for warning in ws.iter() {
+                warning.emit();
+            }
+            None
         }
-    })
-}
-
-#[cfg(feature = "nightly")]
-pub fn generate_warnings() -> Option<TokenStream> {
-    WARNINGS.with(|ws| {
-        for warning in ws.borrow().iter() {
-            warning.emit();
-        }
-        None
     })
 }

@@ -125,6 +125,12 @@ impl<L: Locale, S: Scope<L>> AsRef<str> for ScopedLocale<L, S> {
     }
 }
 
+impl<L: Locale, Sc: Scope<L>> AsRef<L> for ScopedLocale<L, Sc> {
+    fn as_ref(&self) -> &L {
+        &self.locale
+    }
+}
+
 impl<L: Locale, S: Scope<L>> Hash for ScopedLocale<L, S> {
     fn hash<H>(&self, state: &mut H)
     where

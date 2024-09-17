@@ -141,6 +141,12 @@ pub mod __private {
     pub use crate::static_lock::*;
     pub use icu::locid;
     pub use leptos_i18n_macro::declare_locales;
+
+    #[leptos::component]
+    #[allow(non_snake_case)]
+    pub fn IslandWrapper(children: leptos::Children) -> impl leptos::IntoView {
+        children()
+    }
 }
 
 /// Reexports of backend libraries, mostly about formatting.
@@ -201,15 +207,10 @@ macro_rules! ti {
         {
             mod inner {
                 use super::*;
-                #[leptos::island]
-                pub fn $island_name() -> impl IntoView {
-                    let i18n = use_i18n();
-                    leptos::view! { <>{t!(i18n, $($tt)*)}</> }
-                }
+                $crate::make_i18n_island!($island_name, $($tt)*);
             }
-            use inner::$island_name;
 
-            || view! { <$island_name /> }
+            || view! { <inner::$island_name /> }
         }
     };
 }
@@ -265,10 +266,14 @@ macro_rules! ti {
 #[macro_export]
 macro_rules! make_i18n_island {
     ($island_name: ident, $($tt:tt)*) => {
-        #[leptos::island]
+        #[island]
         pub fn $island_name() -> impl IntoView {
-            let i18n = use_i18n();
-            leptos::view! { <>{t!(i18n, $($tt)*)}</> }
+            use $crate::__private::IslandWrapper;
+            view! {
+                <IslandWrapper>
+                    {t!(use_i18n(), $($tt)*)}
+                </IslandWrapper>
+            }
         }
     };
 }
