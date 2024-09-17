@@ -381,7 +381,7 @@ fn test_path<L: Locale>(locale: L, path: &str) -> Option<(&str, &str)> {
 }
 
 #[doc(hidden)]
-pub struct I18nRouteMatch<L, R, View, Chil> where 
+pub struct I18nRouteMatch<L, R, View, Chil> where
     R: Renderer,
     Chil: MatchNestedRoutes<R>,
     <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
