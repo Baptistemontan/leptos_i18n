@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use leptos::{either::Either, ev, prelude::*};
 use leptos_router::{
-    components::*, hooks::{use_location, use_navigate}, location::Location, ChooseView, MatchInterface, MatchNestedRoutes, MatchParams, NavigateOptions, NestedRoute, PathSegment, SsrMode, StaticSegment
+    components::*,
+    hooks::{use_location, use_navigate},
+    location::Location,
+    ChooseView, MatchInterface, MatchNestedRoutes, MatchParams, NavigateOptions, NestedRoute,
+    PathSegment, SsrMode, StaticSegment,
 };
 
 use crate::{use_i18n_context, I18nContext, Locale};
@@ -150,7 +154,6 @@ fn correct_locale_prefix_effect<L: Locale>(
                 },
             );
         });
-
     }
 }
 
@@ -263,13 +266,12 @@ fn view_wrapper<R: Renderer, L: Locale, View: ChooseView<R>>(
     // correct the url when using <a> that removes the locale prefix
     Effect::new(correct_locale_prefix_effect(i18n, base_path));
 
-    
     match redir {
         None => Either::Left(view),
         Some(path) => {
             let view = Arc::new(move || view! { <Redirect path={ path.clone() }/> });
             Either::Right(RedirectView(view))
-        },
+        }
     }
 }
 
@@ -284,9 +286,11 @@ where
     View: ChooseView<Dom>,
 {
     let children = children.into_inner();
-    let base_route = NestedRoute::new(StaticSegment(""), view).ssr_mode(ssr_mode).child(children);
+    let base_route = NestedRoute::new(StaticSegment(""), view)
+        .ssr_mode(ssr_mode)
+        .child(children);
     let base_route = Arc::new(base_route);
-    
+
     L::make_routes(base_route, base_path)
 }
 
@@ -294,7 +298,7 @@ where
 pub struct I18nNestedRoute<L, View, Chil, R> {
     route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>,
     locale: Option<L>,
-    base_path: &'static str
+    base_path: &'static str,
 }
 
 impl<L: Clone, View, Chil, R> Clone for I18nNestedRoute<L, View, Chil, R> {
@@ -305,7 +309,7 @@ impl<L: Clone, View, Chil, R> Clone for I18nNestedRoute<L, View, Chil, R> {
         I18nNestedRoute {
             route,
             locale,
-            base_path
+            base_path,
         }
     }
 }
@@ -316,12 +320,15 @@ impl<R: Renderer, L: Locale, View: ChooseView<R>, Chil> I18nNestedRoute<L, View,
         base_path: &'static str,
         route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>,
     ) -> Self {
-        Self { route, locale, base_path }
+        Self {
+            route,
+            locale,
+            base_path,
+        }
     }
 }
 
-
-// what you will see after this comment is an absolute fuckery. 
+// what you will see after this comment is an absolute fuckery.
 // The goal here is to create N + 1 routes where N is the number of locales (last being for empty).
 // not very difficult.
 // but if you do it the "normal" way, changing locales will rebuild the entire tree, making the application loose state when it does'nt need to.
@@ -331,8 +338,8 @@ impl<R: Renderer, L: Locale, View: ChooseView<R>, Chil> I18nNestedRoute<L, View,
 // All the stupidity you will see under this comment is done just to archieve this.
 
 #[doc(hidden)]
-pub type BaseRoute<View, Chil, R> = Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>;
-
+pub type BaseRoute<View, Chil, R> =
+    Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>;
 
 // This function could be replaced with `StaticSegment::test` but the returned "PartialPathMatch" as incorrect lifetime so it is not usable as a public API.
 fn test_path<L: Locale>(locale: L, path: &str) -> Option<(&str, &str)> {
@@ -475,7 +482,7 @@ where
                         locale: Some(locale),
                         matched,
                         inner_match,
-                        base_path: self.base_path
+                        base_path: self.base_path,
                     };
                     Some((Some((route_match_id, route_match)), remaining))
                 })
@@ -488,7 +495,7 @@ where
                         locale: None,
                         matched: String::new(),
                         inner_match,
-                        base_path: self.base_path
+                        base_path: self.base_path,
                     };
                     (Some((route_match_id, route_match)), remaining)
                 })
@@ -497,12 +504,16 @@ where
     }
 
     fn generate_routes(&self) -> impl IntoIterator<Item = leptos_router::GeneratedRouteData> + '_ {
-        MatchNestedRoutes::<R>::generate_routes(&*self.route).into_iter().map(|mut generated_route| {
-            if let (Some(locale), Some(first)) = (self.locale, generated_route.segments.first_mut()) {
-                // replace the empty segment set by the inner route with the locale one
-                *first = PathSegment::Static(locale.as_str().into())
-            }
-            generated_route
-        })
+        MatchNestedRoutes::<R>::generate_routes(&*self.route)
+            .into_iter()
+            .map(|mut generated_route| {
+                if let (Some(locale), Some(first)) =
+                    (self.locale, generated_route.segments.first_mut())
+                {
+                    // replace the empty segment set by the inner route with the locale one
+                    *first = PathSegment::Static(locale.as_str().into())
+                }
+                generated_route
+            })
     }
 }
