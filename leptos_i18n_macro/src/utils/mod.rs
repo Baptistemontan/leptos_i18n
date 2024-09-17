@@ -87,3 +87,15 @@ impl EitherOfWrapper {
         }
     }
 }
+
+pub fn fit_in_16_tuple(values: &[TokenStream]) -> TokenStream {
+    let values_len = values.len();
+    if values_len <= 16 {
+        quote!((#(#values,)*))
+    } else {
+        // ceil to avoid rounding down, if not for exemple a size of 36 will yield 18 chunks of size 2
+        let chunk_size = values_len.div_ceil(16);
+        let values = values.chunks(chunk_size).map(fit_in_16_tuple);
+        quote!((#(#values,)*))
+    }
+}

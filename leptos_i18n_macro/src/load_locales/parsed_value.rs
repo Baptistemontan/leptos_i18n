@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::utils::formatter::Formatter;
+use crate::utils::{fit_in_16_tuple, formatter::Formatter};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use serde::{
@@ -1015,22 +1015,6 @@ impl ForeignKey {
             ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner_mut).", call_site),
             ForeignKey::Set(inner) => inner,
         }
-    }
-}
-
-fn fit_in_16_tuple(values: &mut [TokenStream]) -> TokenStream {
-    let values_len = values.len();
-    if values_len <= 16 {
-        match values {
-            [] => quote!(None::<()>),
-            [value] => std::mem::take(value),
-            values => quote!((#(#values,)*)),
-        }
-    } else {
-        // ceil to avoid rounding down, if not for exemple a size of 36 will yield 18 chunks of size 2
-        let chunk_size = values_len.div_ceil(16);
-        let values = values.chunks_mut(chunk_size).map(fit_in_16_tuple);
-        quote!((#(#values,)*))
     }
 }
 

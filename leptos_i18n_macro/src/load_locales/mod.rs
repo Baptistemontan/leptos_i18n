@@ -17,7 +17,10 @@ pub mod warning;
 
 pub mod plurals;
 
-use crate::utils::key::{Key, KeyPath};
+use crate::utils::{
+    fit_in_16_tuple,
+    key::{Key, KeyPath},
+};
 use cfg_file::ConfigFile;
 use error::{Error, Result};
 use interpolate::Interpolation;
@@ -335,11 +338,18 @@ fn create_locales_enum(
     let routes = std::iter::repeat(quote!(
         l_i18n_crate::__private::I18nNestedRoute<Self, View, Chil, R>
     ))
-    .take(locales.len() + 1);
+    .take(locales.len() + 1)
+    .collect::<Vec<_>>();
+
+    let routes = fit_in_16_tuple(&routes);
 
     let make_routes = locales.iter().map(|locale| {
         quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route)))
-    });
+    })
+    .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route))))
+    .collect::<Vec<_>>();
+
+    let make_routes = fit_in_16_tuple(&make_routes);
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -374,7 +384,7 @@ fn create_locales_enum(
 
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
-            type Routes<View, Chil, R> = (#(#routes,)*);
+            type Routes<View, Chil, R> = #routes;
 
             fn as_str(self) -> &'static str {
                 let s = match self {
@@ -410,11 +420,8 @@ fn create_locales_enum(
             ) -> Self::Routes<View, Chil, R>
                 where R: l_i18n_crate::reexports::leptos::prelude::Renderer,
                 View: l_i18n_crate::reexports::leptos_router::ChooseView<R>
-             {
-                (
-                    #(#make_routes,)*
-                    l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route)
-                )
+            {
+                #make_routes
             }
         }
 
