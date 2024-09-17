@@ -5,7 +5,11 @@ use leptos::prelude::*;
 #[allow(non_snake_case)]
 pub fn App() -> impl IntoView {
     view! {
-        <I18nContextProvider>
+        <I18nContextProvider
+            set_lang_attr_on_html=None
+            enable_cookie=None
+            cookie_name=None
+        >
             <h1>
                 {ti!(HelloWorld, hello_world)}
             </h1>
