@@ -11,7 +11,7 @@ you can use this component to make the context accessible to all child component
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 // root of the application
 #[component]
@@ -30,7 +30,7 @@ Once provided, you can access it with the `use_i18n` function, also generated in
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 // somewhere else in the application
 #[component]
@@ -49,7 +49,7 @@ With the context you can access the current locale with the `get_locale` method:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -83,7 +83,7 @@ With the context you can change the current locale with the `set_locale` method,
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {

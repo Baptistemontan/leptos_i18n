@@ -2,6 +2,8 @@ use std::hash::Hash;
 use std::str::FromStr;
 
 use icu::locid;
+use leptos::prelude::Renderer;
+use leptos_router::ChooseView;
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
 
@@ -30,6 +32,9 @@ pub trait Locale<L: Locale = Self>:
 {
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = L>;
+
+    /// Associated routes for routing
+    type Routes<View, Chil, R>;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -77,6 +82,15 @@ pub trait Locale<L: Locale = Self>:
     fn map_locale(self, locale: L) -> Self {
         Self::from_base_locale(locale)
     }
+
+    /// Make the routes
+    fn make_routes<View, Chil, R>(
+        base_route: crate::routing::BaseRoute<View, Chil, R>,
+        base_path: &'static str,
+    ) -> Self::Routes<View, Chil, R>
+    where
+        R: Renderer,
+        View: ChooseView<R>;
 }
 
 /// Trait implemented the struct representing the translation keys
@@ -108,7 +122,7 @@ mod test {
         },
     }
 
-    use crate::{self as leptos_i18n, scope_locale, Locale as _};
+    use crate::{self as leptos_i18n, scope_locale, Locale as _, __private::LitWrapper};
     use i18n::Locale;
 
     #[test]
@@ -132,8 +146,8 @@ mod test {
     #[test]
     fn test_scope() {
         let en_sk = scope_locale!(Locale::en, sk);
-        assert_eq!(en_sk.get_keys().ssk, "test en");
+        assert_eq!(en_sk.get_keys().ssk, LitWrapper::new("test en"));
         let fr_sk = en_sk.map_locale(Locale::fr);
-        assert_eq!(fr_sk.get_keys().ssk, "test fr");
+        assert_eq!(fr_sk.get_keys().ssk, LitWrapper::new("test fr"));
     }
 }

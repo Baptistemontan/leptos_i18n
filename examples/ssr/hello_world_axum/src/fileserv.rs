@@ -6,9 +6,9 @@ use axum::{
     http::{Request, Response, StatusCode, Uri},
     response::IntoResponse,
 };
-use leptos::*;
+use leptos::prelude::*;
 use tower::ServiceExt;
-use tower_http::services::{ServeDir, fs::ServeFileSystemResponseBody};
+use tower_http::services::{fs::ServeFileSystemResponseBody, ServeDir};
 
 pub async fn file_and_error_handler(
     uri: Uri,
@@ -21,20 +21,25 @@ pub async fn file_and_error_handler(
     if res.status() == StatusCode::OK {
         res.into_response()
     } else {
-        let handler =
-            leptos_axum::render_app_to_stream(options.to_owned(), App);
+        let handler = leptos_axum::render_app_to_stream(App);
         handler(req).await.into_response()
     }
 }
 
-async fn get_static_file(uri: Uri, root: &str) -> Result<Response<ServeFileSystemResponseBody>, (StatusCode, String)> {
+async fn get_static_file(
+    uri: Uri,
+    root: &str,
+) -> Result<Response<ServeFileSystemResponseBody>, (StatusCode, String)> {
     let req = Request::builder()
         .uri(uri.clone())
         .body(Body::empty())
         .unwrap();
     // `ServeDir` implements `tower::Service` so we can call it with `tower::ServiceExt::oneshot`
     // This path is relative to the cargo root
-    ServeDir::new(root)
-        .oneshot(req).await
-        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, format!("Something went wrong: {err}")))
+    ServeDir::new(root).oneshot(req).await.map_err(|err| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Something went wrong: {err}"),
+        )
+    })
 }

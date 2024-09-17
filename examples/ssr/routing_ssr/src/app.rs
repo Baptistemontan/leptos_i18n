@@ -1,6 +1,6 @@
 use crate::i18n::*;
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
+use leptos_router::{components::*, path};
 
 #[component]
 #[allow(non_snake_case)]
@@ -10,10 +10,10 @@ pub fn App() -> impl IntoView {
     view! {
         <I18nContextProvider>
             <Router>
-                <Routes>
-                    <I18nRoute view=Outlet >
-                        <Route path="/" view=Home />
-                        <Route path="/counter" view=Counter />
+                <Routes fallback=|| "This page could not be found.">
+                    <I18nRoute view=|| view! { <Outlet /> }>
+                        <Route path=path!("/") view=Home />
+                        <Route path=path!("/counter") view=Counter />
                     </I18nRoute>
                 </Routes>
                 <br/>
@@ -56,7 +56,7 @@ fn Home() -> impl IntoView {
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, set_counter) = create_signal(0);
+    let (counter, set_counter) = signal(0);
 
     let inc = move |_| set_counter.update(|count| *count += 1);
 
@@ -68,7 +68,7 @@ fn Counter() -> impl IntoView {
                 {t!{ i18n,
                     click_count,
                     count,
-                    <b> = |children| view!{ <b>{children}</b> },
+                    <b> = <b/>,
                 }}
             </p>
             <button on:click=inc>{t!(i18n, click_to_inc)}</button>

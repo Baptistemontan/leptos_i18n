@@ -44,7 +44,7 @@ Shadowing a context is not as easy as it sounds:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_i18n::context::provide_i18n_subcontext;
 
 #[component]
@@ -94,7 +94,7 @@ So this crate has a `I18nSubContextProvider` generated in the `i18n` module:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 fn Foo() -> impl IntoView {

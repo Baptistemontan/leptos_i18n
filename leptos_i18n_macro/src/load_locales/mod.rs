@@ -17,7 +17,10 @@ pub mod warning;
 
 pub mod plurals;
 
-use crate::utils::key::{Key, KeyPath};
+use crate::utils::{
+    fit_in_16_tuple,
+    key::{Key, KeyPath},
+};
 use cfg_file::ConfigFile;
 use error::{Error, Result};
 use interpolate::Interpolation;
@@ -105,6 +108,9 @@ fn load_locales_inner(
     let providers = if cfg!(feature = "experimental-islands") {
         macros_reexport.push(quote!(ti));
         quote! {
+            use leptos::children::Children;
+            use leptos::prelude::RenderHtml;
+
             /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::island]
             #[allow(non_snake_case)]
@@ -118,7 +124,7 @@ fn load_locales_inner(
                 cookie_name: Option<Cow<'static, str>>,
                 children: Children
             ) -> impl IntoView {
-                l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
+                l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
                     set_lang_attr_on_html,
                     enable_cookie,
                     cookie_name,
@@ -140,9 +146,9 @@ fn load_locales_inner(
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 cookie_name: Option<Cow<'static, str>>,
             ) -> impl IntoView {
-                l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
+                l_i18n_crate::context::i18n_sub_context_provider_island::<#enum_ident>(
                     children,
-                    initial_locale.map(|l| l_i18n_crate::reexports::leptos::Signal::derive(move || l)),
+                    initial_locale,
                     cookie_name,
                     None
                 )
@@ -150,10 +156,12 @@ fn load_locales_inner(
         }
     } else {
         quote! {
+            use leptos::prelude::TypedChildren;
+
             /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
-            pub fn I18nContextProvider(
+            pub fn I18nContextProvider<Chil: IntoView>(
                 /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
@@ -167,9 +175,9 @@ fn load_locales_inner(
                 /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
                 cookie_options: Option<CookieOptions<#enum_ident>>,
-                children: Children
+                children: TypedChildren<Chil>
             ) -> impl IntoView {
-                l_i18n_crate::context::provide_i18n_context_component_inner::<#enum_ident>(
+                l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
                     set_lang_attr_on_html,
                     enable_cookie,
                     cookie_name,
@@ -181,8 +189,8 @@ fn load_locales_inner(
             /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
-            pub fn I18nSubContextProvider(
-                children: Children,
+            pub fn I18nSubContextProvider<Chil: IntoView>(
+                children: TypedChildren<Chil>,
                 /// The initial locale for this subcontext.
                 /// Default to the locale set in the cookie if set and some,
                 /// if not use the parent context locale.
@@ -196,7 +204,7 @@ fn load_locales_inner(
                 #[prop(optional)]
                 cookie_options: Option<CookieOptions<#enum_ident>>,
             ) -> impl IntoView {
-                l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
+                l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident, Chil>(
                     children,
                     initial_locale,
                     cookie_name,
@@ -235,7 +243,7 @@ fn load_locales_inner(
             mod providers {
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::reexports::leptos;
-                use leptos::{IntoView, Children, Signal};
+                use leptos::prelude::{IntoView, Signal};
                 use std::borrow::Cow;
                 use l_i18n_crate::context::CookieOptions;
 
@@ -246,12 +254,12 @@ fn load_locales_inner(
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::reexports::leptos_router;
                 use l_i18n_crate::reexports::leptos;
-                use leptos::{IntoView, Children};
-                use leptos_router::{Loader, Method, TrailingSlash, SsrMode};
+                use leptos::prelude::{IntoView, Dom};
+                use leptos_router::{SsrMode, MatchNestedRoutes, ChooseView, components::RouteChildren};
 
                 #[l_i18n_crate::reexports::leptos::component(transparent)]
                 #[allow(non_snake_case)]
-                pub fn I18nRoute<E, F>(
+                pub fn I18nRoute<View, Chil>(
                     /// The base path of this application.
                     /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
                     /// the expected base path is `/foo/`.
@@ -262,30 +270,16 @@ fn load_locales_inner(
                     /// that returns a type that implements [`IntoView`] (like `|| view! { <p>"Show this"</p> })`
                     /// or `|| view! { <MyComponent/>` } or even, for a component with no props, `MyComponent`).
                     /// If you use nested routes you can just set it to `view=Outlet`
-                    view: F,
+                    view: View,
                     /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming.
                     #[prop(optional)]
                     ssr: SsrMode,
-                    /// The HTTP methods that this route can handle (defaults to only `GET`).
-                    #[prop(default = &[Method::Get])]
-                    methods: &'static [Method],
-                    /// A data-loading function that will be called when the route is matched. Its results can be
-                    /// accessed with [`use_route_data`](crate::use_route_data).
-                    #[prop(optional, into)]
-                    data: Option<Loader>,
-                    /// How this route should handle trailing slashes in its path.
-                    /// Overrides any setting applied to [`crate::components::Router`].
-                    /// Serves as a default for any inner Routes.
-                    #[prop(optional)]
-                    trailing_slash: Option<TrailingSlash>,
                     /// `children` may be empty or include nested routes.
-                    #[prop(optional)]
-                    children: Option<Children>,
-                ) -> impl IntoView
-                    where E: IntoView,
-                    F: Fn() -> E + 'static
+                    children: RouteChildren<Chil>,
+                ) -> <#enum_ident as l_i18n_crate::Locale>::Routes<View, Chil, Dom>
+                    where View: ChooseView<Dom>,
                 {
-                    l_i18n_crate::__private::i18n_routing::<#enum_ident, E, F>(base_path, children, ssr, methods, data, trailing_slash, view)
+                    l_i18n_crate::__private::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
                 }
             }
 
@@ -341,6 +335,22 @@ fn create_locales_enum(
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
 
+    let routes = std::iter::repeat(quote!(
+        l_i18n_crate::__private::I18nNestedRoute<Self, View, Chil, R>
+    ))
+    .take(locales.len() + 1)
+    .collect::<Vec<_>>();
+
+    let routes = fit_in_16_tuple(&routes);
+
+    let make_routes = locales.iter().map(|locale| {
+        quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route)))
+    })
+    .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route))))
+    .collect::<Vec<_>>();
+
+    let make_routes = fit_in_16_tuple(&make_routes);
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -374,6 +384,7 @@ fn create_locales_enum(
 
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
+            type Routes<View, Chil, R> = #routes;
 
             fn as_str(self) -> &'static str {
                 let s = match self {
@@ -401,6 +412,16 @@ fn create_locales_enum(
 
             fn from_base_locale(locale: Self) -> Self {
                 locale
+            }
+
+            fn make_routes<View, Chil, R>(
+                base_route: l_i18n_crate::__private::BaseRoute<View, Chil, R>,
+                base_path: &'static str
+            ) -> Self::Routes<View, Chil, R>
+                where R: l_i18n_crate::reexports::leptos::prelude::Renderer,
+                View: l_i18n_crate::reexports::leptos_router::ChooseView<R>
+            {
+                #make_routes
             }
         }
 
@@ -469,23 +490,8 @@ impl<'a> Subkeys<'a> {
     }
 }
 
-fn get_default_match(
-    default_locale: &Key,
-    top_locales: &HashSet<&Key>,
-    locales: &[Locale],
-    enum_ident: &syn::Ident,
-) -> TokenStream {
-    let current_keys = locales
-        .iter()
-        .map(|locale| &*locale.top_locale_name)
-        .collect();
-    let missing_keys = top_locales.difference(&current_keys);
-    quote!(#enum_ident::#default_locale #(| #enum_ident::#missing_keys)*)
-}
-
 #[allow(clippy::too_many_arguments)]
 fn create_locale_type_inner(
-    default_locale: &Key,
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
@@ -495,8 +501,6 @@ fn create_locale_type_inner(
     key_path: &mut KeyPath,
     original_ident: &syn::Ident,
 ) -> TokenStream {
-    let default_match = get_default_match(default_locale, top_locales, locales, enum_ident);
-
     let literal_keys = keys
         .iter()
         .filter_map(|(key, value)| match value {
@@ -509,9 +513,9 @@ fn create_locale_type_inner(
         .iter()
         .map(|(key, literal_type)| {
             if cfg!(feature = "show_keys_only") {
-                quote!(pub #key: &'static str)
+                quote!(pub #key: l_i18n_crate::__private::LitWrapper<&'static str>)
             } else {
-                quote!(pub #key: #literal_type)
+                quote!(pub #key: l_i18n_crate::__private::LitWrapper<#literal_type>)
             }
         })
         .collect::<Vec<_>>();
@@ -530,7 +534,6 @@ fn create_locale_type_inner(
         let subkey_mod_ident = &sk.mod_key;
         key_path.push_key(sk.original_key.clone());
         let subkey_impl = create_locale_type_inner(
-            default_locale,
             &sk.key,
             Some(type_ident),
             enum_ident,
@@ -585,7 +588,7 @@ fn create_locale_type_inner(
         .filter_map(|(key, value)| match value {
             LocaleValue::Value(InterpolOrLit::Interpol(keys)) => Some((
                 key,
-                Interpolation::new(key, enum_ident, keys, locales, &default_match, key_path),
+                Interpolation::new(key, enum_ident, keys, locales, key_path),
             )),
             _ => None,
         })
@@ -608,29 +611,29 @@ fn create_locale_type_inner(
         .first()
         .expect("There should be at least one Locale");
 
-    let new_match_arms = locales.iter().enumerate().map(|(i, locale)| {
+    let new_match_arms = locales.iter().map(|locale| {
         let filled_lit_fields = literal_keys.iter().filter_map(|(key, _)| {
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
-                return Some(quote!(#key: #key_str));
+                return Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#key_str)));
             }
             match locale.keys.get(key) {
-                Some(ParsedValue::Literal(lit)) => Some(quote!(#key: #lit)),
+                Some(ParsedValue::Literal(lit)) => {
+                    Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#lit)))
+                }
                 _ => {
                     let lit = default_locale
                         .keys
                         .get(key)
                         .and_then(ParsedValue::is_literal)?;
-                    Some(quote!(#key: #lit))
+                    Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#lit)))
                 }
             }
         });
 
         let ident = &locale.top_locale_name;
-        let pattern = (i != 0).then(|| quote!(#enum_ident::#ident));
-        let pattern = pattern.as_ref().unwrap_or(&default_match);
         quote! {
-            #pattern => #type_ident {
+            #enum_ident::#ident => #type_ident {
                 #(#filled_lit_fields,)*
                 #(#init_builder_fields,)*
                 #(#subkeys_field_new,)*
@@ -733,7 +736,6 @@ fn create_namespace_mod_ident(namespace_ident: &syn::Ident) -> syn::Ident {
 }
 
 fn create_namespaces_types(
-    default_locale: &Key,
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     namespaces: &[Namespace],
@@ -756,7 +758,6 @@ fn create_namespaces_types(
                 .expect("There should be a namspace of that name.");
             let mut key_path = KeyPath::new(Some(namespace.key.clone()));
             let type_impl = create_locale_type_inner(
-                default_locale,
                 &namespace.key.ident,
                 Some(keys_ident),
                 enum_ident,
@@ -858,18 +859,11 @@ fn create_locale_type(
     enum_ident: &syn::Ident,
 ) -> TokenStream {
     let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
-    let default_locale = cfg_file.default.as_ref();
     match keys {
-        BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
-            default_locale,
-            keys_ident,
-            enum_ident,
-            namespaces,
-            &top_locales,
-            &keys,
-        ),
+        BuildersKeys::NameSpaces { namespaces, keys } => {
+            create_namespaces_types(keys_ident, enum_ident, namespaces, &top_locales, &keys)
+        }
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
-            default_locale,
             keys_ident,
             None,
             enum_ident,
