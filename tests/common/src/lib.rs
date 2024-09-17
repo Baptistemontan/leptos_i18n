@@ -2,9 +2,9 @@
 
 pub use leptos::*;
 
-pub fn render_to_string<'a, T: 'a>(view: T) -> Oco<'a, str>
+pub fn render_to_string<'a, T>(view: T) -> Oco<'a, str>
 where
-    T: IntoView,
+    T: IntoView + 'a,
 {
     let rendered = view.into_view().render_to_string();
     let comment_removed = remove_html_comments(rendered);
