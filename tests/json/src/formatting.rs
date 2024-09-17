@@ -1,7 +1,7 @@
 use crate::i18n::*;
-use common::*;
 use leptos_i18n::reexports::fixed_decimal::FixedDecimal;
 use leptos_i18n::reexports::icu::calendar::{Date, DateTime, Time};
+use tests_common::*;
 
 #[test]
 fn list_formatting() {

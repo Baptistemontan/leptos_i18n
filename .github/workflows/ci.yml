@@ -26,7 +26,8 @@ jobs:
         run: cargo install cargo-all-features --locked
 
       - name: "Test all features"
-        run: cargo test-all-features --n-chunks 2 --chunk 1
+        working-directory: "leptos_i18n"
+        run: cargo test-all-features
 
   macros_test:
     # Why not also use cargo-all-features with the macros package ?

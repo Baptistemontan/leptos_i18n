@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use common::*;
+use tests_common::*;
 
 #[test]
 fn f32_range() {
