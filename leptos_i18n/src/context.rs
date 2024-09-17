@@ -3,7 +3,7 @@
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
 use leptos::{children, either::Either, prelude::*};
-use leptos_meta::Html;
+use leptos_meta::{provide_meta_context, Html};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
 use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView};
@@ -210,6 +210,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
+    provide_meta_context();
     use_context().unwrap_or_else(move || {
         let ctx = init_i18n_context_with_options(enable_cookie, cookie_name, cookie_options);
         provide_context(ctx);
