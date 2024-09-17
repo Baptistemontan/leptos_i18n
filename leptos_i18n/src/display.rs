@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use leptos::Attribute;
+// use leptos::Attribute;
 
 /// This trait is used when interpolating component with the `td_string!` macro
 pub trait DisplayComponent {
@@ -55,13 +55,13 @@ impl DisplayComponent for String {
 #[derive(Debug, Clone, Copy)]
 pub struct DisplayComp<'a> {
     comp_name: &'a str,
-    attrs: &'a [(&'static str, Attribute)],
+    attrs: &'a [(&'a str, &'a str)],
 }
 
 impl<'a> DisplayComp<'a> {
     #[inline]
     /// Create a new `DisplayComp`
-    pub fn new(comp_name: &'a str, attrs: &'a [(&'static str, Attribute)]) -> Self {
+    pub fn new(comp_name: &'a str, attrs: &'a [(&'a str, &'a str)]) -> Self {
         Self { comp_name, attrs }
     }
 }
@@ -73,8 +73,7 @@ impl DisplayComponent for DisplayComp<'_> {
     {
         write!(f, "<{}", self.comp_name)?;
         for (attr_name, attr) in self.attrs {
-            let value = attr.as_value_string(attr_name);
-            write!(f, " {}", value)?;
+            write!(f, " {}=\"{}\"", attr_name, attr)?;
         }
         f.write_str(">")?;
         children(f)?;

@@ -1,4 +1,5 @@
-use quote::{quote, TokenStreamExt};
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use syn::Token;
 
 pub mod formatter;
@@ -44,5 +45,57 @@ impl quote::ToTokens for Keys {
             Keys::SingleKey(key) => tokens.append(key.clone()),
             Keys::Subkeys(keys) => tokens.append_separated(keys, quote!(.)),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EitherOfWrapper {
+    Single,
+    Duo,
+    Multiple(syn::Ident),
+}
+
+impl EitherOfWrapper {
+    pub fn new(size: usize) -> EitherOfWrapper {
+        match size {
+            0 => {
+                unreachable!("0 locales ? how is this possible ? should have been checked by now.")
+            }
+            1 => EitherOfWrapper::Single,
+            2 => EitherOfWrapper::Duo,
+            3..=16 => EitherOfWrapper::Multiple(format_ident!("EitherOf{}", size)),
+            17.. => panic!("Can only support up to 16 locales for now"),
+        }
+    }
+
+    pub fn wrap<T: ToTokens>(&self, i: usize, ts: T) -> TokenStream {
+        const LETTERS: &[char; 16] = &[
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q',
+        ];
+        match self {
+            EitherOfWrapper::Single => ts.into_token_stream(),
+            EitherOfWrapper::Duo if i == 0 => {
+                quote!(l_i18n_crate::reexports::leptos::either::Either::Left(#ts))
+            }
+            EitherOfWrapper::Duo => {
+                quote!(l_i18n_crate::reexports::leptos::either::Either::Right(#ts))
+            }
+            EitherOfWrapper::Multiple(ident) => {
+                let variant = format_ident!("{}", LETTERS[i]);
+                quote!(l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
+            }
+        }
+    }
+}
+
+pub fn fit_in_16_tuple(values: &[TokenStream]) -> TokenStream {
+    let values_len = values.len();
+    if values_len <= 16 {
+        quote!((#(#values,)*))
+    } else {
+        // ceil to avoid rounding down, if not for exemple a size of 36 will yield 18 chunks of size 2
+        let chunk_size = values_len.div_ceil(16);
+        let values = values.chunks(chunk_size).map(fit_in_16_tuple);
+        quote!((#(#values,)*))
     }
 }

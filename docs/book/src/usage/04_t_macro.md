@@ -4,7 +4,7 @@ To access your translations the `t!` macro is used, you can access a string with
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -23,13 +23,13 @@ If some variables are declared for this key, you can pass them like this:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
 
     view! {
         {/* "click_count": "you clicked {{ count }} times" */}
@@ -42,13 +42,13 @@ If your variable has the same name as the value, you can pass it directly:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
 
     let count = move || counter.get();
 
@@ -63,13 +63,13 @@ You can pass anything that implement `IntoView + Clone + 'static`, you can pass 
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
 
     let count = view!{
         <b>
@@ -92,13 +92,13 @@ If some components are declared for this key, you can pass them like this:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
     let count = move || counter.get();
 
     view! {
@@ -112,13 +112,13 @@ If your variable as the same name as the component, you can pass it directly:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, _set_counter) = create_signal(0);
+    let (counter, _set_counter) = signal(0);
     let count = move || counter.get();
 
     let b = |children| view!{ <b>{children}</b> };
@@ -165,7 +165,7 @@ You can access subkeys by simply separating the path with `.`:
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -188,7 +188,7 @@ Namespaces are implemented as subkeys, you first access the namespace then the k
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {

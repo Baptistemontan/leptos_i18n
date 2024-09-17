@@ -55,7 +55,7 @@
 //! ```rust,ignore
 //! leptos_i18n::load_locales!();
 //! use i18n::*; // `i18n` module created by the macro above
-//! use leptos::*;
+//! use leptos::prelude::*;
 //!
 //! #[component]
 //! pub fn App() -> impl IntoView {
@@ -90,7 +90,7 @@
 //! fn Counter() -> impl IntoView {
 //!     let i18n = use_i18n();
 //!
-//!     let (counter, set_counter) = create_signal( 0);
+//!     let (counter, set_counter) = signal( 0);
 //!
 //!     let inc = move |_| set_counter.update(|count| *count += 1);
 //!
@@ -137,16 +137,10 @@ pub use scopes::{ConstScope, Scope};
 pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
-    pub use crate::routing::i18n_routing;
+    pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
     pub use crate::static_lock::*;
     pub use icu::locid;
     pub use leptos_i18n_macro::declare_locales;
-
-    #[leptos::component]
-    #[allow(non_snake_case)]
-    pub fn IslandWrapper(children: leptos::Children) -> impl leptos::IntoView {
-        children()
-    }
 }
 
 /// Reexports of backend libraries, mostly about formatting.
@@ -268,12 +262,7 @@ macro_rules! make_i18n_island {
     ($island_name: ident, $($tt:tt)*) => {
         #[island]
         pub fn $island_name() -> impl IntoView {
-            use $crate::__private::IslandWrapper;
-            view! {
-                <IslandWrapper>
-                    {t!(use_i18n(), $($tt)*)}
-                </IslandWrapper>
-            }
+            t!(use_i18n(), $($tt)*)
         }
     };
 }

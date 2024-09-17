@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::utils::formatter::Formatter;
+use crate::utils::{fit_in_16_tuple, formatter::Formatter};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use serde::{
@@ -506,20 +506,23 @@ impl ParsedValue {
 
     pub fn merge(
         &mut self,
+        def: &Self,
         keys: &mut LocaleValue,
-        default_locale: &str,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
-            // Default, do nothing
-            (ParsedValue::Default, _) => Ok(()),
+            (value @ ParsedValue::Default, _) => {
+                *value = def.clone();
+                Ok(())
+            }
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
+                let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
                 loc.merge(keys, default_locale, top_locale, key_path)?;
                 locales.push(loc);
                 Ok(())
@@ -887,15 +890,13 @@ impl ParsedValue {
         match self {
             ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
-            ParsedValue::Literal(s) => {
-                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(#s)))
-            }
+            ParsedValue::Literal(s) => tokens.push(quote!(#s)),
             ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
-                    l_i18n_crate::reexports::leptos::IntoView::into_view(#ts)
+                    #ts
                 }});
             }
             ParsedValue::Component { key, inner } => {
@@ -914,14 +915,15 @@ impl ParsedValue {
 
                 let f = quote!({
                     #captured_keys
-                    move || Into::into(#inner)
+                    move || #inner
                 });
-                let boxed_fn = quote!(l_i18n_crate::reexports::leptos::ToChildren::to_children(#f));
-                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
+                let boxed_fn =
+                    quote!(l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f));
+                tokens.push(quote!(core::clone::Clone::clone(&#key)(#boxed_fn)));
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens, locale_field)
+                    value.flatten(tokens, locale_field);
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
@@ -1022,12 +1024,10 @@ impl ToTokens for ParsedValue {
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
         self.flatten(&mut tokens, &locale_field);
 
-        match &tokens[..] {
-            [] => quote!(l_i18n_crate::reexports::leptos::View::default()),
-            [value] => value.clone(),
-            values => {
-                quote!(l_i18n_crate::reexports::leptos::CollectView::collect_view([#(#values,)*]))
-            }
+        match &mut tokens[..] {
+            [] => quote!(None::<()>),
+            [value] => std::mem::take(value),
+            values => fit_in_16_tuple(values),
         }
     }
 

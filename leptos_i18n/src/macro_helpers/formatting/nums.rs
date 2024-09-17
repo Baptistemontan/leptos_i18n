@@ -58,12 +58,14 @@ impl IntoFixedDecimal for f64 {
 }
 
 /// Marker trait for types that produce a `FixedDecimal`.
-pub trait NumberFormatterInputFn: Clone + 'static {
+pub trait NumberFormatterInputFn: Clone + Send + Sync + 'static {
     /// Produce a `FixedDecimal`.
     fn to_fixed_decimal(&self) -> FixedDecimal;
 }
 
-impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + 'static> NumberFormatterInputFn for F {
+impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + Send + Sync + 'static> NumberFormatterInputFn
+    for F
+{
     fn to_fixed_decimal(&self) -> FixedDecimal {
         IntoFixedDecimal::to_fixed_decimal(self())
     }

@@ -10,7 +10,7 @@ This is useful if for example you want the buttons to switch locale to always be
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {
@@ -34,7 +34,7 @@ This could just be written has
 
 ```rust
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 pub fn Foo() -> impl IntoView {

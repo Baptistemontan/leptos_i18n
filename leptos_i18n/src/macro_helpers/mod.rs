@@ -1,80 +1,41 @@
 use core::fmt;
-use std::{borrow::Cow, marker::PhantomData};
+use std::{borrow::Cow, fmt::Display, marker::PhantomData};
 
 pub mod formatting;
 mod interpol_args;
 mod scope;
 
+use crate::Locale;
 pub use formatting::*;
 pub use interpol_args::*;
+use leptos::IntoView;
 pub use scope::*;
 
-use crate::Locale;
-
 #[doc(hidden)]
-pub struct DisplayBuilder(Cow<'static, str>);
+pub trait Literal: Sized + Display + IntoView {
+    fn into_str(self) -> Cow<'static, str>;
+}
 
-impl DisplayBuilder {
-    #[inline]
-    pub fn build_display(self) -> Cow<'static, str> {
-        self.0
+impl Literal for &'static str {
+    fn into_str(self) -> Cow<'static, str> {
+        Cow::Borrowed(self)
     }
 }
 
-/// This is used to call `.build` on `&str` when building interpolations.
-///
-/// If it's a `&str` it will just return the str,
-/// but if it's a builder `.build` will either emit an error for a missing key or if all keys
-/// are supplied it will return the correct value
-///
-/// It has no uses outside of the internals of the `t!` macro.
-#[doc(hidden)]
-pub trait BuildLit: Sized {
-    #[inline]
-    fn builder(self) -> Self {
-        self
-    }
-
-    #[inline]
-    fn string_builder(self) -> Self {
-        self
-    }
-
-    fn display_builder(self) -> DisplayBuilder;
-
-    #[inline]
-    fn build(self) -> Self {
-        self
-    }
-
-    #[inline]
-    fn build_string(self) -> Self {
-        self
-    }
-}
-
-impl BuildLit for &'static str {
-    #[inline]
-    fn display_builder(self) -> DisplayBuilder {
-        DisplayBuilder(Cow::Borrowed(self))
-    }
-}
-
-impl BuildLit for bool {
-    #[inline]
-    fn display_builder(self) -> DisplayBuilder {
+impl Literal for bool {
+    fn into_str(self) -> Cow<'static, str> {
         match self {
-            true => DisplayBuilder(Cow::Borrowed("true")),
-            false => DisplayBuilder(Cow::Borrowed("false")),
+            true => Cow::Borrowed("true"),
+            false => Cow::Borrowed("false"),
         }
     }
 }
 
 macro_rules! impl_build_lit_nums {
     ($t:ty) => {
-        impl BuildLit for $t {
-            fn display_builder(self) -> DisplayBuilder {
-                DisplayBuilder(Cow::Owned(ToString::to_string(&self)))
+        impl Literal for $t {
+            fn into_str(self) -> Cow<'static, str> {
+                Cow::Owned(self.to_string())
             }
         }
     };
@@ -85,6 +46,41 @@ macro_rules! impl_build_lit_nums {
 }
 
 impl_build_lit_nums!(u64, i64, f64);
+
+#[doc(hidden)]
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LitWrapper<T>(T);
+
+impl<T: Literal> LitWrapper<T> {
+    pub const fn new(v: T) -> Self {
+        LitWrapper(v)
+    }
+
+    pub const fn builder(self) -> Self {
+        self
+    }
+
+    pub const fn display_builder(self) -> Self {
+        self
+    }
+
+    pub const fn build(self) -> Self {
+        self
+    }
+
+    pub fn into_view(self) -> impl IntoView {
+        self.0
+    }
+
+    pub fn build_string(self) -> Cow<'static, str> {
+        Literal::into_str(self.0)
+    }
+
+    pub fn build_display(self) -> impl Display {
+        self.0
+    }
+}
 
 #[doc(hidden)]
 pub struct LocaleVisitor<L>(PhantomData<L>);

@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 #[allow(non_snake_case)]

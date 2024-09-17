@@ -16,7 +16,10 @@ use crate::{
         locale::LiteralType,
         parsed_value::{InterpolOrLit, Literal},
     },
-    utils::key::{Key, KeyPath},
+    utils::{
+        key::{Key, KeyPath},
+        EitherOfWrapper,
+    },
 };
 
 use super::{
@@ -175,7 +178,7 @@ impl Plurals {
     pub fn as_string_impl(&self, count_key: &Key) -> TokenStream {
         let match_arms = self.forms.iter().map(|(form, value)| {
             let ts = value.as_string_impl();
-            quote!(#form => #ts)
+            quote!(#form => { #ts })
         });
 
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
@@ -334,10 +337,11 @@ impl ToTokens for Plurals {
     }
 
     fn to_token_stream(&self) -> TokenStream {
-        let match_arms = self
-            .forms
-            .iter()
-            .map(|(form, value)| quote!(#form => #value));
+        let either_of = EitherOfWrapper::new(self.forms.len() + 1);
+        let match_arms = self.forms.iter().enumerate().map(|(i, (form, value))| {
+            let ts = either_of.wrap(i, value);
+            quote!(#form => { #ts })
+        });
 
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
         let other = &*self.other;
@@ -362,19 +366,19 @@ impl ToTokens for Plurals {
 
         let count_key = &self.count_key;
 
+        let other = either_of.wrap(self.forms.len(), other);
+
         quote! {
-            l_i18n_crate::reexports::leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
-                    move || {
-                        match _plural_rules.category_for(#count_key()) {
-                            #(#match_arms,)*
-                            _ => #other,
-                        }
+            {
+                #captured_values
+                let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
+                move || {
+                    match _plural_rules.category_for(#count_key()) {
+                        #(#match_arms,)*
+                        _ => #other,
                     }
-                },
-            )
+                }
+            }
         }
     }
 }
