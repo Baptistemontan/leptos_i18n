@@ -110,14 +110,11 @@ fn load_locales_inner(
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
                 /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
-                #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
                 /// Enable the use of a cookie to save the choosen locale (default to true).
                 /// Does nothing without the "cookie" feature
-                #[prop(optional)]
                 enable_cookie: Option<bool>,
                 /// Specify a name for the cookie, default to the library default.
-                #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
                 children: Children
             ) -> impl IntoView {
@@ -139,10 +136,8 @@ fn load_locales_inner(
                 /// Default to the locale set in the cookie if set and some,
                 /// if not use the parent context locale.
                 /// if no parent context, use the default locale.
-                #[prop(optional)]
                 initial_locale: Option<#enum_ident>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
-                #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident>(
