@@ -4,6 +4,7 @@ use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
 use leptos::*;
 use leptos_dom::Directive;
+use leptos_meta::provide_meta_context;
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
 
@@ -196,6 +197,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> I18nContext<L> {
+    provide_meta_context();
     use_context().unwrap_or_else(move || {
         let ctx = init_i18n_context_with_options(enable_cookie, cookie_name, cookie_options);
         provide_context(ctx);
