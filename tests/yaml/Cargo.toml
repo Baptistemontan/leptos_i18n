@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 leptos = "0.6"
-common = { path = "../common" }
+tests_common = { path = "../common" }
 leptos_i18n = { path = "../../leptos_i18n", default-features = false, features = [
     "yaml_files",
 ] }

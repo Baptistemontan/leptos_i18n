@@ -12,7 +12,7 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_macro = { workspace = true }
-leptos = "0.6.14"
+leptos = { workspace = true }
 leptos_meta = "0.6.14"
 leptos_router = "0.6.14"
 leptos-use = { version = "0.13", default-features = false, features = [
