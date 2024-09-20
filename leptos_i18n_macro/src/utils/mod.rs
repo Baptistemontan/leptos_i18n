@@ -53,6 +53,7 @@ pub enum EitherOfWrapper {
     Single,
     Duo,
     Multiple(syn::Ident),
+    Nested(Box<Self>),
 }
 
 impl EitherOfWrapper {
@@ -64,12 +65,12 @@ impl EitherOfWrapper {
             1 => EitherOfWrapper::Single,
             2 => EitherOfWrapper::Duo,
             3..=16 => EitherOfWrapper::Multiple(format_ident!("EitherOf{}", size)),
-            17.. => panic!("Can only support up to 16 locales for now"),
+            17.. => EitherOfWrapper::Nested(Box::new(Self::new(size - 15))),
         }
     }
 
     pub fn wrap<T: ToTokens>(&self, i: usize, ts: T) -> TokenStream {
-        const LETTERS: &[char; 16] = &[
+        const LETTERS: [char; 16] = [
             'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q',
         ];
         match self {
@@ -84,18 +85,29 @@ impl EitherOfWrapper {
                 let variant = format_ident!("{}", LETTERS[i]);
                 quote!(l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
             }
+            EitherOfWrapper::Nested(last) => match i {
+                0..=14 => {
+                    let variant = format_ident!("{}", LETTERS[i]);
+                    quote!(l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
+                }
+                15.. => {
+                    let variant = format_ident!("{}", LETTERS[15]);
+                    let ts = last.wrap(i - 15, ts);
+                    quote!(l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
+                }
+            },
         }
     }
 }
 
-pub fn fit_in_16_tuple(values: &[TokenStream]) -> TokenStream {
+pub fn fit_in_leptos_tuple(values: &[TokenStream]) -> TokenStream {
+    const TUPLE_MAX_SIZE: usize = 26;
     let values_len = values.len();
-    if values_len <= 16 {
+    if values_len <= TUPLE_MAX_SIZE {
         quote!((#(#values,)*))
     } else {
-        // ceil to avoid rounding down, if not for exemple a size of 36 will yield 18 chunks of size 2
-        let chunk_size = values_len.div_ceil(16);
-        let values = values.chunks(chunk_size).map(fit_in_16_tuple);
+        let chunk_size = values_len.div_ceil(TUPLE_MAX_SIZE);
+        let values = values.chunks(chunk_size).map(fit_in_leptos_tuple);
         quote!((#(#values,)*))
     }
 }

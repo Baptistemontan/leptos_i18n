@@ -18,7 +18,7 @@ pub mod warning;
 pub mod plurals;
 
 use crate::utils::{
-    fit_in_16_tuple,
+    fit_in_leptos_tuple,
     key::{Key, KeyPath},
 };
 use cfg_file::ConfigFile;
@@ -341,7 +341,7 @@ fn create_locales_enum(
     .take(locales.len() + 1)
     .collect::<Vec<_>>();
 
-    let routes = fit_in_16_tuple(&routes);
+    let routes = fit_in_leptos_tuple(&routes);
 
     let make_routes = locales.iter().map(|locale| {
         quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route)))
@@ -349,7 +349,7 @@ fn create_locales_enum(
     .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route))))
     .collect::<Vec<_>>();
 
-    let make_routes = fit_in_16_tuple(&make_routes);
+    let make_routes = fit_in_leptos_tuple(&make_routes);
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]

@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::utils::{fit_in_16_tuple, formatter::Formatter};
+use crate::utils::{fit_in_leptos_tuple, formatter::Formatter};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use serde::{
@@ -534,7 +534,6 @@ impl ParsedValue {
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
-            // Default, do nothing
             (value @ ParsedValue::Default, _) => {
                 *value = def.clone();
                 Ok(())
@@ -1047,7 +1046,7 @@ impl ParsedValue {
         match &tokens[..] {
             [] => quote!(None::<()>),
             [value] => value.clone(),
-            values => fit_in_16_tuple(values),
+            values => fit_in_leptos_tuple(values),
         }
     }
 }

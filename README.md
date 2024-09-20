@@ -26,7 +26,7 @@ fn Counter() -> impl IntoView {
     </button>
     <p>
       {t!(i18n, click_count, count = move || counter.get())}
-     </p>
+    </p>
   }
 }
 ```
