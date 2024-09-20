@@ -1,8 +1,8 @@
 use crate::i18n::*;
-use leptos::*;
+use leptos::context::Provider;
+use leptos::prelude::*;
 use leptos_i18n::context::init_i18n_subcontext;
 use leptos_i18n::I18nContext;
-use leptos_i18n::Locale as _;
 
 #[component]
 #[allow(non_snake_case)]
@@ -24,7 +24,7 @@ pub fn App() -> impl IntoView {
 fn Opposite() -> impl IntoView {
     let i18n = use_i18n();
 
-    let sub_context_locale = move || neg_locale(i18n.get_locale());
+    let sub_context_locale = Signal::derive(move || neg_locale(i18n.get_locale()));
 
     view! {
         <h2>{t!(i18n, examples.opposite)}</h2>
@@ -44,7 +44,7 @@ fn Cookie() -> impl IntoView {
     view! {
         <h2>{t!(i18n, examples.cookie)}</h2>
         <I18nSubContextProvider
-            initial_locale=move || Locale::fr
+            initial_locale=Signal::derive(move || Locale::fr)
             cookie_name="cookie_example_locale"
         >
             <Counter />
@@ -67,7 +67,6 @@ fn Main() -> impl IntoView {
 #[allow(non_snake_case)]
 fn LangAttr() -> impl IntoView {
     let i18n = use_i18n();
-
     let i18n_sub = init_i18n_subcontext::<Locale>(None);
     view! {
         <h2>{t!(i18n, examples.lang_attr)}</h2>
@@ -84,7 +83,7 @@ fn LangAttr() -> impl IntoView {
 fn Counter() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, set_counter) = create_signal(0);
+    let (counter, set_counter) = signal(0);
 
     let inc = move |_| set_counter.update(|count| *count += 1);
 

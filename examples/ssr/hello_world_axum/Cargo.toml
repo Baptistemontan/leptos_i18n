@@ -10,9 +10,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = "0.6"
-leptos_meta = "0.6"
-leptos_axum = { version = "0.6", optional = true }
+leptos = { version = "0.7.0-beta" }
+leptos_meta = { version = "0.7.0-beta" }
+leptos_axum = { version = "0.7.0-beta", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
     "track_locale_files",
 ] }
@@ -26,12 +26,12 @@ tower = { version = "0.4.13", optional = true }
 tower-http = { version = "0.5", features = ["fs"], optional = true }
 
 [features]
+default = ["hydrate", "ssr"]
 hydrate = [
     "dep:console_error_panic_hook",
     "dep:wasm-bindgen",
     "leptos/hydrate",
     "leptos_i18n/hydrate",
-    "leptos_meta/hydrate",
 ]
 ssr = [
     "dep:axum",

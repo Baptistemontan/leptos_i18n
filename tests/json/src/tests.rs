@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use common::*;
+use tests_common::*;
 
 #[test]
 fn click_to_change_lang() {
@@ -67,8 +67,7 @@ fn subkey_3() {
 
 #[test]
 fn interpolate_variable_and_comp() {
-    let en =
-        td!(Locale::en, interpolate_variable_and_comp, <b> = <span attr:id="test"/>, count = 12);
+    let en = td!(Locale::en, interpolate_variable_and_comp, <b> = <span id="test"/>, count = 12);
     assert_eq_rendered!(en, "<span id=\"test\">12</span>");
     let fr = td!(Locale::fr, interpolate_variable_and_comp, <b> = <span/>, count = 34);
     assert_eq_rendered!(fr, "<span>34</span>");
@@ -79,7 +78,7 @@ fn non_copy_arg() {
     fn check_impl_fn<T>(_: &impl Fn() -> T) {}
 
     let count = String::from("count");
-    let en = td!(Locale::en, interpolate_variable_and_comp, <b> = <span attr:id="test"/>, count);
+    let en = td!(Locale::en, interpolate_variable_and_comp, <b> = <span id="test"/>, count);
     check_impl_fn(&en);
     assert_eq_rendered!(en, "<span id=\"test\">count</span>");
 

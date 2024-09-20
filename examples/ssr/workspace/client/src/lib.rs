@@ -8,5 +8,5 @@ leptos_i18n::load_locales!();
 pub fn hydrate() {
     use app::App;
     console_error_panic_hook::set_once();
-    leptos::mount_to_body(|| leptos::view! { <App/> });
+    leptos::mount::hydrate_body(App);
 }

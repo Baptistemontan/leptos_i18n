@@ -131,7 +131,7 @@ impl InterpolatedValue {
                 attrs,
             } => {
                 let ts = quote! {
-                    move |__children: leptos::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
+                    move |__children: leptos::children::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
                 };
                 let key = key.clone();
                 *self = InterpolatedValue::Comp(key.clone());

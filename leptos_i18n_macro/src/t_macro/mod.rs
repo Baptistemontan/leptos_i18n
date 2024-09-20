@@ -68,10 +68,9 @@ pub fn t_macro_inner(
     } else {
         let inner = quote! {
             {
-                #[allow(unused)]
-                use leptos_i18n::__private::BuildLit;
-                let _key = #get_key;
-                _key.#builder_fn().#build_fn()
+                let _builder = #get_key.#builder_fn();
+                #[deny(deprecated)]
+                _builder.#build_fn()
             }
         };
         (inner, None)
@@ -83,7 +82,7 @@ pub fn t_macro_inner(
 impl OutputType {
     pub fn build_fns(self) -> (TokenStream, TokenStream) {
         match self {
-            OutputType::View => (quote!(builder), quote!(build)),
+            OutputType::View => (quote!(builder), quote!(build().into_view)),
             OutputType::String => (quote!(display_builder), quote!(build_string)),
             OutputType::Display => (quote!(display_builder), quote!(build_display)),
         }

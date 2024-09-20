@@ -11,7 +11,10 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::ParseBuffer;
 
-use crate::utils::key::{Key, KeyPath};
+use crate::utils::{
+    key::{Key, KeyPath},
+    EitherOfWrapper,
+};
 use crate::{
     load_locales::{
         locale::{LiteralType, LocalesOrNamespaces},
@@ -569,8 +572,10 @@ impl Ranges {
         count_key: &Key,
         index: &mut usize,
     ) -> TokenStream {
-        let match_arms = ranges.iter().map(|(range, value)| {
+        let either_of = EitherOfWrapper::new(ranges.len());
+        let match_arms = ranges.iter().enumerate().map(|(i, (range, value))| {
             let ts = value.to_token_stream(Some(index));
+            let ts = either_of.wrap(i, ts);
             quote!(#range => #ts)
         });
 
@@ -600,13 +605,10 @@ impl Ranges {
         };
 
         quote! {
-            l_i18n_crate::reexports::leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    move || #match_statement
-                },
-
-            )
+            {
+                #captured_values
+                move || #match_statement
+            }
         }
     }
 
@@ -651,8 +653,10 @@ impl Ranges {
         count_key: &Key,
         index: &mut usize,
     ) -> TokenStream {
-        let mut ifs = ranges.iter().map(|(range, value)| {
+        let either_of = EitherOfWrapper::new(ranges.len());
+        let mut ifs = ranges.iter().enumerate().map(|(i, (range, value))| {
             let ts = value.to_token_stream(Some(index));
+            let ts = either_of.wrap(i, ts);
             match Self::to_condition(range) {
                 None => quote!({ #ts }),
                 Some(condition) => quote!(if #condition { #ts }),
@@ -681,16 +685,13 @@ impl Ranges {
         });
 
         quote! {
-            l_i18n_crate::reexports::leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    move || {
-                        let plural_count = #count_key();
-                        #ifs
-                    }
-                },
-
-            )
+            {
+                #captured_values
+                move || {
+                    let plural_count = #count_key();
+                    #ifs
+                }
+            }
         }
     }
 

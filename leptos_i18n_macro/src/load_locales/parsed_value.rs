@@ -4,7 +4,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::utils::formatter::Formatter;
+use crate::utils::{fit_in_16_tuple, formatter::Formatter};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use serde::{
@@ -920,18 +920,16 @@ impl ParsedValue {
             ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
             ParsedValue::Literal(Literal::String(_)) => {
                 let tuple_index = syn::Index::from(*index);
-                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(#translations_field.#tuple_index)));
+                tokens.push(quote!(#translations_field.#tuple_index));
                 *index += 1;
             }
-            ParsedValue::Literal(s) => {
-                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(#s)))
-            }
+            ParsedValue::Literal(s) => tokens.push(quote!(#s)),
             ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream(index)),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
-                    l_i18n_crate::reexports::leptos::IntoView::into_view(#ts)
+                    #ts
                 }});
             }
             ParsedValue::Component { key, inner } => {
@@ -952,10 +950,11 @@ impl ParsedValue {
 
                 let f = quote!({
                     #captured_keys
-                    move || Into::into(#ts)
+                    move || #ts
                 });
-                let boxed_fn = quote!(l_i18n_crate::reexports::leptos::ToChildren::to_children(#f));
-                tokens.push(quote!(l_i18n_crate::reexports::leptos::IntoView::into_view(core::clone::Clone::clone(&#key)(#boxed_fn))))
+                let boxed_fn =
+                    quote!(l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f));
+                tokens.push(quote!(core::clone::Clone::clone(&#key)(#boxed_fn)));
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
@@ -1046,9 +1045,9 @@ impl ParsedValue {
         );
 
         match &tokens[..] {
-            [] => quote!(leptos::View::default()),
+            [] => quote!(None::<()>),
             [value] => value.clone(),
-            values => quote!(leptos::CollectView::collect_view([#(#values,)*])),
+            values => fit_in_16_tuple(values),
         }
     }
 }

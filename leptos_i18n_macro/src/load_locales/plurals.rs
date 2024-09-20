@@ -16,7 +16,10 @@ use crate::{
         locale::LiteralType,
         parsed_value::{InterpolOrLit, Literal},
     },
-    utils::key::{Key, KeyPath},
+    utils::{
+        key::{Key, KeyPath},
+        EitherOfWrapper,
+    },
 };
 
 use super::{
@@ -339,11 +342,14 @@ impl Plurals {
     }
 
     pub fn to_token_stream(&self, index: &mut usize) -> TokenStream {
+        let either_of = EitherOfWrapper::new(self.forms.len() + 1);
         let match_arms = self
             .forms
             .iter()
-            .map(|(form, value)| {
+            .enumerate()
+            .map(|(i, (form, value))| {
                 let ts = value.to_token_stream(Some(index));
+                let ts = either_of.wrap(i, ts);
                 quote!(#form => #ts)
             })
             .collect::<Vec<_>>();
@@ -372,20 +378,19 @@ impl Plurals {
         let count_key = &self.count_key;
 
         let other = other.to_token_stream(Some(index));
+        let other = either_of.wrap(self.forms.len(), other);
 
         quote! {
-            l_i18n_crate::reexports::leptos::IntoView::into_view(
-                {
-                    #captured_values
-                    let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
-                    move || {
-                        match _plural_rules.category_for(#count_key()) {
-                            #(#match_arms,)*
-                            _ => #other,
-                        }
+            {
+                #captured_values
+                let _plural_rules = l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type);
+                move || {
+                    match _plural_rules.category_for(#count_key()) {
+                        #(#match_arms,)*
+                        _ => #other,
                     }
-                },
-            )
+                }
+            }
         }
     }
 }

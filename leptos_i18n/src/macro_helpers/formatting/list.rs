@@ -28,7 +28,7 @@ where
 }
 
 /// Marker trait for types that produce a `T: WriteableList`.
-pub trait ListFormatterInputFn: 'static {
+pub trait ListFormatterInputFn: 'static + Send + Sync {
     /// The returned `T: WriteableList`.
     type List: WriteableList;
 
@@ -36,7 +36,7 @@ pub trait ListFormatterInputFn: 'static {
     fn to_list(&self) -> Self::List;
 }
 
-impl<T: WriteableList, F: Fn() -> T + Clone + 'static> ListFormatterInputFn for F {
+impl<T: WriteableList, F: Fn() -> T + Clone + Send + Sync + 'static> ListFormatterInputFn for F {
     type List = T;
 
     fn to_list(&self) -> Self::List {

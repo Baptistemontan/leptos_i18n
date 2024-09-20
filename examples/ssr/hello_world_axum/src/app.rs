@@ -1,5 +1,5 @@
 use crate::i18n::*;
-use leptos::*;
+use leptos::prelude::*;
 
 #[component]
 #[allow(non_snake_case)]
@@ -18,7 +18,7 @@ pub fn App() -> impl IntoView {
 pub fn Home() -> impl IntoView {
     let i18n = use_i18n();
 
-    let (counter, set_counter) = create_signal(0);
+    let (counter, set_counter) = signal(0);
 
     let inc = move |_| set_counter.update(|count| *count += 1);
 
@@ -39,7 +39,7 @@ pub fn Home() -> impl IntoView {
             {t!{ i18n,
                 click_count,
                 count,
-                <b> = |children| view!{ <b>{children}</b> },
+                <b> = <b />,
             }}
         </p>
         <button on:click=inc>{t!(i18n, click_to_inc)}</button>

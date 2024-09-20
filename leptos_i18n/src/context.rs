@@ -2,11 +2,11 @@
 
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
-use leptos::*;
-use leptos_dom::Directive;
-use leptos_meta::provide_meta_context;
+use leptos::{children, either::Either, prelude::*};
+use leptos_meta::{provide_meta_context, Html};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
+use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView};
 
 use crate::{
     fetch_locale::{self, signal_maybe_once_then},
@@ -74,7 +74,8 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     #[inline]
     #[track_caller]
     pub fn set_locale_untracked(self, lang: L) {
-        self.locale_signal.set_untracked(lang)
+        let mut guard = self.locale_signal.write_untracked();
+        *guard = lang;
     }
 
     /// Map the context to a new scope
@@ -88,9 +89,21 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     }
 }
 
-impl<L: Locale, S: Scope<L>> Directive<HtmlElement<html::AnyElement>, ()> for I18nContext<L, S> {
-    fn run(&self, el: HtmlElement<html::AnyElement>, _param: ()) {
-        let _ = el.attr("lang", self.get_locale().as_str());
+impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
+    for I18nContext<L, S>
+{
+    type Cloneable = Self;
+
+    fn run(&self, el: <R as Renderer>::Element, _param: ()) {
+        let this = *self;
+        Effect::new(move || {
+            let locale = this.get_locale();
+            R::set_attribute(&el, "lang", locale.as_str());
+        });
+    }
+
+    fn into_cloneable(self) -> Self::Cloneable {
+        self
     }
 }
 
@@ -110,13 +123,13 @@ fn init_context_inner<L: Locale>(
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
 ) -> I18nContext<L> {
-    let locale_signal = create_rw_signal(L::default());
+    let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
-    create_isomorphic_effect(move |_| {
+    Effect::new(move |_| {
         locale_signal.set(initial_locale.get());
     });
 
-    create_isomorphic_effect(move |_| {
+    Effect::new_isomorphic(move |_| {
         let new_lang = locale_signal.get();
         set_lang_cookie.set(Some(new_lang));
     });
@@ -140,7 +153,7 @@ fn init_context_with_options<L: Locale>(
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
     } else {
-        let (lang_cookie, set_lang_cookie) = create_signal::<Option<L>>(None);
+        let (lang_cookie, set_lang_cookie) = signal(None);
         (lang_cookie.into(), set_lang_cookie)
     };
 
@@ -184,7 +197,7 @@ pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
 #[track_caller]
 pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().unwrap_or_else(|| {
-        let ctx = init_i18n_context();
+        let ctx = init_i18n_context::<L>();
         provide_context(ctx);
         ctx
     })
@@ -234,7 +247,7 @@ fn init_subcontext_with_options<L: Locale>(
             FromToStringCodec,
         >(&cookie_name, cookie_options),
         _ => {
-            let (lang_cookie, set_lang_cookie) = create_signal::<Option<L>>(None);
+            let (lang_cookie, set_lang_cookie) = signal(None);
             (lang_cookie.into(), set_lang_cookie)
         }
     };
@@ -245,7 +258,7 @@ fn init_subcontext_with_options<L: Locale>(
 
     let parent_locale = signal_maybe_once_then(parent_locale, fetch_locale_memo);
 
-    let initial_locale_listener = create_memo(move |prev_locale| {
+    let initial_locale_listener = Memo::new(move |prev_locale| {
         let initial_locale = initial_locale.get();
         let cookie = lang_cookie.get_untracked();
         let parent_locale = parent_locale.get();
@@ -303,7 +316,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 /// - if no parent context, use the same resolution used by a main context.
 #[track_caller]
 pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
-    init_i18n_subcontext_with_options(initial_locale, None, None)
+    init_i18n_subcontext_with_options::<L>(initial_locale, None, None)
 }
 
 /// This function should not be used, it is only there to serves as documentation point.
@@ -316,33 +329,52 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 ///
 /// The recommended way is to use the `I18nSubContextProvider`.
 ///
-/// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with [`leptos::Provider`] or [`leptos::provide_context`]:
-///
-/// ```rust, ignore
-/// let i18n = init_i18n_subcontext();
-/// leptos::provide_context(i18n);
-/// ```
-#[deprecated(note = "see function documentation")]
+/// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with `Provider` or `provide_context`.
+#[deprecated = "see function documentation"]
 #[track_caller]
 pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
-    let ctx = init_i18n_subcontext(initial_locale);
+    let ctx = init_i18n_subcontext::<L>(initial_locale);
     provide_context(ctx);
     ctx
 }
 
+fn run_as_children<L: Locale, Chil: IntoView>(
+    ctx: I18nContext<L>,
+    children: impl FnOnce() -> Chil,
+) -> impl IntoView {
+    let owner = Owner::current()
+        .expect("no current reactive Owner found")
+        .child();
+    let children = owner.with(|| {
+        provide_context(ctx);
+        children()
+    });
+    OwnedView::new_with_owner(children, owner)
+}
+
 #[doc(hidden)]
 #[track_caller]
-pub fn i18n_sub_context_provider_inner<L: Locale>(
-    children: Children,
+pub fn i18n_sub_context_provider_inner<L: Locale, Chil: IntoView>(
+    children: TypedChildren<Chil>,
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
 ) -> impl IntoView {
     let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
-    leptos::run_as_child(move || {
-        provide_context(ctx);
-        children()
-    })
+    run_as_children(ctx, children.into_inner())
+}
+
+#[doc(hidden)]
+#[track_caller]
+pub fn i18n_sub_context_provider_island<L: Locale>(
+    children: children::Children,
+    initial_locale: Option<L>,
+    cookie_name: Option<Cow<str>>,
+    cookie_options: Option<CookieOptions<L>>,
+) -> impl IntoView {
+    let initial_locale = initial_locale.map(|l| Signal::derive(move || l));
+    let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
+    run_as_children(ctx, children)
 }
 
 /// Return the `I18nContext` previously set.
@@ -356,27 +388,61 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
 }
 
-#[doc(hidden)]
 #[track_caller]
-pub fn provide_i18n_context_component_inner<L: Locale>(
+fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
-    children: Children,
+    children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
-    use leptos_meta::Html;
     let i18n = provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options);
+    let children = children();
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
-        let children = children();
-        view! {
-            <Html lang />
+        Either::Left(view! {
+            <Html attr:lang=lang />
             {children}
-        }
+        })
     } else {
-        children()
+        Either::Right(children)
     }
+}
+
+#[doc(hidden)]
+#[track_caller]
+pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
+    set_lang_attr_on_html: Option<bool>,
+    enable_cookie: Option<bool>,
+    cookie_name: Option<Cow<str>>,
+    cookie_options: Option<CookieOptions<L>>,
+    children: TypedChildren<Chil>,
+) -> impl IntoView {
+    provide_i18n_context_component_inner(
+        set_lang_attr_on_html,
+        enable_cookie,
+        cookie_name,
+        cookie_options,
+        children.into_inner(),
+    )
+}
+
+#[doc(hidden)]
+#[track_caller]
+pub fn provide_i18n_context_component_island<L: Locale>(
+    set_lang_attr_on_html: Option<bool>,
+    enable_cookie: Option<bool>,
+    cookie_name: Option<Cow<str>>,
+    cookie_options: Option<CookieOptions<L>>,
+    children: children::Children,
+) -> impl IntoView {
+    provide_i18n_context_component_inner(
+        set_lang_attr_on_html,
+        enable_cookie,
+        cookie_name,
+        cookie_options,
+        children,
+    )
 }
 
 // get locale

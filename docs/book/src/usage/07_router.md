@@ -7,7 +7,7 @@ What it does is manage a prefix on the URL such that
 
 ```rust
 use crate::i18n::I18nRoute;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_router::*;
 
 view! {

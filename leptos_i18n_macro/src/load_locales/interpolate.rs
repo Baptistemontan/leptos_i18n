@@ -11,6 +11,7 @@ use super::parsed_value::ParsedValue;
 use super::parsed_value::RangeOrPlural;
 use crate::utils::formatter::Formatter;
 use crate::utils::key::{Key, KeyPath};
+use crate::utils::EitherOfWrapper;
 
 thread_local! {
     pub static CACHED_LOCALE_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_locale").unwrap());
@@ -549,10 +550,10 @@ impl Interpolation {
             let key = key_path.to_string_with_key(key);
             return quote! {
                 #[allow(non_camel_case_types)]
-                impl<#(#left_generics,)*> l_i18n_crate::reexports::leptos::IntoView for #ident<#(#right_generics,)*> {
-                    fn into_view(self) -> l_i18n_crate::reexports::leptos::View {
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView {
                         let _ = self;
-                        l_i18n_crate::reexports::leptos::IntoView::into_view(#key)
+                        #key
                     }
                 }
             };
@@ -566,8 +567,8 @@ impl Interpolation {
 
         quote! {
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> l_i18n_crate::reexports::leptos::IntoView for #ident<#(#right_generics,)*> {
-                fn into_view(self) -> l_i18n_crate::reexports::leptos::View {
+            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView {
                     #destructure
                     let #locale_field = #dummy_field.get_locale();
                     match #dummy_field {
@@ -584,13 +585,18 @@ impl Interpolation {
         key: &'a Key,
         dummy_ident: &'a syn::Ident,
         locales: &'a [Locale],
+        wrap: bool,
         mut f: impl FnMut(&ParsedValue) -> TokenStream + 'a,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let translations_field = CACHED_TRANSLATIONS_FIELD_KEY.with(Clone::clone);
-        locales.iter().filter_map(move |locale| {
+        let either_of = wrap.then(|| EitherOfWrapper::new(locales.len()));
+        locales.iter().enumerate().filter_map(move |(i, locale)| {
             let locale_key = &locale.top_locale_name;
-
             let value = f(locale.keys.get(key)?);
+            let value = either_of
+                .as_ref()
+                .map(|either_of| either_of.wrap(i, &value))
+                .unwrap_or(value);
 
             let ts = quote!(#dummy_ident::#locale_key(#translations_field) => { #value });
             Some(ts)
@@ -602,7 +608,7 @@ impl Interpolation {
         dummy_ident: &'a syn::Ident,
         locales: &'a [Locale],
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        Self::create_locale_impl_inner(key, dummy_ident, locales, |value| {
+        Self::create_locale_impl_inner(key, dummy_ident, locales, true, |value| {
             value.to_token_stream(None)
         })
     }
@@ -612,7 +618,7 @@ impl Interpolation {
         dummy_ident: &'a syn::Ident,
         locales: &'a [Locale],
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        Self::create_locale_impl_inner(key, dummy_ident, locales, |value| {
+        Self::create_locale_impl_inner(key, dummy_ident, locales, false, |value| {
             value.as_string_impl(None)
         })
     }
