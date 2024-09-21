@@ -72,10 +72,16 @@ fn get_new_path<L: Locale>(
         path_builder.build()
     });
     location.search.with_untracked(|search| {
-        new_path.push_str(search);
+        if !search.is_empty() {
+            new_path.push('?');
+            new_path.push_str(search);
+        }
     });
     location.hash.with_untracked(|hash| {
-        new_path.push_str(hash);
+        if !hash.is_empty() {
+            new_path.push('#');
+            new_path.push_str(hash);
+        }
     });
     new_path
 }
