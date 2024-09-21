@@ -10,6 +10,10 @@ This feature must be enabled when building the server with the actix backend
 
 This feature must be enabled when building the server with the actix backend
 
+### `ssr`
+
+This feature must be enabled when building the server. It is auto enabled by the `actix` or `axum` features, but if you use another backend you can use this feature and provide custom functions to get access to the request headers.
+
 #### `hydrate`
 
 This feature must be enabled when building the client in ssr mode
