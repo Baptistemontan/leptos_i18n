@@ -15,6 +15,8 @@ use crate::{
     Scope,
 };
 
+pub use leptos_use::UseLocalesOptions;
+
 /// This context is the heart of the i18n system:
 ///
 /// It servers as a signal to the current locale and enable reactivity to locale change.
@@ -149,6 +151,7 @@ fn init_context_with_options<L: Locale>(
     enable_cookie: bool,
     cookie_name: Cow<str>,
     cookie_options: CookieOptions<L>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
@@ -157,7 +160,10 @@ fn init_context_with_options<L: Locale>(
         (lang_cookie.into(), set_lang_cookie)
     };
 
-    let initial_locale = fetch_locale::fetch_locale(lang_cookie.get_untracked());
+    let initial_locale = fetch_locale::fetch_locale(
+        lang_cookie.get_untracked(),
+        ssr_lang_header_getter.unwrap_or_default(),
+    );
 
     init_context_inner::<L>(set_lang_cookie, initial_locale)
 }
@@ -168,6 +174,7 @@ pub fn init_i18n_context_with_options<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
     let cookie_name = cookie_name.unwrap_or(Cow::Borrowed(COOKIE_PREFERED_LANG));
@@ -175,13 +182,14 @@ pub fn init_i18n_context_with_options<L: Locale>(
         enable_cookie,
         cookie_name,
         cookie_options.unwrap_or_default(),
+        ssr_lang_header_getter,
     )
 }
 
 /// Initialize a `I18nContext` without providing it.
 #[track_caller]
 pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
-    init_i18n_context_with_options(None, None, None)
+    init_i18n_context_with_options(None, None, None, None)
 }
 
 /// Initialize and provide a `I18nContext`.
@@ -209,10 +217,16 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     provide_meta_context();
     use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_options(enable_cookie, cookie_name, cookie_options);
+        let ctx = init_i18n_context_with_options(
+            enable_cookie,
+            cookie_name,
+            cookie_options,
+            ssr_lang_header_getter,
+        );
         provide_context(ctx);
         ctx
     })
@@ -227,8 +241,14 @@ pub fn provide_i18n_context_with_options<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
-    provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options)
+    provide_i18n_context_with_options_inner(
+        enable_cookie,
+        cookie_name,
+        cookie_options,
+        ssr_lang_header_getter,
+    )
 }
 
 /// *********************************************
@@ -240,6 +260,7 @@ fn init_subcontext_with_options<L: Locale>(
     initial_locale: Signal<Option<L>>,
     cookie_name: Option<Cow<str>>,
     cookie_options: CookieOptions<L>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = match cookie_name {
         Some(cookie_name) if ENABLE_COOKIE => leptos_use::use_cookie_with_options::<
@@ -252,7 +273,8 @@ fn init_subcontext_with_options<L: Locale>(
         }
     };
 
-    let fetch_locale_memo = fetch_locale::fetch_locale(None);
+    let fetch_locale_memo =
+        fetch_locale::fetch_locale(None, ssr_lang_header_getter.unwrap_or_default());
 
     let parent_locale = use_context::<I18nContext<L>>().map(|ctx| ctx.get_locale_untracked());
 
@@ -296,6 +318,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let initial_locale = derive_initial_locale_signal(initial_locale);
 
@@ -303,6 +326,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
         initial_locale,
         cookie_name,
         cookie_options.unwrap_or_default(),
+        ssr_lang_header_getter,
     )
 }
 
@@ -316,7 +340,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 /// - if no parent context, use the same resolution used by a main context.
 #[track_caller]
 pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
-    init_i18n_subcontext_with_options::<L>(initial_locale, None, None)
+    init_i18n_subcontext_with_options::<L>(initial_locale, None, None, None)
 }
 
 /// This function should not be used, it is only there to serves as documentation point.
@@ -359,8 +383,14 @@ pub fn i18n_sub_context_provider_inner<L: Locale, Chil: IntoView>(
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> impl IntoView {
-    let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
+    let ctx = init_i18n_subcontext_with_options::<L>(
+        initial_locale,
+        cookie_name,
+        cookie_options,
+        ssr_lang_header_getter,
+    );
     run_as_children(ctx, children.into_inner())
 }
 
@@ -371,9 +401,15 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
     initial_locale: Option<L>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> impl IntoView {
     let initial_locale = initial_locale.map(|l| Signal::derive(move || l));
-    let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, cookie_options);
+    let ctx = init_i18n_subcontext_with_options::<L>(
+        initial_locale,
+        cookie_name,
+        cookie_options,
+        ssr_lang_header_getter,
+    );
     run_as_children(ctx, children)
 }
 
@@ -394,9 +430,15 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
-    let i18n = provide_i18n_context_with_options_inner(enable_cookie, cookie_name, cookie_options);
+    let i18n = provide_i18n_context_with_options_inner(
+        enable_cookie,
+        cookie_name,
+        cookie_options,
+        ssr_lang_header_getter,
+    );
     let children = children();
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
@@ -416,6 +458,7 @@ pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: TypedChildren<Chil>,
 ) -> impl IntoView {
     provide_i18n_context_component_inner(
@@ -423,6 +466,7 @@ pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
         enable_cookie,
         cookie_name,
         cookie_options,
+        ssr_lang_header_getter,
         children.into_inner(),
     )
 }
@@ -434,6 +478,7 @@ pub fn provide_i18n_context_component_island<L: Locale>(
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
+    ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: children::Children,
 ) -> impl IntoView {
     provide_i18n_context_component_inner(
@@ -441,6 +486,7 @@ pub fn provide_i18n_context_component_island<L: Locale>(
         enable_cookie,
         cookie_name,
         cookie_options,
+        ssr_lang_header_getter,
         children,
     )
 }

@@ -1,9 +1,10 @@
 use leptos::prelude::*;
+use leptos_use::UseLocalesOptions;
 
 use crate::Locale;
 
-pub fn fetch_locale<L: Locale>(current_cookie: Option<L>) -> Memo<L> {
-    let accepted_locales = leptos_use::use_locales();
+pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> Memo<L> {
+    let accepted_locales = leptos_use::use_locales_with_options(options);
     let accepted_locale =
         Memo::new(move |_| accepted_locales.with(|accepted| L::find_locale(accepted)));
     if cfg!(feature = "ssr") {

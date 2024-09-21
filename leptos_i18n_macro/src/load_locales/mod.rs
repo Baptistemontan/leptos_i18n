@@ -122,6 +122,8 @@ fn load_locales_inner(
                 enable_cookie: Option<bool>,
                 /// Specify a name for the cookie, default to the library default.
                 cookie_name: Option<Cow<'static, str>>,
+                /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
+                ssr_lang_header_getter: Option<UseLocalesOptions>,
                 children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
@@ -129,6 +131,7 @@ fn load_locales_inner(
                     enable_cookie,
                     cookie_name,
                     None,
+                    ssr_lang_header_getter,
                     children
                 )
             }
@@ -145,12 +148,15 @@ fn load_locales_inner(
                 initial_locale: Option<#enum_ident>,
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 cookie_name: Option<Cow<'static, str>>,
+                /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
+                ssr_lang_header_getter: Option<UseLocalesOptions>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_island::<#enum_ident>(
                     children,
                     initial_locale,
                     cookie_name,
-                    None
+                    None,
+                    ssr_lang_header_getter
                 )
             }
         }
@@ -175,6 +181,9 @@ fn load_locales_inner(
                 /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
                 cookie_options: Option<CookieOptions<#enum_ident>>,
+                /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
+                #[prop(optional)]
+                ssr_lang_header_getter: Option<UseLocalesOptions>,
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
@@ -182,6 +191,7 @@ fn load_locales_inner(
                     enable_cookie,
                     cookie_name,
                     cookie_options,
+                    ssr_lang_header_getter,
                     children
                 )
             }
@@ -203,12 +213,16 @@ fn load_locales_inner(
                 /// Options for the cookie, see `leptos_use::UseCookieOptions`.
                 #[prop(optional)]
                 cookie_options: Option<CookieOptions<#enum_ident>>,
+                /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
+                #[prop(optional)]
+                ssr_lang_header_getter: Option<UseLocalesOptions>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident, Chil>(
                     children,
                     initial_locale,
                     cookie_name,
-                    cookie_options
+                    cookie_options,
+                    ssr_lang_header_getter
                 )
             }
         }
@@ -237,7 +251,7 @@ fn load_locales_inner(
             )]
             #[track_caller]
             pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<#enum_ident> {
-                l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None)
+                l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None, None)
             }
 
             mod providers {
@@ -245,7 +259,7 @@ fn load_locales_inner(
                 use l_i18n_crate::reexports::leptos;
                 use leptos::prelude::{IntoView, Signal};
                 use std::borrow::Cow;
-                use l_i18n_crate::context::CookieOptions;
+                use l_i18n_crate::context::{CookieOptions, UseLocalesOptions};
 
                 #providers
             }
