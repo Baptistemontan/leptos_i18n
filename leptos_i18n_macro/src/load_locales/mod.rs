@@ -149,7 +149,6 @@ fn load_locales_inner(
                     children,
                     initial_locale,
                     cookie_name,
-                    ssr_lang_header_getter
                 )
             }
         }
