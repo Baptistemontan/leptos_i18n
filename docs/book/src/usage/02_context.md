@@ -128,7 +128,7 @@ The `I18nContextProvider` component accept multiple props, all optionnal (except
 If you use the `experimental-islands` feature from Leptos the `I18nContextProvider` loose one prop: `cookie_options`, because it is not serializable. If you need it you can use the `init_context_with_options` function and provide the context yourself:
 
 ```rust
-use leptos_i18n::init_context_with_options;
+use leptos_i18n::init_i18n_context_with_options;
 use crate::i18n::*;
 use leptos_meta::Html;
 use leptos::*;
@@ -140,7 +140,13 @@ fn MyI18nProvider(
     children: Children
 ) -> impl IntoView {
     let my_cookie_options = /* create your options here */;
-    let i18n = init_context_with_options::<Locale>(enable_cookie, cookie_name, my_cookie_options);
+    let ssr_lang_header_getter = /* create your options here */;
+    let i18n = init_i18n_context_with_options::<Locale>(
+        Some(enable_cookie),
+        Some(cookie_name),
+        Some(my_cookie_options),
+        Some(ssr_lang_header_getter)
+    );
     provide_context(i18n);
     let lang = move || i18n.get_locale().as_str();
     view! {
