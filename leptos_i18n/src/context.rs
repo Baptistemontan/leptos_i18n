@@ -6,7 +6,7 @@ use leptos::{children, either::Either, prelude::*};
 use leptos_meta::{provide_meta_context, Html};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
-use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView};
+use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView, view::any_view::AnyView};
 
 use crate::{
     fetch_locale::{self, signal_maybe_once_then},
@@ -400,16 +400,9 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
     children: children::Children,
     initial_locale: Option<L>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
-    ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> impl IntoView {
     let initial_locale = initial_locale.map(|l| Signal::derive(move || l));
-    let ctx = init_i18n_subcontext_with_options::<L>(
-        initial_locale,
-        cookie_name,
-        cookie_options,
-        ssr_lang_header_getter,
-    );
+    let ctx = init_i18n_subcontext_with_options::<L>(initial_locale, cookie_name, None, None);
     run_as_children(ctx, children)
 }
 
@@ -477,16 +470,14 @@ pub fn provide_i18n_context_component_island<L: Locale>(
     set_lang_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
-    ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: children::Children,
 ) -> impl IntoView {
-    provide_i18n_context_component_inner(
+    provide_i18n_context_component_inner::<L, AnyView<Dom>>(
         set_lang_attr_on_html,
         enable_cookie,
         cookie_name,
-        cookie_options,
-        ssr_lang_header_getter,
+        None,
+        None,
         children,
     )
 }

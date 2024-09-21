@@ -9,7 +9,6 @@ pub fn App() -> impl IntoView {
             set_lang_attr_on_html=None
             enable_cookie=None
             cookie_name=None
-            ssr_lang_header_getter=None
         >
             <h1>
                 {ti!(HelloWorld, hello_world)}
