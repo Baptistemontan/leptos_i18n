@@ -145,6 +145,7 @@ pub fn intern(s: &str) -> &str {
 }
 
 #[doc(hidden)]
+#[track_caller]
 pub const fn index_translations<const N: usize, const I: usize>(
     translations: &'static [&'static str; N],
 ) -> &'static str {

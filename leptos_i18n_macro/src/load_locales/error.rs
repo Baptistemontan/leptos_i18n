@@ -102,6 +102,10 @@ pub(crate) enum Error {
     RangeAndPluralsMix {
         key_path: KeyPath,
     },
+    PluralsAtNormalKey {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
 }
 
 impl Display for Error {
@@ -189,6 +193,7 @@ impl Display for Error {
             Error::CountArgOutsideRange { locale, key_path, foreign_key, err } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" is outside range: {}", locale, key_path, foreign_key, err),
             Error::UnexpectedToken { locale, key_path, message } => write!(f, "Unexpected error occured while parsing key \"{}\" in locale {:?}: {}", key_path, locale, message),
             Error::RangeAndPluralsMix { key_path } => write!(f, "mixing plurals and ranges are not supported yet, for key \"{}\"", key_path),
+            Error::PluralsAtNormalKey { key_path, locale } => write!(f, "In locale {:?} at key \"{}\", Found plurals but a key of that name is already present.", locale, key_path),
         }
     }
 }

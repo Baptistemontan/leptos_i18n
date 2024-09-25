@@ -25,7 +25,7 @@ use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<BTreeSet<(Rc<Key>, KeyPath)>> = const { RefCell::new(BTreeSet::new()) };
-    pub static CACHED_TRANSLATIONS_KEY: Rc<Key> = Rc::new(Key::new("__i18n_translations__").unwrap());
+    pub static CACHED_TRANSLATIONS_KEY: Rc<Key> = Rc::new(Key::new("I18N_TRANSLATIONS").unwrap());
 }
 
 macro_rules! nested_result_try {
@@ -108,7 +108,10 @@ impl Literal {
             Literal::String(_, index) => {
                 let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
                 quote! {
-                    l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key)
+                    {
+                        const S: &'static str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
+                        S
+                    }
                 }
             }
             Literal::Signed(v) => ToTokens::to_token_stream(v),
@@ -579,11 +582,11 @@ impl ParsedValue {
                 Ok(())
             }
             (ParsedValue::Literal(lit), LocaleValue::Value(interpol_or_lit)) => {
+                lit.index_strings::<false>(strings);
                 let other_lit_type = match interpol_or_lit {
                     InterpolOrLit::Interpol(_) => return Ok(()),
                     InterpolOrLit::Lit(lit_type) => *lit_type,
                 };
-                lit.index_strings::<false>(strings);
                 if lit.get_type() == other_lit_type {
                     Ok(())
                 } else {

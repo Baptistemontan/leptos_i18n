@@ -390,7 +390,13 @@ impl Locale {
             let key = key_path
                 .pop_key()
                 .expect("The KeyPath should not be empty.");
-            self.keys.insert(key, value);
+            if self.keys.insert(key.clone(), value).is_some() {
+                key_path.push_key(key);
+                return Err(Error::PluralsAtNormalKey {
+                    locale,
+                    key_path: std::mem::take(key_path),
+                });
+            }
         }
 
         Ok(())

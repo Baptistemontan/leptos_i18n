@@ -550,9 +550,10 @@ impl Interpolation {
                 let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
 
                 let string_accessor = strings_accessor_method_name(locale);
+                let strings_count = locale.top_locale_string_count;
 
                 let ts = quote!(#enum_ident::#locale_key => {
-                    let #translations_key = super::#locale_type_ident::#string_accessor();
+                    const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
                     #wrapped_value
                 });
                 Some(ts)
@@ -575,9 +576,10 @@ impl Interpolation {
             let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
 
             let string_accessor = strings_accessor_method_name(locale);
+            let strings_count = locale.top_locale_string_count;
 
             let ts = quote!(#enum_ident::#locale_key => {
-                let #translations_key = super::#locale_type_ident::#string_accessor();
+                const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
                 #value
             });
             Some(ts)

@@ -496,7 +496,7 @@ fn strings_accessor_method_name(locale: &Locale) -> Ident {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn create_locale_type_inner(
+fn create_locale_type_inner<const IS_TOP: bool>(
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
@@ -534,9 +534,10 @@ fn create_locale_type_inner(
                         .expect("this value should be present.")
                         .to_token_stream(locale.top_locale_string_count);
                     if **literal_type == LiteralType::String {
+                        let strings_count = locale.top_locale_string_count;
                         quote! {
                             #enum_ident::#ident => {
-                                let #translations_key = #type_ident::#accessor();
+                                const #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
                                 l_i18n_crate::__private::LitWrapper::new(#lit)
                             }
                         }
@@ -574,7 +575,7 @@ fn create_locale_type_inner(
     let subkeys_ts = subkeys.iter().map(|sk| {
         let subkey_mod_ident = &sk.mod_key;
         key_path.push_key(sk.original_key.clone());
-        let subkey_impl = create_locale_type_inner(
+        let subkey_impl = create_locale_type_inner::<false>(
             &sk.key,
             Some(type_ident),
             enum_ident,
@@ -655,18 +656,21 @@ fn create_locale_type_inner(
     let string_accessors = locales.iter().map(|locale| {
         let accessor_ident = strings_accessor_method_name(locale);
         let strings_count = locale.top_locale_string_count;
-        if let Some(parent) = parent_ident {
-            quote! {
-                pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
-                    super::super::#parent::#accessor_ident()
+        match parent_ident {
+            Some(parent) if !IS_TOP => {
+                quote! {
+                    pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        super::super::#parent::#accessor_ident()
+                    }
                 }
             }
-        } else {
-            let strings = &locale.strings;
-            quote! {
-                pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
-                    const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
-                    STRINGS
+            _ => {
+                let strings = &locale.strings;
+                quote! {
+                    pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                        STRINGS
+                    }
                 }
             }
         }
@@ -743,7 +747,7 @@ fn create_namespaces_types(
                 .get(&namespace.key)
                 .expect("There should be a namspace of that name.");
             let mut key_path = KeyPath::new(Some(namespace.key.clone()));
-            let type_impl = create_locale_type_inner(
+            let type_impl = create_locale_type_inner::<true>(
                 &namespace.key.ident,
                 Some(keys_ident),
                 enum_ident,
@@ -761,35 +765,16 @@ fn create_namespaces_types(
             }
         });
 
-    let namespaces_fields = namespaces
+    let namespaces_accessors = namespaces
         .iter()
         .map(|(namespace, namespace_module_ident)| {
             let key = &namespace.key;
-            quote!(pub #key: namespaces::#namespace_module_ident::#key)
+            quote! {
+                pub fn #key(self) -> namespaces::#namespace_module_ident::#key {
+                    namespaces::#namespace_module_ident::#key::new(self.0)
+                }
+            }
         });
-
-    let namespaces_fields_new = namespaces
-        .iter()
-        .map(|(namespace, namespace_module_ident)| {
-            let key = &namespace.key;
-            quote!(#key: namespaces::#namespace_module_ident::#key::new(_locale))
-        });
-
-    let locales = &namespaces
-        .first()
-        .expect("There should be at least one namespace.")
-        .0
-        .locales;
-
-    let const_values = locales.iter().map(|locale| {
-        let locale_ident = &locale.name;
-        quote!(pub const #locale_ident: Self = Self::new(#enum_ident::#locale_ident);)
-    });
-
-    let from_locale_match_arms = locales.iter().map(|locale| {
-        let locale_ident = &locale.name;
-        quote!(#enum_ident::#locale_ident => &Self::#locale_ident)
-    });
 
     quote! {
         #[doc(hidden)]
@@ -804,33 +789,23 @@ fn create_namespaces_types(
 
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_snake_case)]
-        pub struct #keys_ident {
-            #(#namespaces_fields,)*
-        }
+        pub struct #keys_ident(#enum_ident);
 
         impl #keys_ident {
-            #(
-                #[allow(non_upper_case_globals)]
-                #const_values
-            )*
-
-            pub const fn new(_locale: #enum_ident) -> Self {
-                Self {
-                    #(
-                        #namespaces_fields_new,
-                    )*
-                }
+            pub const fn new(locale: #enum_ident) -> Self {
+                Self(locale)
             }
+
+            #(
+                #[allow(non_snake_case)]
+                #namespaces_accessors
+            )*
         }
 
         impl l_i18n_crate::LocaleKeys for #keys_ident {
             type Locale = #enum_ident;
-            fn from_locale(_locale: #enum_ident) -> &'static Self {
-                match _locale {
-                    #(
-                        #from_locale_match_arms,
-                    )*
-                }
+            fn from_locale(locale: #enum_ident) -> Self {
+                Self::new(locale)
             }
         }
     }
@@ -845,7 +820,7 @@ fn create_locale_type(
         BuildersKeys::NameSpaces { namespaces, keys } => {
             create_namespaces_types(keys_ident, enum_ident, namespaces, &keys)
         }
-        BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
+        BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,
             None,
             enum_ident,
