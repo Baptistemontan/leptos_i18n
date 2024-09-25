@@ -8,15 +8,13 @@ use quote::ToTokens;
 use super::locale::Locale;
 use super::parsed_value::InterpolationKeys;
 use super::parsed_value::RangeOrPlural;
-use super::parsed_value::CACHED_TRANSLATIONS_KEY;
+use super::parsed_value::TRANSLATIONS_KEY;
 use super::strings_accessor_method_name;
 use crate::utils::formatter::Formatter;
 use crate::utils::key::{Key, KeyPath};
 use crate::utils::EitherOfWrapper;
 
-thread_local! {
-    pub static CACHED_LOCALE_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_locale").unwrap());
-}
+pub const LOCALE_FIELD_KEY: &str = "_locale";
 
 enum EitherIter<A, B> {
     Iter1(A),
@@ -213,7 +211,7 @@ impl Interpolation {
 
         let dummy_ident = format_ident!("{}_dummy", ident);
 
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
         let into_view_field = Key::new("_into_views_marker").unwrap();
 
         let typed_builder_name = format_ident!("{}Builder", ident);
@@ -547,7 +545,7 @@ impl Interpolation {
 
                 let wrapped_value = either_wrapper.wrap(i, value);
 
-                let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
+                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
@@ -573,7 +571,7 @@ impl Interpolation {
                 .get(key)?
                 .as_string_impl(locale.top_locale_string_count);
 
-            let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
+            let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
 
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;

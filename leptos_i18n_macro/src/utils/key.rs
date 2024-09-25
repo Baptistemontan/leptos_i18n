@@ -7,9 +7,7 @@ use std::{
     rc::Rc,
 };
 
-thread_local! {
-    pub static CACHED_VAR_COUNT_KEY: Rc<Key> = Rc::new(Key::new("var_count").unwrap());
-}
+pub const VAR_COUNT_KEY: &str = "var_count";
 
 #[derive(Clone)]
 pub struct Key {

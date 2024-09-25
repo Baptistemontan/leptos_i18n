@@ -15,7 +15,7 @@ use super::{
     tracking::track_file,
     warning::{emit_warning, Warning},
 };
-use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
+use crate::utils::key::{Key, KeyPath, VAR_COUNT_KEY};
 
 macro_rules! define_by_format {
     (json => $($tt:tt)*) => {
@@ -382,7 +382,7 @@ impl Locale {
             let plural = Plurals {
                 rule_type,
                 forms,
-                count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+                count_key: Rc::new(Key::new(VAR_COUNT_KEY).unwrap()),
                 other: Box::new(other),
             };
             plural.check_categories(&locale, key_path);

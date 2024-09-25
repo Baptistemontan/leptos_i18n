@@ -15,7 +15,7 @@ use std::fmt::Display;
 
 use super::{
     error::{Error, Result},
-    interpolate::CACHED_LOCALE_FIELD_KEY,
+    interpolate::LOCALE_FIELD_KEY,
     locale::{LiteralType, Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
     plurals::Plurals,
     ranges::{RangeType, Ranges},
@@ -23,9 +23,10 @@ use super::{
 
 use crate::utils::key::{Key, KeyPath};
 
+pub const TRANSLATIONS_KEY: &str = "I18N_TRANSLATIONS";
+
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<BTreeSet<(Rc<Key>, KeyPath)>> = const { RefCell::new(BTreeSet::new()) };
-    pub static CACHED_TRANSLATIONS_KEY: Rc<Key> = Rc::new(Key::new("I18N_TRANSLATIONS").unwrap());
 }
 
 macro_rules! nested_result_try {
@@ -106,7 +107,7 @@ impl Literal {
     fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         match self {
             Literal::String(_, index) => {
-                let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
+                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
                 quote! {
                     {
                         const S: &'static str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
@@ -1038,7 +1039,7 @@ impl ParsedValue {
 
     pub fn as_string_impl(&self, strings_count: usize) -> TokenStream {
         let mut tokens = Vec::new();
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
         self.flatten_string(&mut tokens, &locale_field, strings_count);
 
         match &tokens[..] {
@@ -1050,7 +1051,7 @@ impl ParsedValue {
 
     pub fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         let mut tokens = Vec::new();
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
         self.flatten(&mut tokens, &locale_field, strings_count);
 
         match &mut tokens[..] {

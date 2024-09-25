@@ -20,7 +20,7 @@ use cfg_file::ConfigFile;
 use error::{Error, Result};
 use interpolate::Interpolation;
 use locale::{LiteralType, Locale, LocaleValue};
-use parsed_value::{InterpolOrLit, CACHED_TRANSLATIONS_KEY};
+use parsed_value::{InterpolOrLit, TRANSLATIONS_KEY};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 
@@ -504,7 +504,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     keys: &BTreeMap<Rc<Key>, LocaleValue>,
     key_path: &mut KeyPath,
 ) -> TokenStream {
-    let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
+    let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
 
     let literal_keys = keys
         .iter()

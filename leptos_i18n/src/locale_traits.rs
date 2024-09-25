@@ -146,8 +146,8 @@ mod test {
     #[test]
     fn test_scope() {
         let en_sk = scope_locale!(Locale::en, sk);
-        assert_eq!(en_sk.get_keys().ssk, LitWrapper::new("test en"));
+        assert_eq!(en_sk.get_keys().ssk(), LitWrapper::new("test en"));
         let fr_sk = en_sk.map_locale(Locale::fr);
-        assert_eq!(fr_sk.get_keys().ssk, LitWrapper::new("test fr"));
+        assert_eq!(fr_sk.get_keys().ssk(), LitWrapper::new("test fr"));
     }
 }

@@ -11,10 +11,7 @@ use std::fmt::Display;
 
 use crate::{
     load_locales::{
-        error::{Error, Result},
-        interpolate::CACHED_LOCALE_FIELD_KEY,
-        locale::LiteralType,
-        parsed_value::{InterpolOrLit, Literal},
+        error::{Error, Result}, interpolate::LOCALE_FIELD_KEY, locale::LiteralType, parsed_value::{InterpolOrLit, Literal}
     },
     utils::{
         key::{Key, KeyPath},
@@ -188,7 +185,7 @@ impl Plurals {
             quote!(#form => { #ts })
         });
 
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
 
         let other = self.other.as_string_impl(strings_count);
 
@@ -349,7 +346,7 @@ impl Plurals {
             quote!(#form => { #ts })
         });
 
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
         let other = &*self.other;
 
         let mut captured_values = InterpolOrLit::Lit(LiteralType::String);

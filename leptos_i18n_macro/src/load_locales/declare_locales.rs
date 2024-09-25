@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display, rc::Rc};
 
 use crate::load_locales::ranges::{RangeParseBuffer, Ranges, UntypedRangesInner};
-use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
+use crate::utils::key::{Key, KeyPath, VAR_COUNT_KEY};
 
 use super::{
     cfg_file::ConfigFile,
@@ -207,7 +207,7 @@ fn parse_ranges(
         TypeOrRange::Type(range_type) => Ranges::from_type(range_type),
         TypeOrRange::Range(range) => Ranges {
             inner: UntypedRangesInner::I32(vec![range]),
-            count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+            count_key: Rc::new(Key::new(VAR_COUNT_KEY).unwrap()),
         },
     };
 

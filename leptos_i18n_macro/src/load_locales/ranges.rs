@@ -21,7 +21,7 @@ use crate::{
         parsed_value::Literal,
         plurals::Plurals,
     },
-    utils::key::CACHED_VAR_COUNT_KEY,
+    utils::key::VAR_COUNT_KEY,
 };
 
 use super::{
@@ -770,7 +770,7 @@ impl Ranges {
             RangeType::F64 => UntypedRangesInner::F64(vec![]),
         };
         Ranges {
-            count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+            count_key: Rc::new(Key::new(VAR_COUNT_KEY).unwrap()),
             inner,
         }
     }
@@ -790,7 +790,7 @@ impl Ranges {
         let mut ranges = match type_or_range {
             TypeOrRange::Type(range_type) => Self::from_type(range_type),
             TypeOrRange::Range(range) => Ranges {
-                count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+                count_key: Rc::new(Key::new(VAR_COUNT_KEY).unwrap()),
                 inner: UntypedRangesInner::I32(vec![range]),
             },
         };
