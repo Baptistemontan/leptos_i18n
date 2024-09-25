@@ -53,10 +53,14 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn index_strings(&mut self, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
         if let Literal::String(s, index) = self {
             *index = strings.len();
-            strings.push(std::mem::take(s));
+            if CLONE {
+                strings.push(s.clone())
+            } else {
+                strings.push(std::mem::take(s));
+            }
         }
     }
 
@@ -258,19 +262,19 @@ impl InterpolationKeys {
 }
 
 impl ParsedValue {
-    pub fn index_strings(&mut self, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
         match self {
             ParsedValue::Literal(lit) => {
-                lit.index_strings(strings);
+                lit.index_strings::<CLONE>(strings);
             }
-            ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
+            ParsedValue::Ranges(ranges) => ranges.index_strings::<CLONE>(strings),
             ParsedValue::Component { inner, .. } => {
-                inner.index_strings(strings);
+                inner.index_strings::<CLONE>(strings);
             }
-            ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
+            ParsedValue::Plurals(plurals) => plurals.index_strings::<CLONE>(strings),
             ParsedValue::Bloc(vec) => {
                 for value in vec {
-                    value.index_strings(strings);
+                    value.index_strings::<CLONE>(strings);
                 }
             }
             ParsedValue::None
@@ -543,7 +547,7 @@ impl ParsedValue {
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
             this => {
-                this.index_strings(strings);
+                this.index_strings::<true>(strings);
                 this.get_keys(key_path).map(LocaleValue::Value)
             }
         }
@@ -561,7 +565,7 @@ impl ParsedValue {
         match (&mut *self, &mut *keys) {
             (value @ ParsedValue::Default, _) => {
                 *value = def.clone();
-                value.index_strings(strings);
+                value.index_strings::<false>(strings);
                 Ok(())
             }
             // Both subkeys
@@ -579,7 +583,7 @@ impl ParsedValue {
                     InterpolOrLit::Interpol(_) => return Ok(()),
                     InterpolOrLit::Lit(lit_type) => *lit_type,
                 };
-                lit.index_strings(strings);
+                lit.index_strings::<false>(strings);
                 if lit.get_type() == other_lit_type {
                     Ok(())
                 } else {
@@ -597,7 +601,7 @@ impl ParsedValue {
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(interpol_or_lit),
             ) => {
-                self.index_strings(strings);
+                self.index_strings::<false>(strings);
                 self.get_keys_inner(key_path, interpol_or_lit, false)
             }
 
@@ -1001,9 +1005,6 @@ impl ParsedValue {
     ) {
         match self {
             ParsedValue::None | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Literal(Literal::String(s, _)) => {
-                tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter)))
-            }
             ParsedValue::Literal(lit) => {
                 let ts = lit.to_token_stream(strings_count);
                 tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))

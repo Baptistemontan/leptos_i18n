@@ -147,11 +147,11 @@ pub struct Plurals {
 }
 
 impl Plurals {
-    pub fn index_strings(&mut self, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
         for form in self.forms.values_mut() {
-            form.index_strings(strings);
+            form.index_strings::<CLONE>(strings);
         }
-        self.other.index_strings(strings);
+        self.other.index_strings::<CLONE>(strings);
     }
 
     fn get_plural_rules(&self, locale: &Rc<Key>) -> PluralRules {
