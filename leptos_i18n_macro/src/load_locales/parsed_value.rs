@@ -25,6 +25,7 @@ use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
+    pub static CACHED_TRANSLATIONS_KEY: Rc<Key> = Rc::new(Key::new("__i18n_translations__").unwrap());
 }
 
 macro_rules! nested_result_try {
@@ -44,7 +45,7 @@ pub enum ForeignKey {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
-    String(String),
+    String(String, usize),
     Signed(i64),
     Unsigned(u64),
     Float(f64),
@@ -52,54 +53,64 @@ pub enum Literal {
 }
 
 impl Literal {
+    pub fn index_strings(&mut self, strings: &mut Vec<String>) {
+        if let Literal::String(s, index) = self {
+            *index = strings.len();
+            strings.push(std::mem::take(s));
+        }
+    }
+
     pub fn is_string(&self) -> Option<&str> {
         match self {
-            Literal::String(s) => Some(s),
+            Literal::String(s, _) => Some(s),
             _ => None,
         }
     }
 
     pub fn join(&mut self, other: &Self) {
         match self {
-            Literal::String(s) => s.push_str(&other.to_string()),
+            Literal::String(s, _) => s.push_str(&other.to_string()),
             Literal::Signed(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s);
+                *self = Literal::String(s, usize::MAX);
             }
             Literal::Unsigned(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s);
+                *self = Literal::String(s, usize::MAX);
             }
             Literal::Float(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s);
+                *self = Literal::String(s, usize::MAX);
             }
             Literal::Bool(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s);
+                *self = Literal::String(s, usize::MAX);
             }
         }
     }
 
     pub fn get_type(&self) -> LiteralType {
         match self {
-            Literal::String(_) => LiteralType::String,
+            Literal::String(_, _) => LiteralType::String,
             Literal::Signed(_) => LiteralType::Signed,
             Literal::Unsigned(_) => LiteralType::Unsigned,
             Literal::Float(_) => LiteralType::Float,
             Literal::Bool(_) => LiteralType::Bool,
         }
     }
-}
 
-impl ToTokens for Literal {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+    fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         match self {
-            Literal::String(v) => ToTokens::to_tokens(v, tokens),
-            Literal::Signed(v) => ToTokens::to_tokens(v, tokens),
-            Literal::Unsigned(v) => ToTokens::to_tokens(v, tokens),
-            Literal::Float(v) => ToTokens::to_tokens(v, tokens),
-            Literal::Bool(v) => ToTokens::to_tokens(v, tokens),
+            Literal::String(_, index) => {
+                let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
+                quote! {
+                    l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key)
+                }
+            }
+            Literal::Signed(v) => ToTokens::to_token_stream(v),
+            Literal::Unsigned(v) => ToTokens::to_token_stream(v),
+            Literal::Float(v) => ToTokens::to_token_stream(v),
+            Literal::Bool(v) => ToTokens::to_token_stream(v),
         }
     }
 }
@@ -107,7 +118,7 @@ impl ToTokens for Literal {
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Literal::String(v) => Display::fmt(v, f),
+            Literal::String(v, _) => Display::fmt(v, f),
             Literal::Signed(v) => Display::fmt(v, f),
             Literal::Unsigned(v) => Display::fmt(v, f),
             Literal::Float(v) => Display::fmt(v, f),
@@ -119,6 +130,7 @@ impl Display for Literal {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum ParsedValue {
     #[default]
+    None,
     Default,
     ForeignKey(RefCell<ForeignKey>),
     Ranges(Ranges),
@@ -246,6 +258,29 @@ impl InterpolationKeys {
 }
 
 impl ParsedValue {
+    pub fn index_strings(&mut self, strings: &mut Vec<String>) {
+        match self {
+            ParsedValue::Literal(lit) => {
+                lit.index_strings(strings);
+            }
+            ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
+            ParsedValue::Component { inner, .. } => {
+                inner.index_strings(strings);
+            }
+            ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
+            ParsedValue::Bloc(vec) => {
+                for value in vec {
+                    value.index_strings(strings);
+                }
+            }
+            ParsedValue::None
+            | ParsedValue::Default
+            | ParsedValue::ForeignKey(_)
+            | ParsedValue::Variable { .. }
+            | ParsedValue::Subkeys(_) => {}
+        }
+    }
+
     pub fn resolve_foreign_keys(
         values: &LocalesOrNamespaces,
         default_locale: &Rc<Key>,
@@ -323,7 +358,10 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::None
+            | ParsedValue::Variable { .. }
+            | ParsedValue::Literal(_)
+            | ParsedValue::Default => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -370,9 +408,10 @@ impl ParsedValue {
         key_path: &KeyPath,
     ) -> Result<Self> {
         match self {
-            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::Literal(_) => {
-                Ok(self.clone())
-            }
+            ParsedValue::None
+            | ParsedValue::Default
+            | ParsedValue::ForeignKey(_)
+            | ParsedValue::Literal(_) => Ok(self.clone()),
             ParsedValue::Variable { key, formatter } => match args.get(&key.name) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
@@ -409,7 +448,10 @@ impl ParsedValue {
             ParsedValue::Literal(lit_type) if is_top => {
                 *keys = InterpolOrLit::Lit(lit_type.get_type());
             }
-            ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+            ParsedValue::None
+            | ParsedValue::Literal(_)
+            | ParsedValue::Subkeys(_)
+            | ParsedValue::Default => {}
             ParsedValue::Variable { key, formatter } => {
                 keys.get_interpol_keys_mut()
                     .push_var(key.clone(), *formatter);
@@ -465,13 +507,6 @@ impl ParsedValue {
         Ok(keys)
     }
 
-    pub fn is_literal(&self) -> Option<&Literal> {
-        match self {
-            ParsedValue::Literal(lit) => Some(lit),
-            _ => None,
-        }
-    }
-
     pub fn new(value: &str, key_path: &KeyPath, locale: &Rc<Key>) -> Result<Self> {
         let parsed_value = [
             Self::find_foreign_key,
@@ -483,24 +518,34 @@ impl ParsedValue {
         if let Some(parsed_value) = parsed_value {
             parsed_value
         } else {
-            Ok(ParsedValue::Literal(Literal::String(value.to_string())))
+            Ok(ParsedValue::Literal(Literal::String(
+                value.to_string(),
+                usize::MAX,
+            )))
         }
     }
 
-    pub fn make_locale_value(&mut self, key_path: &mut KeyPath) -> Result<LocaleValue> {
+    pub fn make_locale_value(
+        &mut self,
+        key_path: &mut KeyPath,
+        strings: &mut Vec<String>,
+    ) -> Result<LocaleValue> {
         match self {
             ParsedValue::Subkeys(locale) => {
                 let Some(mut locale) = locale.take() else {
                     unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
                 };
-                let keys = locale.make_builder_keys(key_path)?;
+                let keys = locale.make_builder_keys(key_path, strings)?;
                 Ok(LocaleValue::Subkeys {
                     keys,
                     locales: vec![locale],
                 })
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
-            this => this.get_keys(key_path).map(LocaleValue::Value),
+            this => {
+                this.index_strings(strings);
+                this.get_keys(key_path).map(LocaleValue::Value)
+            }
         }
     }
 
@@ -510,11 +555,13 @@ impl ParsedValue {
         keys: &mut LocaleValue,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
+        strings: &mut Vec<String>,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
             (value @ ParsedValue::Default, _) => {
                 *value = def.clone();
+                value.index_strings(strings);
                 Ok(())
             }
             // Both subkeys
@@ -523,7 +570,7 @@ impl ParsedValue {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
                 let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
-                loc.merge(keys, default_locale, top_locale, key_path)?;
+                loc.merge(keys, default_locale, top_locale, key_path, strings)?;
                 locales.push(loc);
                 Ok(())
             }
@@ -532,6 +579,7 @@ impl ParsedValue {
                     InterpolOrLit::Interpol(_) => return Ok(()),
                     InterpolOrLit::Lit(lit_type) => *lit_type,
                 };
+                lit.index_strings(strings);
                 if lit.get_type() == other_lit_type {
                     Ok(())
                 } else {
@@ -548,7 +596,10 @@ impl ParsedValue {
                 | ParsedValue::Plurals(_)
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(interpol_or_lit),
-            ) => self.get_keys_inner(key_path, interpol_or_lit, false),
+            ) => {
+                self.index_strings(strings);
+                self.get_keys_inner(key_path, interpol_or_lit, false)
+            }
 
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
@@ -625,7 +676,7 @@ impl ParsedValue {
 
         for (key, arg) in args {
             let parsed_value = match arg {
-                Literal::String(s) => Self::new(&s, key_path, locale)?,
+                Literal::String(s, _) => Self::new(&s, key_path, locale)?,
                 other => ParsedValue::Literal(other),
             };
             let key = format!("var_{}", key.trim());
@@ -804,7 +855,14 @@ impl ParsedValue {
 
     pub fn reduce(&mut self) {
         match self {
-            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => {}
+            ParsedValue::Literal(Literal::String(s, _)) if s.is_empty() => {
+                // skip empty strings
+                *self = ParsedValue::None;
+            }
+            ParsedValue::None
+            | ParsedValue::Variable { .. }
+            | ParsedValue::Literal(_)
+            | ParsedValue::Default => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -834,7 +892,7 @@ impl ParsedValue {
                 }
 
                 match values.as_mut_slice() {
-                    [] => *self = ParsedValue::Literal(Literal::String(String::new())),
+                    [] => *self = ParsedValue::Literal(Literal::String(String::new(), usize::MAX)),
                     [one] => *self = std::mem::take(one),
                     _ => {}
                 }
@@ -849,6 +907,7 @@ impl ParsedValue {
 
     pub fn reduce_into(self, bloc: &mut Vec<Self>) {
         match self {
+            ParsedValue::None => {}
             ParsedValue::Default => {}    // default in a bloc ? skip
             ParsedValue::Subkeys(_) => {} // same for subkeys
             mut plurals_like @ (ParsedValue::Ranges(_) | ParsedValue::Plurals(_)) => {
@@ -886,12 +945,11 @@ impl ParsedValue {
         }
     }
 
-    fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
+    fn flatten(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key, strings_count: usize) {
         match self {
-            ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
-            ParsedValue::Literal(s) => tokens.push(quote!(#s)),
-            ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream()),
+            ParsedValue::None | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+            ParsedValue::Literal(lit) => tokens.push(lit.to_token_stream(strings_count)),
+            ParsedValue::Ranges(ranges) => tokens.push(ranges.to_token_stream(strings_count)),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
                 tokens.push(quote! {{
@@ -913,6 +971,7 @@ impl ParsedValue {
                             quote!(#(#keys)*)
                         });
 
+                let inner = inner.to_token_stream(strings_count);
                 let f = quote!({
                     #captured_keys
                     move || #inner
@@ -923,60 +982,77 @@ impl ParsedValue {
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten(tokens, locale_field);
+                    value.flatten(tokens, locale_field, strings_count);
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten")
-                .flatten(tokens, locale_field),
-            ParsedValue::Plurals(plurals) => tokens.push(plurals.to_token_stream()),
+                .flatten(tokens, locale_field, strings_count),
+            ParsedValue::Plurals(plurals) => tokens.push(plurals.to_token_stream(strings_count)),
         }
     }
 
-    fn flatten_string(&self, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
+    fn flatten_string(
+        &self,
+        tokens: &mut Vec<TokenStream>,
+        locale_field: &Key,
+        strings_count: usize,
+    ) {
         match self {
-            ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Literal(Literal::String(s)) if s.is_empty() => {}
-            ParsedValue::Literal(Literal::String(s)) => {
+            ParsedValue::None | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+            ParsedValue::Literal(Literal::String(s, _)) => {
                 tokens.push(quote!(core::fmt::Display::fmt(#s, __formatter)))
             }
-            ParsedValue::Literal(s) => {
-                tokens.push(quote!(core::fmt::Display::fmt(&#s, __formatter)))
+            ParsedValue::Literal(lit) => {
+                let ts = lit.to_token_stream(strings_count);
+                tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))
             }
-            ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl()),
+            ParsedValue::Ranges(ranges) => tokens.push(ranges.as_string_impl(strings_count)),
             ParsedValue::Variable { key, formatter } => {
                 let ts = formatter.var_fmt(key, locale_field);
                 tokens.push(ts);
             }
             ParsedValue::Component { key, inner } => {
-                let inner = inner.as_string_impl();
+                let inner = inner.as_string_impl(strings_count);
                 tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.flatten_string(tokens, locale_field)
+                    value.flatten_string(tokens, locale_field, strings_count)
                 }
             }
             ParsedValue::ForeignKey(foreign_key) => foreign_key
                 .borrow()
                 .as_inner("flatten_string")
-                .flatten_string(tokens, locale_field),
+                .flatten_string(tokens, locale_field, strings_count),
             ParsedValue::Plurals(plurals) => {
-                tokens.push(plurals.as_string_impl(&plurals.count_key))
+                tokens.push(plurals.as_string_impl(&plurals.count_key, strings_count))
             }
         }
     }
 
-    pub fn as_string_impl(&self) -> TokenStream {
+    pub fn as_string_impl(&self, strings_count: usize) -> TokenStream {
         let mut tokens = Vec::new();
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
-        self.flatten_string(&mut tokens, &locale_field);
+        self.flatten_string(&mut tokens, &locale_field, strings_count);
 
         match &tokens[..] {
             [] => quote!(Ok(())),
             [value] => value.clone(),
             values => quote!({ #(#values?;)* Ok(()) }),
+        }
+    }
+
+    pub fn to_token_stream(&self, strings_count: usize) -> TokenStream {
+        let mut tokens = Vec::new();
+        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        self.flatten(&mut tokens, &locale_field, strings_count);
+
+        match &mut tokens[..] {
+            [] => quote!(None::<()>),
+            [value] => std::mem::take(value),
+            values => fit_in_leptos_tuple(values),
         }
     }
 }
@@ -1015,24 +1091,6 @@ impl ForeignKey {
             ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner_mut).", call_site),
             ForeignKey::Set(inner) => inner,
         }
-    }
-}
-
-impl ToTokens for ParsedValue {
-    fn to_token_stream(&self) -> TokenStream {
-        let mut tokens = Vec::new();
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
-        self.flatten(&mut tokens, &locale_field);
-
-        match &mut tokens[..] {
-            [] => quote!(None::<()>),
-            [value] => std::mem::take(value),
-            values => fit_in_leptos_tuple(values),
-        }
-    }
-
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.to_token_stream().to_tokens(tokens)
     }
 }
 
@@ -1201,14 +1259,14 @@ impl<'de> Visitor<'de> for LiteralVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(Literal::String(v))
+        Ok(Literal::String(v, usize::MAX))
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(Literal::String(v.to_string()))
+        Ok(Literal::String(v.to_string(), usize::MAX))
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -1240,7 +1298,7 @@ mod tests {
 
         assert_eq!(
             value,
-            ParsedValue::Literal(Literal::String("test".to_string()))
+            ParsedValue::Literal(Literal::String("test".to_string(), usize::MAX))
         );
     }
 
@@ -1251,12 +1309,12 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string())),
+                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
                     formatter: Formatter::None
                 },
-                ParsedValue::Literal(Literal::String(" after".to_string()))
+                ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
         )
     }
@@ -1268,12 +1326,15 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string())),
+                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
-                    inner: Box::new(ParsedValue::Literal(Literal::String("inner".to_string())))
+                    inner: Box::new(ParsedValue::Literal(Literal::String(
+                        "inner".to_string(),
+                        usize::MAX
+                    )))
                 },
-                ParsedValue::Literal(Literal::String(" after".to_string()))
+                ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
         )
     }
@@ -1287,21 +1348,28 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string())),
+                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Bloc(vec![
-                        ParsedValue::Literal(Literal::String("inner before".to_string())),
+                        ParsedValue::Literal(Literal::String(
+                            "inner before".to_string(),
+                            usize::MAX
+                        )),
                         ParsedValue::Component {
                             key: new_key("comp_comp"),
                             inner: Box::new(ParsedValue::Literal(Literal::String(
-                                "inner inner".to_string()
+                                "inner inner".to_string(),
+                                usize::MAX
                             )))
                         },
-                        ParsedValue::Literal(Literal::String("inner after".to_string())),
+                        ParsedValue::Literal(Literal::String(
+                            "inner after".to_string(),
+                            usize::MAX
+                        )),
                     ]))
                 },
-                ParsedValue::Literal(Literal::String(" after".to_string()))
+                ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
         )
     }
@@ -1313,14 +1381,15 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("<p>test".to_string())),
+                ParsedValue::Literal(Literal::String("<p>test".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_h3"),
                     inner: Box::new(ParsedValue::Literal(Literal::String(
-                        "this is a h3".to_string()
+                        "this is a h3".to_string(),
+                        usize::MAX
                     )))
                 },
-                ParsedValue::Literal(Literal::String("not closing p".to_string()))
+                ParsedValue::Literal(Literal::String("not closing p".to_string(), usize::MAX))
             ])
         )
     }

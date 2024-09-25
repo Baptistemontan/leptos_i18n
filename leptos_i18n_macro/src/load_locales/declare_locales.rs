@@ -93,6 +93,8 @@ fn parse_map_values(
         top_locale_name: locale.clone(),
         name: name.clone(),
         keys,
+        strings: vec![],
+        top_locale_string_count: 0,
     }))))
 }
 
@@ -288,6 +290,8 @@ fn parse_locale(input: syn::parse::ParseStream, locale_key: Rc<Key>) -> syn::Res
         top_locale_name: locale_key.clone(),
         name: locale_key,
         keys,
+        strings: vec![],
+        top_locale_string_count: 0,
     })
 }
 

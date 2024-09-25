@@ -143,3 +143,11 @@ pub fn intern(s: &str) -> &str {
         s
     }
 }
+
+#[doc(hidden)]
+pub const fn index_translations<const N: usize, const I: usize>(
+    translations: &'static [&'static str; N],
+) -> &'static str {
+    assert!(N > I);
+    translations[I]
+}

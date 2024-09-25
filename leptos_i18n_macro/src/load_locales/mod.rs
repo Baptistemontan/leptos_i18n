@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    ops::{Deref, Not},
-    path::PathBuf,
-    rc::Rc,
-};
+use std::{collections::HashMap, ops::Not, path::PathBuf, rc::Rc};
 
 pub mod cfg_file;
 pub mod declare_locales;
@@ -24,9 +19,9 @@ use crate::utils::{
 use cfg_file::ConfigFile;
 use error::{Error, Result};
 use interpolate::Interpolation;
-use locale::{Locale, LocaleValue};
-use parsed_value::InterpolOrLit;
-use proc_macro2::{Span, TokenStream};
+use locale::{LiteralType, Locale, LocaleValue};
+use parsed_value::{InterpolOrLit, CACHED_TRANSLATIONS_KEY};
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::load_locales::parsed_value::ParsedValue;
@@ -74,7 +69,7 @@ fn load_locales_inner(
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
 
-    let locale_type = create_locale_type(keys, cfg_file, &keys_ident, &enum_ident);
+    let locale_type = create_locale_type(keys, &keys_ident, &enum_ident);
     let locale_enum = create_locales_enum(
         &enum_ident,
         &keys_ident,
@@ -496,17 +491,21 @@ impl<'a> Subkeys<'a> {
     }
 }
 
+fn strings_accessor_method_name(locale: &Locale) -> Ident {
+    format_ident!("__get_{}_translations__", &locale.top_locale_name.ident)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn create_locale_type_inner(
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
-    top_locales: &HashSet<&Key>,
     locales: &[Locale],
     keys: &HashMap<Rc<Key>, LocaleValue>,
     key_path: &mut KeyPath,
-    original_ident: &syn::Ident,
 ) -> TokenStream {
+    let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
+
     let literal_keys = keys
         .iter()
         .filter_map(|(key, value)| match value {
@@ -515,13 +514,49 @@ fn create_locale_type_inner(
         })
         .collect::<Vec<_>>();
 
-    let literal_fields = literal_keys
+    let literal_accessors = literal_keys
         .iter()
         .map(|(key, literal_type)| {
             if cfg!(feature = "show_keys_only") {
-                quote!(pub #key: l_i18n_crate::__private::LitWrapper<&'static str>)
+                let key_str = key_path.to_string_with_key(key);
+                quote! {
+                    pub const fn #key(self) -> l_i18n_crate::__private::LitWrapper<&'static str> {
+                        l_i18n_crate::__private::LitWrapper::new(#key_str)
+                    }
+                }
             } else {
-                quote!(pub #key: l_i18n_crate::__private::LitWrapper<#literal_type>)
+                let match_arms = locales.iter().map(|locale| {
+                    let ident = &*locale.top_locale_name;
+                    let accessor = strings_accessor_method_name(locale);
+                    let lit = locale
+                        .keys
+                        .get(key)
+                        .expect("this value should be present.")
+                        .to_token_stream(locale.top_locale_string_count);
+                    if **literal_type == LiteralType::String {
+                        quote! {
+                            #enum_ident::#ident => {
+                                let #translations_key = #type_ident::#accessor();
+                                l_i18n_crate::__private::LitWrapper::new(#lit)
+                            }
+                        }
+                    } else {
+                        quote! {
+                            #enum_ident::#ident => {
+                                l_i18n_crate::__private::LitWrapper::new(#lit)
+                            }
+                        }
+                    }
+                });
+                quote! {
+                    pub const fn #key(self) -> l_i18n_crate::__private::LitWrapper<#literal_type> {
+                        match self.0 {
+                            #(
+                                #match_arms
+                            )*
+                        }
+                    }
+                }
             }
         })
         .collect::<Vec<_>>();
@@ -543,11 +578,9 @@ fn create_locale_type_inner(
             &sk.key,
             Some(type_ident),
             enum_ident,
-            top_locales,
             sk.locales,
             &sk.keys.0,
             key_path,
-            &sk.original_key.ident,
         );
         key_path.pop_key();
         quote! {
@@ -559,22 +592,17 @@ fn create_locale_type_inner(
         }
     });
 
-    let subkeys_fields = subkeys.iter().map(|sk| {
+    let subkeys_accessors = subkeys.iter().map(|sk| {
         let original_key = &sk.original_key;
         let key = &sk.key;
         let mod_ident = &sk.mod_key;
-        quote!(pub #original_key: subkeys::#mod_ident::#key)
-    });
+        quote! {
+            pub const fn #original_key(self) -> subkeys::#mod_ident::#key {
+                subkeys::#mod_ident::#key::new(self.0)
+            }
 
-    let subkeys_field_new = subkeys
-        .iter()
-        .map(|sk| {
-            let original_key = &sk.original_key;
-            let key = &sk.key;
-            let mod_ident = &sk.mod_key;
-            quote!(#original_key: subkeys::#mod_ident::#key::new(_locale))
-        })
-        .collect::<Vec<_>>();
+        }
+    });
 
     let subkeys_module = subkeys.is_empty().not().then(move || {
         quote! {
@@ -594,55 +622,17 @@ fn create_locale_type_inner(
         .filter_map(|(key, value)| match value {
             LocaleValue::Value(InterpolOrLit::Interpol(keys)) => Some((
                 key,
-                Interpolation::new(key, enum_ident, keys, locales, key_path),
+                Interpolation::new(key, enum_ident, keys, locales, key_path, type_ident),
             )),
             _ => None,
         })
         .collect::<Vec<_>>();
 
-    let builder_fields = builders.iter().map(|(key, inter)| {
+    let builder_accessors = builders.iter().map(|(key, inter)| {
         let inter_ident = &inter.ident;
-        quote!(pub #key: builders::#inter_ident)
-    });
-
-    let init_builder_fields: Vec<TokenStream> = builders
-        .iter()
-        .map(|(key, inter)| {
-            let ident = &inter.ident;
-            quote!(#key: builders::#ident::new(_locale))
-        })
-        .collect();
-
-    let default_locale = locales
-        .first()
-        .expect("There should be at least one Locale");
-
-    let new_match_arms = locales.iter().map(|locale| {
-        let filled_lit_fields = literal_keys.iter().filter_map(|(key, _)| {
-            if cfg!(feature = "show_keys_only") {
-                let key_str = key_path.to_string_with_key(key);
-                return Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#key_str)));
-            }
-            match locale.keys.get(key) {
-                Some(ParsedValue::Literal(lit)) => {
-                    Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#lit)))
-                }
-                _ => {
-                    let lit = default_locale
-                        .keys
-                        .get(key)
-                        .and_then(ParsedValue::is_literal)?;
-                    Some(quote!(#key: l_i18n_crate::__private::LitWrapper::new(#lit)))
-                }
-            }
-        });
-
-        let ident = &locale.top_locale_name;
         quote! {
-            #enum_ident::#ident => #type_ident {
-                #(#filled_lit_fields,)*
-                #(#init_builder_fields,)*
-                #(#subkeys_field_new,)*
+            pub const fn #key(self) -> builders::#inter_ident {
+                builders::#inter_ident::new(self.0)
             }
         }
     });
@@ -662,73 +652,64 @@ fn create_locale_type_inner(
         }
     });
 
-    let locale_keys_impl = if let Some(parent_ident) = parent_ident {
-        quote! {
-            impl l_i18n_crate::LocaleKeys for #type_ident {
-                type Locale = #enum_ident;
-                fn from_locale(_locale: #enum_ident) -> &'static Self {
-                    &<super::super::#parent_ident as l_i18n_crate::LocaleKeys>::from_locale(_locale).#original_ident
+    let string_accessors = locales.iter().map(|locale| {
+        let accessor_ident = strings_accessor_method_name(locale);
+        let strings_count = locale.top_locale_string_count;
+        if let Some(parent) = parent_ident {
+            quote! {
+                pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                    super::super::#parent::#accessor_ident()
+                }
+            }
+        } else {
+            let strings = &locale.strings;
+            quote! {
+                pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                    const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                    STRINGS
                 }
             }
         }
-    } else {
-        let from_locale_match_arms = top_locales
-            .iter()
-            .map(|locale| quote!(#enum_ident::#locale => &Self::#locale));
-        quote! {
-            impl l_i18n_crate::LocaleKeys for #type_ident {
-                type Locale = #enum_ident;
-                fn from_locale(_locale: #enum_ident) -> &'static Self {
-                    match _locale {
-                        #(
-                            #from_locale_match_arms,
-                        )*
-                    }
-                }
-            }
-        }
-    };
-
-    let const_values = if parent_ident.is_none() {
-        let const_values = top_locales
-            .iter()
-            .map(|locale| quote!(pub const #locale: Self = Self::new(#enum_ident::#locale);));
-
-        let const_values = quote! {
-            #(
-                #[allow(non_upper_case_globals)]
-                #const_values
-            )*
-        };
-
-        Some(const_values)
-    } else {
-        None
-    };
+    });
 
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
-        pub struct #type_ident {
-            #(#literal_fields,)*
-            #(#builder_fields,)*
-            #(#subkeys_fields,)*
-        }
+        pub struct #type_ident(#enum_ident);
 
         impl #type_ident {
 
-            #const_values
-
-            pub const fn new(_locale: #enum_ident) -> Self {
-                match _locale {
-                    #(
-                        #new_match_arms,
-                    )*
-                }
+            pub const fn new(locale: #enum_ident) -> Self {
+                #type_ident(locale)
             }
+
+            #(
+                #[allow(non_snake_case)]
+                #literal_accessors
+            )*
+
+            #(
+                #[allow(non_snake_case)]
+                #subkeys_accessors
+            )*
+
+            #(
+                #[allow(non_snake_case)]
+                #builder_accessors
+            )*
+
+            #(
+                #[allow(non_snake_case)]
+                #string_accessors
+            )*
         }
 
-        #locale_keys_impl
+        impl l_i18n_crate::LocaleKeys for #type_ident {
+            type Locale = #enum_ident;
+            fn from_locale(locale: #enum_ident) -> Self {
+                Self::new(locale)
+            }
+        }
 
         #builder_module
 
@@ -745,7 +726,6 @@ fn create_namespaces_types(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     namespaces: &[Namespace],
-    top_locales: &HashSet<&Key>,
     keys: &HashMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
     let namespaces = namespaces
@@ -767,11 +747,9 @@ fn create_namespaces_types(
                 &namespace.key.ident,
                 Some(keys_ident),
                 enum_ident,
-                top_locales,
                 &namespace.locales,
                 &keys.0,
                 &mut key_path,
-                &namespace.key.ident,
             );
 
             quote! {
@@ -860,24 +838,20 @@ fn create_namespaces_types(
 
 fn create_locale_type(
     keys: BuildersKeys,
-    cfg_file: &ConfigFile,
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
 ) -> TokenStream {
-    let top_locales = cfg_file.locales.iter().map(Deref::deref).collect();
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => {
-            create_namespaces_types(keys_ident, enum_ident, namespaces, &top_locales, &keys)
+            create_namespaces_types(keys_ident, enum_ident, namespaces, &keys)
         }
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner(
             keys_ident,
             None,
             enum_ident,
-            &top_locales,
             locales,
             &keys.0,
             &mut KeyPath::new(None),
-            keys_ident,
         ),
     }
 }

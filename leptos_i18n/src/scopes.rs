@@ -52,7 +52,7 @@ impl<L: Locale, S: Scope<L>> ConstScope<L, S> {
     }
 
     #[doc(hidden)]
-    pub const fn map<NS: Scope<L>>(self, map_fn: fn(&S) -> &NS) -> ConstScope<L, NS> {
+    pub const fn map<NS: Scope<L>>(self, map_fn: fn(S) -> NS) -> ConstScope<L, NS> {
         let _ = map_fn;
         ConstScope(PhantomData)
     }

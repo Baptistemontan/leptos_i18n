@@ -102,6 +102,19 @@ pub enum LocalesOrNamespaces {
 #[derive(Default, Debug)]
 pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
 
+impl BuildersKeysInner {
+    pub fn propagate_string_count(&mut self, top_locales: &[Locale]) {
+        for value in self.0.values_mut() {
+            if let LocaleValue::Subkeys { locales, keys } = value {
+                for (locale, top_locale) in locales.iter_mut().zip(top_locales) {
+                    locale.top_locale_string_count = top_locale.top_locale_string_count;
+                }
+                keys.propagate_string_count(top_locales);
+            }
+        }
+    }
+}
+
 pub enum BuildersKeys<'a> {
     NameSpaces {
         namespaces: &'a [Namespace],
@@ -236,6 +249,8 @@ pub struct Locale {
     pub top_locale_name: Rc<Key>,
     pub name: Rc<Key>,
     pub keys: HashMap<Rc<Key>, ParsedValue>,
+    pub strings: Vec<String>,
+    pub top_locale_string_count: usize,
 }
 
 impl Locale {
@@ -280,12 +295,16 @@ impl Locale {
         Self::de(locale_file, path, seed)
     }
 
-    pub fn make_builder_keys(&mut self, key_path: &mut KeyPath) -> Result<BuildersKeysInner> {
+    pub fn make_builder_keys(
+        &mut self,
+        key_path: &mut KeyPath,
+        strings: &mut Vec<String>,
+    ) -> Result<BuildersKeysInner> {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
             value.reduce();
             key_path.push_key(Rc::clone(key));
-            let locale_value = value.make_locale_value(key_path)?;
+            let locale_value = value.make_locale_value(key_path, strings)?;
             let key = key_path
                 .pop_key()
                 .expect("Unexpected empty KeyPath in make_builder_keys. If you got this error please open an issue on github.");
@@ -383,11 +402,12 @@ impl Locale {
         default_locale: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
+        strings: &mut Vec<String>,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
             if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
-                value.merge(def, keys, Rc::clone(&self.name), key_path)?;
+                value.merge(def, keys, Rc::clone(&self.name), key_path, strings)?;
             } else {
                 emit_warning(
                     Warning::MissingKey {
@@ -421,16 +441,33 @@ impl Locale {
         locales: &mut [Locale],
         namespace: Option<Rc<Key>>,
     ) -> Result<BuildersKeysInner> {
-        let mut locales = locales.iter_mut();
-        let default_locale = locales.next().expect("There should be at least one Locale");
+        let mut locales_iter = locales.iter_mut();
+        let default_locale = locales_iter
+            .next()
+            .expect("There should be at least one Locale");
         let mut key_path = KeyPath::new(namespace);
 
-        let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
+        let mut default_strings = Vec::new();
+        let mut default_keys =
+            default_locale.make_builder_keys(&mut key_path, &mut default_strings)?;
+        default_locale.top_locale_string_count = default_strings.len();
+        default_locale.strings = default_strings;
 
-        for locale in locales {
+        for locale in locales_iter {
             let top_locale = locale.name.clone();
-            locale.merge(&mut default_keys, default_locale, top_locale, &mut key_path)?;
+            let mut strings = Vec::new();
+            locale.merge(
+                &mut default_keys,
+                default_locale,
+                top_locale,
+                &mut key_path,
+                &mut strings,
+            )?;
+            locale.top_locale_string_count = strings.len();
+            locale.strings = strings;
         }
+
+        default_keys.propagate_string_count(locales);
 
         Ok(default_keys)
     }
@@ -546,6 +583,8 @@ impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
             name,
             keys,
             top_locale_name,
+            strings: vec![],
+            top_locale_string_count: 0,
         })
     }
 }

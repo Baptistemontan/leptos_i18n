@@ -130,11 +130,11 @@ impl OutputType {
 impl InputType {
     pub fn get_key<T: ToTokens>(self, input: T, keys: Keys) -> TokenStream {
         match self {
-            InputType::Context => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys),
+            InputType::Context => quote!(leptos_i18n::I18nContext::get_keys(#input).#keys()),
             InputType::Untracked => {
-                quote!(leptos_i18n::I18nContext::get_keys_untracked(#input).#keys)
+                quote!(leptos_i18n::I18nContext::get_keys_untracked(#input).#keys())
             }
-            InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys),
+            InputType::Locale => quote!(leptos_i18n::Locale::get_keys(#input).#keys()),
         }
     }
 }

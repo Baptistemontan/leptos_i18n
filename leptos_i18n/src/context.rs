@@ -54,14 +54,14 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
     #[track_caller]
-    pub fn get_keys(self) -> &'static S::Keys {
+    pub fn get_keys(self) -> S::Keys {
         LocaleKeys::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
     #[track_caller]
-    pub fn get_keys_untracked(self) -> &'static S::Keys {
+    pub fn get_keys_untracked(self) -> S::Keys {
         LocaleKeys::from_locale(self.get_locale_untracked())
     }
 

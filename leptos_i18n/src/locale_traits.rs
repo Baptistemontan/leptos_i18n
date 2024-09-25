@@ -68,7 +68,7 @@ pub trait Locale<L: Locale = Self>:
 
     /// Return the keys based on self
     #[inline]
-    fn get_keys(self) -> &'static Self::Keys {
+    fn get_keys(self) -> Self::Keys {
         LocaleKeys::from_locale(self.to_base_locale())
     }
 
@@ -101,7 +101,7 @@ pub trait LocaleKeys: 'static + Clone + Copy + Send + Sync {
     type Locale: Locale;
 
     /// Return a static ref to Self containing the translations for the given locale
-    fn from_locale(locale: Self::Locale) -> &'static Self;
+    fn from_locale(locale: Self::Locale) -> Self;
 }
 
 #[cfg(test)]

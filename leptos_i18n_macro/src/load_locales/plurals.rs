@@ -147,6 +147,13 @@ pub struct Plurals {
 }
 
 impl Plurals {
+    pub fn index_strings(&mut self, strings: &mut Vec<String>) {
+        for form in self.forms.values_mut() {
+            form.index_strings(strings);
+        }
+        self.other.index_strings(strings);
+    }
+
     fn get_plural_rules(&self, locale: &Rc<Key>) -> PluralRules {
         let locale = locale
             .name
@@ -175,15 +182,15 @@ impl Plurals {
         }
     }
 
-    pub fn as_string_impl(&self, count_key: &Key) -> TokenStream {
+    pub fn as_string_impl(&self, count_key: &Key, strings_count: usize) -> TokenStream {
         let match_arms = self.forms.iter().map(|(form, value)| {
-            let ts = value.as_string_impl();
+            let ts = value.as_string_impl(strings_count);
             quote!(#form => { #ts })
         });
 
         let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
 
-        let other = self.other.as_string_impl();
+        let other = self.other.as_string_impl(strings_count);
 
         let rule_type = self.rule_type;
 
@@ -228,7 +235,10 @@ impl Plurals {
         let mut iter = values.iter().peekable();
         while let Some(next) = iter.peek() {
             match next {
-                ParsedValue::Literal(Literal::String(s)) if s.trim().is_empty() => {
+                ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => {
+                    iter.next();
+                }
+                ParsedValue::None => {
                     iter.next();
                 }
                 ParsedValue::Variable { .. } => break,
@@ -251,7 +261,8 @@ impl Plurals {
 
         for next in iter {
             match next {
-                ParsedValue::Literal(Literal::String(s)) if s.trim().is_empty() => continue,
+                ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => continue,
+                ParsedValue::None => continue,
                 _ => {
                     return Err(Error::InvalidCountArg {
                         locale: locale.clone(),
@@ -329,17 +340,12 @@ impl Plurals {
 
         self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
     }
-}
 
-impl ToTokens for Plurals {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.to_token_stream())
-    }
-
-    fn to_token_stream(&self) -> TokenStream {
+    pub fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         let either_of = EitherOfWrapper::new(self.forms.len() + 1);
         let match_arms = self.forms.iter().enumerate().map(|(i, (form, value))| {
-            let ts = either_of.wrap(i, value);
+            let ts = value.to_token_stream(strings_count);
+            let ts = either_of.wrap(i, ts);
             quote!(#form => { #ts })
         });
 
@@ -366,7 +372,8 @@ impl ToTokens for Plurals {
 
         let count_key = &self.count_key;
 
-        let other = either_of.wrap(self.forms.len(), other);
+        let other_ts = other.to_token_stream(strings_count);
+        let other = either_of.wrap(self.forms.len(), other_ts);
 
         quote! {
             {
