@@ -9,9 +9,12 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { version = "0.7.0-beta", features = ["ssr"] }
-tests_common = { path = "../common" }
-leptos_i18n = { path = "../../leptos_i18n" }
+leptos = { workspace = true, features = ["ssr"] }
+tests_common = { workspace = true }
+
+[dependencies.leptos_i18n]
+workspace = true
+features = ["interpolate_display", "track_locale_files"]
 
 
 [package.metadata.leptos-i18n]

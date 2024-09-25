@@ -1,6 +1,12 @@
 [workspace]
 resolver = "2"
-members = ["leptos_i18n", "leptos_i18n_macro", "tests/json", "tests/common"]
+members = [
+    "leptos_i18n",
+    "leptos_i18n_macro",
+    "tests/json",
+    "tests/common",
+    "tests/namespaces",
+]
 exclude = ["examples", "tests"]
 
 [workspace.package]
