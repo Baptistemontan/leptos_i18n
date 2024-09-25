@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Not, path::PathBuf, rc::Rc};
+use std::{collections::BTreeMap, ops::Not, path::PathBuf, rc::Rc};
 
 pub mod cfg_file;
 pub mod declare_locales;
@@ -501,7 +501,7 @@ fn create_locale_type_inner(
     parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
     locales: &[Locale],
-    keys: &HashMap<Rc<Key>, LocaleValue>,
+    keys: &BTreeMap<Rc<Key>, LocaleValue>,
     key_path: &mut KeyPath,
 ) -> TokenStream {
     let translations_key = CACHED_TRANSLATIONS_KEY.with(Clone::clone);
@@ -726,7 +726,7 @@ fn create_namespaces_types(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     namespaces: &[Namespace],
-    keys: &HashMap<Rc<Key>, BuildersKeysInner>,
+    keys: &BTreeMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()

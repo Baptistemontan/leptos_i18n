@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::BTreeMap, fmt::Display, rc::Rc};
 
 use crate::load_locales::ranges::{RangeParseBuffer, Ranges, UntypedRangesInner};
 use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
@@ -248,8 +248,8 @@ fn parse_block_inner(
     content: ParseBuffer,
     key_path: &mut KeyPath,
     locale: &Rc<Key>,
-) -> syn::Result<HashMap<Rc<Key>, ParsedValue>> {
-    let mut values = HashMap::new();
+) -> syn::Result<BTreeMap<Rc<Key>, ParsedValue>> {
+    let mut values = BTreeMap::new();
     while !content.is_empty() {
         let (key, value) = parse_values(&content, key_path, locale)?;
         values.insert(key, value);
@@ -264,7 +264,7 @@ fn parse_block(
     input: syn::parse::ParseStream,
     key_path: &mut KeyPath,
     locale: &Rc<Key>,
-) -> syn::Result<HashMap<Rc<Key>, ParsedValue>> {
+) -> syn::Result<BTreeMap<Rc<Key>, ParsedValue>> {
     let content;
     syn::braced!(content in input);
     parse_block_inner(content, key_path, locale)

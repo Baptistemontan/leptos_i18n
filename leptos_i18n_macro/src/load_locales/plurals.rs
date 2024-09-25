@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -68,7 +68,7 @@ impl ToTokens for PluralRuleType {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PluralForm {
     Zero,
     One,
@@ -143,7 +143,7 @@ pub struct Plurals {
     // we could have `ParsedValue::Plurals(Box<Plurals>)`
     // but that makes `ParsedValue::Plurals(Plurals { .. })` impossible in match patterns.
     pub other: Box<ParsedValue>,
-    pub forms: HashMap<PluralForm, ParsedValue>,
+    pub forms: BTreeMap<PluralForm, ParsedValue>,
 }
 
 impl Plurals {
@@ -164,11 +164,11 @@ impl Plurals {
 
     pub fn check_categories(&self, locale: &Rc<Key>, key_path: &KeyPath) {
         let plural_rules = self.get_plural_rules(locale);
-        let categs = self.forms.keys().copied().collect::<HashSet<_>>();
+        let categs = self.forms.keys().copied().collect::<BTreeSet<_>>();
         let used_categs = plural_rules
             .categories()
             .map(PluralForm::from_icu_category)
-            .collect::<HashSet<_>>();
+            .collect::<BTreeSet<_>>();
         for cat in categs.difference(&used_categs) {
             emit_warning(
                 Warning::UnusedCategory {
@@ -206,13 +206,13 @@ impl Plurals {
     fn populate_with_new_key(
         &self,
         new_key: Rc<Key>,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
     ) -> Result<ParsedValue> {
         let other = self.other.populate(args, foreign_key, locale, key_path)?;
-        let mut forms = HashMap::new();
+        let mut forms = BTreeMap::new();
         for (form, value) in &self.forms {
             let value = value.populate(args, foreign_key, locale, key_path)?;
             forms.insert(*form, value);
@@ -279,7 +279,7 @@ impl Plurals {
     fn populate_with_count_arg(
         &self,
         count_arg: &ParsedValue,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -329,7 +329,7 @@ impl Plurals {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,

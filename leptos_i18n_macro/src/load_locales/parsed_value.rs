@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -24,7 +24,7 @@ use super::{
 use crate::utils::key::{Key, KeyPath};
 
 thread_local! {
-    pub static FOREIGN_KEYS: RefCell<HashSet<(Rc<Key>, KeyPath)>> = RefCell::new(HashSet::new());
+    pub static FOREIGN_KEYS: RefCell<BTreeSet<(Rc<Key>, KeyPath)>> = const { RefCell::new(BTreeSet::new()) };
     pub static CACHED_TRANSLATIONS_KEY: Rc<Key> = Rc::new(Key::new("__i18n_translations__").unwrap());
 }
 
@@ -39,7 +39,7 @@ macro_rules! nested_result_try {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ForeignKey {
-    NotSet(KeyPath, HashMap<String, ParsedValue>),
+    NotSet(KeyPath, BTreeMap<String, ParsedValue>),
     Set(Box<ParsedValue>),
 }
 
@@ -169,14 +169,14 @@ impl RangeOrPlural {
 
 #[derive(Debug, Default)]
 pub struct VarInfo {
-    pub formatters: HashSet<Formatter>,
+    pub formatters: BTreeSet<Formatter>,
     pub range_count: Option<RangeOrPlural>,
 }
 
 #[derive(Debug, Default)]
 pub struct InterpolationKeys {
-    components: HashSet<Rc<Key>>,
-    variables: HashMap<Rc<Key>, VarInfo>,
+    components: BTreeSet<Rc<Key>>,
+    variables: BTreeMap<Rc<Key>, VarInfo>,
 }
 
 #[derive(Debug)]
@@ -402,7 +402,7 @@ impl ParsedValue {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -661,8 +661,8 @@ impl ParsedValue {
         s: &str,
         key_path: &KeyPath,
         locale: &Rc<Key>,
-    ) -> Result<HashMap<String, ParsedValue>> {
-        let args = match serde_json::from_str::<HashMap<String, Literal>>(s) {
+    ) -> Result<BTreeMap<String, ParsedValue>> {
+        let args = match serde_json::from_str::<BTreeMap<String, Literal>>(s) {
             Ok(args) => args,
             Err(err) => {
                 return Err(Error::InvalidForeignKeyArgs {
@@ -672,7 +672,7 @@ impl ParsedValue {
                 })
             }
         };
-        let mut parsed_args = HashMap::new();
+        let mut parsed_args = BTreeMap::new();
 
         for (key, arg) in args {
             let parsed_value = match arg {
@@ -690,7 +690,7 @@ impl ParsedValue {
         s: &'a str,
         key_path: &KeyPath,
         locale: &Rc<Key>,
-    ) -> Result<(HashMap<String, ParsedValue>, &'a str)> {
+    ) -> Result<(BTreeMap<String, ParsedValue>, &'a str)> {
         let mut depth = 0usize;
         let mut index = 0usize;
 
@@ -743,7 +743,7 @@ impl ParsedValue {
         let (args, after) = if sep == ',' {
             nested_result_try!(Self::parse_foreign_key_args(after, key_path, locale))
         } else {
-            (HashMap::new(), after)
+            (BTreeMap::new(), after)
         };
 
         let this = ParsedValue::ForeignKey(RefCell::new(ForeignKey::new(
@@ -1061,7 +1061,7 @@ impl ForeignKey {
     pub fn new(
         current_key_path: KeyPath,
         target_key_path: KeyPath,
-        args: HashMap<String, ParsedValue>,
+        args: BTreeMap<String, ParsedValue>,
         locale: &Rc<Key>,
     ) -> Self {
         FOREIGN_KEYS.with(|foreign_keys| {

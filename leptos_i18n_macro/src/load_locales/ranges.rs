@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     marker::PhantomData,
     num::TryFromIntError,
     ops::{Bound, Not},
@@ -141,7 +141,7 @@ impl Ranges {
     pub fn populate_with_count_arg(
         &self,
         count_arg: &ParsedValue,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -149,7 +149,7 @@ impl Ranges {
         fn find_value<T: RangeNumber>(
             v: &RangesInner<T>,
             count: T,
-            args: &HashMap<String, ParsedValue>,
+            args: &BTreeMap<String, ParsedValue>,
             foreign_key: &KeyPath,
             locale: &Rc<Key>,
             key_path: &KeyPath,
@@ -353,14 +353,14 @@ impl Ranges {
     fn populate_with_new_key(
         &self,
         new_key: Rc<Key>,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
     ) -> Result<ParsedValue> {
         fn inner<T: Clone>(
             v: &RangesInner<T>,
-            args: &HashMap<String, ParsedValue>,
+            args: &BTreeMap<String, ParsedValue>,
             foreign_key: &KeyPath,
             locale: &Rc<Key>,
             key_path: &KeyPath,
@@ -415,7 +415,7 @@ impl Ranges {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,

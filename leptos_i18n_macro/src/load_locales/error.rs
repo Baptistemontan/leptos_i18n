@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
+use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
@@ -15,8 +15,8 @@ pub(crate) enum Error {
         path: PathBuf,
         err: SerdeError,
     },
-    DuplicateLocalesInConfig(HashSet<String>),
-    DuplicateNamespacesInConfig(HashSet<String>),
+    DuplicateLocalesInConfig(BTreeSet<String>),
+    DuplicateNamespacesInConfig(BTreeSet<String>),
     SubKeyMissmatch {
         locale: Rc<Key>,
         key_path: KeyPath,
