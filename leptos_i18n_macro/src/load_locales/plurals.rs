@@ -23,6 +23,7 @@ use crate::{
 };
 
 use super::{
+    locale::StringIndexer,
     parsed_value::ParsedValue,
     warning::{emit_warning, Warning},
 };
@@ -147,7 +148,7 @@ pub struct Plurals {
 }
 
 impl Plurals {
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
         for form in self.forms.values_mut() {
             form.index_strings::<CLONE>(strings);
         }

@@ -16,7 +16,7 @@ use std::fmt::Display;
 use super::{
     error::{Error, Result},
     interpolate::LOCALE_FIELD_KEY,
-    locale::{LiteralType, Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces},
+    locale::{LiteralType, Locale, LocaleSeed, LocaleValue, LocalesOrNamespaces, StringIndexer},
     plurals::Plurals,
     ranges::{RangeType, Ranges},
 };
@@ -58,14 +58,10 @@ pub enum Literal {
 }
 
 impl Literal {
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
         if let Literal::String(s, index) = self {
-            *index = strings.len();
-            if CLONE {
-                strings.push(s.clone())
-            } else {
-                strings.push(std::mem::take(s));
-            }
+            let s = if CLONE { s.clone() } else { std::mem::take(s) };
+            *index = strings.push_str(s);
         }
     }
 
@@ -274,7 +270,7 @@ impl InterpolationKeys {
 }
 
 impl ParsedValue {
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
         match self {
             ParsedValue::Literal(lit) => {
                 lit.index_strings::<CLONE>(strings);
@@ -544,7 +540,7 @@ impl ParsedValue {
     pub fn make_locale_value(
         &mut self,
         key_path: &mut KeyPath,
-        strings: &mut Vec<String>,
+        strings: &mut StringIndexer,
     ) -> Result<LocaleValue> {
         match self {
             ParsedValue::Subkeys(locale) => {
@@ -571,7 +567,7 @@ impl ParsedValue {
         keys: &mut LocaleValue,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
-        strings: &mut Vec<String>,
+        strings: &mut StringIndexer,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {

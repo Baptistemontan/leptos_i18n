@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     fs::File,
     path::{Path, PathBuf},
     rc::Rc,
@@ -298,7 +298,7 @@ impl Locale {
     pub fn make_builder_keys(
         &mut self,
         key_path: &mut KeyPath,
-        strings: &mut Vec<String>,
+        strings: &mut StringIndexer,
     ) -> Result<BuildersKeysInner> {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
@@ -408,7 +408,7 @@ impl Locale {
         default_locale: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
-        strings: &mut Vec<String>,
+        strings: &mut StringIndexer,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
@@ -453,24 +453,24 @@ impl Locale {
             .expect("There should be at least one Locale");
         let mut key_path = KeyPath::new(namespace);
 
-        let mut default_strings = Vec::new();
+        let mut string_indexer = StringIndexer::default();
         let mut default_keys =
-            default_locale.make_builder_keys(&mut key_path, &mut default_strings)?;
-        default_locale.top_locale_string_count = default_strings.len();
-        default_locale.strings = default_strings;
+            default_locale.make_builder_keys(&mut key_path, &mut string_indexer)?;
+        default_locale.strings = string_indexer.get_strings();
+        default_locale.top_locale_string_count = default_locale.strings.len();
 
         for locale in locales_iter {
             let top_locale = locale.name.clone();
-            let mut strings = Vec::new();
+            let mut string_indexer = StringIndexer::default();
             locale.merge(
                 &mut default_keys,
                 default_locale,
                 top_locale,
                 &mut key_path,
-                &mut strings,
+                &mut string_indexer,
             )?;
-            locale.top_locale_string_count = strings.len();
-            locale.strings = strings;
+            locale.strings = string_indexer.get_strings();
+            locale.top_locale_string_count = locale.strings.len()
         }
 
         default_keys.propagate_string_count(locales);
@@ -592,5 +592,28 @@ impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
             strings: vec![],
             top_locale_string_count: 0,
         })
+    }
+}
+
+#[derive(Default)]
+pub struct StringIndexer {
+    current: HashSet<String>,
+    acc: Vec<String>,
+}
+
+impl StringIndexer {
+    pub fn push_str(&mut self, s: String) -> usize {
+        if self.current.contains(&s) {
+            self.acc.iter().position(|i| i == &s).unwrap_or(usize::MAX)
+        } else {
+            let i = self.acc.len();
+            self.acc.push(s.clone());
+            self.current.insert(s);
+            i
+        }
+    }
+
+    pub fn get_strings(self) -> Vec<String> {
+        self.acc
     }
 }

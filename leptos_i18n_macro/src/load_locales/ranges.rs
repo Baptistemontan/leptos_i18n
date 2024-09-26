@@ -27,6 +27,7 @@ use crate::{
 use super::{
     declare_locales::parse_range_pairs,
     error::{Error, Result},
+    locale::StringIndexer,
     parsed_value::{InterpolOrLit, ParsedValue, ParsedValueSeed},
 };
 
@@ -117,8 +118,8 @@ pub struct Ranges {
 }
 
 impl Ranges {
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut Vec<String>) {
-        fn inner<const CLONE: bool, T>(range: &mut RangesInner<T>, strings: &mut Vec<String>) {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+        fn inner<const CLONE: bool, T>(range: &mut RangesInner<T>, strings: &mut StringIndexer) {
             for (_, value) in range {
                 value.index_strings::<CLONE>(strings);
             }
