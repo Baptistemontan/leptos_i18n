@@ -75,7 +75,7 @@ impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + Send + Sync + 'static> NumberFo
 pub fn format_number_to_view<L: Locale>(
     locale: L,
     number: impl NumberFormatterInputFn,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let num_formatter = super::get_num_formatter(locale);
 
     move || {

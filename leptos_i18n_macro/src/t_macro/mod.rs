@@ -107,12 +107,24 @@ impl OutputType {
         match self {
             OutputType::View => {
                 let clone_values = interpolations.map(Self::clone_values);
-                quote! {
-                    {
-                        #params
-                        move || {
-                            #clone_values
-                            #ts
+                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote! {
+                        {
+                            #params
+                            leptos_i18n::__private::future_renderer(move || {
+                                #clone_values
+                                #ts
+                            })
+                        }
+                    }
+                } else {
+                    quote! {
+                        {
+                            #params
+                            move || {
+                                #clone_values
+                                #ts
+                            }
                         }
                     }
                 }

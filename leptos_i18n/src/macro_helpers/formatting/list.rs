@@ -28,7 +28,7 @@ where
 }
 
 /// Marker trait for types that produce a `T: WriteableList`.
-pub trait ListFormatterInputFn: 'static + Send + Sync {
+pub trait ListFormatterInputFn: 'static + Send + Sync + Clone {
     /// The returned `T: WriteableList`.
     type List: WriteableList;
 
@@ -71,7 +71,7 @@ pub fn format_list_to_view<L: Locale>(
     list: impl ListFormatterInputFn,
     list_type: ListType,
     length: ListLength,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let list_formatter = super::get_list_formatter(locale, list_type, length);
 
     move || {

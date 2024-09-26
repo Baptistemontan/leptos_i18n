@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{borrow::Cow, fmt::Display, marker::PhantomData};
+use std::{borrow::Cow, fmt::Display, future::Future, marker::PhantomData};
 
 pub mod formatting;
 mod interpol_args;
@@ -8,11 +8,14 @@ mod scope;
 use crate::Locale;
 pub use formatting::*;
 pub use interpol_args::*;
-use leptos::IntoView;
+use leptos::{
+    prelude::{AsyncDerived, Get},
+    IntoView,
+};
 pub use scope::*;
 
 #[doc(hidden)]
-pub trait Literal: Sized + Display + IntoView {
+pub trait Literal: Sized + Display + IntoView + Copy {
     fn into_str(self) -> Cow<'static, str>;
 }
 
@@ -69,7 +72,7 @@ impl<T: Literal> LitWrapper<T> {
         self
     }
 
-    pub fn into_view(self) -> impl IntoView {
+    pub fn into_view(self) -> impl IntoView + Copy {
         self.0
     }
 
@@ -79,6 +82,40 @@ impl<T: Literal> LitWrapper<T> {
 
     pub fn build_display(self) -> impl Display {
         self.0
+    }
+}
+
+#[doc(hidden)]
+#[repr(transparent)]
+pub struct LitWrapperFut<T>(T);
+
+impl<T: Literal, F: Future<Output = LitWrapper<T>>> LitWrapperFut<F> {
+    pub const fn new(v: F) -> Self {
+        LitWrapperFut(v)
+    }
+
+    pub const fn builder(self) -> Self {
+        self
+    }
+
+    pub const fn display_builder(self) -> Self {
+        self
+    }
+
+    pub const fn build(self) -> Self {
+        self
+    }
+
+    pub async fn into_view(self) -> impl IntoView + Copy {
+        self.0.await.into_view()
+    }
+
+    pub async fn build_string(self) -> Cow<'static, str> {
+        self.0.await.build_string()
+    }
+
+    pub async fn build_display(self) -> impl Display {
+        self.0.await.build_display()
     }
 }
 
@@ -151,4 +188,12 @@ pub const fn index_translations<const N: usize, const I: usize>(
 ) -> &'static str {
     assert!(N > I);
     translations[I]
+}
+
+#[doc(hidden)]
+pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
+    fut: impl Fn() -> F + 'static,
+) -> impl Fn() -> Option<IV> {
+    let fut = AsyncDerived::new_unsync(fut);
+    move || fut.get()
 }

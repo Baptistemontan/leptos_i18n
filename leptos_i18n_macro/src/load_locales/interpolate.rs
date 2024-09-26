@@ -99,7 +99,7 @@ impl Field {
             VarOrComp::Comp { into_view } => {
                 let ts = [
                     quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>),
-                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView),
+                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + Clone),
                 ];
                 EitherIter::Iter2(ts.into_iter())
             }
@@ -460,15 +460,26 @@ impl Interpolation {
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, locale_type_ident);
 
-        quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
-                fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
-                    #destructure
-                    match #locale_field {
-                        #(
-                            #locales_impls,
-                        )*
+        if cfg!(all(feature = "dynamic_load", feature = "client")) {
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
+                    fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
+                        todo!()
+                    }
+                }
+            }
+        } else {
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
+                    fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
+                        #destructure
+                        match #locale_field {
+                            #(
+                                #locales_impls,
+                            )*
+                        }
                     }
                 }
             }
@@ -495,7 +506,7 @@ impl Interpolation {
             return quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
                         let _ = self;
                         #key
                     }
@@ -508,16 +519,31 @@ impl Interpolation {
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, locale_type_ident);
-
-        quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView {
-                    #destructure
-                    match #locale_field {
-                        #(
-                            #locales_impls,
-                        )*
+        if cfg!(all(feature = "dynamic_load", feature = "client")) {
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    pub async fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                        #destructure
+                        match #locale_field {
+                            #(
+                                #locales_impls,
+                            )*
+                        }
+                    }
+                }
+            }
+        } else {
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                        #destructure
+                        match #locale_field {
+                            #(
+                                #locales_impls,
+                            )*
+                        }
                     }
                 }
             }
@@ -549,11 +575,21 @@ impl Interpolation {
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
-
-                let ts = quote!(#enum_ident::#locale_key => {
-                    const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
-                    #wrapped_value
-                });
+                let ts = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote!{
+                        #enum_ident::#locale_key => {
+                            let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                            #wrapped_value
+                        }
+                    }
+                } else {
+                    quote!{
+                        #enum_ident::#locale_key => {
+                            const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            #wrapped_value
+                        }
+                    }
+                };
                 Some(ts)
             })
     }
@@ -576,10 +612,21 @@ impl Interpolation {
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
 
-            let ts = quote!(#enum_ident::#locale_key => {
-                const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
-                #value
-            });
+            let ts = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                quote!{
+                    #enum_ident::#locale_key => {
+                        let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                        #value
+                    }
+                }
+            } else {
+                quote!{
+                    #enum_ident::#locale_key => {
+                        const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        #value
+                    }
+                }
+            };
             Some(ts)
         })
     }

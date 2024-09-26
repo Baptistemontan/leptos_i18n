@@ -6,13 +6,15 @@ pub trait InterpolateVar: IntoView + Clone + 'static + Send + Sync {}
 impl<T: IntoView + Clone + 'static + Send + Sync> InterpolateVar for T {}
 
 /// Marker trait for a type that can be used as an interpolation component.
-pub trait InterpolateComp<O: IntoView>:
+pub trait InterpolateComp<O: IntoView + Clone>:
     Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync
 {
 }
 
-impl<O: IntoView, T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync>
-    InterpolateComp<O> for T
+impl<
+        O: IntoView + Clone,
+        T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync,
+    > InterpolateComp<O> for T
 {
 }
 

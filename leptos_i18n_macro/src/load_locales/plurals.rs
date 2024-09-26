@@ -11,7 +11,10 @@ use std::fmt::Display;
 
 use crate::{
     load_locales::{
-        error::{Error, Result}, interpolate::LOCALE_FIELD_KEY, locale::LiteralType, parsed_value::{InterpolOrLit, Literal}
+        error::{Error, Result},
+        interpolate::LOCALE_FIELD_KEY,
+        locale::LiteralType,
+        parsed_value::{InterpolOrLit, Literal},
     },
     utils::{
         key::{Key, KeyPath},

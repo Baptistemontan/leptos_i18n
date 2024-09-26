@@ -34,6 +34,11 @@ interpolate_display = []
 track_locale_files = []
 experimental-islands = []
 show_keys_only = []
+dynamic_load = []
+client = []
+hydrate = ["client"]
+csr = ["client"]
+ssr = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...

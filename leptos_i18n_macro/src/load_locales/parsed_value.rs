@@ -23,7 +23,11 @@ use super::{
 
 use crate::utils::key::{Key, KeyPath};
 
-pub const TRANSLATIONS_KEY: &str = "I18N_TRANSLATIONS";
+pub const TRANSLATIONS_KEY: &str = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+    "__i18n_translations__"
+} else {
+    "I18N_TRANSLATIONS"
+};
 
 thread_local! {
     pub static FOREIGN_KEYS: RefCell<BTreeSet<(Rc<Key>, KeyPath)>> = const { RefCell::new(BTreeSet::new()) };
@@ -108,10 +112,14 @@ impl Literal {
         match self {
             Literal::String(_, index) => {
                 let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
-                quote! {
-                    {
-                        const S: &'static str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
-                        S
+                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote!(l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key))
+                } else {
+                    quote! {
+                        {
+                            const S: &'static str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
+                            S
+                        }
                     }
                 }
             }

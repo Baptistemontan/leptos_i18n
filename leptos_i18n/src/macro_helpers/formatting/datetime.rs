@@ -77,7 +77,7 @@ pub fn format_datetime_to_view<L: Locale>(
     datetime: impl DateTimeFormatterInputFn,
     date_length: length::Date,
     time_length: length::Time,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let datetime_formatter = super::get_datetime_formatter(locale, date_length, time_length);
 
     move || {

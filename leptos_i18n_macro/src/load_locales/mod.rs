@@ -535,10 +535,19 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         .to_token_stream(locale.top_locale_string_count);
                     if **literal_type == LiteralType::String {
                         let strings_count = locale.top_locale_string_count;
-                        quote! {
-                            #enum_ident::#ident => {
-                                const #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
-                                l_i18n_crate::__private::LitWrapper::new(#lit)
+                        if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                            quote! {
+                                #enum_ident::#ident => {
+                                    let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor().await;
+                                    l_i18n_crate::__private::LitWrapper::new(#lit)
+                                }
+                            }
+                        } else {
+                            quote! {
+                                #enum_ident::#ident => {
+                                    const #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
+                                    l_i18n_crate::__private::LitWrapper::new(#lit)
+                                }
                             }
                         }
                     } else {
@@ -549,12 +558,27 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         }
                     }
                 });
-                quote! {
-                    pub const fn #key(self) -> l_i18n_crate::__private::LitWrapper<#literal_type> {
-                        match self.0 {
-                            #(
-                                #match_arms
-                            )*
+                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote! {
+                        pub fn #key(self) -> l_i18n_crate::__private::LitWrapperFut<impl std::future::Future<Output = l_i18n_crate::__private::LitWrapper<#literal_type>>> {
+                            let fut = async move {
+                                match self.0 {
+                                    #(
+                                        #match_arms
+                                    )*
+                                }
+                            };
+                            l_i18n_crate::__private::LitWrapperFut::new(fut)
+                        }
+                    }
+                } else {
+                    quote! {
+                        pub const fn #key(self) -> l_i18n_crate::__private::LitWrapper<#literal_type> {
+                            match self.0 {
+                                #(
+                                    #match_arms
+                                )*
+                            }
                         }
                     }
                 }
@@ -658,18 +682,35 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         let strings_count = locale.top_locale_string_count;
         match parent_ident {
             Some(parent) if !IS_TOP => {
-                quote! {
-                    pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
-                        super::super::#parent::#accessor_ident()
+                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote! {
+                        pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                            super::super::#parent::#accessor_ident().await
+                        }
+                    }
+                } else {
+                    quote! {
+                        pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                            super::super::#parent::#accessor_ident()
+                        }
                     }
                 }
             }
             _ => {
                 let strings = &locale.strings;
-                quote! {
-                    pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
-                        const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
-                        STRINGS
+                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote! {
+                        pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                            STRINGS
+                        }
+                    }
+                } else {
+                    quote! {
+                        pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                            STRINGS
+                        }
                     }
                 }
             }
