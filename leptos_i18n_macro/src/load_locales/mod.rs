@@ -677,9 +677,47 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         }
     });
 
+    let string_holders = if IS_TOP {
+        locales
+            .iter()
+            .map(|locale| {
+                let struct_name = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
+                let strings_count = locale.top_locale_string_count;
+                let strings = &*locale.strings;
+
+                let get_fn = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                    quote! {
+                        pub async fn get_translations() -> &'static [&'static str; #strings_count] {
+                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                            STRINGS
+                        }
+                    }
+                } else {
+                    quote! {
+                        pub const fn get_translations() -> &'static [&'static str; #strings_count] {
+                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                            STRINGS
+                        }
+                    }
+                };
+
+                quote! {
+                    struct #struct_name;
+
+                    impl #struct_name {
+                        #get_fn
+                    }
+                }
+            })
+            .collect()
+    } else {
+        quote! {}
+    };
+
     let string_accessors = locales.iter().map(|locale| {
         let accessor_ident = strings_accessor_method_name(locale);
         let strings_count = locale.top_locale_string_count;
+        let string_holder = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
         match parent_ident {
             Some(parent) if !IS_TOP => {
                 if cfg!(all(feature = "dynamic_load", feature = "client")) {
@@ -697,19 +735,16 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 }
             }
             _ => {
-                let strings = &locale.strings;
                 if cfg!(all(feature = "dynamic_load", feature = "client")) {
                     quote! {
                         pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
-                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
-                            STRINGS
+                            #string_holder::get_translations().await
                         }
                     }
                 } else {
                     quote! {
                         pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
-                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
-                            STRINGS
+                            #string_holder::get_translations()
                         }
                     }
                 }
@@ -755,6 +790,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 Self::new(locale)
             }
         }
+
+        #string_holders
 
         #builder_module
 
