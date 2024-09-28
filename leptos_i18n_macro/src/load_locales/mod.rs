@@ -1170,13 +1170,19 @@ fn create_namespaces_types(
             )*
         }
 
-        impl l_i18n_crate::__private::TranslationUnitId for #translation_unit_enum_ident {
-            fn to_str(self) -> Option<&'static str> {
-                Some(match self {
+        impl #translation_unit_enum_ident {
+            pub fn as_str(self) -> &'static str {
+                match self {
                     #(
                         #as_str_match_arms,
                     )*
-                })
+                }
+            }
+        }
+
+        impl l_i18n_crate::__private::TranslationUnitId for #translation_unit_enum_ident {
+            fn to_str(self) -> Option<&'static str> {
+                Some(self.as_str())
             }
         }
 
@@ -1185,7 +1191,7 @@ fn create_namespaces_types(
             where
                 S: l_i18n_crate::reexports::serde::Serializer,
             {
-                l_i18n_crate::reexports::serde::Serialize::serialize(l_i18n_crate::__private::TranslationUnitId::to_str(*self), serializer)
+                l_i18n_crate::reexports::serde::Serialize::serialize((*self).as_str(), serializer)
             }
         }
 
