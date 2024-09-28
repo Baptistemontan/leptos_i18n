@@ -596,7 +596,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         .to_token_stream(locale.top_locale_string_count);
                     if **literal_type == LiteralType::String {
                         let strings_count = locale.top_locale_string_count;
-                        if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                             quote! {
                                 #enum_ident::#ident => {
                                     let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor().await;
@@ -626,7 +626,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         }
                     }
                 });
-                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
                         pub fn #key(self) -> l_i18n_crate::__private::LitWrapperFut<impl std::future::Future<Output = l_i18n_crate::__private::LitWrapper<#literal_type>>> {
                             let fut = async move {
@@ -765,7 +765,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 let strings_count = locale.top_locale_string_count;
                 let strings = &*locale.strings;
 
-                let get_fn = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                let get_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
                         pub async fn get_translations() -> &'static [&'static str; #strings_count] {
                             <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::request_strings().await
@@ -849,7 +849,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         let strings_count = locale.top_locale_string_count;
         match parent_ident {
             Some(parent) if !IS_TOP => {
-                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
                         pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                             super::super::#parent::#accessor_ident().await
@@ -872,7 +872,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             _ => {
                 let string_holder =
                     format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
-                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
                         pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                             #string_holder::get_translations().await
@@ -903,7 +903,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 #enum_ident::#locale_name => #string_holder::get_translations()
             }
         });
-        let match_stmt = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+        let match_stmt = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
                 unreachable!(
                     "This function should not have been called on the client!"
@@ -1085,7 +1085,7 @@ fn create_namespaces_types(
         }
     });
 
-    let get_strings_match_stmt = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+    let get_strings_match_stmt = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
         quote! {
             unreachable!(
                 "This function should not have been called on the client!"

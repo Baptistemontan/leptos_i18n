@@ -107,7 +107,7 @@ impl OutputType {
         match self {
             OutputType::View => {
                 let clone_values = interpolations.map(Self::clone_values);
-                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
                         {
                             #params

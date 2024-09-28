@@ -460,7 +460,7 @@ impl Interpolation {
         let locales_impls =
             Self::create_locale_string_impl(key, enum_ident, locales, locale_type_ident);
 
-        if cfg!(all(feature = "dynamic_load", feature = "client")) {
+        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
@@ -519,7 +519,7 @@ impl Interpolation {
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
         let locales_impls = Self::create_locale_impl(key, enum_ident, locales, locale_type_ident);
-        if cfg!(all(feature = "dynamic_load", feature = "client")) {
+        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
@@ -575,7 +575,7 @@ impl Interpolation {
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
-                let ts = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                let ts = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
                         #enum_ident::#locale_key => {
                             let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
@@ -619,7 +619,7 @@ impl Interpolation {
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
 
-            let ts = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+            let ts = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 quote!{
                     #enum_ident::#locale_key => {
                         let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;

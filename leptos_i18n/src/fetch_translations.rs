@@ -59,14 +59,16 @@ impl<const SIZE: usize> StringArray for &'static [&'static str; SIZE] {
         fn cast_ref(r: &mut str) -> &str {
             r
         }
-        let values = strings
-            .into_iter()
-            .map(String::leak)
-            .map(cast_ref)
-            .collect::<Box<[&'static str]>>();
+        fn inner_leak(strings: Vec<String>) -> Box<[&'static str]> {
+            strings
+                .into_iter()
+                .map(String::leak)
+                .map(cast_ref)
+                .collect::<Box<[&'static str]>>()
+        }
 
+        let values = inner_leak(strings);
         let sized_box: Box<[&'static str; SIZE]> = Box::try_into(values).unwrap();
-
         Box::leak(sized_box)
     }
 

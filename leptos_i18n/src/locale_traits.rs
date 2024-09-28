@@ -183,7 +183,7 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(all(feature = "dynamic_load", any(feature = "hydrate", feature = "csr"))))]
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn test_scope() {
         use crate::{self as leptos_i18n, __private::LitWrapper, scope_locale};
         let en_sk = scope_locale!(Locale::en, sk);

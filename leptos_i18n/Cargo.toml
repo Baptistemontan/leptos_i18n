@@ -121,6 +121,10 @@ skip_feature_sets = [
         "hydrate",
         "csr",
     ],
+    [
+        "dynamic_load",
+        "csr",
+    ],
 ]
 # see leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
 always_include_features = ["json_files"]
