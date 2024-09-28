@@ -134,6 +134,9 @@ pub use leptos_i18n_macro::{
 };
 pub use scopes::{ConstScope, Scope};
 
+#[cfg(all(feature = "dynamic_load", feature = "csr"))]
+compile_error!("dynamic_load feature is a WIP for CSR.");
+
 #[doc(hidden)]
 pub mod __private {
     pub use crate::locale_traits::TranslationUnitId;
