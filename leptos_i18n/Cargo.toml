@@ -26,6 +26,7 @@ fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
 wasm-bindgen = "0.2.93"
+async-once-cell = { version = "0.5.3", optional = true }
 
 tower = { version = "0.4.13", default-features = false, optional = true, features = [
     "util",
@@ -51,7 +52,7 @@ ssr = [
 ]
 nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 
-dynamic_load = ["leptos_i18n_macro/dynamic_load"]
+dynamic_load = ["leptos_i18n_macro/dynamic_load", "dep:async-once-cell"]
 
 
 # macro features

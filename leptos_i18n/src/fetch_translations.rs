@@ -2,6 +2,9 @@
 
 use crate::Locale;
 
+#[cfg(feature = "dynamic_load")]
+pub use async_once_cell::OnceCell;
+
 pub trait TranslationUnit {
     type Locale: Locale;
     const ID: <Self::Locale as Locale>::TranslationUnitId;
@@ -11,14 +14,27 @@ pub trait TranslationUnit {
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     const STRINGS: Self::Strings;
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn get_strings_lock() -> &'static std::sync::OnceLock<Self::Strings>;
+    fn get_strings_lock() -> &'static OnceCell<Self::Strings>;
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn request_strings() -> impl std::future::Future<Output = Self::Strings> {
-        async { todo!() }
+    fn request_strings() -> impl std::future::Future<Output = Self::Strings> + Send + Sync + 'static
+    {
+        let string_lock = Self::get_strings_lock();
+        async move {
+            let inner = string_lock
+                .get_or_init(async {
+                    let translations = Locale::request_translations(Self::LOCALE, Self::ID)
+                        .await
+                        .unwrap();
+                    let leaked_string: Self::Strings = StringArray::leak(translations.0);
+                    leaked_string
+                })
+                .await;
+            *inner
+        }
     }
 }
 
-pub trait StringArray: Copy {
+pub trait StringArray: Copy + 'static + Send + Sync {
     fn leak(strings: Vec<String>) -> Self;
     fn as_slice(self) -> &'static [&'static str];
 }

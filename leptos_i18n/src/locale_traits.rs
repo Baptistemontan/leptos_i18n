@@ -109,7 +109,9 @@ pub trait Locale<L: Locale = Self>:
             crate::fetch_translations::LocaleServerFnOutput,
             leptos::prelude::ServerFnError,
         >,
-    >;
+    > + Send
+           + Sync
+           + 'static;
 }
 
 /// Trait implemented the struct representing the translation keys

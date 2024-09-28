@@ -386,7 +386,7 @@ fn create_locales_enum(
             fn request_translations(
                 self,
                 translations_id: #translation_unit_enum_ident,
-            ) -> impl std::future::Future<Output = Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> {
+            ) -> impl std::future::Future<Output = Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> + Send + Sync + 'static {
                 server_fn::i18n_request_translations(self, translations_id)
             }
         }
@@ -762,7 +762,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 } else {
                     quote! {
-                        fn get_strings_lock() -> &'static std::sync::OnceLock<Self::Strings> {
+                        fn get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<Self::Strings> {
                             Self::__get_strings_lock()
                         }
                     }
@@ -780,8 +780,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                 let get_strings_lock_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        fn __get_strings_lock() -> &'static std::sync::OnceLock<&'static [&'static str; #strings_count]> {
-                            static STRINGS_LOCK: std::sync::OnceLock<&'static [&'static str; #strings_count]> = std::sync::OnceLock::new();
+                        fn __get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<&'static [&'static str; #strings_count]> {
+                            static STRINGS_LOCK: l_i18n_crate::__private::fetch_translations::OnceCell<&'static [&'static str; #strings_count]> = l_i18n_crate::__private::fetch_translations::OnceCell::new();
                             &STRINGS_LOCK
                         }
                     }
