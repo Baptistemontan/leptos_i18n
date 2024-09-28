@@ -437,7 +437,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
     #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-    crate::fetch_translations::init_translations::<L>();
+    let embed_translations = crate::fetch_translations::init_translations::<L>();
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let reg_ctx = crate::fetch_translations::RegisterCtx::<L>::provide_context();
     let i18n = provide_i18n_context_with_options_inner(
@@ -449,7 +449,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     let children = children();
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let embed_translations = move || embed_translations(reg_ctx.clone());
-    #[cfg(not(all(feature = "dynamic_load", feature = "ssr")))]
+    #[cfg(not(all(feature = "dynamic_load", any(feature = "ssr", feature = "hydrate"))))]
     let embed_translations = ();
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();

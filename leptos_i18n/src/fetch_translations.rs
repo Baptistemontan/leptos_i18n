@@ -202,8 +202,8 @@ mod register {
 pub use register::RegisterCtx;
 
 #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-pub fn init_translations<L: Locale>() {
-    use leptos::web_sys;
+pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
+    use leptos::{html::InnerHtmlAttribute, view, web_sys};
     use wasm_bindgen::UnwrapThrowExt;
     #[derive(serde::Deserialize)]
     struct Trans<L, Id> {
@@ -222,7 +222,38 @@ pub fn init_translations<L: Locale>() {
         serde_wasm_bindgen::from_value(translations)
             .expect_throw("Failed parsing the translations.");
 
+    let mut buff = String::from("window.__LEPTOS_I18N_TRANSLATIONS = [");
+
     for Trans { locale, id, values } in translations {
+        let mut first = true;
+        if !std::mem::replace(&mut first, false) {
+            buff.push(',');
+        }
+        buff.push_str("{\"locale\":\"");
+        buff.push_str(locale.as_str());
+        if let Some(id_str) = crate::locale_traits::TranslationUnitId::to_str(id) {
+            buff.push_str("\",\"id\":\"");
+            buff.push_str(id_str);
+            buff.push_str("\",\"values\":[");
+        } else {
+            buff.push_str("\",\"id\":null,\"values\":[");
+        }
+        let mut first = true;
+        for value in &values {
+            if !std::mem::replace(&mut first, false) {
+                buff.push(',');
+            }
+            buff.push('\"');
+            buff.push_str(value);
+            buff.push('\"');
+        }
+        buff.push_str("]}");
         L::init_translations(locale, id, values);
+    }
+
+    buff.push_str("];");
+
+    view! {
+        <script inner_html = buff />
     }
 }
