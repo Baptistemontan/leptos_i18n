@@ -739,15 +739,13 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 let get_fn = if cfg!(all(feature = "dynamic_load", feature = "client")) {
                     quote! {
                         pub async fn get_translations() -> &'static [&'static str; #strings_count] {
-                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
-                            STRINGS
+                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::request_strings().await
                         }
                     }
                 } else {
                     quote! {
                         pub const fn get_translations() -> &'static [&'static str; #strings_count] {
-                            const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
-                            STRINGS
+                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRINGS
                         }
                     }
                 };
@@ -758,12 +756,37 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     quote!(const ID: () = ())
                 };
 
+                let get_string = if cfg!(not(all(feature = "dynamic_load", not(feature = "ssr")))) {
+                    quote!{
+                        const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                    }
+                } else {
+                    quote! {
+                        fn get_strings_lock() -> &'static std::sync::OnceLock<Self::Strings> {
+                            Self::__get_strings_lock()
+                        }
+                    }
+                };
+
                 let translation_unit_impl = quote! {
                     impl l_i18n_crate::__private::fetch_translations::TranslationUnit for #struct_name {
                         type Locale = #enum_ident;
                         const LOCALE: #enum_ident = #enum_ident::#locale_name;
                         #id;
+                        type Strings = &'static [&'static str; #strings_count];
+                        #get_string                        
                     }
+                };
+
+                let get_strings_lock_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+                    quote! {
+                        fn __get_strings_lock() -> &'static std::sync::OnceLock<[&'static str; #strings_count]> {
+                            static STRINGS_LOCK: std::sync::OnceLock<[&'static str; #strings_count]> = std::sync::OnceLock::new();
+                            &STRINGS_LOCK
+                        }
+                    }
+                } else {
+                    quote! {}
                 };
 
                 quote! {
@@ -772,6 +795,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                     impl #struct_name {
                         #get_fn
+
+                        #get_strings_lock_fn
                     }
 
                     #translation_unit_impl

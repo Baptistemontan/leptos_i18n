@@ -6,21 +6,42 @@ pub trait TranslationUnit {
     type Locale: Locale;
     const ID: <Self::Locale as Locale>::TranslationUnitId;
     const LOCALE: Self::Locale;
+    type Strings: StringArray;
+
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+    const STRINGS: Self::Strings;
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn get_strings_lock() -> &'static std::sync::OnceLock<Self::Strings>;
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn request_strings() -> impl std::future::Future<Output = Self::Strings> {
+        async { todo!() }
+    }
 }
 
-pub fn leak<const SIZE: usize>(values: Vec<String>) -> &'static [&'static str; SIZE] {
-    fn cast_ref(r: &mut str) -> &str {
-        r
+pub trait StringArray: Copy {
+    fn leak(strings: Vec<String>) -> Self;
+    fn as_slice(self) -> &'static [&'static str];
+}
+
+impl<const SIZE: usize> StringArray for &'static [&'static str; SIZE] {
+    fn leak(strings: Vec<String>) -> Self {
+        fn cast_ref(r: &mut str) -> &str {
+            r
+        }
+        let values = strings
+            .into_iter()
+            .map(String::leak)
+            .map(cast_ref)
+            .collect::<Box<[&'static str]>>();
+
+        let sized_box: Box<[&'static str; SIZE]> = Box::try_into(values).unwrap();
+
+        Box::leak(sized_box)
     }
-    let values = values
-        .into_iter()
-        .map(String::leak)
-        .map(cast_ref)
-        .collect::<Box<[&'static str]>>();
 
-    let sized_box: Box<[&'static str; SIZE]> = Box::try_into(values).unwrap();
-
-    Box::leak(sized_box)
+    fn as_slice(self) -> &'static [&'static str] {
+        self
+    }
 }
 
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
