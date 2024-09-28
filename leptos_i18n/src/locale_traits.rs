@@ -36,6 +36,10 @@ pub trait Locale<L: Locale = Self>:
     /// Associated routes for routing
     type Routes<View, Chil, R>;
 
+    /// Associated `#[server]` function type to request the translations
+    #[cfg(feature = "dynamic_load")]
+    type ServerFn: leptos::server_fn::ServerFn;
+
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
 
@@ -91,6 +95,18 @@ pub trait Locale<L: Locale = Self>:
     where
         R: Renderer,
         View: ChooseView<R>;
+
+    /// Associated `#[server]` function to request the translations
+    #[cfg(feature = "dynamic_load")]
+    fn request_translations(
+        self,
+        translations_id: &'static str,
+    ) -> impl std::future::Future<
+        Output = Result<
+            crate::fetch_translations::LocaleServerFnOutput,
+            leptos::prelude::ServerFnError,
+        >,
+    >;
 }
 
 /// Trait implemented the struct representing the translation keys

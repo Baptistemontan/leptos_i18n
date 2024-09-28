@@ -157,6 +157,8 @@ impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
 impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
     type Routes<View, Chil, R> = L::Routes<View, Chil, R>;
+    #[cfg(feature = "dynamic_load")]
+    type ServerFn = L::ServerFn;
 
     fn as_str(self) -> &'static str {
         <L as Locale>::as_str(self.locale)
@@ -190,6 +192,19 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
         View: ChooseView<R>,
     {
         L::make_routes(base_route, base_path)
+    }
+
+    #[cfg(feature = "dynamic_load")]
+    fn request_translations(
+        self,
+        translations_id: &'static str,
+    ) -> impl std::future::Future<
+        Output = Result<
+            crate::fetch_translations::LocaleServerFnOutput,
+            leptos::prelude::ServerFnError,
+        >,
+    > {
+        L::request_translations(self.locale, translations_id)
     }
 }
 

@@ -352,6 +352,44 @@ fn create_locales_enum(
 
     let make_routes = fit_in_leptos_tuple(&make_routes);
 
+    let server_fn_mod = if cfg!(feature = "dynamic_load") {
+        quote! {
+            mod server_fn {
+                use super::{l_i18n_crate, #enum_ident, #keys_ident};
+                use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+                #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: std::borrow::Cow<'static, str>) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
+                    let strings = #keys_ident::__i18n_request_translations__(locale, &translations_id);
+                    let wrapped = l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput::new(strings);
+                    Ok(wrapped)
+                }
+            }
+        }
+    } else {
+        quote!()
+    };
+
+    let server_fn_type = if cfg!(feature = "dynamic_load") {
+        quote!(
+            type ServerFn = server_fn::I18nRequestTranslationsServerFn;
+        )
+    } else {
+        quote!()
+    };
+
+    let request_translations = if cfg!(feature = "dynamic_load") {
+        quote! {
+            fn request_translations(
+                self,
+                translations_id: &'static str,
+            ) -> impl std::future::Future<Output = Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> {
+                server_fn::i18n_request_translations(self, std::borrow::Cow::Borrowed(translations_id))
+            }
+        }
+    } else {
+        quote!()
+    };
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -386,6 +424,7 @@ fn create_locales_enum(
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
             type Routes<View, Chil, R> = #routes;
+            #server_fn_type
 
             fn as_str(self) -> &'static str {
                 let s = match self {
@@ -424,6 +463,8 @@ fn create_locales_enum(
             {
                 #make_routes
             }
+
+            #request_translations
         }
 
         impl core::str::FromStr for #enum_ident {
@@ -466,6 +507,8 @@ fn create_locales_enum(
                 core::fmt::Display::fmt(l_i18n_crate::Locale::as_str(*self), f)
             }
         }
+
+        #server_fn_mod
     }
 }
 
@@ -702,6 +745,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 };
 
                 quote! {
+                    #[allow(non_camel_case_types)]
                     struct #struct_name;
 
                     impl #struct_name {
@@ -752,6 +796,17 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         }
     });
 
+    let i18n_request_translations_fn = if parent_ident.is_none() {
+        quote! {
+            #[doc(hidden)]
+            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: &str) -> &'static [&'static str] {
+                todo!()
+            }
+        }
+    } else {
+        quote!()
+    };
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
@@ -782,6 +837,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 #[allow(non_snake_case)]
                 #string_accessors
             )*
+
+            #i18n_request_translations_fn
         }
 
         impl l_i18n_crate::LocaleKeys for #type_ident {
@@ -878,6 +935,11 @@ fn create_namespaces_types(
                 #[allow(non_snake_case)]
                 #namespaces_accessors
             )*
+
+            #[doc(hidden)]
+            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: &str) -> &'static [&'static str] {
+                todo!()
+            }
         }
 
         impl l_i18n_crate::LocaleKeys for #keys_ident {

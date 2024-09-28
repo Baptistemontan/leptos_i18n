@@ -109,6 +109,7 @@
 
 pub mod context;
 mod fetch_locale;
+mod fetch_translations;
 mod langid;
 mod locale_traits;
 mod macro_helpers;
@@ -135,6 +136,9 @@ pub use scopes::{ConstScope, Scope};
 
 #[doc(hidden)]
 pub mod __private {
+    pub mod fetch_translations {
+        pub use crate::fetch_translations::*;
+    }
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
