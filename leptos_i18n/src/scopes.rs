@@ -207,6 +207,11 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     > {
         L::request_translations(self.locale, translations_id)
     }
+
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<String>) {
+        L::init_translations(self.locale, translations_id, values);
+    }
 }
 
 impl<L: Locale, Sc: Scope<L>> serde::Serialize for ScopedLocale<L, Sc> {

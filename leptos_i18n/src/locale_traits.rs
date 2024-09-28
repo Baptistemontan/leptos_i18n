@@ -112,6 +112,10 @@ pub trait Locale<L: Locale = Self>:
     > + Send
            + Sync
            + 'static;
+
+    /// Init the translation unit of the given ID with the given values
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<String>);
 }
 
 /// Trait implemented the struct representing the translation keys
@@ -130,12 +134,12 @@ pub trait TranslationUnitId:
     serde::Serialize + serde::de::DeserializeOwned + Copy + Debug + Send + Sync + Eq + Hash + 'static
 {
     /// Return the string representation of that ID
-    fn to_str(self) -> &'static str;
+    fn to_str(self) -> Option<&'static str>;
 }
 
 impl TranslationUnitId for () {
-    fn to_str(self) -> &'static str {
-        ""
+    fn to_str(self) -> Option<&'static str> {
+        None
     }
 }
 

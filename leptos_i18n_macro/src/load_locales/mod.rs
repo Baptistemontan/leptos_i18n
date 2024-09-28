@@ -394,6 +394,16 @@ fn create_locales_enum(
         quote!()
     };
 
+    let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
+        quote! {
+            fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<String>) {
+                #keys_ident::__init_translations__(self, translations_id, values);
+            }
+        }
+    } else {
+        quote!()
+    };
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -470,6 +480,8 @@ fn create_locales_enum(
             }
 
             #request_translations
+
+            #init_translations
         }
 
         impl core::str::FromStr for #enum_ident {
@@ -916,6 +928,28 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         quote!()
     };
 
+    let init_translations = if IS_TOP && cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
+        let match_arms = locales.iter().map(|locale| {
+            let string_holder = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
+            let locale_name = &*locale.top_locale_name;
+            quote! {
+                #enum_ident::#locale_name => <#string_holder as l_i18n_crate::__private::fetch_translations::TranslationUnit>::init_translations(values)
+            }
+        });
+        quote! {
+            #[doc(hidden)]
+            pub fn __init_translations__(locale: #enum_ident, _: (), values: Vec<String>) {
+                match locale {
+                    #(
+                        #match_arms,
+                    )*
+                }
+            }
+        }
+    } else {
+        quote!()
+    };
+
     quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
@@ -950,6 +984,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             )*
 
             #i18n_request_translations_fn
+
+            #init_translations
         }
 
         impl l_i18n_crate::LocaleKeys for #type_ident {
@@ -1065,6 +1101,27 @@ fn create_namespaces_types(
         }
     };
 
+    let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
+        let match_arms = namespaces.iter().map(|(ns, namespace_module_ident)| {
+            let ns_ident = &ns.key.ident;
+            quote! {
+                #translation_unit_enum_ident::#ns_ident => namespaces::#namespace_module_ident::#ns_ident::__init_translations__(locale, (), values)
+            }
+        });
+        quote! {
+            #[doc(hidden)]
+            pub fn __init_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident, values: Vec<String>) {
+                match translations_id {
+                    #(
+                        #match_arms,
+                    )*
+                }
+            }
+        }
+    } else {
+        quote!()
+    };
+
     quote! {
         #[doc(hidden)]
         pub mod namespaces {
@@ -1094,6 +1151,8 @@ fn create_namespaces_types(
             pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static [&'static str] {
                 #get_strings_match_stmt
             }
+
+            #init_translations
         }
 
         impl l_i18n_crate::LocaleKeys for #keys_ident {
@@ -1112,12 +1171,12 @@ fn create_namespaces_types(
         }
 
         impl l_i18n_crate::__private::TranslationUnitId for #translation_unit_enum_ident {
-            fn to_str(self) -> &'static str {
-                match self {
+            fn to_str(self) -> Option<&'static str> {
+                Some(match self {
                     #(
                         #as_str_match_arms,
                     )*
-                }
+                })
             }
         }
 

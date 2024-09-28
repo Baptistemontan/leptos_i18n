@@ -222,6 +222,17 @@ pub const fn index_translations<const N: usize, const I: usize>(
 }
 
 #[doc(hidden)]
+#[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
+    fut: impl Fn() -> F + 'static,
+) -> impl Fn() -> IV {
+    let first_view = futures::executor::block_on(fut());
+    let fut = AsyncDerived::new_unsync(fut);
+    move || fut.get().unwrap_or_else(|| first_view.clone())
+}
+
+#[doc(hidden)]
+#[cfg(not(all(feature = "dynamic_load", feature = "hydrate")))]
 pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
     fut: impl Fn() -> F + 'static,
 ) -> impl Fn() -> Option<IV> {

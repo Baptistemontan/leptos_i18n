@@ -423,9 +423,7 @@ fn embed_translations<L: Locale>(
 ) -> impl IntoView {
     let translations = reg_ctx.to_array();
     view! {
-        <script>
-            window.__LEPTOS_I18N_TRANSLATIONS = {translations};
-        </script>
+        <script inner_html=translations />
     }
 }
 
@@ -438,6 +436,8 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    crate::fetch_translations::init_translations::<L>();
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let reg_ctx = crate::fetch_translations::RegisterCtx::<L>::provide_context();
     let i18n = provide_i18n_context_with_options_inner(
