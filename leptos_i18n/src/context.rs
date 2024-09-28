@@ -450,7 +450,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let embed_translations = move || embed_translations(reg_ctx.clone());
     #[cfg(not(all(feature = "dynamic_load", any(feature = "ssr", feature = "hydrate"))))]
-    let embed_translations = ();
+    let embed_translations = view! { <script /> };
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
         Either::Left(view! {
