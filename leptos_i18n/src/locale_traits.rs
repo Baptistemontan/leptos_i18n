@@ -41,7 +41,7 @@ pub trait Locale<L: Locale = Self>:
     type ServerFn: leptos::server_fn::ServerFn;
 
     /// Enum where each variants is an ID of a translation unit
-    type TranslationUnitId: serde::Serialize + serde::de::DeserializeOwned + Copy + Debug;
+    type TranslationUnitId: TranslationUnitId;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -123,6 +123,20 @@ pub trait LocaleKeys: 'static + Clone + Copy + Send + Sync {
 
     /// Return a static ref to Self containing the translations for the given locale
     fn from_locale(locale: Self::Locale) -> Self;
+}
+
+/// Trait for the type giving an ID to each section of the translations
+pub trait TranslationUnitId:
+    serde::Serialize + serde::de::DeserializeOwned + Copy + Debug + Send + Sync + Eq + Hash + 'static
+{
+    /// Return the string representation of that ID
+    fn to_str(self) -> &'static str;
+}
+
+impl TranslationUnitId for () {
+    fn to_str(self) -> &'static str {
+        ""
+    }
 }
 
 #[cfg(test)]

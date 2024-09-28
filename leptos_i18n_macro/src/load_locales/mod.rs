@@ -591,7 +591,14 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
                             }
-                        } else {
+                        } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                            quote! {
+                                #enum_ident::#ident => {
+                                    let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
+                                    l_i18n_crate::__private::LitWrapper::new(#lit)
+                                }
+                            }
+                        }else {
                             quote! {
                                 #enum_ident::#ident => {
                                     const #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
@@ -618,6 +625,16 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                                 }
                             };
                             l_i18n_crate::__private::LitWrapperFut::new(fut)
+                        }
+                    }
+                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    quote! {
+                        pub fn #key(self) -> l_i18n_crate::__private::LitWrapper<#literal_type> {
+                            match self.0 {
+                                #(
+                                    #match_arms
+                                )*
+                            }
                         }
                     }
                 } else {
@@ -742,6 +759,14 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                             <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::request_strings().await
                         }
                     }
+                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    quote! {
+                        pub fn get_translations() -> &'static [&'static str; #strings_count] {
+                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::register();
+                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRINGS
+                        }
+                    }
+
                 } else {
                     quote! {
                         pub const fn get_translations() -> &'static [&'static str; #strings_count] {
@@ -818,6 +843,12 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                             super::super::#parent::#accessor_ident().await
                         }
                     }
+                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    quote! {
+                        pub fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                            super::super::#parent::#accessor_ident()
+                        }
+                    }
                 } else {
                     quote! {
                         pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
@@ -833,6 +864,12 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     quote! {
                         pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                             #string_holder::get_translations().await
+                        }
+                    }
+                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    quote! {
+                        pub fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                            #string_holder::get_translations()
                         }
                     }
                 } else {
@@ -989,11 +1026,11 @@ fn create_namespaces_types(
 
     let translations_unit_variants = namespaces.iter().map(|(ns, _)| ns.key.to_token_stream());
 
-    let serialize_match_arms = namespaces.iter().map(|(ns, _)| {
+    let as_str_match_arms = namespaces.iter().map(|(ns, _)| {
         let ns_ident = &ns.key.ident;
         let ns_name = &ns.key.name;
         quote! {
-            #translation_unit_enum_ident::#ns_ident => l_i18n_crate::reexports::serde::Serialize::serialize(#ns_name, serializer)
+            #translation_unit_enum_ident::#ns_ident => #ns_name
         }
     });
 
@@ -1066,7 +1103,7 @@ fn create_namespaces_types(
             }
         }
 
-        #[derive(Debug, Clone, Copy)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[allow(non_camel_case_types)]
         pub enum #translation_unit_enum_ident {
             #(
@@ -1074,16 +1111,22 @@ fn create_namespaces_types(
             )*
         }
 
+        impl l_i18n_crate::__private::TranslationUnitId for #translation_unit_enum_ident {
+            fn to_str(self) -> &'static str {
+                match self {
+                    #(
+                        #as_str_match_arms,
+                    )*
+                }
+            }
+        }
+
         impl l_i18n_crate::reexports::serde::Serialize for #translation_unit_enum_ident {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: l_i18n_crate::reexports::serde::Serializer,
             {
-                match self {
-                    #(
-                        #serialize_match_arms,
-                    )*
-                }
+                l_i18n_crate::reexports::serde::Serialize::serialize(l_i18n_crate::__private::TranslationUnitId::to_str(*self), serializer)
             }
         }
 

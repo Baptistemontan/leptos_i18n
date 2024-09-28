@@ -5,7 +5,7 @@ use crate::Locale;
 #[cfg(feature = "dynamic_load")]
 pub use async_once_cell::OnceCell;
 
-pub trait TranslationUnit {
+pub trait TranslationUnit: Sized {
     type Locale: Locale;
     const ID: <Self::Locale as Locale>::TranslationUnitId;
     const LOCALE: Self::Locale;
@@ -31,6 +31,10 @@ pub trait TranslationUnit {
                 .await;
             *inner
         }
+    }
+    #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+    fn register() {
+        RegisterCtx::register::<Self>();
     }
 }
 
@@ -117,3 +121,65 @@ impl<'de> serde::Deserialize<'de> for LocaleServerFnOutputClient {
         Ok(LocaleServerFnOutputClient(arr))
     }
 }
+
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+mod register {
+    use super::*;
+    use crate::locale_traits::TranslationUnitId;
+    use leptos::prelude::{provide_context, use_context};
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
+    };
+
+    type RegisterCtxMap<L, Id> = HashMap<(L, Id), &'static [&'static str]>;
+
+    #[derive(Clone)]
+    pub struct RegisterCtx<L: Locale>(Arc<Mutex<RegisterCtxMap<L, L::TranslationUnitId>>>);
+
+    impl<L: Locale> RegisterCtx<L> {
+        pub fn provide_context() -> Self {
+            let inner = Arc::new(Mutex::new(HashMap::new()));
+            provide_context(RegisterCtx(inner.clone()));
+            RegisterCtx(inner)
+        }
+
+        pub fn register<T: TranslationUnit<Locale = L>>() {
+            if let Some(this) = use_context::<Self>() {
+                let mut inner_guard = this.0.lock().unwrap();
+                inner_guard.insert((T::LOCALE, T::ID), T::STRINGS.as_slice());
+            }
+        }
+
+        pub fn to_array(&self) -> String {
+            let mut buff = String::from("[");
+            let inner_guard = self.0.lock().unwrap();
+            let mut first = true;
+            for ((locale, id), values) in &*inner_guard {
+                if !std::mem::replace(&mut first, false) {
+                    buff.push(',');
+                }
+                buff.push_str("{\"locale\":\"");
+                buff.push_str(locale.as_str());
+                buff.push_str("\",\"id\":\"");
+                buff.push_str(TranslationUnitId::to_str(*id));
+                buff.push_str("\",\"values\":[");
+                let mut first = true;
+                for value in *values {
+                    if !std::mem::replace(&mut first, false) {
+                        buff.push(',');
+                    }
+                    buff.push('\"');
+                    buff.push_str(value);
+                    buff.push('\"');
+                }
+                buff.push_str("]}");
+            }
+            buff.push(']');
+            buff
+        }
+    }
+}
+
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+pub use register::RegisterCtx;

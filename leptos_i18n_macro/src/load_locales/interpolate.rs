@@ -582,6 +582,13 @@ impl Interpolation {
                             #wrapped_value
                         }
                     }
+                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    quote!{
+                        #enum_ident::#locale_key => {
+                            let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            #wrapped_value
+                        }
+                    }
                 } else {
                     quote!{
                         #enum_ident::#locale_key => {
@@ -616,6 +623,13 @@ impl Interpolation {
                 quote!{
                     #enum_ident::#locale_key => {
                         let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                        #value
+                    }
+                }
+            } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                quote!{
+                    #enum_ident::#locale_key => {
+                        let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }
                 }

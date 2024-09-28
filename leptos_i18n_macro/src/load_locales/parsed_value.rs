@@ -108,7 +108,7 @@ impl Literal {
         match self {
             Literal::String(_, index) => {
                 let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
-                if cfg!(all(feature = "dynamic_load", feature = "client")) {
+                if cfg!(feature = "dynamic_load") {
                     quote!(l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key))
                 } else {
                     quote! {

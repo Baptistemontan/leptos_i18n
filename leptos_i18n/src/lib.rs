@@ -136,6 +136,7 @@ pub use scopes::{ConstScope, Scope};
 
 #[doc(hidden)]
 pub mod __private {
+    pub use crate::locale_traits::TranslationUnitId;
     pub mod fetch_translations {
         pub use crate::fetch_translations::*;
     }

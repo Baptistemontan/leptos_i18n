@@ -417,6 +417,18 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
 }
 
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+fn embed_translations<L: Locale>(
+    reg_ctx: crate::fetch_translations::RegisterCtx<L>,
+) -> impl IntoView {
+    let translations = reg_ctx.to_array();
+    view! {
+        <script>
+            window.__LEPTOS_I18N_TRANSLATIONS = {translations};
+        </script>
+    }
+}
+
 #[track_caller]
 fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
@@ -426,6 +438,8 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
+    #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+    let reg_ctx = crate::fetch_translations::RegisterCtx::<L>::provide_context();
     let i18n = provide_i18n_context_with_options_inner(
         enable_cookie,
         cookie_name,
@@ -433,14 +447,22 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
         ssr_lang_header_getter,
     );
     let children = children();
+    #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+    let embed_translations = move || embed_translations(reg_ctx.clone());
+    #[cfg(not(all(feature = "dynamic_load", feature = "ssr")))]
+    let embed_translations = ();
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
         Either::Left(view! {
             <Html attr:lang=lang />
             {children}
+            {embed_translations}
         })
     } else {
-        Either::Right(children)
+        Either::Right(view! {
+            {children}
+            {embed_translations}
+        })
     }
 }
 
