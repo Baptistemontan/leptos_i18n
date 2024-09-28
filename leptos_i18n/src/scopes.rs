@@ -157,6 +157,7 @@ impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
 impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
     type Routes<View, Chil, R> = L::Routes<View, Chil, R>;
+    type TranslationUnitId = L::TranslationUnitId;
     #[cfg(feature = "dynamic_load")]
     type ServerFn = L::ServerFn;
 
@@ -197,7 +198,7 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     #[cfg(feature = "dynamic_load")]
     fn request_translations(
         self,
-        translations_id: &'static str,
+        translations_id: Self::TranslationUnitId,
     ) -> impl std::future::Future<
         Output = Result<
             crate::fetch_translations::LocaleServerFnOutput,

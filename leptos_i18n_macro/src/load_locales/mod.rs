@@ -22,7 +22,7 @@ use interpolate::Interpolation;
 use locale::{LiteralType, Locale, LocaleValue};
 use parsed_value::{InterpolOrLit, TRANSLATIONS_KEY};
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 use crate::load_locales::parsed_value::ParsedValue;
 
@@ -68,11 +68,14 @@ fn load_locales_inner(
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
+    let translation_unit_enum_ident = syn::Ident::new("I18nTranslationUnitsId", Span::call_site());
 
-    let locale_type = create_locale_type(keys, &keys_ident, &enum_ident);
+    let locale_type =
+        create_locale_type(keys, &keys_ident, &enum_ident, &translation_unit_enum_ident);
     let locale_enum = create_locales_enum(
         &enum_ident,
         &keys_ident,
+        &translation_unit_enum_ident,
         &cfg_file.default,
         &cfg_file.locales,
     );
@@ -298,6 +301,7 @@ fn load_locales_inner(
 fn create_locales_enum(
     enum_ident: &syn::Ident,
     keys_ident: &syn::Ident,
+    translation_unit_enum_ident: &syn::Ident,
     default: &Key,
     locales: &[Rc<Key>],
 ) -> TokenStream {
@@ -358,7 +362,7 @@ fn create_locales_enum(
                 use super::{l_i18n_crate, #enum_ident, #keys_ident};
                 use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
                 #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
-                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: std::borrow::Cow<'static, str>) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: ()) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
                     let strings = #keys_ident::__i18n_request_translations__(locale, &translations_id);
                     let wrapped = l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput::new(strings);
                     Ok(wrapped)
@@ -381,9 +385,9 @@ fn create_locales_enum(
         quote! {
             fn request_translations(
                 self,
-                translations_id: &'static str,
+                translations_id: (),
             ) -> impl std::future::Future<Output = Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> {
-                server_fn::i18n_request_translations(self, std::borrow::Cow::Borrowed(translations_id))
+                server_fn::i18n_request_translations(self, translations_id)
             }
         }
     } else {
@@ -424,6 +428,7 @@ fn create_locales_enum(
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
             type Routes<View, Chil, R> = #routes;
+            type TranslationUnitId = #translation_unit_enum_ident;
             #server_fn_type
 
             fn as_str(self) -> &'static str {
@@ -543,6 +548,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
     enum_ident: &syn::Ident,
+    translation_unit_enum_ident: &syn::Ident,
     locales: &[Locale],
     keys: &BTreeMap<Rc<Key>, LocaleValue>,
     key_path: &mut KeyPath,
@@ -646,6 +652,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             &sk.key,
             Some(type_ident),
             enum_ident,
+            translation_unit_enum_ident,
             sk.locales,
             &sk.keys.0,
             key_path,
@@ -724,7 +731,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         locales
             .iter()
             .map(|locale| {
-                let struct_name = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
+                let locale_name = &locale.top_locale_name.ident;
+                let struct_name = format_ident!("{}_{}", type_ident, locale_name);
                 let strings_count = locale.top_locale_string_count;
                 let strings = &*locale.strings;
 
@@ -744,6 +752,20 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 };
 
+                let id = if parent_ident.is_some() {
+                    quote!(const ID: super::super::#translation_unit_enum_ident = super::super::#translation_unit_enum_ident::#type_ident)
+                } else {
+                    quote!(const ID: () = ())
+                };
+
+                let translation_unit_impl = quote! {
+                    impl l_i18n_crate::__private::fetch_translations::TranslationUnit for #struct_name {
+                        type Locale = #enum_ident;
+                        const LOCALE: #enum_ident = #enum_ident::#locale_name;
+                        #id;
+                    }
+                };
+
                 quote! {
                     #[allow(non_camel_case_types)]
                     struct #struct_name;
@@ -751,6 +773,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     impl #struct_name {
                         #get_fn
                     }
+
+                    #translation_unit_impl
                 }
             })
             .collect()
@@ -761,7 +785,6 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     let string_accessors = locales.iter().map(|locale| {
         let accessor_ident = strings_accessor_method_name(locale);
         let strings_count = locale.top_locale_string_count;
-        let string_holder = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
         match parent_ident {
             Some(parent) if !IS_TOP => {
                 if cfg!(all(feature = "dynamic_load", feature = "client")) {
@@ -779,6 +802,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 }
             }
             _ => {
+                let string_holder =
+                    format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
                 if cfg!(all(feature = "dynamic_load", feature = "client")) {
                     quote! {
                         pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
@@ -796,11 +821,33 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         }
     });
 
-    let i18n_request_translations_fn = if parent_ident.is_none() {
+    let i18n_request_translations_fn = if IS_TOP {
+        let match_arms = locales.iter().map(|locale| {
+            let string_holder = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
+            let locale_name = &*locale.top_locale_name;
+            quote! {
+                #enum_ident::#locale_name => #string_holder::get_translations()
+            }
+        });
+        let match_stmt = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+            quote! {
+                unreachable!(
+                    "This function should not have been called on the client!"
+                )
+            }
+        } else {
+            quote! {
+                match _locale {
+                    #(
+                        #match_arms,
+                    )*
+                }
+            }
+        };
         quote! {
             #[doc(hidden)]
-            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: &str) -> &'static [&'static str] {
-                todo!()
+            pub fn __i18n_request_translations__(_locale: #enum_ident, _: ()) -> &'static [&'static str] {
+                #match_stmt
             }
         }
     } else {
@@ -811,6 +858,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident(#enum_ident);
+
+        type #translation_unit_enum_ident = ();
 
         impl #type_ident {
 
@@ -864,6 +913,7 @@ fn create_namespace_mod_ident(namespace_ident: &syn::Ident) -> syn::Ident {
 fn create_namespaces_types(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
+    translation_unit_enum_ident: &syn::Ident,
     namespaces: &[Namespace],
     keys: &BTreeMap<Rc<Key>, BuildersKeysInner>,
 ) -> TokenStream {
@@ -886,6 +936,7 @@ fn create_namespaces_types(
                 &namespace.key.ident,
                 Some(keys_ident),
                 enum_ident,
+                translation_unit_enum_ident,
                 &namespace.locales,
                 &keys.0,
                 &mut key_path,
@@ -910,6 +961,47 @@ fn create_namespaces_types(
                 }
             }
         });
+
+    let translations_unit_variants = namespaces.iter().map(|(ns, _)| ns.key.to_token_stream());
+
+    let serialize_match_arms = namespaces.iter().map(|(ns, _)| {
+        let ns_ident = &ns.key.ident;
+        let ns_name = &ns.key.name;
+        quote! {
+            #translation_unit_enum_ident::#ns_ident => l_i18n_crate::reexports::serde::Serialize::serialize(#ns_name, serializer)
+        }
+    });
+
+    let deserialize_match_arms = namespaces.iter().map(|(ns, _)| {
+        let ns_ident = &ns.key.ident;
+        let ns_name = &ns.key.name;
+        quote! {
+            #ns_name => Ok(#translation_unit_enum_ident::#ns_ident)
+        }
+    });
+
+    let get_strings_match_arms = namespaces.iter().map(|(ns, namespace_module_ident)| {
+        let ns_ident = &ns.key.ident;
+        quote! {
+            #translation_unit_enum_ident::#ns_ident => namespaces::#namespace_module_ident::#ns_ident::__i18n_request_translations__(locale, ())
+        }
+    });
+
+    let get_strings_match_stmt = if cfg!(all(feature = "dynamic_load", feature = "client")) {
+        quote! {
+            unreachable!(
+                "This function should not have been called on the client!"
+            )
+        }
+    } else {
+        quote! {
+            match translations_id {
+                #(
+                    #get_strings_match_arms,
+                )*
+            }
+        }
+    };
 
     quote! {
         #[doc(hidden)]
@@ -937,8 +1029,8 @@ fn create_namespaces_types(
             )*
 
             #[doc(hidden)]
-            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: &str) -> &'static [&'static str] {
-                todo!()
+            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static [&'static str] {
+                #get_strings_match_stmt
             }
         }
 
@@ -948,6 +1040,42 @@ fn create_namespaces_types(
                 Self::new(locale)
             }
         }
+
+        #[derive(Clone, Copy)]
+        #[allow(non_camel_case_types)]
+        pub enum #translation_unit_enum_ident {
+            #(
+                #translations_unit_variants,
+            )*
+        }
+
+        impl l_i18n_crate::reexports::serde::Serialize for #translation_unit_enum_ident {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: l_i18n_crate::reexports::serde::Serializer,
+            {
+                match self {
+                    #(
+                        #serialize_match_arms,
+                    )*
+                }
+            }
+        }
+
+        impl<'de> l_i18n_crate::reexports::serde::Deserialize<'de> for #translation_unit_enum_ident {
+            fn deserialize<D>(deserializer: D) -> Result<#translation_unit_enum_ident, D::Error>
+            where
+                D: l_i18n_crate::reexports::serde::de::Deserializer<'de>,
+            {
+                let s = l_i18n_crate::reexports::serde::de::Deserializer::deserialize_string(deserializer, l_i18n_crate::__private::StrVisitor)?;
+                match s.as_str() {
+                    #(
+                        #deserialize_match_arms,
+                    )*
+                    _ => Err(<D::Error as leptos_i18n::reexports::serde::de::Error>::custom(format!("invalid translation unit id: {}", s)))
+                }
+            }
+        }
     }
 }
 
@@ -955,15 +1083,21 @@ fn create_locale_type(
     keys: BuildersKeys,
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
+    translation_unit_enum_ident: &syn::Ident,
 ) -> TokenStream {
     match keys {
-        BuildersKeys::NameSpaces { namespaces, keys } => {
-            create_namespaces_types(keys_ident, enum_ident, namespaces, &keys)
-        }
+        BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
+            keys_ident,
+            enum_ident,
+            translation_unit_enum_ident,
+            namespaces,
+            &keys,
+        ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,
             None,
             enum_ident,
+            translation_unit_enum_ident,
             locales,
             &keys.0,
             &mut KeyPath::new(None),

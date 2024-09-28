@@ -173,6 +173,38 @@ impl<'de, L: Locale> serde::de::Visitor<'de> for LocaleVisitor<L> {
 }
 
 #[doc(hidden)]
+pub struct StrVisitor;
+
+impl<'de> serde::de::Visitor<'de> for StrVisitor {
+    type Value = String;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a string")
+    }
+
+    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(String::from(v))
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Self::visit_borrowed_str(self, v)
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v)
+    }
+}
+
+#[doc(hidden)]
 pub fn intern(s: &str) -> &str {
     if cfg!(any(feature = "csr", feature = "hydrate")) {
         wasm_bindgen::intern(s)

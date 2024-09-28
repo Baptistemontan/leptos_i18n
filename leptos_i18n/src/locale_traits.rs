@@ -40,6 +40,9 @@ pub trait Locale<L: Locale = Self>:
     #[cfg(feature = "dynamic_load")]
     type ServerFn: leptos::server_fn::ServerFn;
 
+    /// Enum where each variants is an ID of a translation unit
+    type TranslationUnitId: serde::Serialize + serde::de::DeserializeOwned + Copy;
+
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
 
@@ -100,7 +103,7 @@ pub trait Locale<L: Locale = Self>:
     #[cfg(feature = "dynamic_load")]
     fn request_translations(
         self,
-        translations_id: &'static str,
+        translations_id: Self::TranslationUnitId,
     ) -> impl std::future::Future<
         Output = Result<
             crate::fetch_translations::LocaleServerFnOutput,

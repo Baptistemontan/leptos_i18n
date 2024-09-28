@@ -1,8 +1,11 @@
 #![doc(hidden)]
 
+use crate::Locale;
+
 pub trait TranslationUnit {
-    const ID: &'static str;
-    const STRINGS: &'static [&'static str];
+    type Locale: Locale;
+    const ID: <Self::Locale as Locale>::TranslationUnitId;
+    const LOCALE: Self::Locale;
 }
 
 pub fn leak<const SIZE: usize>(values: Vec<String>) -> &'static [&'static str; SIZE] {
