@@ -359,11 +359,11 @@ fn create_locales_enum(
     let server_fn_mod = if cfg!(feature = "dynamic_load") {
         quote! {
             mod server_fn {
-                use super::{l_i18n_crate, #enum_ident, #keys_ident};
+                use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
                 #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
-                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: ()) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
-                    let strings = #keys_ident::__i18n_request_translations__(locale, &translations_id);
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
+                    let strings = #keys_ident::__i18n_request_translations__(locale, translations_id);
                     let wrapped = l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput::new(strings);
                     Ok(wrapped)
                 }
@@ -385,7 +385,7 @@ fn create_locales_enum(
         quote! {
             fn request_translations(
                 self,
-                translations_id: (),
+                translations_id: #translation_unit_enum_ident,
             ) -> impl std::future::Future<Output = Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> {
                 server_fn::i18n_request_translations(self, translations_id)
             }
@@ -780,8 +780,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                 let get_strings_lock_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        fn __get_strings_lock() -> &'static std::sync::OnceLock<[&'static str; #strings_count]> {
-                            static STRINGS_LOCK: std::sync::OnceLock<[&'static str; #strings_count]> = std::sync::OnceLock::new();
+                        fn __get_strings_lock() -> &'static std::sync::OnceLock<&'static [&'static str; #strings_count]> {
+                            static STRINGS_LOCK: std::sync::OnceLock<&'static [&'static str; #strings_count]> = std::sync::OnceLock::new();
                             &STRINGS_LOCK
                         }
                     }
@@ -1066,7 +1066,7 @@ fn create_namespaces_types(
             }
         }
 
-        #[derive(Clone, Copy)]
+        #[derive(Debug, Clone, Copy)]
         #[allow(non_camel_case_types)]
         pub enum #translation_unit_enum_ident {
             #(

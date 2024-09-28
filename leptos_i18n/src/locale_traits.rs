@@ -1,5 +1,5 @@
-use std::hash::Hash;
 use std::str::FromStr;
+use std::{fmt::Debug, hash::Hash};
 
 use icu::locid;
 use leptos::prelude::Renderer;
@@ -41,7 +41,7 @@ pub trait Locale<L: Locale = Self>:
     type ServerFn: leptos::server_fn::ServerFn;
 
     /// Enum where each variants is an ID of a translation unit
-    type TranslationUnitId: serde::Serialize + serde::de::DeserializeOwned + Copy;
+    type TranslationUnitId: serde::Serialize + serde::de::DeserializeOwned + Copy + Debug;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
