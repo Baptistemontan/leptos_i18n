@@ -48,7 +48,7 @@ jobs:
         run: cargo test --package leptos_i18n_macro
 
   test_ssr_examples:
-    name: Test ${{ matrix.examples }} example
+    name: Test ${{ matrix.examples }} SSR example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -107,12 +107,12 @@ jobs:
           path: examples/ssr/${{ matrix.examples }}/playwright-report/
 
   test_dyn_load_examples:
-    name: Test ${{ matrix.examples }} example
+    name: Test ${{ matrix.examples }} dynamic_load example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, hello_world_axum, axum_island]
+        examples: [hello_world_actix, hello_world_axum, axum_island, namespaces]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -159,7 +159,7 @@ jobs:
           path: examples/dynamic_load/${{ matrix.examples }}/playwright-report/
 
   test_csr_examples:
-    name: Test ${{ matrix.examples }} example
+    name: Test ${{ matrix.examples }} CSR example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
