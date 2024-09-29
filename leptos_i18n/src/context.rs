@@ -91,16 +91,16 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     }
 }
 
-impl<L: Locale, S: Scope<L>, R: Renderer> IntoDirective<(R::Element,), (), R>
+impl<L: Locale, S: Scope<L>> IntoDirective<(leptos::tachys::renderer::types::Element,), ()>
     for I18nContext<L, S>
 {
     type Cloneable = Self;
 
-    fn run(&self, el: <R as Renderer>::Element, _param: ()) {
+    fn run(&self, el: leptos::tachys::renderer::types::Element, _param: ()) {
         let this = *self;
         Effect::new(move || {
             let locale = this.get_locale();
-            R::set_attribute(&el, "lang", locale.as_str());
+            let _ = el.set_attribute("lang", locale.as_str());
         });
     }
 
@@ -494,7 +494,7 @@ pub fn provide_i18n_context_component_island<L: Locale>(
     cookie_name: Option<Cow<str>>,
     children: children::Children,
 ) -> impl IntoView {
-    provide_i18n_context_component_inner::<L, AnyView<Dom>>(
+    provide_i18n_context_component_inner::<L, AnyView>(
         set_lang_attr_on_html,
         enable_cookie,
         cookie_name,
