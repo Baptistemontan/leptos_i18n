@@ -24,6 +24,8 @@
   - [`td_string!` Macro](./usage/06_td_string_macro.md)
   - [`I18nRoute`](./usage/07_router.md)
   - [Scoping](./usage/08_scoping.md)
+- [Dynamic Loading](./dynamic_load/README.md)
+  - [Lazy Load The Translations](./dynamic_load/01_dynamic_load.md)
 - [More Informations](./infos/README.md)
   - [Locale Resolution](./infos/01_locale_resol.md)
 - [Features](./06_features.md)
