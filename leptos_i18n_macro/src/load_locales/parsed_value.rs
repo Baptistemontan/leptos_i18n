@@ -23,7 +23,7 @@ use super::{
 
 use crate::utils::key::{Key, KeyPath};
 
-pub const TRANSLATIONS_KEY: &str = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+pub const TRANSLATIONS_KEY: &str = if cfg!(feature = "dynamic_load") {
     "__i18n_translations__"
 } else {
     "I18N_TRANSLATIONS"
