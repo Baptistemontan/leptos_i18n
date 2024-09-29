@@ -8,10 +8,7 @@ mod scope;
 use crate::Locale;
 pub use formatting::*;
 pub use interpol_args::*;
-use leptos::{
-    prelude::{AsyncDerived, Get},
-    IntoView,
-};
+use leptos::IntoView;
 pub use scope::*;
 
 #[doc(hidden)]
@@ -119,6 +116,36 @@ impl<T: Literal, F: Future<Output = LitWrapper<T>>> LitWrapperFut<F> {
     }
 }
 
+impl<T: Literal> LitWrapperFut<LitWrapper<T>> {
+    pub const fn new_not_fut(v: T) -> Self {
+        LitWrapperFut(LitWrapper::new(v))
+    }
+
+    pub const fn builder(self) -> Self {
+        self
+    }
+
+    pub const fn display_builder(self) -> Self {
+        self
+    }
+
+    pub const fn build(self) -> Self {
+        self
+    }
+
+    pub fn into_view(self) -> impl IntoView + Copy {
+        self.0.into_view()
+    }
+
+    pub async fn build_string(self) -> Cow<'static, str> {
+        self.0.build_string()
+    }
+
+    pub async fn build_display(self) -> impl Display {
+        self.0.build_display()
+    }
+}
+
 #[doc(hidden)]
 pub struct LocaleVisitor<L>(PhantomData<L>);
 
@@ -222,20 +249,22 @@ pub const fn index_translations<const N: usize, const I: usize>(
 }
 
 #[doc(hidden)]
-#[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
-    fut: impl Fn() -> F + 'static,
-) -> impl Fn() -> IV {
-    let first_view = futures::executor::block_on(fut());
-    let fut = AsyncDerived::new_unsync(fut);
-    move || fut.get().unwrap_or_else(|| first_view.clone())
-}
-
-#[doc(hidden)]
-#[cfg(not(all(feature = "dynamic_load", feature = "hydrate")))]
+#[cfg(feature = "dynamic_load")]
 pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
     fut: impl Fn() -> F + 'static,
 ) -> impl Fn() -> Option<IV> {
+    use leptos::prelude::{AsyncDerived, Get};
+    use std::task::Context;
+    fn poll_once<F: Future>(fut: F) -> Option<F::Output> {
+        let pinned = std::pin::pin!(fut);
+        let waker = noop_waker::noop_waker();
+        let mut cx = Context::from_waker(&waker);
+        match Future::poll(pinned, &mut cx) {
+            std::task::Poll::Ready(v) => Some(v),
+            std::task::Poll::Pending => None,
+        }
+    }
+    let maybe_ready = poll_once(fut());
     let fut = AsyncDerived::new_unsync(fut);
-    move || fut.get()
+    move || fut.get().or_else(|| maybe_ready.clone())
 }
