@@ -1,0 +1,6 @@
+{
+  "hello_world": "Hello World!",
+  "click_to_change_lang": "Click to change language",
+  "click_count": "You clicked <b>{{ count }}</b> times",
+  "click_to_inc": "Click to increment the counter"
+}

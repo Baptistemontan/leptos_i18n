@@ -106,6 +106,58 @@ jobs:
           name: playwright-report-${{ matrix.examples }}
           path: examples/ssr/${{ matrix.examples }}/playwright-report/
 
+  test_dyn_load_examples:
+    name: Test ${{ matrix.examples }} example
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        examples: [hello_world_actix, hello_world_axum, axum_island]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+
+      - name: "Setup Node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: "Setup Rust toolchain"
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "stable"
+          targets: "wasm32-unknown-unknown"
+
+      - name: "Install cargo-leptos"
+        run: cargo install cargo-leptos --locked
+
+      - name: "Build ${{ matrix.examples }} example"
+        working-directory: examples/dynamic_load/${{ matrix.examples }}
+        run: cargo leptos build
+
+      - name: "Build e2e utils"
+        working-directory: examples/utils
+        run: npm ci
+
+      - name: "Install Playwright"
+        working-directory: examples/dynamic_load/${{ matrix.examples }}
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: "e2e testing ${{ matrix.examples }} example"
+        id: e2e
+        working-directory: examples/dynamic_load/${{ matrix.examples }}
+        run: npx playwright test
+
+      - name: "Upload e2e report"
+        uses: actions/upload-artifact@v4
+        # upload artifact only if e2e test failed
+        if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
+        with:
+          name: playwright-report-${{ matrix.examples }}
+          path: examples/dynamic_load/${{ matrix.examples }}/playwright-report/
+
   test_csr_examples:
     name: Test ${{ matrix.examples }} example
     runs-on: ubuntu-latest
