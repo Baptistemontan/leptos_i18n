@@ -324,6 +324,20 @@ impl Interpolation {
                     std::borrow::Cow::Owned(display_struct.to_string())
                 }
             }
+        } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+            quote! {
+                #[inline]
+                pub async fn build_display(self) -> impl std::fmt::Display {
+                    let inner = self.build();
+                    #display_struct_ident::new(inner)
+                }
+
+                #[inline]
+                pub async fn build_string(self) -> std::borrow::Cow<'static, str> {
+                    let display_struct = self.build_display();
+                    std::borrow::Cow::Owned(display_struct.to_string())
+                }
+            }
         } else {
             quote! {
                 #[inline]

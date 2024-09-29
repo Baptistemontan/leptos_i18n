@@ -584,9 +584,20 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         .map(|(key, literal_type)| {
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
-                quote! {
-                    pub const fn #key(self) -> l_i18n_crate::__private::LitWrapper<&'static str> {
-                        l_i18n_crate::__private::LitWrapper::new(#key_str)
+                if cfg!(feature = "dynamic_load") {
+                    quote! {
+                        pub fn #key(self) -> l_i18n_crate::__private::LitWrapperFut<impl std::future::Future<Output = l_i18n_crate::__private::LitWrapper<#literal_type>>> {
+                            let fut = async move {
+                                l_i18n_crate::__private::LitWrapper::new(#key_str)
+                            };
+                            l_i18n_crate::__private::LitWrapperFut::new(fut)
+                        }
+                    }
+                } else {
+                    quote! {
+                        pub const fn #key(self) -> l_i18n_crate::__private::LitWrapper<&'static str> {
+                            l_i18n_crate::__private::LitWrapper::new(#key_str)
+                        }
                     }
                 }
             } else {
@@ -630,7 +641,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         }
                     }
                 });
-                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+                if cfg!(feature = "dynamic_load") {
                     quote! {
                         pub fn #key(self) -> l_i18n_crate::__private::LitWrapperFut<impl std::future::Future<Output = l_i18n_crate::__private::LitWrapper<#literal_type>>> {
                             let fut = async move {
@@ -641,16 +652,6 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                                 }
                             };
                             l_i18n_crate::__private::LitWrapperFut::new(fut)
-                        }
-                    }
-                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
-                    quote! {
-                        pub fn #key(self) -> l_i18n_crate::__private::LitWrapper<#literal_type> {
-                            match self.0 {
-                                #(
-                                    #match_arms
-                                )*
-                            }
                         }
                     }
                 } else {
