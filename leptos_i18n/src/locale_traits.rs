@@ -2,7 +2,6 @@ use std::hash::Hash;
 use std::str::FromStr;
 
 use icu::locid;
-use leptos::prelude::Renderer;
 use leptos_router::ChooseView;
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
@@ -34,7 +33,7 @@ pub trait Locale<L: Locale = Self>:
     type Keys: LocaleKeys<Locale = L>;
 
     /// Associated routes for routing
-    type Routes<View, Chil, R>;
+    type Routes<View, Chil>;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -84,13 +83,12 @@ pub trait Locale<L: Locale = Self>:
     }
 
     /// Make the routes
-    fn make_routes<View, Chil, R>(
-        base_route: crate::routing::BaseRoute<View, Chil, R>,
+    fn make_routes<View, Chil>(
+        base_route: crate::routing::BaseRoute<View, Chil>,
         base_path: &'static str,
-    ) -> Self::Routes<View, Chil, R>
+    ) -> Self::Routes<View, Chil>
     where
-        R: Renderer,
-        View: ChooseView<R>;
+        View: ChooseView;
 }
 
 /// Trait implemented the struct representing the translation keys

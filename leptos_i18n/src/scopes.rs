@@ -6,7 +6,6 @@ use std::{
 };
 
 use icu::locid;
-use leptos::prelude::Renderer;
 use leptos_router::ChooseView;
 
 use crate::{I18nContext, Locale, LocaleKeys};
@@ -156,7 +155,7 @@ impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
 
 impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
-    type Routes<View, Chil, R> = L::Routes<View, Chil, R>;
+    type Routes<View, Chil> = L::Routes<View, Chil>;
 
     fn as_str(self) -> &'static str {
         <L as Locale>::as_str(self.locale)
@@ -181,13 +180,12 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
         }
     }
 
-    fn make_routes<View, Chil, R>(
-        base_route: crate::routing::BaseRoute<View, Chil, R>,
+    fn make_routes<View, Chil>(
+        base_route: crate::routing::BaseRoute<View, Chil>,
         base_path: &'static str,
-    ) -> Self::Routes<View, Chil, R>
+    ) -> Self::Routes<View, Chil>
     where
-        R: Renderer,
-        View: ChooseView<R>,
+        View: ChooseView,
     {
         L::make_routes(base_route, base_path)
     }

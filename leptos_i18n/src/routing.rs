@@ -212,7 +212,7 @@ impl<View> Clone for ViewWrapper<View> {
     }
 }
 
-impl<R: Renderer> ChooseView<R> for RedirectView {
+impl ChooseView for RedirectView {
     type Output = leptos::prelude::View<()>;
 
     async fn choose(self) -> Self::Output {
@@ -222,8 +222,8 @@ impl<R: Renderer> ChooseView<R> for RedirectView {
     async fn preload(&self) {}
 }
 
-impl<R: Renderer, View: ChooseView<R>> ChooseView<R> for ViewWrapper<View> {
-    type Output = Either<View::Output, <RedirectView as ChooseView<R>>::Output>;
+impl<View: ChooseView> ChooseView for ViewWrapper<View> {
+    type Output = Either<View::Output, <RedirectView as ChooseView>::Output>;
 
     async fn choose(self) -> Self::Output {
         let inner = self.0();
@@ -233,7 +233,7 @@ impl<R: Renderer, View: ChooseView<R>> ChooseView<R> for ViewWrapper<View> {
     async fn preload(&self) {}
 }
 
-fn view_wrapper<R: Renderer, L: Locale, View: ChooseView<R>>(
+fn view_wrapper<L: Locale, View: ChooseView>(
     view: View,
     route_locale: Option<L>,
     base_path: &'static str,
@@ -287,9 +287,9 @@ pub fn i18n_routing<L: Locale, View, Chil>(
     children: RouteChildren<Chil>,
     ssr_mode: SsrMode,
     view: View,
-) -> L::Routes<View, Chil, Dom>
+) -> L::Routes<View, Chil>
 where
-    View: ChooseView<Dom>,
+    View: ChooseView,
 {
     let children = children.into_inner();
     let base_route = NestedRoute::new(StaticSegment(""), view)
@@ -301,13 +301,13 @@ where
 }
 
 #[doc(hidden)]
-pub struct I18nNestedRoute<L, View, Chil, R> {
-    route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>,
+pub struct I18nNestedRoute<L, View, Chil> {
+    route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>,
     locale: Option<L>,
     base_path: &'static str,
 }
 
-impl<L: Clone, View, Chil, R> Clone for I18nNestedRoute<L, View, Chil, R> {
+impl<L: Clone, View, Chil> Clone for I18nNestedRoute<L, View, Chil> {
     fn clone(&self) -> Self {
         let route = self.route.clone();
         let locale = self.locale.clone();
@@ -320,11 +320,11 @@ impl<L: Clone, View, Chil, R> Clone for I18nNestedRoute<L, View, Chil, R> {
     }
 }
 
-impl<R: Renderer, L: Locale, View: ChooseView<R>, Chil> I18nNestedRoute<L, View, Chil, R> {
+impl<L: Locale, View: ChooseView, Chil> I18nNestedRoute<L, View, Chil> {
     pub fn new(
         locale: Option<L>,
         base_path: &'static str,
-        route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>,
+        route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>,
     ) -> Self {
         Self {
             route,
@@ -344,8 +344,7 @@ impl<R: Renderer, L: Locale, View: ChooseView<R>, Chil> I18nNestedRoute<L, View,
 // All the stupidity you will see under this comment is done just to archieve this.
 
 #[doc(hidden)]
-pub type BaseRoute<View, Chil, R> =
-    Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R>>;
+pub type BaseRoute<View, Chil> = Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>;
 
 // This function could be replaced with `StaticSegment::test` but the returned "PartialPathMatch" as incorrect lifetime so it is not usable as a public API.
 fn test_path<L: Locale>(locale: L, path: &str) -> Option<(&str, &str)> {
@@ -387,91 +386,85 @@ fn test_path<L: Locale>(locale: L, path: &str) -> Option<(&str, &str)> {
 }
 
 #[doc(hidden)]
-pub struct I18nRouteMatch<L, R, View, Chil> where
-    R: Renderer,
-    Chil: MatchNestedRoutes<R>,
-    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
-        Clone,
-    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+pub struct I18nRouteMatch<L, View, Chil>
+where
+    Chil: MatchNestedRoutes,
+    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
+    <Chil as MatchNestedRoutes>::Match: MatchParams,
     Chil: 'static,
-    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
-    View: ChooseView<R> + Clone,
-    View::Output: Render<R> + RenderHtml<R> + Send + 'static
+    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    View: ChooseView + Clone,
+    View::Output: Render + RenderHtml + Send + 'static,
 {
     locale: Option<L>,
     base_path: &'static str,
     matched: String,
-    inner_match: <NestedRoute<StaticSegment<&'static str>, Chil, (), View, R> as MatchNestedRoutes<R>>::Match
+    inner_match:
+        <NestedRoute<StaticSegment<&'static str>, Chil, (), View> as MatchNestedRoutes>::Match,
 }
 
-impl<L, R, View, Chil> MatchParams for I18nRouteMatch<L, R, View, Chil>
+impl<L, View, Chil> MatchParams for I18nRouteMatch<L, View, Chil>
 where
-    R: Renderer,
-    Chil: MatchNestedRoutes<R>,
-    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
-        Clone,
-    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: MatchNestedRoutes,
+    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
+    <Chil as MatchNestedRoutes>::Match: MatchParams,
     Chil: 'static,
-    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
-    View: ChooseView<R> + Clone,
-    View::Output: Render<R> + RenderHtml<R> + Send + 'static,
+    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    View: ChooseView + Clone,
+    View::Output: Render + RenderHtml + Send + 'static,
 {
-    type Params = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R> as MatchNestedRoutes<R>>::Match as MatchParams>::Params;
+    type Params = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View> as MatchNestedRoutes>::Match as MatchParams>::Params;
 
     fn to_params(&self) -> Self::Params {
         MatchParams::to_params(&self.inner_match)
     }
 }
 
-impl<L, R, View, Chil> MatchInterface<R> for I18nRouteMatch<L, R, View, Chil>
+impl<L, View, Chil> MatchInterface for I18nRouteMatch<L, View, Chil>
 where
     L: Locale,
-    R: Renderer,
-    Chil: MatchNestedRoutes<R>,
-    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
-        Clone,
-    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: MatchNestedRoutes,
+    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
+    <Chil as MatchNestedRoutes>::Match: MatchParams,
     Chil: 'static,
-    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
-    View: ChooseView<R> + Clone + Sync,
-    View::Output: Render<R> + RenderHtml<R> + Send + 'static,
+    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    View: ChooseView + Clone + Sync,
+    View::Output: Render + RenderHtml + Send + 'static,
 {
-    type Child = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View, R> as MatchNestedRoutes<R>>::Match as MatchInterface<R>>::Child;
+    type Child = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View> as MatchNestedRoutes>::Match as MatchInterface>::Child;
 
-    type View = Either<<View as ChooseView<R>>::Output, <RedirectView as ChooseView<R>>::Output>;
+    type View = Either<<View as ChooseView>::Output, <RedirectView as ChooseView>::Output>;
 
     fn as_id(&self) -> leptos_router::RouteMatchId {
-        MatchInterface::<R>::as_id(&self.inner_match)
+        MatchInterface::as_id(&self.inner_match)
     }
 
     fn as_matched(&self) -> &str {
         &self.matched
     }
 
-    fn into_view_and_child(self) -> (impl ChooseView<R, Output = Self::View>, Option<Self::Child>) {
-        let (view, child) = MatchInterface::<R>::into_view_and_child(self.inner_match);
+    fn into_view_and_child(self) -> (impl ChooseView<Output = Self::View>, Option<Self::Child>) {
+        let (view, child) = MatchInterface::into_view_and_child(self.inner_match);
         let new_view = Arc::new(move || view_wrapper(view.clone(), self.locale, self.base_path));
         (ViewWrapper(new_view), child)
     }
 }
 
-impl<R, L: Locale, View, Chil> MatchNestedRoutes<R> for I18nNestedRoute<L, View, Chil, R>
+impl<L: Locale, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
 where
-    R: Renderer,
-    Chil: MatchNestedRoutes<R>,
-    <<<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params as IntoIterator>::IntoIter:
-        Clone,
-    <Chil as MatchNestedRoutes<R>>::Match: MatchParams,
+    Chil: MatchNestedRoutes,
+    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
+    <Chil as MatchNestedRoutes>::Match: MatchParams,
     Chil: 'static,
-    <<Chil as MatchNestedRoutes<R>>::Match as MatchParams>::Params: Clone,
-    View: ChooseView<R> + Clone + Sync,
-    View::Output: Render<R> + RenderHtml<R> + Send + 'static,
+    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    View: ChooseView + Clone + Sync,
+    View::Output: Render + RenderHtml + Send + 'static,
 {
     type Data = ();
 
     type View = View::Output;
 
-    type Match = I18nRouteMatch<L, R, View, Chil>;
+    type Match = I18nRouteMatch<L, View, Chil>;
 
     fn match_nested<'a>(
         &'a self,
@@ -481,7 +474,7 @@ where
             test_path(locale, path)
                 .and_then(|(matched, remaining)| {
                     let (inner_match, remaining) =
-                        MatchNestedRoutes::<R>::match_nested(&*self.route, remaining);
+                        MatchNestedRoutes::match_nested(&*self.route, remaining);
                     let (route_match_id, inner_match) = inner_match?;
                     let matched = matched.to_string();
                     let route_match = I18nRouteMatch {
@@ -494,7 +487,7 @@ where
                 })
                 .unwrap_or((None, path))
         } else {
-            let (inner_match, remaining) = MatchNestedRoutes::<R>::match_nested(&*self.route, path);
+            let (inner_match, remaining) = MatchNestedRoutes::match_nested(&*self.route, path);
             inner_match
                 .map(|(route_match_id, inner_match)| {
                     let route_match = I18nRouteMatch {
@@ -510,7 +503,7 @@ where
     }
 
     fn generate_routes(&self) -> impl IntoIterator<Item = leptos_router::GeneratedRouteData> + '_ {
-        MatchNestedRoutes::<R>::generate_routes(&*self.route)
+        MatchNestedRoutes::generate_routes(&*self.route)
             .into_iter()
             .map(|mut generated_route| {
                 if let (Some(locale), Some(first)) =
