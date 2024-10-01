@@ -26,6 +26,7 @@ fixed_decimal = { version = "0.5", features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
 wasm-bindgen = "0.2.93"
+default-struct-builder = "0.5"
 
 tower = { version = "0.4.13", default-features = false, optional = true, features = [
     "util",
