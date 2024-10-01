@@ -248,7 +248,7 @@ fn load_locales_inner(
             )]
             #[track_caller]
             pub fn provide_i18n_context() -> l_i18n_crate::I18nContext<#enum_ident> {
-                l_i18n_crate::context::provide_i18n_context_with_options_inner(None, None, None, None)
+                l_i18n_crate::context::provide_i18n_context_with_options_inner(Default::default())
             }
 
             mod providers {

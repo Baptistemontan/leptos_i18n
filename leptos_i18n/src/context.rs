@@ -146,13 +146,43 @@ fn init_context_inner<L: Locale>(
 /// * CONTEXT
 /// *********************************************
 
-#[track_caller]
-fn init_context_with_options<L: Locale>(
+/// Options to init of provide a `I18nContext`
+#[derive(default_struct_builder::DefaultBuilder)]
+pub struct I18nContextOptions<'a, L>
+where
+    L: Locale,
+{
+    /// Should set a cookie to keep track of the locale when page reload (default to true) (do nothing without the "cookie" feature)
     enable_cookie: bool,
-    cookie_name: Cow<str>,
+    /// Give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
+    #[builder(into)]
+    cookie_name: Cow<'a, str>,
+    /// Options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
     cookie_options: CookieOptions<L>,
-    ssr_lang_header_getter: Option<UseLocalesOptions>,
-) -> I18nContext<L> {
+    /// Options to pass to `leptos_use::use_locales`.
+    ssr_lang_header_getter: UseLocalesOptions,
+}
+
+impl<'a, L: Locale> Default for I18nContextOptions<'a, L> {
+    fn default() -> Self {
+        I18nContextOptions {
+            enable_cookie: ENABLE_COOKIE,
+            cookie_name: Cow::Borrowed(COOKIE_PREFERED_LANG),
+            cookie_options: Default::default(),
+            ssr_lang_header_getter: Default::default(),
+        }
+    }
+}
+
+/// Same as `init_i18n_context` but with some cookies options.
+#[track_caller]
+pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>) -> I18nContext<L> {
+    let I18nContextOptions {
+        enable_cookie,
+        cookie_name,
+        cookie_options,
+        ssr_lang_header_getter,
+    } = options;
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
     } else {
@@ -160,36 +190,15 @@ fn init_context_with_options<L: Locale>(
         (lang_cookie.into(), set_lang_cookie)
     };
 
-    let initial_locale = fetch_locale::fetch_locale(
-        lang_cookie.get_untracked(),
-        ssr_lang_header_getter.unwrap_or_default(),
-    );
+    let initial_locale =
+        fetch_locale::fetch_locale(lang_cookie.get_untracked(), ssr_lang_header_getter);
 
     init_context_inner::<L>(set_lang_cookie, initial_locale)
 }
-
-/// Same as `init_i18n_context` but with some cookies options.
-#[track_caller]
-pub fn init_i18n_context_with_options<L: Locale>(
-    enable_cookie: Option<bool>,
-    cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
-    ssr_lang_header_getter: Option<UseLocalesOptions>,
-) -> I18nContext<L> {
-    let enable_cookie = enable_cookie.unwrap_or(ENABLE_COOKIE);
-    let cookie_name = cookie_name.unwrap_or(Cow::Borrowed(COOKIE_PREFERED_LANG));
-    init_context_with_options(
-        enable_cookie,
-        cookie_name,
-        cookie_options.unwrap_or_default(),
-        ssr_lang_header_getter,
-    )
-}
-
 /// Initialize a `I18nContext` without providing it.
 #[track_caller]
 pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
-    init_i18n_context_with_options(None, None, None, None)
+    init_i18n_context_with_options(Default::default())
 }
 
 /// Initialize and provide a `I18nContext`.
@@ -204,29 +213,17 @@ pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
 )]
 #[track_caller]
 pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
-    use_context().unwrap_or_else(|| {
-        let ctx = init_i18n_context::<L>();
-        provide_context(ctx);
-        ctx
-    })
+    provide_i18n_context_with_options_inner(Default::default())
 }
 
 #[doc(hidden)]
 #[track_caller]
 pub fn provide_i18n_context_with_options_inner<L: Locale>(
-    enable_cookie: Option<bool>,
-    cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
-    ssr_lang_header_getter: Option<UseLocalesOptions>,
+    options: I18nContextOptions<L>,
 ) -> I18nContext<L> {
     provide_meta_context();
     use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_options(
-            enable_cookie,
-            cookie_name,
-            cookie_options,
-            ssr_lang_header_getter,
-        );
+        let ctx = init_i18n_context_with_options(options);
         provide_context(ctx);
         ctx
     })
@@ -238,17 +235,9 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
 )]
 #[track_caller]
 pub fn provide_i18n_context_with_options<L: Locale>(
-    enable_cookie: Option<bool>,
-    cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
-    ssr_lang_header_getter: Option<UseLocalesOptions>,
+    options: I18nContextOptions<L>,
 ) -> I18nContext<L> {
-    provide_i18n_context_with_options_inner(
-        enable_cookie,
-        cookie_name,
-        cookie_options,
-        ssr_lang_header_getter,
-    )
+    provide_i18n_context_with_options_inner(options)
 }
 
 /// *********************************************
@@ -417,6 +406,25 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
 }
 
+macro_rules! fill_options {
+    ($options:ident, $field:ident) => {{
+        if let Some($field) = $field {
+            $options.$field($field)
+        } else {
+            $options
+        }
+    }};
+    ($options:expr, $($fields:ident),*) => {
+        {
+            let _options = $options;
+            $(
+                let _options = fill_options!(_options, $fields);
+            )*
+            _options
+        }
+    };
+}
+
 #[track_caller]
 fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
@@ -426,12 +434,14 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
-    let i18n = provide_i18n_context_with_options_inner(
+    let options = fill_options!(
+        I18nContextOptions::<L>::default(),
         enable_cookie,
         cookie_name,
         cookie_options,
-        ssr_lang_header_getter,
+        ssr_lang_header_getter
     );
+    let i18n = provide_i18n_context_with_options_inner(options);
     let children = children();
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
