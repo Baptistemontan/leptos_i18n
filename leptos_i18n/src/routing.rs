@@ -6,7 +6,7 @@ use leptos_router::{
     hooks::{use_location, use_navigate},
     location::Location,
     ChooseView, MatchInterface, MatchNestedRoutes, MatchParams, NavigateOptions, NestedRoute,
-    PathSegment, SsrMode, StaticSegment,
+    PathSegment, PossibleRouteMatch, SsrMode, StaticSegment,
 };
 
 use crate::{use_i18n_context, I18nContext, Locale};
@@ -346,45 +346,6 @@ impl<L: Locale, View: ChooseView, Chil> I18nNestedRoute<L, View, Chil> {
 #[doc(hidden)]
 pub type BaseRoute<View, Chil> = Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>;
 
-// This function could be replaced with `StaticSegment::test` but the returned "PartialPathMatch" as incorrect lifetime so it is not usable as a public API.
-fn test_path<L: Locale>(locale: L, path: &str) -> Option<(&str, &str)> {
-    let locale = locale.as_str();
-    let mut matched_len = 0;
-    let mut test = path.chars().peekable();
-    let mut this = locale.chars();
-    let mut has_matched = false;
-    // match an initial /
-    if let Some('/') = test.peek() {
-        test.next();
-        matched_len += 1;
-    }
-
-    for char in test {
-        let n = this.next();
-        // when we get a closing /, stop matching
-        if char == '/' || n.is_none() {
-            break;
-        }
-        // if the next character in the path matches the
-        // next character in the segment, add it to the match
-        else if Some(char) == n {
-            has_matched = true;
-            matched_len += char.len_utf8();
-        }
-        // otherwise, this route doesn't match and we should
-        // return None
-        else {
-            return None;
-        }
-    }
-
-    // build the match object
-    // the remaining is built from the path in, with the slice moved
-    // by the length of this match
-    let (matched, remaining) = path.split_at(matched_len);
-    has_matched.then_some((matched, remaining))
-}
-
 #[doc(hidden)]
 pub struct I18nRouteMatch<L, View, Chil>
 where
@@ -471,8 +432,11 @@ where
         path: &'a str,
     ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
         if let Some(locale) = self.locale {
-            test_path(locale, path)
-                .and_then(|(matched, remaining)| {
+            StaticSegment(locale.as_str())
+                .test(path)
+                .and_then(|partial_path_match| {
+                    let remaining = partial_path_match.remaining();
+                    let matched = partial_path_match.matched();
                     let (inner_match, remaining) =
                         MatchNestedRoutes::match_nested(&*self.route, remaining);
                     let (route_match_id, inner_match) = inner_match?;

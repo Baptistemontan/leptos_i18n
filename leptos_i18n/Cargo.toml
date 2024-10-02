@@ -31,6 +31,7 @@ js-sys = { version = "0.3.70", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
 futures = { version = "0.3.30", optional = true }
 noop-waker = { version = "0.1.0", optional = true }
+default-struct-builder = "0.5"
 
 tower = { version = "0.4.13", default-features = false, optional = true, features = [
     "util",
