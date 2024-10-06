@@ -113,7 +113,7 @@ pub trait Locale<L: Locale = Self>:
 
     /// Init the translation unit of the given ID with the given values
     #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<String>);
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>);
 }
 
 /// Trait implemented the struct representing the translation keys

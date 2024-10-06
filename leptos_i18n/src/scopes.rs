@@ -207,7 +207,7 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     }
 
     #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<String>) {
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>) {
         L::init_translations(self.locale, translations_id, values);
     }
 }

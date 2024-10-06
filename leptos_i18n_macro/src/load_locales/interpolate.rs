@@ -696,7 +696,7 @@ impl Interpolation {
                 let ts = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
                         #enum_ident::#locale_key => {
-                            let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                            let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
                             #wrapped_value
                         }
                     }

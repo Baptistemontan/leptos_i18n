@@ -401,7 +401,7 @@ fn create_locales_enum(
 
     let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
         quote! {
-            fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<String>) {
+            fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>) {
                 #keys_ident::__init_translations__(self, translations_id, values);
             }
         }
@@ -620,7 +620,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                             quote! {
                                 #enum_ident::#ident => {
-                                    let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor().await;
+                                    let #translations_key: &'static [Box<str>; #strings_count] = #type_ident::#accessor().await;
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
                             }
@@ -788,7 +788,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                 let get_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        pub async fn get_translations() -> &'static [&'static str; #strings_count] {
+                        pub async fn get_translations() -> &'static [Box<str>; #strings_count] {
                             <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::request_strings().await
                         }
                     }
@@ -820,10 +820,16 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 } else {
                     quote! {
-                        fn get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<Self::Strings> {
+                        fn get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<Box<Self::Strings>> {
                             Self::__get_strings_lock()
                         }
                     }
+                };
+
+                let string_type = if cfg!(not(all(feature = "dynamic_load", not(feature = "ssr")))) {
+                    quote!([&'static str; #strings_count])
+                } else {
+                    quote!([Box<str>; #strings_count])
                 };
 
                 let translation_unit_impl = quote! {
@@ -831,15 +837,15 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         type Locale = #enum_ident;
                         const LOCALE: #enum_ident = #enum_ident::#locale_name;
                         #id;
-                        type Strings = &'static [&'static str; #strings_count];
+                        type Strings = #string_type;
                         #get_string                        
                     }
                 };
 
                 let get_strings_lock_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        fn __get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<&'static [&'static str; #strings_count]> {
-                            static STRINGS_LOCK: l_i18n_crate::__private::fetch_translations::OnceCell<&'static [&'static str; #strings_count]> = l_i18n_crate::__private::fetch_translations::OnceCell::new();
+                        fn __get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<Box<[Box<str>; #strings_count]>> {
+                            static STRINGS_LOCK: l_i18n_crate::__private::fetch_translations::OnceCell<Box<[Box<str>; #strings_count]>> = l_i18n_crate::__private::fetch_translations::OnceCell::new();
                             &STRINGS_LOCK
                         }
                     }
@@ -872,7 +878,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             Some(parent) if !IS_TOP => {
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
                             super::super::#parent::#accessor_ident().await
                         }
                     }
@@ -895,7 +901,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        pub async fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
                             #string_holder::get_translations().await
                         }
                     }
@@ -959,7 +965,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         });
         quote! {
             #[doc(hidden)]
-            pub fn __init_translations__(locale: #enum_ident, _: (), values: Vec<String>) {
+            pub fn __init_translations__(locale: #enum_ident, _: (), values: Vec<Box<str>>) {
                 match locale {
                     #(
                         #match_arms,
@@ -1131,7 +1137,7 @@ fn create_namespaces_types(
         });
         quote! {
             #[doc(hidden)]
-            pub fn __init_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident, values: Vec<String>) {
+            pub fn __init_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident, values: Vec<Box<str>>) {
                 match translations_id {
                     #(
                         #match_arms,

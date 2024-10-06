@@ -12,67 +12,59 @@ pub trait TranslationUnit: Sized {
     const ID: <Self::Locale as Locale>::TranslationUnitId;
     const LOCALE: Self::Locale;
     type Strings: StringArray;
-
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    const STRINGS: Self::Strings;
+    const STRINGS: &'static Self::Strings;
+
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn get_strings_lock() -> &'static OnceCell<Self::Strings>;
+    fn get_strings_lock() -> &'static OnceCell<Box<Self::Strings>>;
+
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn request_strings() -> impl std::future::Future<Output = Self::Strings> + Send + Sync + 'static
-    {
-        let string_lock = Self::get_strings_lock();
-        async move {
-            let inner = string_lock
-                .get_or_init(async {
-                    let translations = Locale::request_translations(Self::LOCALE, Self::ID)
-                        .await
-                        .unwrap();
-                    let leaked_string: Self::Strings = StringArray::leak(translations.0);
-                    leaked_string
-                })
-                .await;
-            *inner
-        }
-    }
-    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-    fn init_translations(values: Vec<String>) {
+    fn request_strings(
+    ) -> impl std::future::Future<Output = &'static Self::Strings> + Send + Sync + 'static {
         let string_lock = Self::get_strings_lock();
         let fut = string_lock.get_or_init(async {
-            let leaked_string: Self::Strings = StringArray::leak(values);
-            leaked_string
+            let translations = Locale::request_translations(Self::LOCALE, Self::ID)
+                .await
+                .unwrap();
+            StringArray::cast(translations.0)
         });
+        async move { core::ops::Deref::deref(fut.await) }
+    }
+
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    fn init_translations(values: Vec<Box<str>>) {
+        let string_lock = Self::get_strings_lock();
+        let fut = string_lock.get_or_init(async { StringArray::cast(values) });
         futures::executor::block_on(fut);
     }
+
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     fn register() {
         RegisterCtx::register::<Self>();
     }
 }
 
-pub trait StringArray: Copy + 'static + Send + Sync + Debug {
-    fn leak(strings: Vec<String>) -> Self;
-    fn as_slice(self) -> &'static [&'static str];
+pub trait StringArray: 'static + Send + Sync + Debug {
+    fn cast(strings: Vec<Box<str>>) -> Box<Self>;
+    fn as_slice(&self) -> &[&'static str];
 }
 
-impl<const SIZE: usize> StringArray for &'static [&'static str; SIZE] {
-    fn leak(strings: Vec<String>) -> Self {
-        fn cast_ref(r: &mut str) -> &str {
-            r
-        }
-        fn inner_leak(strings: Vec<String>) -> Box<[&'static str]> {
-            strings
-                .into_iter()
-                .map(String::leak)
-                .map(cast_ref)
-                .collect::<Box<[&'static str]>>()
-        }
-
-        let values = inner_leak(strings);
-        let sized_box: Box<[&'static str; SIZE]> = Box::try_into(values).unwrap();
-        Box::leak(sized_box)
+impl<const SIZE: usize> StringArray for [Box<str>; SIZE] {
+    fn cast(strings: Vec<Box<str>>) -> Box<Self> {
+        strings.into_boxed_slice().try_into().unwrap()
     }
 
-    fn as_slice(self) -> &'static [&'static str] {
+    fn as_slice(&self) -> &[&'static str] {
+        unreachable!("This function should not have been called on the client !")
+    }
+}
+
+impl<const SIZE: usize> StringArray for [&'static str; SIZE] {
+    fn cast(_: Vec<Box<str>>) -> Box<Self> {
+        unreachable!("This function should not have been called on the server !")
+    }
+
+    fn as_slice(&self) -> &[&'static str] {
         self
     }
 }
@@ -84,7 +76,7 @@ pub type LocaleServerFnOutput = LocaleServerFnOutputServer;
 pub type LocaleServerFnOutput = LocaleServerFnOutputClient;
 
 pub struct LocaleServerFnOutputServer(&'static [&'static str]);
-pub struct LocaleServerFnOutputClient(pub Vec<String>);
+pub struct LocaleServerFnOutputClient(pub Vec<Box<str>>);
 
 impl LocaleServerFnOutputServer {
     pub const fn new(strings: &'static [&'static str]) -> Self {
@@ -209,7 +201,7 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     struct Trans<L, Id> {
         locale: L,
         id: Id,
-        values: Vec<String>,
+        values: Vec<Box<str>>,
     }
 
     let translations = js_sys::Reflect::get(
