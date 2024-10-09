@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fs::File,
+    io::{BufReader, Read},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -19,20 +20,24 @@ use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
 
 macro_rules! define_by_format {
     (json => $($tt:tt)*) => {
-        #[cfg(all(feature = "json_files", not(any(feature = "yaml_files"))))]
+        #[cfg(all(feature = "json_files", not(any(feature = "yaml_files", feature = "json5_files"))))]
         $($tt)*
     };
     (yaml => $($tt:tt)*) => {
-        #[cfg(all(feature = "yaml_files", not(any(feature = "json_files"))))]
+        #[cfg(all(feature = "yaml_files", not(any(feature = "json_files", feature = "json5_files"))))]
+        $($tt)*
+    };
+    (json5 => $($tt:tt)*) => {
+        #[cfg(all(feature = "json5_files", not(any(feature = "json_files", feature = "yaml_files"))))]
         $($tt)*
     };
     (none => $($tt:tt)*) => {
-        #[cfg(not(any(feature = "json_files", feature = "yaml_files")))]
+        #[cfg(not(any(feature = "json_files", feature = "yaml_files", feature = "json5_files")))]
         $($tt)*
     };
-    // for now use cfg(all(..)) but if any format is added found a better cfg.
+    // This is attrocious, found a better way fgs
     (multiple => $($tt:tt)*) => {
-        #[cfg(all(feature = "json_files", feature = "yaml_files"))]
+        #[cfg(any(all(feature = "json_files", feature = "yaml_files"), all(feature = "json_files", feature = "json5_files"), all(feature = "yaml_files", feature = "json5_files")))]
         $($tt)*
     }
 }
@@ -52,36 +57,63 @@ macro_rules! define_files_exts {
     };
 }
 
+#[cfg(feature = "json5_files")]
+#[derive(Debug)]
+pub enum Json5Error {
+    Serde(json5::Error),
+    Io(std::io::Error),
+}
+
+#[cfg(feature = "json5_files")]
+impl std::fmt::Display for Json5Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Json5Error::Serde(error) => std::fmt::Display::fmt(error, f),
+            Json5Error::Io(error) => std::fmt::Display::fmt(error, f),
+        }
+    }
+}
+
 define_error!(json => serde_json::Error);
+define_error!(json5 => Json5Error);
 define_error!(yaml => serde_yaml::Error);
 define_error!(none => &'static str); // whatever impl Display
 define_error!(multiple => &'static str); // whatever impl Display
 
 define_files_exts!(json => "json");
+define_files_exts!(json5 => "json5");
 define_files_exts!(yaml => "yaml", "yml");
 define_files_exts!(none);
 define_files_exts!(multiple);
 
 define_by_format!(json =>
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
         serde::de::DeserializeSeed::deserialize(seed, &mut deserializer)
     }
 );
+define_by_format!(json5 =>
+    fn de_inner<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+        let mut buff = String::new();
+        Read::read_to_string(&mut locale_file, &mut buff).map_err(Json5Error::Io)?;
+        let mut deserializer = json5::Deserializer::from_str(&buff).map_err(Json5Error::Serde)?;
+        serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(Json5Error::Serde)
+    }
+);
 define_by_format!(yaml =>
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
         serde::de::DeserializeSeed::deserialize(seed, deserializer)
     }
 );
 define_by_format!(none =>
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let _ = (locale_file, seed);
         compile_error!("No file format has been provided for leptos_i18n, supported formats are: json and yaml")
     }
 );
 define_by_format!(multiple =>
-    fn de_inner(locale_file: File, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
         let _ = (locale_file, seed);
         compile_error!("Multiple file format have been provided for leptos_i18n, choose only one, supported formats are: json and yaml")
     }
@@ -257,7 +289,8 @@ impl Locale {
     }
 
     fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
-        de_inner(locale_file, seed).map_err(|err| Error::LocaleFileDeser {
+        let reader = BufReader::new(locale_file);
+        de_inner(reader, seed).map_err(|err| Error::LocaleFileDeser {
             path: std::mem::take(path),
             err,
         })

@@ -23,13 +23,15 @@ syn = "2.0"
 toml = "0.8"
 icu = "1.5"
 fixed_decimal = { version = "0.5", features = ["ryu"] }
+json5 = { version = "0.4", optional = true }
 
 [features]
 default = ["json_files"]
 nightly = []
 suppress_key_warnings = []
 json_files = []
-yaml_files = ["serde_yaml"]
+yaml_files = ["dep:serde_yaml"]
+json5_files = ["dep:json5"]
 interpolate_display = []
 track_locale_files = []
 experimental-islands = []
@@ -37,5 +39,5 @@ show_keys_only = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
-denylist = ["nightly", "yaml_files"]
+denylist = ["nightly", "yaml_files", "json5_files"]
 always_include_features = ["json_files"]
