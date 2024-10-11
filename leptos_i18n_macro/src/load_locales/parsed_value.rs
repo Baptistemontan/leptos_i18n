@@ -580,9 +580,14 @@ impl ParsedValue {
     fn parse_formatter(s: &str, locale: &Rc<Key>, key_path: &KeyPath) -> Result<Formatter> {
         let (name, args) = Self::parse_formatter_args(s);
         match Formatter::from_name_and_args(name, args.as_deref()) {
-            Some(formatter) => Ok(formatter),
-            None => Err(Error::UnknownFormatter {
+            Ok(Some(formatter)) => Ok(formatter),
+            Ok(None) => Err(Error::UnknownFormatter {
                 name: name.to_string(),
+                locale: locale.clone(),
+                key_path: key_path.clone(),
+            }),
+            Err(formatter) => Err(Error::DisabledFormatter {
+                formatter,
                 locale: locale.clone(),
                 key_path: key_path.clone(),
             }),
