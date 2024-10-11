@@ -13,9 +13,9 @@ readme = "../README.md"
 [dependencies]
 leptos_i18n_macro = { workspace = true }
 leptos = { workspace = true }
-leptos_meta = { version = "0.7.0-beta" }
-leptos_router = { version = "0.7.0-beta" }
-leptos-use = { version = "0.14.0-beta2", default-features = false, features = [
+leptos_meta = { version = "0.7.0-gamma2" }
+leptos_router = { version = "0.7.0-gamma2" }
+leptos-use = { version = "0.14.0-gamma1", default-features = false, features = [
     "use_locales",
     "use_cookie",
 ] }
