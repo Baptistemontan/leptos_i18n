@@ -29,17 +29,40 @@ pub use nums::*;
 #[cfg(feature = "format_datetime")]
 pub use time::*;
 
+#[cfg(any(
+    feature = "format_nums",
+    feature = "format_datetime",
+    feature = "format_list",
+    feature = "plurals"
+))]
+use crate::Locale;
+#[cfg(feature = "format_nums")]
+use icu_decimal::FixedDecimalFormatter;
+#[cfg(any(
+    feature = "format_nums",
+    feature = "format_datetime",
+    feature = "format_list",
+    feature = "plurals"
+))]
+use icu_locid::Locale as IcuLocale;
 pub use leptos_i18n_macro::{
     t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
     tu_format, tu_format_display, tu_format_string,
 };
-
-use crate::Locale;
-#[cfg(feature = "format_nums")]
-use icu_decimal::FixedDecimalFormatter;
-use icu_locid::Locale as IcuLocale;
+#[cfg(any(
+    feature = "format_nums",
+    feature = "format_datetime",
+    feature = "format_list",
+    feature = "plurals"
+))]
 use std::collections::HashMap;
 
+#[cfg(any(
+    feature = "format_nums",
+    feature = "format_datetime",
+    feature = "format_list",
+    feature = "plurals"
+))]
 #[derive(Default)]
 struct Formatters {
     #[cfg(feature = "format_nums")]
@@ -65,6 +88,12 @@ struct Formatters {
 // The reason we leak the formatter is so that we can get a static ref,
 // making possible to return values borrowing from the formatter,
 // such as all *Formatter::format(..) returned values.
+#[cfg(any(
+    feature = "format_nums",
+    feature = "format_datetime",
+    feature = "format_list",
+    feature = "plurals"
+))]
 static FORMATTERS: static_lock::StaticLock<Formatters> = static_lock::StaticLock::new();
 
 #[cfg(feature = "format_nums")]
@@ -166,6 +195,12 @@ pub fn get_plural_rules<L: Locale>(
     })
 }
 
+#[cfg(any(
+    feature = "format_nums",
+    feature = "format_datetime",
+    feature = "format_list",
+    feature = "plurals"
+))]
 mod static_lock {
     use std::sync::{OnceLock, RwLock};
 
