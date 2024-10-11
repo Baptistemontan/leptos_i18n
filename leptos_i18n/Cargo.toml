@@ -22,8 +22,8 @@ leptos-use = { version = "0.14.0-gamma1", default-features = false, features = [
 codee = "0.2"
 # icu = { version = "1.5", features = ["sync"] }
 icu_locid = { version = "1.5" }
-icu_plurals = { version = "1.5", optional = true }
 icu_provider = { version = "1.5", optional = true, features = ["sync"] }
+icu_plurals = { version = "1.5", optional = true, default-features = false }
 icu_datetime = { version = "1.5", optional = true }
 icu_calendar = { version = "1.5", optional = true }
 icu_list = { version = "1.5", optional = true }
@@ -40,7 +40,14 @@ tower = { version = "0.4.13", default-features = false, optional = true, feature
 ] }
 
 [features]
-default = ["cookie", "json_files"]
+default = ["cookie", "json_files", "icu_compiled_data"]
+icu_compiled_data = [
+    "icu_plurals?/compiled_data",
+    "icu_datetime?/compiled_data",
+    "icu_calendar?/compiled_data",
+    "icu_list?/compiled_data",
+    "icu_decimal?/compiled_data",
+]
 plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
 format_datetime = [
     "dep:icu_datetime",
@@ -128,4 +135,4 @@ skip_feature_sets = [
     ],
 ]
 # see leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
-always_include_features = ["json_files"]
+always_include_features = ["json_files", "icu_compiled_data"]
