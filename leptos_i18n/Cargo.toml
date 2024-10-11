@@ -45,6 +45,7 @@ plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
 format_datetime = [
     "dep:icu_datetime",
     "dep:icu_calendar",
+    "dep:icu_provider",
     "leptos_i18n_macro/format_datetime",
 ]
 format_list = ["dep:icu_list", "leptos_i18n_macro/format_list"]
