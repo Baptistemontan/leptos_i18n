@@ -48,10 +48,15 @@ format_datetime = [
     "dep:icu_provider",
     "leptos_i18n_macro/format_datetime",
 ]
-format_list = ["dep:icu_list", "leptos_i18n_macro/format_list"]
+format_list = [
+    "dep:icu_list",
+    "dep:icu_provider",
+    "leptos_i18n_macro/format_list",
+]
 format_nums = [
     "dep:icu_decimal",
     "dep:fixed_decimal",
+    "dep:icu_provider",
     "leptos_i18n_macro/format_nums",
 ]
 actix = ["ssr", "leptos-use/actix"]
