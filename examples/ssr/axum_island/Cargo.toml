@@ -10,9 +10,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = { version = "0.7.0-beta", features = ["experimental-islands"] }
-leptos_meta = { version = "0.7.0-beta" }
-leptos_axum = { version = "0.7.0-beta", optional = true }
+leptos = { version = "0.7.0-gamma2", features = ["experimental-islands"] }
+leptos_meta = { version = "0.7.0-gamma2" }
+leptos_axum = { version = "0.7.0-gamma2", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
     "track_locale_files",
     "experimental-islands",
