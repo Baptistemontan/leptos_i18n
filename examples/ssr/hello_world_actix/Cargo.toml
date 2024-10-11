@@ -11,9 +11,9 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 actix-files = { version = "0.6", optional = true }
 actix-web = { version = "4.4", optional = true, features = ["macros"] }
-leptos = { version = "0.7.0-beta" }
-leptos_meta = { version = "0.7.0-beta" }
-leptos_actix = { version = "0.7.0-beta", optional = true }
+leptos = { version = "0.7.0-gamma2" }
+leptos_meta = { version = "0.7.0-gamma2" }
+leptos_actix = { version = "0.7.0-gamma2", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
     "track_locale_files",
 ] }
