@@ -1,46 +1,63 @@
 //! This module contain traits and helper functions for formatting
 //! different kind of value based on a locale.
 
+#[cfg(feature = "format_datetime")]
 mod date;
+#[cfg(feature = "format_datetime")]
 mod datetime;
+#[cfg(feature = "format_list")]
 mod list;
+#[cfg(feature = "format_nums")]
 mod nums;
+#[cfg(feature = "format_datetime")]
 mod time;
 
+#[cfg(feature = "format_datetime")]
 pub use date::*;
+#[cfg(feature = "format_datetime")]
 pub use datetime::*;
-use icu::plurals::{PluralRuleType, PluralRules};
+#[cfg(feature = "format_datetime")]
+use icu_datetime::{options::length, DateFormatter, DateTimeFormatter, TimeFormatter};
+#[cfg(feature = "format_list")]
+use icu_list::{ListFormatter, ListLength};
+#[cfg(feature = "plurals")]
+use icu_plurals::{PluralRuleType, PluralRules};
+#[cfg(feature = "format_list")]
+pub use list::*;
+#[cfg(feature = "format_nums")]
+pub use nums::*;
+#[cfg(feature = "format_datetime")]
+pub use time::*;
+
 pub use leptos_i18n_macro::{
     t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
     tu_format, tu_format_display, tu_format_string,
 };
-pub use list::*;
-pub use nums::*;
-pub use time::*;
 
 use crate::Locale;
-use crate::__private::StaticLock;
-use icu::datetime::options::length;
-use icu::datetime::{DateFormatter, DateTimeFormatter, TimeFormatter};
-use icu::decimal::FixedDecimalFormatter;
-use icu::list::{ListFormatter, ListLength};
-use icu::locid;
+#[cfg(feature = "format_nums")]
+use icu_decimal::FixedDecimalFormatter;
+use icu_locid::Locale as IcuLocale;
 use std::collections::HashMap;
 
 #[derive(Default)]
 struct Formatters {
-    num: HashMap<&'static locid::Locale, &'static FixedDecimalFormatter>,
-    date: HashMap<&'static locid::Locale, HashMap<length::Date, &'static DateFormatter>>,
-    time: HashMap<&'static locid::Locale, HashMap<length::Time, &'static TimeFormatter>>,
+    #[cfg(feature = "format_nums")]
+    num: HashMap<&'static IcuLocale, &'static FixedDecimalFormatter>,
+    #[cfg(feature = "format_datetime")]
+    date: HashMap<&'static IcuLocale, HashMap<length::Date, &'static DateFormatter>>,
+    #[cfg(feature = "format_datetime")]
+    time: HashMap<&'static IcuLocale, HashMap<length::Time, &'static TimeFormatter>>,
+    #[cfg(feature = "format_datetime")]
     datetime: HashMap<
-        &'static locid::Locale,
+        &'static IcuLocale,
         HashMap<(length::Date, length::Time), &'static DateTimeFormatter>,
     >,
-    list: HashMap<
-        &'static locid::Locale,
-        HashMap<(list::ListType, ListLength), &'static ListFormatter>,
-    >,
-    plural_rule: HashMap<&'static locid::Locale, HashMap<PluralRuleType, &'static PluralRules>>,
+    #[cfg(feature = "format_list")]
+    list:
+        HashMap<&'static IcuLocale, HashMap<(list::ListType, ListLength), &'static ListFormatter>>,
+    #[cfg(feature = "plurals")]
+    plural_rule: HashMap<&'static IcuLocale, HashMap<PluralRuleType, &'static PluralRules>>,
 }
 
 // Formatters cache
@@ -48,8 +65,9 @@ struct Formatters {
 // The reason we leak the formatter is so that we can get a static ref,
 // making possible to return values borrowing from the formatter,
 // such as all *Formatter::format(..) returned values.
-static FORMATTERS: StaticLock<Formatters> = StaticLock::new();
+static FORMATTERS: static_lock::StaticLock<Formatters> = static_lock::StaticLock::new();
 
+#[cfg(feature = "format_nums")]
 fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
     let locale = locale.as_icu_locale();
     FORMATTERS.with_mut(|formatters| {
@@ -62,6 +80,7 @@ fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
     })
 }
 
+#[cfg(feature = "format_datetime")]
 fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static DateFormatter {
     FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
@@ -75,6 +94,7 @@ fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static Da
     })
 }
 
+#[cfg(feature = "format_datetime")]
 fn get_time_formatter<L: Locale>(locale: L, length: length::Time) -> &'static TimeFormatter {
     FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
@@ -88,6 +108,7 @@ fn get_time_formatter<L: Locale>(locale: L, length: length::Time) -> &'static Ti
     })
 }
 
+#[cfg(feature = "format_datetime")]
 fn get_datetime_formatter<L: Locale>(
     locale: L,
     date_length: length::Date,
@@ -108,6 +129,7 @@ fn get_datetime_formatter<L: Locale>(
     })
 }
 
+#[cfg(feature = "format_list")]
 fn get_list_formatter<L: Locale>(
     locale: L,
     list_type: list::ListType,
@@ -126,6 +148,7 @@ fn get_list_formatter<L: Locale>(
     })
 }
 
+#[cfg(feature = "plurals")]
 #[doc(hidden)]
 pub fn get_plural_rules<L: Locale>(
     locale: L,
@@ -141,4 +164,26 @@ pub fn get_plural_rules<L: Locale>(
         });
         *plural_rules
     })
+}
+
+mod static_lock {
+    use std::sync::{OnceLock, RwLock};
+
+    #[derive(Debug, Default)]
+    pub struct StaticLock<T>(OnceLock<RwLock<T>>);
+
+    impl<T> StaticLock<T> {
+        pub const fn new() -> Self {
+            StaticLock(OnceLock::new())
+        }
+
+        pub fn with_mut<U>(&self, f: impl FnOnce(&mut T) -> U) -> U
+        where
+            T: Default,
+        {
+            let mutex = self.0.get_or_init(Default::default);
+            let mut guard = mutex.write().unwrap();
+            f(&mut guard)
+        }
+    }
 }

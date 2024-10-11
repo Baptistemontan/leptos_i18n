@@ -114,7 +114,6 @@ mod locale_traits;
 mod macro_helpers;
 mod routing;
 mod scopes;
-mod static_lock;
 
 pub mod display;
 
@@ -135,18 +134,31 @@ pub use scopes::{ConstScope, Scope};
 
 #[doc(hidden)]
 pub mod __private {
+    #[cfg(feature = "plurals")]
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
-    pub use crate::static_lock::*;
-    pub use icu::locid;
+    pub use icu_locid as locid;
     pub use leptos_i18n_macro::declare_locales;
 }
 
 /// Reexports of backend libraries, mostly about formatting.
 pub mod reexports {
+    #[cfg(feature = "format_nums")]
     pub use fixed_decimal;
-    pub use icu;
+    /// module containing reexports of crates from the icu project
+    pub mod icu {
+        #[cfg(feature = "format_datetime")]
+        pub use icu_calendar as calendar;
+        #[cfg(feature = "format_datetime")]
+        pub use icu_datetime as datetime;
+        #[cfg(feature = "format_nums")]
+        pub use icu_decimal as decimal;
+        #[cfg(feature = "format_list")]
+        pub use icu_list as list;
+        #[cfg(feature = "plurals")]
+        pub use icu_plurals as plurals;
+    }
     pub use leptos;
     pub use leptos_router;
     pub use serde;

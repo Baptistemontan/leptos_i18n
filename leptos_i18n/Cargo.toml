@@ -20,9 +20,16 @@ leptos-use = { version = "0.14.0-gamma1", default-features = false, features = [
     "use_cookie",
 ] }
 codee = "0.2"
-icu = { version = "1.5", features = ["sync"] }
+# icu = { version = "1.5", features = ["sync"] }
+icu_locid = { version = "1.5" }
+icu_plurals = { version = "1.5", optional = true }
+icu_provider = { version = "1.5", optional = true, features = ["sync"] }
+icu_datetime = { version = "1.5", optional = true }
+icu_calendar = { version = "1.5", optional = true }
+icu_list = { version = "1.5", optional = true }
+icu_decimal = { version = "1.5", optional = true }
 typed-builder = "0.19"
-fixed_decimal = { version = "0.5", features = ["ryu"] }
+fixed_decimal = { version = "0.5", optional = true, features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
 wasm-bindgen = "0.2.93"
@@ -34,6 +41,18 @@ tower = { version = "0.4.13", default-features = false, optional = true, feature
 
 [features]
 default = ["cookie", "json_files"]
+plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
+format_datetime = [
+    "dep:icu_datetime",
+    "dep:icu_calendar",
+    "leptos_i18n_macro/format_datetime",
+]
+format_list = ["dep:icu_list", "leptos_i18n_macro/format_list"]
+format_nums = [
+    "dep:icu_decimal",
+    "dep:fixed_decimal",
+    "leptos_i18n_macro/format_nums",
+]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum", "dep:tower"]
 hydrate = ["leptos/hydrate"]

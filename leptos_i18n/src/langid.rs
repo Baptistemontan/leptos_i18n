@@ -2,7 +2,7 @@
 //! see <https://github.com/XAMPPRocky/fluent-templates>
 //!
 //! I then specialized it for the use case of this crate.
-use icu::locid::{
+use icu_locid::{
     subtags::{Language, Variant},
     LanguageIdentifier,
 };
@@ -146,7 +146,7 @@ mod test {
     use super::{filter_matches, find_match};
     use i18n::Locale;
 
-    use icu::locid::langid;
+    use icu_locid::langid;
 
     #[test]
     fn test_hirarchy() {

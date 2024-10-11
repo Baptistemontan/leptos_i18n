@@ -1,3 +1,4 @@
+use leptos_router::ChooseView;
 use std::{
     fmt::{self, Debug},
     hash::Hash,
@@ -5,8 +6,7 @@ use std::{
     str::FromStr,
 };
 
-use icu::locid;
-use leptos_router::ChooseView;
+use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
 
 use crate::{I18nContext, Locale, LocaleKeys};
 
@@ -108,14 +108,14 @@ impl<L: Locale, S: Scope<L>> fmt::Display for ScopedLocale<L, S> {
     }
 }
 
-impl<L: Locale, S: Scope<L>> AsRef<locid::LanguageIdentifier> for ScopedLocale<L, S> {
-    fn as_ref(&self) -> &locid::LanguageIdentifier {
+impl<L: Locale, S: Scope<L>> AsRef<LanguageIdentifier> for ScopedLocale<L, S> {
+    fn as_ref(&self) -> &LanguageIdentifier {
         self.locale.as_ref()
     }
 }
 
-impl<L: Locale, S: Scope<L>> AsRef<locid::Locale> for ScopedLocale<L, S> {
-    fn as_ref(&self) -> &locid::Locale {
+impl<L: Locale, S: Scope<L>> AsRef<IcuLocale> for ScopedLocale<L, S> {
+    fn as_ref(&self) -> &IcuLocale {
         self.locale.as_ref()
     }
 }
@@ -161,7 +161,7 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
         <L as Locale>::as_str(self.locale)
     }
 
-    fn as_icu_locale(self) -> &'static locid::Locale {
+    fn as_icu_locale(self) -> &'static IcuLocale {
         <L as Locale>::as_icu_locale(self.locale)
     }
 

@@ -34,6 +34,10 @@ interpolate_display = []
 track_locale_files = []
 experimental-islands = []
 show_keys_only = []
+plurals = []
+format_datetime = []
+format_list = []
+format_nums = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...

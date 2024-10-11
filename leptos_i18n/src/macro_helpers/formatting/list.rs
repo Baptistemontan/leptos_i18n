@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use icu::list::{ListFormatter, ListLength};
+use icu_list::{ListFormatter, ListLength};
 use leptos::IntoView;
 use writeable::Writeable;
 
@@ -53,7 +53,7 @@ pub enum ListType {
 }
 
 impl ListType {
-    pub fn new_formatter(self, locale: &icu::locid::Locale, length: ListLength) -> ListFormatter {
+    pub fn new_formatter(self, locale: &icu_locid::Locale, length: ListLength) -> ListFormatter {
         match self {
             ListType::And => ListFormatter::try_new_and_with_length(&locale.into(), length)
                 .expect("A list formatter"),
