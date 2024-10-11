@@ -2,11 +2,13 @@
 
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
+use leptos::tachys::{
+    html::directive::IntoDirective, reactive_graph::OwnedView, view::any_view::AnyView,
+};
 use leptos::{children, either::Either, prelude::*};
 use leptos_meta::{provide_meta_context, Html};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
-use tachys::{html::directive::IntoDirective, reactive_graph::OwnedView, view::any_view::AnyView};
 
 use crate::{
     fetch_locale::{self, signal_maybe_once_then},
