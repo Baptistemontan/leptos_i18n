@@ -107,6 +107,10 @@ pub(crate) enum Error {
         key_path: KeyPath,
         formatter: crate::utils::formatter::Formatter,
     },
+    DisabledPlurals {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
 }
 
 impl Display for Error {
@@ -194,7 +198,8 @@ impl Display for Error {
             Error::CountArgOutsideRange { locale, key_path, foreign_key, err } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" is outside range: {}", locale, key_path, foreign_key, err),
             Error::UnexpectedToken { locale, key_path, message } => write!(f, "Unexpected error occured while parsing key \"{}\" in locale {:?}: {}", key_path, locale, message),
             Error::RangeAndPluralsMix { key_path } => write!(f, "mixing plurals and ranges are not supported yet, for key \"{}\"", key_path),
-            Error::DisabledFormatter { locale, key_path, formatter } => write!(f, "{}, at locale key \"{}\" in locale {:?}", formatter.err_message(), key_path, locale),
+            Error::DisabledFormatter { locale, key_path, formatter } => write!(f, "{}, at key \"{}\" in locale {:?}", formatter.err_message(), key_path, locale),
+            Error::DisabledPlurals { locale, key_path } => write!(f, "Plurals are not enabled, enable the \"plurals\" feature to use them, at key \"{}\" in locale {:?}", key_path, locale),
         }
     }
 }

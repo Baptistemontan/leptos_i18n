@@ -347,6 +347,13 @@ impl Locale {
             let key = Key::from_unchecked_string(base_key);
             let key = Rc::new(key);
             key_path.push_key(key);
+            if !cfg!(feature = "plurals") {
+                return Err(Error::DisabledPlurals {
+                    locale: locale.clone(),
+                    key_path: std::mem::take(key_path),
+                });
+            }
+
             let forms = plurals
                 .into_iter()
                 .map(|(form, (_, rule, value))| {
