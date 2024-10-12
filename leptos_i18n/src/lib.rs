@@ -153,7 +153,7 @@ pub mod __private {
 ))]
 pub mod custom_provider {
     pub use crate::macro_helpers::formatting::data_provider::IcuDataProvider;
-    pub use crate::macro_helpers::formatting::set_icu_data_provider;
+    pub use crate::macro_helpers::formatting::inner::set_icu_data_provider;
     pub use leptos_i18n_macro::IcuDataProvider;
 }
 

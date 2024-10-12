@@ -162,21 +162,13 @@ pub fn get_plural_rules<L: Locale>(
     })
 }
 
-#[cfg(not(feature = "icu_compiled_data"))]
-/// Supply a custom ICU data provider
-pub fn set_icu_data_provider(data_provider: impl data_provider::IcuDataProvider) {
-    inner::FORMATTERS.with_mut(|formatters| {
-        formatters.provider = data_provider::BakedDataProvider(Some(Box::new(data_provider)));
-    });
-}
-
 #[cfg(any(
     feature = "format_nums",
     feature = "format_datetime",
     feature = "format_list",
     feature = "plurals"
 ))]
-mod inner {
+pub(crate) mod inner {
     use super::*;
     use icu_locid::Locale as IcuLocale;
     use std::collections::HashMap;
@@ -228,6 +220,15 @@ mod inner {
         #[cfg(feature = "plurals")]
         pub plural_rule: HashMap<&'static IcuLocale, HashMap<PluralRuleType, &'static PluralRules>>,
         pub provider: data_provider::BakedDataProvider,
+    }
+
+    #[cfg(not(feature = "icu_compiled_data"))]
+    /// Supply a custom ICU data provider
+    pub fn set_icu_data_provider(data_provider: impl super::data_provider::IcuDataProvider) {
+        inner::FORMATTERS.with_mut(|formatters| {
+            formatters.provider =
+                super::data_provider::BakedDataProvider(Some(Box::new(data_provider)));
+        });
     }
 }
 
