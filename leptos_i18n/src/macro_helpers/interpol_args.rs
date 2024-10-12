@@ -24,12 +24,14 @@ pub trait InterpolateRangeCount<T>: Fn() -> T + Clone + 'static + Send + Sync {}
 impl<T, F: Fn() -> T + Clone + 'static + Send + Sync> InterpolateRangeCount<T> for F {}
 
 /// Marker trait for a type that can produce a `icu::plurals::PluralOperands`
+#[cfg(feature = "plurals")]
 pub trait InterpolatePluralCount: Fn() -> Self::Count + Clone + 'static + Send + Sync {
     /// The returned value that can be turned into a `icu::plurals::PluralOperands`
-    type Count: Into<icu::plurals::PluralOperands>;
+    type Count: Into<icu_plurals::PluralOperands>;
 }
 
-impl<T: Into<icu::plurals::PluralOperands>, F: Fn() -> T + Clone + 'static + Send + Sync>
+#[cfg(feature = "plurals")]
+impl<T: Into<icu_plurals::PluralOperands>, F: Fn() -> T + Clone + 'static + Send + Sync>
     InterpolatePluralCount for F
 {
     type Count = T;

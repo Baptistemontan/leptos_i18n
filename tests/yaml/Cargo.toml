@@ -13,6 +13,7 @@ leptos = { version = "0.7.0-gamma2", features = ["ssr"] }
 tests_common = { path = "../common" }
 leptos_i18n = { path = "../../leptos_i18n", default-features = false, features = [
     "yaml_files",
+    "icu_compiled_data",
 ] }
 
 

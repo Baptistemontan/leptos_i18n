@@ -8,6 +8,7 @@
 //!
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
+mod data_provider;
 pub(crate) mod load_locales;
 pub(crate) mod t_format;
 pub(crate) mod t_macro;
@@ -434,4 +435,10 @@ pub fn td_format_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenSt
         t_format::InputType::Locale,
         t_format::OutputType::Display,
     )
+}
+
+/// Derive the `IcuDataProvider` trait
+#[proc_macro_derive(IcuDataProvider)]
+pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    data_provider::derive_icu_data_provider(input)
 }
