@@ -40,6 +40,7 @@ test.afterEach(async ({ context }) => {
 });
 
 test.describe("when locale is the default locale (en-GB)", () => {
+  test("todo", () => {});
   // test("check counter", ({ page, i18n }) => check_counter(page, i18n));
   // test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
   // test("check state keeping", ({ page, i18n }) =>
@@ -50,6 +51,8 @@ test.describe("when locale is set to french (fr-FR)", () => {
   test.use({
     locale: "fr-FR",
   });
+
+  test("todo", () => {});
 
   // test("check counter", ({ page, i18n }) => check_counter(page, i18n));
   // test("check lang switch", ({ page, i18n }) => check_lang_switch(page, i18n));
