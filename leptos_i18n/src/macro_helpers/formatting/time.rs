@@ -63,7 +63,7 @@ pub fn format_time_to_view<L: Locale>(
     locale: L,
     time: impl TimeFormatterInputFn,
     length: length::Time,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let time_formatter = super::get_time_formatter(locale, length);
 
     move || {

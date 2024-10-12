@@ -64,7 +64,7 @@ pub fn format_date_to_view<L: Locale>(
     locale: L,
     date: impl DateFormatterInputFn,
     length: length::Date,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let date_formatter = super::get_date_formatter(locale, length);
 
     move || {

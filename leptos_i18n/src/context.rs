@@ -56,14 +56,14 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the keys for the current locale subscribing to any changes
     #[inline]
     #[track_caller]
-    pub fn get_keys(self) -> &'static S::Keys {
+    pub fn get_keys(self) -> S::Keys {
         LocaleKeys::from_locale(self.get_locale())
     }
 
     /// Return the keys for the current locale but does not subscribe to changes
     #[inline]
     #[track_caller]
-    pub fn get_keys_untracked(self) -> &'static S::Keys {
+    pub fn get_keys_untracked(self) -> S::Keys {
         LocaleKeys::from_locale(self.get_locale_untracked())
     }
 
@@ -408,6 +408,16 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
 }
 
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+fn embed_translations<L: Locale>(
+    reg_ctx: crate::fetch_translations::RegisterCtx<L>,
+) -> impl IntoView {
+    let translations = reg_ctx.to_array();
+    view! {
+        <script inner_html=translations />
+    }
+}
+
 macro_rules! fill_options {
     ($options:ident, $field:ident) => {{
         if let Some($field) = $field {
@@ -436,6 +446,10 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    let embed_translations = crate::fetch_translations::init_translations::<L>();
+    #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+    let reg_ctx = crate::fetch_translations::RegisterCtx::<L>::provide_context();
     let options = fill_options!(
         I18nContextOptions::<L>::default(),
         enable_cookie,
@@ -445,14 +459,22 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     );
     let i18n = provide_i18n_context_with_options_inner(options);
     let children = children();
+    #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+    let embed_translations = move || embed_translations(reg_ctx.clone());
+    #[cfg(not(all(feature = "dynamic_load", any(feature = "ssr", feature = "hydrate"))))]
+    let embed_translations = view! { <script /> };
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
         Either::Left(view! {
             <Html attr:lang=lang />
             {children}
+            {embed_translations}
         })
     } else {
-        Either::Right(children)
+        Either::Right(view! {
+            {children}
+            {embed_translations}
+        })
     }
 }
 

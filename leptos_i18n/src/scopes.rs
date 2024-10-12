@@ -51,7 +51,7 @@ impl<L: Locale, S: Scope<L>> ConstScope<L, S> {
     }
 
     #[doc(hidden)]
-    pub const fn map<NS: Scope<L>>(self, map_fn: fn(&S) -> &NS) -> ConstScope<L, NS> {
+    pub const fn map<NS: Scope<L>>(self, map_fn: fn(S) -> NS) -> ConstScope<L, NS> {
         let _ = map_fn;
         ConstScope(PhantomData)
     }
@@ -156,6 +156,9 @@ impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
 impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
     type Routes<View, Chil> = L::Routes<View, Chil>;
+    type TranslationUnitId = L::TranslationUnitId;
+    #[cfg(feature = "dynamic_load")]
+    type ServerFn = L::ServerFn;
 
     fn as_str(self) -> &'static str {
         <L as Locale>::as_str(self.locale)
@@ -188,6 +191,24 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
         View: ChooseView,
     {
         L::make_routes(base_route, base_path)
+    }
+
+    #[cfg(feature = "dynamic_load")]
+    fn request_translations(
+        self,
+        translations_id: Self::TranslationUnitId,
+    ) -> impl std::future::Future<
+        Output = Result<
+            crate::fetch_translations::LocaleServerFnOutput,
+            leptos::prelude::ServerFnError,
+        >,
+    > {
+        L::request_translations(self.locale, translations_id)
+    }
+
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>) {
+        L::init_translations(self.locale, translations_id, values);
     }
 }
 

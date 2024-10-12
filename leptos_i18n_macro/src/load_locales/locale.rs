@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashSet},
     fs::File,
     path::{Path, PathBuf},
     rc::Rc,
@@ -15,7 +15,7 @@ use super::{
     tracking::track_file,
     warning::{emit_warning, Warning},
 };
-use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
+use crate::utils::key::{Key, KeyPath, VAR_COUNT_KEY};
 
 macro_rules! define_by_format {
     (json => $($tt:tt)*) => {
@@ -100,12 +100,25 @@ pub enum LocalesOrNamespaces {
 }
 
 #[derive(Default, Debug)]
-pub struct BuildersKeysInner(pub HashMap<Rc<Key>, LocaleValue>);
+pub struct BuildersKeysInner(pub BTreeMap<Rc<Key>, LocaleValue>);
+
+impl BuildersKeysInner {
+    pub fn propagate_string_count(&mut self, top_locales: &[Locale]) {
+        for value in self.0.values_mut() {
+            if let LocaleValue::Subkeys { locales, keys } = value {
+                for (locale, top_locale) in locales.iter_mut().zip(top_locales) {
+                    locale.top_locale_string_count = top_locale.top_locale_string_count;
+                }
+                keys.propagate_string_count(top_locales);
+            }
+        }
+    }
+}
 
 pub enum BuildersKeys<'a> {
     NameSpaces {
         namespaces: &'a [Namespace],
-        keys: HashMap<Rc<Key>, BuildersKeysInner>,
+        keys: BTreeMap<Rc<Key>, BuildersKeysInner>,
     },
     Locales {
         locales: &'a [Locale],
@@ -235,7 +248,9 @@ impl LocalesOrNamespaces {
 pub struct Locale {
     pub top_locale_name: Rc<Key>,
     pub name: Rc<Key>,
-    pub keys: HashMap<Rc<Key>, ParsedValue>,
+    pub keys: BTreeMap<Rc<Key>, ParsedValue>,
+    pub strings: Vec<String>,
+    pub top_locale_string_count: usize,
 }
 
 impl Locale {
@@ -280,12 +295,16 @@ impl Locale {
         Self::de(locale_file, path, seed)
     }
 
-    pub fn make_builder_keys(&mut self, key_path: &mut KeyPath) -> Result<BuildersKeysInner> {
+    pub fn make_builder_keys(
+        &mut self,
+        key_path: &mut KeyPath,
+        strings: &mut StringIndexer,
+    ) -> Result<BuildersKeysInner> {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
             value.reduce();
             key_path.push_key(Rc::clone(key));
-            let locale_value = value.make_locale_value(key_path)?;
+            let locale_value = value.make_locale_value(key_path, strings)?;
             let key = key_path
                 .pop_key()
                 .expect("Unexpected empty KeyPath in make_builder_keys. If you got this error please open an issue on github.");
@@ -313,10 +332,10 @@ impl Locale {
     pub fn merge_plurals(&mut self, locale: Rc<Key>, key_path: &mut KeyPath) -> Result<()> {
         let keys = std::mem::take(&mut self.keys);
         #[allow(clippy::type_complexity)]
-        let mut possible_plurals: HashMap<
+        let mut possible_plurals: BTreeMap<
             String,
-            HashMap<PluralForm, (Rc<Key>, PluralRuleType, ParsedValue)>,
-        > = HashMap::new();
+            BTreeMap<PluralForm, (Rc<Key>, PluralRuleType, ParsedValue)>,
+        > = BTreeMap::new();
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
                 key_path.push_key(key.clone());
@@ -366,11 +385,11 @@ impl Locale {
                         })
                     }
                 })
-                .collect::<Result<HashMap<_, _>>>()?;
+                .collect::<Result<BTreeMap<_, _>>>()?;
             let plural = Plurals {
                 rule_type,
                 forms,
-                count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+                count_key: Rc::new(Key::new(VAR_COUNT_KEY).unwrap()),
                 other: Box::new(other),
             };
             plural.check_categories(&locale, key_path);
@@ -378,7 +397,13 @@ impl Locale {
             let key = key_path
                 .pop_key()
                 .expect("The KeyPath should not be empty.");
-            self.keys.insert(key, value);
+            if self.keys.insert(key.clone(), value).is_some() {
+                key_path.push_key(key);
+                return Err(Error::PluralsAtNormalKey {
+                    locale,
+                    key_path: std::mem::take(key_path),
+                });
+            }
         }
 
         Ok(())
@@ -390,11 +415,12 @@ impl Locale {
         default_locale: &Self,
         top_locale: Rc<Key>,
         key_path: &mut KeyPath,
+        strings: &mut StringIndexer,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(Rc::clone(key));
             if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
-                value.merge(def, keys, Rc::clone(&self.name), key_path)?;
+                value.merge(def, keys, Rc::clone(&self.name), key_path, strings)?;
             } else {
                 emit_warning(
                     Warning::MissingKey {
@@ -428,16 +454,33 @@ impl Locale {
         locales: &mut [Locale],
         namespace: Option<Rc<Key>>,
     ) -> Result<BuildersKeysInner> {
-        let mut locales = locales.iter_mut();
-        let default_locale = locales.next().expect("There should be at least one Locale");
+        let mut locales_iter = locales.iter_mut();
+        let default_locale = locales_iter
+            .next()
+            .expect("There should be at least one Locale");
         let mut key_path = KeyPath::new(namespace);
 
-        let mut default_keys = default_locale.make_builder_keys(&mut key_path)?;
+        let mut string_indexer = StringIndexer::default();
+        let mut default_keys =
+            default_locale.make_builder_keys(&mut key_path, &mut string_indexer)?;
+        default_locale.strings = string_indexer.get_strings();
+        default_locale.top_locale_string_count = default_locale.strings.len();
 
-        for locale in locales {
+        for locale in locales_iter {
             let top_locale = locale.name.clone();
-            locale.merge(&mut default_keys, default_locale, top_locale, &mut key_path)?;
+            let mut string_indexer = StringIndexer::default();
+            locale.merge(
+                &mut default_keys,
+                default_locale,
+                top_locale,
+                &mut key_path,
+                &mut string_indexer,
+            )?;
+            locale.strings = string_indexer.get_strings();
+            locale.top_locale_string_count = locale.strings.len()
         }
+
+        default_keys.propagate_string_count(locales);
 
         Ok(default_keys)
     }
@@ -445,7 +488,7 @@ impl Locale {
     pub fn check_locales(locales: &mut LocalesOrNamespaces) -> Result<BuildersKeys> {
         match locales {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
-                let mut keys = HashMap::with_capacity(namespaces.len());
+                let mut keys = BTreeMap::new();
                 for namespace in &mut *namespaces {
                     let k = Self::check_locales_inner(
                         &mut namespace.locales,
@@ -505,13 +548,13 @@ pub struct LocaleSeed {
 }
 
 impl<'de> serde::de::Visitor<'de> for LocaleSeed {
-    type Value = HashMap<Rc<Key>, ParsedValue>;
+    type Value = BTreeMap<Rc<Key>, ParsedValue>;
 
     fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::MapAccess<'de>,
     {
-        let mut keys = HashMap::new();
+        let mut keys = BTreeMap::new();
 
         while let Some(locale_key) = map.next_key()? {
             self.key_path.push_key(Rc::clone(&locale_key));
@@ -553,6 +596,31 @@ impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed {
             name,
             keys,
             top_locale_name,
+            strings: vec![],
+            top_locale_string_count: 0,
         })
+    }
+}
+
+#[derive(Default)]
+pub struct StringIndexer {
+    current: HashSet<String>,
+    acc: Vec<String>,
+}
+
+impl StringIndexer {
+    pub fn push_str(&mut self, s: String) -> usize {
+        if self.current.contains(&s) {
+            self.acc.iter().position(|i| i == &s).unwrap_or(usize::MAX)
+        } else {
+            let i = self.acc.len();
+            self.acc.push(s.clone());
+            self.current.insert(s);
+            i
+        }
+    }
+
+    pub fn get_strings(self) -> Vec<String> {
+        self.acc
     }
 }
