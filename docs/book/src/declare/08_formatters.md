@@ -59,6 +59,10 @@ This make the variable needed to be `impl leptos_i18n::formatting::NumberFormatt
 
 > \* Is implemented for convenience, but uses [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision, you may want to use your own.
 
+The formatter itself does'nt provide formatting options such as maximum significant digits, but those can be customize through `FixedDecimal` before being passed to the formatter.
+
+Enable the "format_nums" feature to use the number formatter.
+
 ### Arguments
 
 There are no arguments for this formatter at the moment.
@@ -87,6 +91,8 @@ Will format the date based on the locale.
 This make the variable needed to be `impl leptos_i18n::formatting::DateFormatterInputFn`, which is auto implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDate`.
 `IntoIcuDate` is a trait to turn a value into a `impl icu::datetime::input::DateInput` which is a trait used by `icu` to format dates. The `IntoIcuDate` trait is currently implemented for `T: DateInput<Calendar = AnyCalendar>`.
 You can use `icu::datetime::{Date, DateTime}`, or implement that trait for anything you want.
+
+Enable the "format_datetime" feature to use the date formatter.
 
 ### Arguments
 
@@ -129,6 +135,8 @@ This make the variable needed to be `impl leptos_i18n::formatting::TimeFormatter
 `IntoIcuTime` is a trait to turn a value into a `impl icu::datetime::input::TimeInput` which is a trait used by `icu` to format time. The `IntoIcuTime` trait is currently implemented for `T: IsoTimeInput`.
 You can use `icu::datetime::{Time, DateTime}`, or implement that trait for anything you want.
 
+Enable the "format_datetime" feature to use the time formatter.
+
 ### Arguments
 
 There is one argument at the moment for the time formatter: `time_length`, which is based on [`icu::datetime::options::length::Time`](https://docs.rs/icu/latest/icu/datetime/options/length/enum.Time.html), that can take 4 values:
@@ -170,6 +178,8 @@ This make the variable needed to be `impl leptos_i18n::formatting::DateTimeForma
 `IntoIcuDateTime` is a trait to turn a value into a `impl icu::datetime::input::DateTimeInput` which is a trait used by `icu` to format datetimes. The `IntoIcuDateTime` trait is currently implemented for `T: DateTimeInput<Calendar = AnyCalendar>`.
 You can use `icu::datetime::DateTime`, or implement that trait for anything you want.
 
+Enable the "format_datetime" feature to use the datetime formatter.
+
 ### Arguments
 
 There is two arguments at the moment for the datetime formatter: `date_length` and `time_length` that behave exactly the same at the one above.
@@ -209,9 +219,11 @@ Will format the list based on the locale.
 This make the variable needed to be `impl leptos_i18n::formatting::ListFormatterInputFn`, which is auto implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::WriteableList`.
 `WriteableList` is a trait to turn a value into a `impl Iterator<Item = impl writeable::Writeable>`.
 
+Enable the "format_list" feature to use the list formatter.
+
 ### Arguments
 
-There is two arguments at the moment for the datetime formatter: `list_type` and `list_length`.
+There is two arguments at the moment for the list formatter: `list_type` and `list_length`.
 
 `list_type` takes 3 possible values:
 
@@ -229,7 +241,7 @@ See [`Intl.ListFormat`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Ref
 
 ```json
 {
-  "short_and_list_formatter": "{{ list_var, list(list_length: ; time_length: full) }}"
+  "short_and_list_formatter": "{{ list_var, list(list_type: and; list_length: short) }}"
 }
 ```
 
