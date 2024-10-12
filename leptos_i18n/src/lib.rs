@@ -138,14 +138,30 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
-    pub use icu_locid as locid;
     pub use leptos_i18n_macro::declare_locales;
+}
+
+/// This module contain utilities to create custom ICU providers.
+#[cfg(all(
+    not(feature = "icu_compiled_data"),
+    any(
+        feature = "format_nums",
+        feature = "format_datetime",
+        feature = "format_list",
+        feature = "plurals"
+    )
+))]
+pub mod custom_provider {
+    pub use crate::macro_helpers::formatting::data_provider::IcuDataProvider;
+    pub use crate::macro_helpers::formatting::set_icu_data_provider;
+    pub use leptos_i18n_macro::IcuDataProvider;
 }
 
 /// Reexports of backend libraries, mostly about formatting.
 pub mod reexports {
     #[cfg(feature = "format_nums")]
     pub use fixed_decimal;
+
     /// module containing reexports of crates from the icu project
     pub mod icu {
         #[cfg(feature = "format_datetime")]
@@ -158,6 +174,16 @@ pub mod reexports {
         pub use icu_list as list;
         #[cfg(feature = "plurals")]
         pub use icu_plurals as plurals;
+
+        #[cfg(any(
+            feature = "format_nums",
+            feature = "format_datetime",
+            feature = "format_list",
+            feature = "plurals"
+        ))]
+        pub use icu_provider as provider;
+
+        pub use icu_locid as locid;
     }
     pub use leptos;
     pub use leptos_router;

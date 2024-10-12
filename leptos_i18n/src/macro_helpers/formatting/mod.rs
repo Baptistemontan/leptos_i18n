@@ -45,7 +45,7 @@ pub use leptos_i18n_macro::{
 
 #[cfg(feature = "format_nums")]
 fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
-    use data_provider::DataProvider;
+    use data_provider::IcuDataProvider;
 
     let locale = locale.as_icu_locale();
     inner::FORMATTERS.with_mut(|formatters| {
@@ -62,7 +62,7 @@ fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
 
 #[cfg(feature = "format_datetime")]
 fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static DateFormatter {
-    use data_provider::DataProvider;
+    use data_provider::IcuDataProvider;
 
     inner::FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
@@ -80,7 +80,7 @@ fn get_date_formatter<L: Locale>(locale: L, length: length::Date) -> &'static Da
 
 #[cfg(feature = "format_datetime")]
 fn get_time_formatter<L: Locale>(locale: L, length: length::Time) -> &'static TimeFormatter {
-    use data_provider::DataProvider;
+    use data_provider::IcuDataProvider;
 
     inner::FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
@@ -102,7 +102,7 @@ fn get_datetime_formatter<L: Locale>(
     date_length: length::Date,
     time_length: length::Time,
 ) -> &'static DateTimeFormatter {
-    use data_provider::DataProvider;
+    use data_provider::IcuDataProvider;
 
     inner::FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
@@ -146,7 +146,7 @@ pub fn get_plural_rules<L: Locale>(
     locale: L,
     plural_rule_type: PluralRuleType,
 ) -> &'static PluralRules {
-    use data_provider::DataProvider;
+    use data_provider::IcuDataProvider;
 
     inner::FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
@@ -160,6 +160,14 @@ pub fn get_plural_rules<L: Locale>(
         });
         *plural_rules
     })
+}
+
+#[cfg(not(feature = "icu_compiled_data"))]
+/// Supply a custom ICU data provider
+pub fn set_icu_data_provider(data_provider: impl data_provider::IcuDataProvider) {
+    inner::FORMATTERS.with_mut(|formatters| {
+        formatters.provider = data_provider::BakedDataProvider(Some(Box::new(data_provider)));
+    });
 }
 
 #[cfg(any(
@@ -229,53 +237,69 @@ mod inner {
     feature = "format_list",
     feature = "plurals"
 ))]
-mod data_provider {
+pub(crate) mod data_provider {
     use super::*;
     use icu_provider::DataLocale;
 
-    pub trait DataProvider {
+    /// Trait for custom ICU data providers.
+    pub trait IcuDataProvider: Send + Sync + 'static {
+        /// Tries to create a new `FixedDecimalFormatter` with the given options
         #[cfg(feature = "format_nums")]
         fn try_new_num_formatter(
             &self,
             locale: &DataLocale,
             options: icu_decimal::options::FixedDecimalFormatterOptions,
         ) -> Result<FixedDecimalFormatter, icu_decimal::DecimalError>;
+
+        /// Tries to create a new `DateFormatter` with the given options
         #[cfg(feature = "format_datetime")]
         fn try_new_date_formatter(
             &self,
             locale: &DataLocale,
             length: length::Date,
         ) -> Result<DateFormatter, icu_datetime::DateTimeError>;
+
+        /// Tries to create a new `TimeFormatter` with the given options
         #[cfg(feature = "format_datetime")]
         fn try_new_time_formatter(
             &self,
             locale: &DataLocale,
             length: length::Time,
         ) -> Result<TimeFormatter, icu_datetime::DateTimeError>;
+
+        /// Tries to create a new `DateTimeFormatter` with the given options
         #[cfg(feature = "format_datetime")]
         fn try_new_datetime_formatter(
             &self,
             locale: &DataLocale,
             options: icu_datetime::options::DateTimeFormatterOptions,
         ) -> Result<DateTimeFormatter, icu_datetime::DateTimeError>;
+
+        /// Tries to create a and `ListFormatter` with the given options
         #[cfg(feature = "format_list")]
         fn try_new_and_list_formatter(
             &self,
             locale: &DataLocale,
             style: ListLength,
         ) -> Result<ListFormatter, icu_list::ListError>;
+
+        /// Tries to create a new or `ListFormatter` with the given options
         #[cfg(feature = "format_list")]
         fn try_new_or_list_formatter(
             &self,
             locale: &DataLocale,
             style: ListLength,
         ) -> Result<ListFormatter, icu_list::ListError>;
+
+        /// Tries to create a new unit `ListFormatter` with the given options
         #[cfg(feature = "format_list")]
         fn try_new_unit_list_formatter(
             &self,
             locale: &DataLocale,
             style: ListLength,
         ) -> Result<ListFormatter, icu_list::ListError>;
+
+        /// Tries to create a new `PluralRules` with the given options
         #[cfg(feature = "plurals")]
         fn try_new_plural_rules(
             &self,
@@ -289,7 +313,7 @@ mod data_provider {
     pub struct BakedDataProvider;
 
     #[cfg(feature = "icu_compiled_data")]
-    impl DataProvider for BakedDataProvider {
+    impl IcuDataProvider for BakedDataProvider {
         #[cfg(feature = "format_nums")]
         fn try_new_num_formatter(
             &self,
@@ -365,17 +389,17 @@ mod data_provider {
 
     #[cfg(not(feature = "icu_compiled_data"))]
     #[derive(Default)]
-    pub struct BakedDataProvider(Option<Box<dyn DataProvider + Send + Sync>>);
+    pub struct BakedDataProvider(pub Option<Box<dyn IcuDataProvider>>);
 
     #[cfg(not(feature = "icu_compiled_data"))]
     impl BakedDataProvider {
-        fn get_provider(&self) -> &dyn DataProvider {
+        fn get_provider(&self) -> &dyn IcuDataProvider {
             self.0.as_deref().expect("No DataProvider provided.")
         }
     }
 
     #[cfg(not(feature = "icu_compiled_data"))]
-    impl DataProvider for BakedDataProvider {
+    impl IcuDataProvider for BakedDataProvider {
         #[cfg(feature = "format_nums")]
         fn try_new_num_formatter(
             &self,

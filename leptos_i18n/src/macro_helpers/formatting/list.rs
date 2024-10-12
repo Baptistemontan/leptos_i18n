@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use super::data_provider::DataProvider;
+use super::data_provider::IcuDataProvider;
 use icu_list::{ListFormatter, ListLength};
 use leptos::IntoView;
 use writeable::Writeable;
@@ -56,7 +56,7 @@ pub enum ListType {
 impl ListType {
     pub fn new_formatter(
         self,
-        provider: &impl DataProvider,
+        provider: &impl IcuDataProvider,
         locale: &icu_locid::Locale,
         length: ListLength,
     ) -> ListFormatter {
