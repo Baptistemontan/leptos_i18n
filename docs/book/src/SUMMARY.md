@@ -26,5 +26,7 @@
   - [Scoping](./usage/08_scoping.md)
 - [More Informations](./infos/README.md)
   - [Locale Resolution](./infos/01_locale_resol.md)
+- [Reduce Binary Size](./reduce_size/README.md)
+  - [ICU4X Datagen](./reduce_size/01_datagen.md)
 - [Features](./06_features.md)
 - [Appendix: `i18n Ally` extension for VSC](./appendix_i18n_ally.md)

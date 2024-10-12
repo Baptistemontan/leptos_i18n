@@ -337,7 +337,7 @@ fn create_locales_enum(
         .iter()
         .map(|(key, ident)| {
             let locale = &key.name;
-            quote!(const #ident: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!(#locale);)
+            quote!(const #ident: &'static l_i18n_crate::reexports::icu::locid::Locale = &l_i18n_crate::reexports::icu::locid::locale!(#locale);)
         })
         .collect::<Vec<_>>();
 
@@ -404,7 +404,7 @@ fn create_locales_enum(
                 l_i18n_crate::__private::intern(s)
             }
 
-            fn as_icu_locale(self) -> &'static l_i18n_crate::__private::locid::Locale {
+            fn as_icu_locale(self) -> &'static l_i18n_crate::reexports::icu::locid::Locale {
                 #(
                     #const_icu_locales;
                 )*
@@ -446,14 +446,14 @@ fn create_locales_enum(
             }
         }
 
-        impl core::convert::AsRef<l_i18n_crate::__private::locid::LanguageIdentifier> for #enum_ident {
-            fn as_ref(&self) -> &l_i18n_crate::__private::locid::LanguageIdentifier {
+        impl core::convert::AsRef<l_i18n_crate::reexports::icu::locid::LanguageIdentifier> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::reexports::icu::locid::LanguageIdentifier {
                 l_i18n_crate::Locale::as_langid(*self)
             }
         }
 
-        impl core::convert::AsRef<l_i18n_crate::__private::locid::Locale> for #enum_ident {
-            fn as_ref(&self) -> &l_i18n_crate::__private::locid::Locale {
+        impl core::convert::AsRef<l_i18n_crate::reexports::icu::locid::Locale> for #enum_ident {
+            fn as_ref(&self) -> &l_i18n_crate::reexports::icu::locid::Locale {
                 l_i18n_crate::Locale::as_icu_locale(*self)
             }
         }

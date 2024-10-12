@@ -95,3 +95,7 @@ If you need multiple counts, for example:
 ```
 
 There isn't a way to represent this in a single key, you will need `Foreign keys` that you can read about in a next chapter.
+
+## Activate the feature
+
+To use plurals in your translations, enable the "plurals" feature.

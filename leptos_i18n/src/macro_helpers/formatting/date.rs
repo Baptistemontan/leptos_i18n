@@ -1,9 +1,7 @@
 use std::fmt::{self, Display};
 
-use icu::{
-    calendar::AnyCalendar,
-    datetime::{input::DateInput, options::length},
-};
+use icu_calendar::AnyCalendar;
+use icu_datetime::{input::DateInput, options::length};
 use leptos::IntoView;
 
 use crate::Locale;

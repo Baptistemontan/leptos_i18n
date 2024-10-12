@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use icu::datetime::{input::IsoTimeInput, options::length};
+use icu_datetime::{input::IsoTimeInput, options::length};
 use leptos::IntoView;
 
 use crate::Locale;
