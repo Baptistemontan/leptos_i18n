@@ -353,7 +353,7 @@ mod data_provider {
             ListFormatter::try_new_unit_with_length(locale, style)
         }
 
-        #[cfg(feature = "format_list")]
+        #[cfg(feature = "plurals")]
         fn try_new_plural_rules(
             &self,
             locale: &DataLocale,
@@ -442,7 +442,7 @@ mod data_provider {
                 .try_new_unit_list_formatter(locale, style)
         }
 
-        #[cfg(feature = "format_list")]
+        #[cfg(feature = "plurals")]
         fn try_new_plural_rules(
             &self,
             locale: &DataLocale,
