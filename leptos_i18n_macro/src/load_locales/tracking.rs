@@ -12,9 +12,8 @@ pub fn generate_file_tracking() -> proc_macro2::TokenStream {
         feature = "track_locale_files",
         not(feature = "nightly")
     )) {
-        LOCALES_PATH.with_borrow(
-            |paths| quote::quote!(#(const _: &'static [u8] = include_bytes!(#paths);)*),
-        )
+        let paths = LOCALES_PATH.with_borrow_mut(std::mem::take);
+        quote::quote!(#(const _: &'static [u8] = include_bytes!(#paths);)*)
     } else {
         proc_macro2::TokenStream::new()
     }

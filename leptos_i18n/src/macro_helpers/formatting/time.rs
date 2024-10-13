@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use icu::datetime::{input::IsoTimeInput, options::length};
+use icu_datetime::{input::IsoTimeInput, options::length};
 use leptos::IntoView;
 
 use crate::Locale;
@@ -63,7 +63,7 @@ pub fn format_time_to_view<L: Locale>(
     locale: L,
     time: impl TimeFormatterInputFn,
     length: length::Time,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let time_formatter = super::get_time_formatter(locale, length);
 
     move || {

@@ -180,25 +180,44 @@ impl Formatter {
     pub fn from_name_and_args<'a, S: PartialEq + PartialEq<&'a str>>(
         name: S,
         args: Option<&[(S, S)]>,
-    ) -> Option<Formatter> {
+    ) -> Result<Option<Formatter>, Formatter> {
         if name == "number" {
-            Some(Formatter::Number)
+            if cfg!(feature = "format_nums") {
+                Ok(Some(Formatter::Number))
+            } else {
+                Err(Formatter::Number)
+            }
         } else if name == "datetime" {
-            Some(Formatter::DateTime(
-                DateLength::from_args(args),
-                TimeLength::from_args(args),
-            ))
+            let formatter =
+                Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args));
+            if cfg!(feature = "format_datetime") {
+                Ok(Some(formatter))
+            } else {
+                Err(formatter)
+            }
         } else if name == "date" {
-            Some(Formatter::Date(DateLength::from_args(args)))
+            let formatter = Formatter::Date(DateLength::from_args(args));
+            if cfg!(feature = "format_datetime") {
+                Ok(Some(formatter))
+            } else {
+                Err(formatter)
+            }
         } else if name == "time" {
-            Some(Formatter::Time(TimeLength::from_args(args)))
+            let formatter = Formatter::Time(TimeLength::from_args(args));
+            if cfg!(feature = "format_datetime") {
+                Ok(Some(formatter))
+            } else {
+                Err(formatter)
+            }
         } else if name == "list" {
-            Some(Formatter::List(
-                ListType::from_args(args),
-                ListStyle::from_args(args),
-            ))
+            let formatter = Formatter::List(ListType::from_args(args), ListStyle::from_args(args));
+            if cfg!(feature = "format_list") {
+                Ok(Some(formatter))
+            } else {
+                Err(formatter)
+            }
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -290,6 +309,17 @@ impl Formatter {
             Formatter::Time(_) => quote!(l_i18n_crate::__private::AsIcuTime),
             Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
+        }
+    }
+
+    pub fn err_message(&self) -> &'static str {
+        match self {
+            Formatter::None => "",
+            Formatter::Number => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
+            Formatter::Date(_) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::Time(_) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::DateTime(_, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::List(_, _) => "Formatting lists is not enabled, enable the \"format_list\" feature to do so",
         }
     }
 }

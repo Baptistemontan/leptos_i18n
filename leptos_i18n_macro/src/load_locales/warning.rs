@@ -119,19 +119,18 @@ fn generate_warnings_inner(warnings: &[SpannedWarning]) -> TokenStream {
 }
 
 pub fn generate_warnings() -> Option<TokenStream> {
-    WARNINGS.with(|cell| {
-        let ws = cell.borrow();
-        if cfg!(not(feature = "nightly")) {
-            if ws.is_empty() {
-                None
-            } else {
-                Some(generate_warnings_inner(&ws))
-            }
-        } else {
-            for warning in ws.iter() {
-                warning.emit();
-            }
+    let ws = WARNINGS.with_borrow_mut(std::mem::take);
+
+    if cfg!(not(feature = "nightly")) {
+        if ws.is_empty() {
             None
+        } else {
+            Some(generate_warnings_inner(&ws))
         }
-    })
+    } else {
+        for warning in ws.iter() {
+            warning.emit();
+        }
+        None
+    }
 }

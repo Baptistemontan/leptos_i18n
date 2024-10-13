@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::BTreeMap, fmt::Display, rc::Rc};
 
 use crate::load_locales::ranges::{RangeParseBuffer, Ranges, UntypedRangesInner};
-use crate::utils::key::{Key, KeyPath, CACHED_VAR_COUNT_KEY};
+use crate::utils::key::{Key, KeyPath, VAR_COUNT_KEY};
 
 use super::{
     cfg_file::ConfigFile,
@@ -93,6 +93,8 @@ fn parse_map_values(
         top_locale_name: locale.clone(),
         name: name.clone(),
         keys,
+        strings: vec![],
+        top_locale_string_count: 0,
     }))))
 }
 
@@ -205,7 +207,7 @@ fn parse_ranges(
         TypeOrRange::Type(range_type) => Ranges::from_type(range_type),
         TypeOrRange::Range(range) => Ranges {
             inner: UntypedRangesInner::I32(vec![range]),
-            count_key: CACHED_VAR_COUNT_KEY.with(Clone::clone),
+            count_key: Rc::new(Key::new(VAR_COUNT_KEY).unwrap()),
         },
     };
 
@@ -246,8 +248,8 @@ fn parse_block_inner(
     content: ParseBuffer,
     key_path: &mut KeyPath,
     locale: &Rc<Key>,
-) -> syn::Result<HashMap<Rc<Key>, ParsedValue>> {
-    let mut values = HashMap::new();
+) -> syn::Result<BTreeMap<Rc<Key>, ParsedValue>> {
+    let mut values = BTreeMap::new();
     while !content.is_empty() {
         let (key, value) = parse_values(&content, key_path, locale)?;
         values.insert(key, value);
@@ -262,7 +264,7 @@ fn parse_block(
     input: syn::parse::ParseStream,
     key_path: &mut KeyPath,
     locale: &Rc<Key>,
-) -> syn::Result<HashMap<Rc<Key>, ParsedValue>> {
+) -> syn::Result<BTreeMap<Rc<Key>, ParsedValue>> {
     let content;
     syn::braced!(content in input);
     parse_block_inner(content, key_path, locale)
@@ -288,6 +290,8 @@ fn parse_locale(input: syn::parse::ParseStream, locale_key: Rc<Key>) -> syn::Res
         top_locale_name: locale_key.clone(),
         name: locale_key,
         keys,
+        strings: vec![],
+        top_locale_string_count: 0,
     })
 }
 

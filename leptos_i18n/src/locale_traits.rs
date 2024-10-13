@@ -1,8 +1,7 @@
-use std::hash::Hash;
-use std::str::FromStr;
-
-use icu::locid;
+use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
 use leptos_router::ChooseView;
+use std::str::FromStr;
+use std::{fmt::Debug, hash::Hash};
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
 
@@ -15,8 +14,8 @@ pub trait Locale<L: Locale = Self>:
     + Clone
     + Copy
     + FromStr
-    + AsRef<locid::LanguageIdentifier>
-    + AsRef<locid::Locale>
+    + AsRef<LanguageIdentifier>
+    + AsRef<IcuLocale>
     + AsRef<str>
     + AsRef<L>
     + std::fmt::Display
@@ -35,14 +34,21 @@ pub trait Locale<L: Locale = Self>:
     /// Associated routes for routing
     type Routes<View, Chil>;
 
+    /// Associated `#[server]` function type to request the translations
+    #[cfg(feature = "dynamic_load")]
+    type ServerFn: leptos::server_fn::ServerFn;
+
+    /// Enum where each variants is an ID of a translation unit
+    type TranslationUnitId: TranslationUnitId;
+
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
 
     /// Return a static reference to a icu `Locale`
-    fn as_icu_locale(self) -> &'static locid::Locale;
+    fn as_icu_locale(self) -> &'static IcuLocale;
 
     /// Return a static reference to a `LanguageIdentifier`
-    fn as_langid(self) -> &'static locid::LanguageIdentifier {
+    fn as_langid(self) -> &'static LanguageIdentifier {
         Locale::as_icu_locale(self).as_ref()
     }
 
@@ -59,7 +65,7 @@ pub trait Locale<L: Locale = Self>:
     /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
     ///
     /// This function does not fallback to default if no match is found.
-    fn find_matchs<T: AsRef<locid::LanguageIdentifier>>(langid: T) -> Vec<Self> {
+    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
         let matches: Vec<L> =
             filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all());
         matches.into_iter().map(Self::from_base_locale).collect()
@@ -67,7 +73,7 @@ pub trait Locale<L: Locale = Self>:
 
     /// Return the keys based on self
     #[inline]
-    fn get_keys(self) -> &'static Self::Keys {
+    fn get_keys(self) -> Self::Keys {
         LocaleKeys::from_locale(self.to_base_locale())
     }
 
@@ -89,6 +95,24 @@ pub trait Locale<L: Locale = Self>:
     ) -> Self::Routes<View, Chil>
     where
         View: ChooseView;
+
+    /// Associated `#[server]` function to request the translations
+    #[cfg(feature = "dynamic_load")]
+    fn request_translations(
+        self,
+        translations_id: Self::TranslationUnitId,
+    ) -> impl std::future::Future<
+        Output = Result<
+            crate::fetch_translations::LocaleServerFnOutput,
+            leptos::prelude::ServerFnError,
+        >,
+    > + Send
+           + Sync
+           + 'static;
+
+    /// Init the translation unit of the given ID with the given values
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>);
 }
 
 /// Trait implemented the struct representing the translation keys
@@ -99,7 +123,21 @@ pub trait LocaleKeys: 'static + Clone + Copy + Send + Sync {
     type Locale: Locale;
 
     /// Return a static ref to Self containing the translations for the given locale
-    fn from_locale(locale: Self::Locale) -> &'static Self;
+    fn from_locale(locale: Self::Locale) -> Self;
+}
+
+/// Trait for the type giving an ID to each section of the translations
+pub trait TranslationUnitId:
+    serde::Serialize + serde::de::DeserializeOwned + Copy + Debug + Send + Sync + Eq + Hash + 'static
+{
+    /// Return the string representation of that ID
+    fn to_str(self) -> Option<&'static str>;
+}
+
+impl TranslationUnitId for () {
+    fn to_str(self) -> Option<&'static str> {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -120,7 +158,7 @@ mod test {
         },
     }
 
-    use crate::{self as leptos_i18n, scope_locale, Locale as _, __private::LitWrapper};
+    use crate::Locale as _;
     use i18n::Locale;
 
     #[test]
@@ -142,10 +180,12 @@ mod test {
     }
 
     #[test]
+    #[cfg(not(feature = "dynamic_load"))]
     fn test_scope() {
+        use crate::{self as leptos_i18n, __private::LitWrapper, scope_locale};
         let en_sk = scope_locale!(Locale::en, sk);
-        assert_eq!(en_sk.get_keys().ssk, LitWrapper::new("test en"));
+        assert_eq!(en_sk.get_keys().ssk(), LitWrapper::new("test en"));
         let fr_sk = en_sk.map_locale(Locale::fr);
-        assert_eq!(fr_sk.get_keys().ssk, LitWrapper::new("test fr"));
+        assert_eq!(fr_sk.get_keys().ssk(), LitWrapper::new("test fr"));
     }
 }

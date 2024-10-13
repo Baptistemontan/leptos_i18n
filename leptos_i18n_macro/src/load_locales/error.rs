@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
+use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
@@ -15,8 +15,8 @@ pub(crate) enum Error {
         path: PathBuf,
         err: SerdeError,
     },
-    DuplicateLocalesInConfig(HashSet<String>),
-    DuplicateNamespacesInConfig(HashSet<String>),
+    DuplicateLocalesInConfig(BTreeSet<String>),
+    DuplicateNamespacesInConfig(BTreeSet<String>),
     SubKeyMissmatch {
         locale: Rc<Key>,
         key_path: KeyPath,
@@ -100,6 +100,19 @@ pub(crate) enum Error {
         message: String,
     },
     RangeAndPluralsMix {
+        key_path: KeyPath,
+    },
+    PluralsAtNormalKey {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+    },
+    DisabledFormatter {
+        locale: Rc<Key>,
+        key_path: KeyPath,
+        formatter: crate::utils::formatter::Formatter,
+    },
+    DisabledPlurals {
+        locale: Rc<Key>,
         key_path: KeyPath,
     },
 }
@@ -189,6 +202,9 @@ impl Display for Error {
             Error::CountArgOutsideRange { locale, key_path, foreign_key, err } => write!(f, "Invalid arg \"count\" in locale {:?} at key \"{}\" to foreign key \"{}\": argument \"count\" is outside range: {}", locale, key_path, foreign_key, err),
             Error::UnexpectedToken { locale, key_path, message } => write!(f, "Unexpected error occured while parsing key \"{}\" in locale {:?}: {}", key_path, locale, message),
             Error::RangeAndPluralsMix { key_path } => write!(f, "mixing plurals and ranges are not supported yet, for key \"{}\"", key_path),
+            Error::PluralsAtNormalKey { key_path, locale } => write!(f, "In locale {:?} at key \"{}\", Found plurals but a key of that name is already present.", locale, key_path),
+            Error::DisabledFormatter { locale, key_path, formatter } => write!(f, "{}, at key \"{}\" in locale {:?}", formatter.err_message(), key_path, locale),
+            Error::DisabledPlurals { locale, key_path } => write!(f, "Plurals are not enabled, enable the \"plurals\" feature to use them, at key \"{}\" in locale {:?}", key_path, locale),
         }
     }
 }

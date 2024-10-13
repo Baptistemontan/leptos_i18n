@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{borrow::Cow, fmt::Display, marker::PhantomData};
+use std::{borrow::Cow, fmt::Display, future::Future, marker::PhantomData};
 
 pub mod formatting;
 mod interpol_args;
@@ -12,7 +12,7 @@ use leptos::IntoView;
 pub use scope::*;
 
 #[doc(hidden)]
-pub trait Literal: Sized + Display + IntoView {
+pub trait Literal: Sized + Display + IntoView + Copy {
     fn into_str(self) -> Cow<'static, str>;
 }
 
@@ -69,7 +69,7 @@ impl<T: Literal> LitWrapper<T> {
         self
     }
 
-    pub fn into_view(self) -> impl IntoView {
+    pub fn into_view(self) -> impl IntoView + Copy {
         self.0
     }
 
@@ -79,6 +79,70 @@ impl<T: Literal> LitWrapper<T> {
 
     pub fn build_display(self) -> impl Display {
         self.0
+    }
+}
+
+#[doc(hidden)]
+#[repr(transparent)]
+pub struct LitWrapperFut<T>(T);
+
+impl<T: Literal, F: Future<Output = LitWrapper<T>>> LitWrapperFut<F> {
+    pub const fn new(v: F) -> Self {
+        LitWrapperFut(v)
+    }
+
+    pub const fn builder(self) -> Self {
+        self
+    }
+
+    pub const fn display_builder(self) -> Self {
+        self
+    }
+
+    pub const fn build(self) -> Self {
+        self
+    }
+
+    pub async fn into_view(self) -> impl IntoView + Copy {
+        self.0.await.into_view()
+    }
+
+    pub async fn build_string(self) -> Cow<'static, str> {
+        self.0.await.build_string()
+    }
+
+    pub async fn build_display(self) -> impl Display {
+        self.0.await.build_display()
+    }
+}
+
+impl<T: Literal> LitWrapperFut<LitWrapper<T>> {
+    pub const fn new_not_fut(v: T) -> Self {
+        LitWrapperFut(LitWrapper::new(v))
+    }
+
+    pub const fn builder(self) -> Self {
+        self
+    }
+
+    pub const fn display_builder(self) -> Self {
+        self
+    }
+
+    pub const fn build(self) -> Self {
+        self
+    }
+
+    pub fn into_view(self) -> impl IntoView + Copy {
+        self.0.into_view()
+    }
+
+    pub async fn build_string(self) -> Cow<'static, str> {
+        self.0.build_string()
+    }
+
+    pub async fn build_display(self) -> impl Display {
+        self.0.build_display()
     }
 }
 
@@ -136,10 +200,81 @@ impl<'de, L: Locale> serde::de::Visitor<'de> for LocaleVisitor<L> {
 }
 
 #[doc(hidden)]
+pub struct StrVisitor;
+
+impl<'de> serde::de::Visitor<'de> for StrVisitor {
+    type Value = String;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a string")
+    }
+
+    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(String::from(v))
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Self::visit_borrowed_str(self, v)
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v)
+    }
+}
+
+#[doc(hidden)]
 pub fn intern(s: &str) -> &str {
     if cfg!(any(feature = "csr", feature = "hydrate")) {
         wasm_bindgen::intern(s)
     } else {
         s
     }
+}
+
+#[doc(hidden)]
+#[track_caller]
+#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+pub const fn index_translations<const N: usize, const I: usize>(
+    translations: &'static [&'static str; N],
+) -> &'static str {
+    translations[I]
+}
+
+#[doc(hidden)]
+#[track_caller]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+pub fn index_translations<const N: usize, const I: usize>(
+    translations: &'static [Box<str>; N],
+) -> &'static str {
+    &translations[I]
+}
+
+#[doc(hidden)]
+#[cfg(feature = "dynamic_load")]
+pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
+    fut: impl Fn() -> F + 'static,
+) -> impl Fn() -> Option<IV> {
+    use leptos::prelude::{AsyncDerived, Get};
+    use std::task::Context;
+    fn poll_once<F: Future>(fut: F) -> Option<F::Output> {
+        let pinned = std::pin::pin!(fut);
+        let waker = noop_waker::noop_waker();
+        let mut cx = Context::from_waker(&waker);
+        match Future::poll(pinned, &mut cx) {
+            std::task::Poll::Ready(v) => Some(v),
+            std::task::Poll::Pending => None,
+        }
+    }
+    let maybe_ready = poll_once(fut());
+    let fut = AsyncDerived::new_unsync(fut);
+    move || fut.get().or_else(|| maybe_ready.clone())
 }

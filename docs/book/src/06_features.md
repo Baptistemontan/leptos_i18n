@@ -26,12 +26,6 @@ This feature must be enabled when building the client in csr mode
 
 Set a cookie to remember the last chosen locale.
 
-#### `sync`
-
-This feature has no impact on the user.
-This feature allow the crate to use sync data types such as `Mutex` or `OnceLock`.
-Activated when the `actix` or `axum` feature is enabled.
-
 #### `experimental-islands`
 
 This feature is, as it's name says, experimental.
@@ -74,3 +68,24 @@ you may have noticed that if you use `cargo-leptos` with `watch-additional-files
 This feature use a "trick" by using `include_bytes!()` to declare the use of a file, but I'm a bit sceptical of the impact on build time using this.
 I've already checked and it does not include the bytes in the final binary, even in debug, but it may slow down compilation time.
 If you use the `nightly` feature it use the [path tracking API](https://github.com/rust-lang/rust/issues/99515) so no trick using `include_bytes!` and the possible slowdown in compile times coming with it.
+
+#### `icu_compiled_data` (Default)
+
+ICU4X is used as a backend for formatting and plurals, they bring their own data to know what to do for each locales. This is great when starting up a project without knowing exactly what you need, this is why it is enabled by default, so things works right out of the box.
+But those baked data can take quite a lot of space in the final binary as it brings informations for all possible locales, so if you want to reduce this footprint you can disable this feature and provide you own data with selected informations. See the datagen section in the reduce binary size chapter for more informations.
+
+#### `plurals`
+
+Allow the use of plurals in translations.
+
+#### `format_datetime`
+
+Allow the use of the `date`, `time` and `datetime` formatters.
+
+#### `format_list`
+
+Allow the use of the `list` formatter.
+
+#### `format_nums`
+
+Allow the use of the `number` formatter.

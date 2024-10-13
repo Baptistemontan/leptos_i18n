@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -12,7 +12,7 @@ use std::fmt::Display;
 use crate::{
     load_locales::{
         error::{Error, Result},
-        interpolate::CACHED_LOCALE_FIELD_KEY,
+        interpolate::LOCALE_FIELD_KEY,
         locale::LiteralType,
         parsed_value::{InterpolOrLit, Literal},
     },
@@ -23,6 +23,7 @@ use crate::{
 };
 
 use super::{
+    locale::StringIndexer,
     parsed_value::ParsedValue,
     warning::{emit_warning, Warning},
 };
@@ -68,7 +69,7 @@ impl ToTokens for PluralRuleType {
     }
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PluralForm {
     Zero,
     One,
@@ -143,10 +144,17 @@ pub struct Plurals {
     // we could have `ParsedValue::Plurals(Box<Plurals>)`
     // but that makes `ParsedValue::Plurals(Plurals { .. })` impossible in match patterns.
     pub other: Box<ParsedValue>,
-    pub forms: HashMap<PluralForm, ParsedValue>,
+    pub forms: BTreeMap<PluralForm, ParsedValue>,
 }
 
 impl Plurals {
+    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+        for form in self.forms.values_mut() {
+            form.index_strings::<CLONE>(strings);
+        }
+        self.other.index_strings::<CLONE>(strings);
+    }
+
     fn get_plural_rules(&self, locale: &Rc<Key>) -> PluralRules {
         let locale = locale
             .name
@@ -157,11 +165,11 @@ impl Plurals {
 
     pub fn check_categories(&self, locale: &Rc<Key>, key_path: &KeyPath) {
         let plural_rules = self.get_plural_rules(locale);
-        let categs = self.forms.keys().copied().collect::<HashSet<_>>();
+        let categs = self.forms.keys().copied().collect::<BTreeSet<_>>();
         let used_categs = plural_rules
             .categories()
             .map(PluralForm::from_icu_category)
-            .collect::<HashSet<_>>();
+            .collect::<BTreeSet<_>>();
         for cat in categs.difference(&used_categs) {
             emit_warning(
                 Warning::UnusedCategory {
@@ -175,15 +183,15 @@ impl Plurals {
         }
     }
 
-    pub fn as_string_impl(&self, count_key: &Key) -> TokenStream {
+    pub fn as_string_impl(&self, count_key: &Key, strings_count: usize) -> TokenStream {
         let match_arms = self.forms.iter().map(|(form, value)| {
-            let ts = value.as_string_impl();
+            let ts = value.as_string_impl(strings_count);
             quote!(#form => { #ts })
         });
 
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
 
-        let other = self.other.as_string_impl();
+        let other = self.other.as_string_impl(strings_count);
 
         let rule_type = self.rule_type;
 
@@ -199,13 +207,13 @@ impl Plurals {
     fn populate_with_new_key(
         &self,
         new_key: Rc<Key>,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
     ) -> Result<ParsedValue> {
         let other = self.other.populate(args, foreign_key, locale, key_path)?;
-        let mut forms = HashMap::new();
+        let mut forms = BTreeMap::new();
         for (form, value) in &self.forms {
             let value = value.populate(args, foreign_key, locale, key_path)?;
             forms.insert(*form, value);
@@ -228,7 +236,10 @@ impl Plurals {
         let mut iter = values.iter().peekable();
         while let Some(next) = iter.peek() {
             match next {
-                ParsedValue::Literal(Literal::String(s)) if s.trim().is_empty() => {
+                ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => {
+                    iter.next();
+                }
+                ParsedValue::None => {
                     iter.next();
                 }
                 ParsedValue::Variable { .. } => break,
@@ -251,7 +262,8 @@ impl Plurals {
 
         for next in iter {
             match next {
-                ParsedValue::Literal(Literal::String(s)) if s.trim().is_empty() => continue,
+                ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => continue,
+                ParsedValue::None => continue,
                 _ => {
                     return Err(Error::InvalidCountArg {
                         locale: locale.clone(),
@@ -268,7 +280,7 @@ impl Plurals {
     fn populate_with_count_arg(
         &self,
         count_arg: &ParsedValue,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -318,7 +330,7 @@ impl Plurals {
 
     pub fn populate(
         &self,
-        args: &HashMap<String, ParsedValue>,
+        args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
         locale: &Rc<Key>,
         key_path: &KeyPath,
@@ -329,21 +341,16 @@ impl Plurals {
 
         self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
     }
-}
 
-impl ToTokens for Plurals {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        tokens.extend(self.to_token_stream())
-    }
-
-    fn to_token_stream(&self) -> TokenStream {
+    pub fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         let either_of = EitherOfWrapper::new(self.forms.len() + 1);
         let match_arms = self.forms.iter().enumerate().map(|(i, (form, value))| {
-            let ts = either_of.wrap(i, value);
+            let ts = value.to_token_stream(strings_count);
+            let ts = either_of.wrap(i, ts);
             quote!(#form => { #ts })
         });
 
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
         let other = &*self.other;
 
         let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
@@ -366,7 +373,8 @@ impl ToTokens for Plurals {
 
         let count_key = &self.count_key;
 
-        let other = either_of.wrap(self.forms.len(), other);
+        let other_ts = other.to_token_stream(strings_count);
+        let other = either_of.wrap(self.forms.len(), other_ts);
 
         quote! {
             {

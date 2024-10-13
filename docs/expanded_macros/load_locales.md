@@ -105,9 +105,9 @@ pub mod i18n {
             l_i18n_crate::__private::intern(s)
         }
 
-        fn as_icu_locale(self) -> &'static l_i18n_crate::__private::locid::Locale {
-            const EN_LANGID: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!("en");
-            const FR_LANGID: &'static l_i18n_crate::__private::locid::Locale = &l_i18n_crate::__private::locid::locale!("fr");
+        fn as_icu_locale(self) -> &'static l_i18n_crate::reexports::icu::locid::Locale {
+            const EN_LANGID: &'static l_i18n_crate::reexports::icu::locid::Locale = &l_i18n_crate::reexports::icu::locid::locale!("en");
+            const FR_LANGID: &'static l_i18n_crate::reexports::icu::locid::Locale = &l_i18n_crate::reexports::icu::locid::locale!("fr");
             match self {
                 Locale::en => EN_LANGID,
                 Locale::fr => FR_LANGID,
@@ -138,14 +138,14 @@ pub mod i18n {
         }
     }
 
-    impl core::convert::AsRef<l_i18n_crate::__private::locid::LanguageIdentifier> for Locale {
-        fn as_ref(&self) -> &l_i18n_crate::__private::locid::LanguageIdentifier {
+    impl core::convert::AsRef<l_i18n_crate::reexports::icu::locid::LanguageIdentifier> for Locale {
+        fn as_ref(&self) -> &l_i18n_crate::reexports::icu::locid::LanguageIdentifier {
             l_i18n_crate::Locale::as_langid(*self)
         }
     }
 
-    impl core::convert::AsRef<l_i18n_crate::__private::locid::Locale> for Locale {
-        fn as_ref(&self) -> &l_i18n_crate::__private::locid::Locale {
+    impl core::convert::AsRef<l_i18n_crate::reexports::icu::locid::Locale> for Locale {
+        fn as_ref(&self) -> &l_i18n_crate::reexports::icu::locid::Locale {
             l_i18n_crate::Locale::as_icu_locale(*self)
         }
     }

@@ -8,14 +8,15 @@ use quote::ToTokens;
 use super::locale::Locale;
 use super::parsed_value::InterpolationKeys;
 use super::parsed_value::RangeOrPlural;
+use super::parsed_value::TRANSLATIONS_KEY;
+use super::strings_accessor_method_name;
 use crate::utils::formatter::Formatter;
 use crate::utils::key::{Key, KeyPath};
 use crate::utils::EitherOfWrapper;
 
-thread_local! {
-    pub static CACHED_LOCALE_FIELD_KEY: Rc<Key> = Rc::new(Key::new("_locale").unwrap());
-}
+pub const LOCALE_FIELD_KEY: &str = "_locale";
 
+#[derive(Clone)]
 enum EitherIter<A, B> {
     Iter1(A),
     Iter2(B),
@@ -99,7 +100,7 @@ impl Field {
             VarOrComp::Comp { into_view } => {
                 let ts = [
                     quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>),
-                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView),
+                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + Clone),
                 ];
                 EitherIter::Iter2(ts.into_iter())
             }
@@ -203,6 +204,7 @@ impl Interpolation {
         keys: &InterpolationKeys,
         locales: &[Locale],
         key_path: &KeyPath,
+        locale_type_ident: &syn::Ident,
     ) -> Self {
         let builder_name = format!("{}_builder", key.name);
 
@@ -210,10 +212,11 @@ impl Interpolation {
 
         let dummy_ident = format_ident!("{}_dummy", ident);
 
-        let locale_field = CACHED_LOCALE_FIELD_KEY.with(Clone::clone);
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
         let into_view_field = Key::new("_into_views_marker").unwrap();
 
         let typed_builder_name = format_ident!("{}Builder", ident);
+        let display_struct_ident = format_ident!("{}Display", ident);
 
         let fields = Self::make_fields(keys);
 
@@ -244,15 +247,28 @@ impl Interpolation {
             &fields,
             locales,
             key_path,
+            locale_type_ident,
         );
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
         let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
-            let display_impl =
-                Self::display_impl(key, &ident, enum_ident, &locale_field, &fields, locales);
-            let builder_display =
-                Self::builder_string_build_fns(enum_ident, &typed_builder_name, &fields);
+            let display_impl = Self::display_impl(
+                key,
+                &ident,
+                &display_struct_ident,
+                enum_ident,
+                &locale_field,
+                &fields,
+                locales,
+                locale_type_ident,
+            );
+            let builder_display = Self::builder_string_build_fns(
+                enum_ident,
+                &typed_builder_name,
+                &display_struct_ident,
+                &fields,
+            );
             (display_impl, builder_display)
         } else {
             (quote!(), quote!())
@@ -281,6 +297,7 @@ impl Interpolation {
     fn builder_string_build_fns(
         enum_ident: &syn::Ident,
         typed_builder_name: &syn::Ident,
+        display_struct_ident: &syn::Ident,
         fields: &[Field],
     ) -> TokenStream {
         let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
@@ -293,18 +310,53 @@ impl Interpolation {
             .filter_map(Field::as_into_view_generic)
             .map(|_| quote!(()));
 
-        quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #((#marker,),)*)> {
+        let fns = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+            quote! {
+                #[inline]
+                pub async fn build_display(self) -> impl std::fmt::Display {
+                    let inner = self.build();
+                    #display_struct_ident::new(inner).await
+                }
+
+                #[inline]
+                pub async fn build_string(self) -> std::borrow::Cow<'static, str> {
+                    let display_struct = self.build_display().await;
+                    std::borrow::Cow::Owned(display_struct.to_string())
+                }
+            }
+        } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+            quote! {
+                #[inline]
+                pub async fn build_display(self) -> impl std::fmt::Display {
+                    let inner = self.build();
+                    #display_struct_ident::new(inner)
+                }
+
+                #[inline]
+                pub async fn build_string(self) -> std::borrow::Cow<'static, str> {
+                    let display_struct = self.build_display();
+                    std::borrow::Cow::Owned(display_struct.to_string())
+                }
+            }
+        } else {
+            quote! {
                 #[inline]
                 pub fn build_display(self) -> impl std::fmt::Display {
-                    self.build()
+                    let inner = self.build();
+                    #display_struct_ident::new(inner)
                 }
 
                 #[inline]
                 pub fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    std::borrow::Cow::Owned(self.build().to_string())
+                    std::borrow::Cow::Owned(self.build_display().to_string())
                 }
+            }
+        };
+
+        quote! {
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics,)*> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #((#marker,),)*)> {
+                #fns
             }
         }
     }
@@ -435,31 +487,119 @@ impl Interpolation {
     fn display_impl(
         key: &Key,
         ident: &syn::Ident,
+        display_struct_ident: &syn::Ident,
         enum_ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
         locales: &[Locale],
+        locale_type_ident: &syn::Ident,
     ) -> TokenStream {
         let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
+
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
+
+        let raw_generics = fields
+            .iter()
+            .flat_map(Field::as_right_generics)
+            .collect::<Vec<_>>();
 
         let fields_key = fields.iter().map(|f| &*f.key);
 
-        let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
+        let destructure = quote!(let #ident { #(#fields_key,)* #locale_field, .. } = &self.1;);
 
-        let locales_impls = Self::create_locale_string_impl(key, enum_ident, locales);
+        let translations_holder_enum_ident = format_ident!("{}Enum", display_struct_ident);
+        let locales_impls = Self::create_locale_string_impl(
+            key,
+            &translations_holder_enum_ident,
+            locales,
+            locale_type_ident,
+        );
+
+        let str_name = display_struct_ident.to_string();
+
+        let translations_holder_enum = if cfg!(feature = "dynamic_load") {
+            let translations_holder_enum_ident_variants = locales.iter().map(|locale| {
+                let top_locale = &locale.top_locale_name.ident;
+                let strings_count = locale.top_locale_string_count;
+                quote! {
+                    #top_locale(&'static [&'static str; #strings_count])
+                }
+            });
+
+            quote! {
+                #[derive(Clone, Copy)]
+                #[allow(non_camel_case_types, non_snake_case)]
+                enum #translations_holder_enum_ident {
+                    #(
+                        #translations_holder_enum_ident_variants,
+                    )*
+                }
+            }
+        } else {
+            quote! {
+                #[allow(non_camel_case_types, non_snake_case)]
+                type #translations_holder_enum_ident = #enum_ident;
+            }
+        };
+
+        let new_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+            let match_arms = locales.iter().map(|locale| {
+                let top_locale = &locale.top_locale_name.ident;
+                let string_accessor = strings_accessor_method_name(locale);
+                let strings_count = locale.top_locale_string_count;
+                quote! {
+                    #enum_ident::#top_locale => {
+                        let translations: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                        #translations_holder_enum_ident::#top_locale(translations)
+                    }
+                }
+            });
+            quote! {
+                pub async fn new(builder: #ident<#(#raw_generics,)*>) -> Self {
+                    let translations = match builder.#locale_field {
+                        #(
+                            #match_arms,
+                        )*
+                    };
+                    #display_struct_ident(translations, builder)
+                }
+            }
+        } else {
+            quote! {
+                pub fn new(builder: #ident<#(#raw_generics,)*>) -> Self {
+                    #display_struct_ident(builder.#locale_field, builder)
+                }
+            }
+        };
 
         quote! {
+
+            #translations_holder_enum
+
+            #[allow(non_camel_case_types, non_snake_case)]
+            struct #display_struct_ident<#(#raw_generics,)*>(#translations_holder_enum_ident, #ident<#(#raw_generics,)*>);
+
             #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> ::core::fmt::Display for #ident<#(#right_generics,)*> {
+            impl<#(#raw_generics,)*> core::fmt::Debug for #display_struct_ident<#(#raw_generics,)*> {
+                fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                    f.debug_struct(#str_name).finish()
+                }
+            }
+
+            #[allow(non_camel_case_types)]
+            impl<#(#left_generics,)*> ::core::fmt::Display for #display_struct_ident<#(#right_generics,)*> {
                 fn fmt(&self, __formatter: &mut ::core::fmt::Formatter<'_>) -> core::fmt::Result {
                     #destructure
-                    match #locale_field {
+                    match self.0 {
                         #(
                             #locales_impls,
                         )*
                     }
                 }
+            }
+
+            impl<#(#raw_generics,)*> #display_struct_ident<#(#raw_generics,)*> {
+                #new_fn
             }
         }
     }
@@ -473,6 +613,7 @@ impl Interpolation {
         fields: &[Field],
         locales: &[Locale],
         key_path: &KeyPath,
+        locale_type_ident: &syn::Ident,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -483,7 +624,7 @@ impl Interpolation {
             return quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
                         let _ = self;
                         #key
                     }
@@ -495,17 +636,32 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, enum_ident, locales);
-
-        quote! {
-            #[allow(non_camel_case_types)]
-            impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView {
-                    #destructure
-                    match #locale_field {
-                        #(
-                            #locales_impls,
-                        )*
+        let locales_impls = Self::create_locale_impl(key, enum_ident, locales, locale_type_ident);
+        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    pub async fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                        #destructure
+                        match #locale_field {
+                            #(
+                                #locales_impls,
+                            )*
+                        }
+                    }
+                }
+            }
+        } else {
+            quote! {
+                #[allow(non_camel_case_types)]
+                impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                        #destructure
+                        match #locale_field {
+                            #(
+                                #locales_impls,
+                            )*
+                        }
                     }
                 }
             }
@@ -516,6 +672,7 @@ impl Interpolation {
         key: &'a Key,
         enum_ident: &'a syn::Ident,
         locales: &'a [Locale],
+        locale_type_ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let either_wrapper = EitherOfWrapper::new(locales.len());
         locales
@@ -525,11 +682,39 @@ impl Interpolation {
             .filter_map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
-                let value = locale.keys.get(key)?;
+                let value = locale
+                    .keys
+                    .get(key)?
+                    .to_token_stream(locale.top_locale_string_count);
 
                 let wrapped_value = either_wrapper.wrap(i, value);
 
-                let ts = quote!(#enum_ident::#locale_key => { #wrapped_value });
+                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+
+                let string_accessor = strings_accessor_method_name(locale);
+                let strings_count = locale.top_locale_string_count;
+                let ts = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+                    quote!{
+                        #enum_ident::#locale_key => {
+                            let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                            #wrapped_value
+                        }
+                    }
+                } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    quote!{
+                        #enum_ident::#locale_key => {
+                            let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            #wrapped_value
+                        }
+                    }
+                } else {
+                    quote!{
+                        #enum_ident::#locale_key => {
+                            const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            #wrapped_value
+                        }
+                    }
+                };
                 Some(ts)
             })
     }
@@ -538,13 +723,34 @@ impl Interpolation {
         key: &'a Key,
         enum_ident: &'a syn::Ident,
         locales: &'a [Locale],
+        locale_type_ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         locales.iter().rev().filter_map(move |locale| {
             let locale_key = &locale.top_locale_name;
+            let value = locale
+                .keys
+                .get(key)?
+                .as_string_impl(locale.top_locale_string_count);
 
-            let value = locale.keys.get(key)?.as_string_impl();
+            let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
 
-            let ts = quote!(#enum_ident::#locale_key => { #value });
+            let string_accessor = strings_accessor_method_name(locale);
+            let strings_count = locale.top_locale_string_count;
+
+            let ts = if cfg!(feature = "dynamic_load") {
+                quote!{
+                    #enum_ident::#locale_key(#translations_key) => {
+                        #value
+                    }
+                }
+            } else {
+                quote!{
+                    #enum_ident::#locale_key => {
+                        const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        #value
+                    }
+                }
+            };
             Some(ts)
         })
     }

@@ -2,7 +2,7 @@ use serde::de::DeserializeOwned;
 
 use super::error::{Error, Result};
 use crate::utils::key::Key;
-use std::{borrow::Cow, collections::HashSet, path::PathBuf, rc::Rc};
+use std::{borrow::Cow, collections::BTreeSet, path::PathBuf, rc::Rc};
 
 #[derive(Debug)]
 pub struct ConfigFile {
@@ -13,17 +13,17 @@ pub struct ConfigFile {
 }
 
 impl ConfigFile {
-    fn contain_duplicates(locales: &[Rc<Key>]) -> Option<HashSet<String>> {
+    fn contain_duplicates(locales: &[Rc<Key>]) -> Option<BTreeSet<String>> {
         // monkey time
 
-        let mut marked = HashSet::with_capacity(locales.len());
+        let mut marked = BTreeSet::new();
 
         let mut duplicates = None;
 
         for key in locales {
             if !marked.insert(key) {
                 duplicates
-                    .get_or_insert_with(HashSet::new)
+                    .get_or_insert_with(BTreeSet::new)
                     .insert(key.name.clone());
             }
         }

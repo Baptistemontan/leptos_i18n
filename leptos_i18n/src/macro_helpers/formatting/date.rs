@@ -1,9 +1,7 @@
 use std::fmt::{self, Display};
 
-use icu::{
-    calendar::AnyCalendar,
-    datetime::{input::DateInput, options::length},
-};
+use icu_calendar::AnyCalendar;
+use icu_datetime::{input::DateInput, options::length};
 use leptos::IntoView;
 
 use crate::Locale;
@@ -66,7 +64,7 @@ pub fn format_date_to_view<L: Locale>(
     locale: L,
     date: impl DateFormatterInputFn,
     length: length::Date,
-) -> impl IntoView {
+) -> impl IntoView + Clone {
     let date_formatter = super::get_date_formatter(locale, length);
 
     move || {

@@ -14,7 +14,14 @@ tests_common = { workspace = true }
 
 [dependencies.leptos_i18n]
 workspace = true
-features = ["interpolate_display", "track_locale_files"]
+features = [
+    "interpolate_display",
+    "track_locale_files",
+    "plurals",
+    "format_datetime",
+    "format_nums",
+    "format_list",
+]
 
 
 [package.metadata.leptos-i18n]
