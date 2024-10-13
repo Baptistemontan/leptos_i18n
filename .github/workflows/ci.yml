@@ -228,7 +228,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tests_suites: [json, yaml, namespaces]
+        tests_suites: [json, json5, yaml, namespaces]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
