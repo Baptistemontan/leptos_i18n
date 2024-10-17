@@ -34,6 +34,7 @@ impl Key {
         Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()))
     }
 
+    #[cfg(feature = "quote")]
     pub fn from_ident(ident: syn::Ident) -> Self {
         let s = ident.to_string();
         Key {
