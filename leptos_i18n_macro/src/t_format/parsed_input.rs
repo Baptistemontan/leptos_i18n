@@ -32,12 +32,15 @@ fn is_parenthesized(input: ParseStream) -> syn::Result<ParseBuffer> {
 }
 
 fn convert_formatter_result(
-    res: Result<Option<Formatter>, Formatter>,
+    res: Result<
+        Option<leptos_i18n_parser::utils::formatter::Formatter>,
+        leptos_i18n_parser::utils::formatter::Formatter,
+    >,
     span: proc_macro2::Span,
     err: syn::Error,
 ) -> syn::Result<Formatter> {
     match res {
-        Ok(Some(formatter)) => Ok(formatter),
+        Ok(Some(formatter)) => Ok(formatter.into()),
         Ok(None) => Err(err),
         Err(formatter) => Err(syn::Error::new(span, formatter.err_message())),
     }
@@ -52,7 +55,10 @@ fn parse_formatter(
     let args: Vec<_> = args.into_iter().collect();
 
     let span = formatter_name.span();
-    let res = Formatter::from_name_and_args(formatter_name, Some(&args));
+    let res = leptos_i18n_parser::utils::formatter::Formatter::from_name_and_args(
+        formatter_name,
+        Some(&args),
+    );
     convert_formatter_result(res, span, err)
 }
 
@@ -73,7 +79,10 @@ impl syn::parse::Parse for ParsedInput {
             parse_formatter(args, formatter_name, formatter_name_err)?
         } else {
             let span = formatter_name.span();
-            let res = Formatter::from_name_and_args(formatter_name, None);
+            let res = leptos_i18n_parser::utils::formatter::Formatter::from_name_and_args(
+                formatter_name,
+                None,
+            );
             convert_formatter_result(res, span, formatter_name_err)?
         };
 

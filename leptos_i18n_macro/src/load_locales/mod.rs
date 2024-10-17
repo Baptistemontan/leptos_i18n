@@ -1,8 +1,9 @@
-use std::{collections::BTreeMap, ops::Not, path::PathBuf, rc::Rc};
+use std::collections::BTreeMap;
+use std::ops::Not;
 
-pub mod cfg_file;
+// pub mod cfg_file;
 pub mod declare_locales;
-pub mod error;
+// pub mod error;
 pub mod interpolate;
 pub mod locale;
 pub mod parsed_value;
@@ -12,24 +13,18 @@ pub mod warning;
 
 pub mod plurals;
 
-use crate::utils::{
-    fit_in_leptos_tuple,
-    key::{Key, KeyPath},
-};
-use cfg_file::ConfigFile;
-use error::{Error, Result};
+use crate::utils::fit_in_leptos_tuple;
+use leptos_i18n_parser::parse_locales::locale::{BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue, Namespace};
+use leptos_i18n_parser::parse_locales::warning::Warnings;
+use leptos_i18n_parser::utils::key::{Key, KeyPath};
+use leptos_i18n_parser::parse_locales::{cfg_file::ConfigFile, locale::LocalesOrNamespaces, ForeignKeysPaths};
+use leptos_i18n_parser::parse_locales::error::Result;
 use interpolate::Interpolation;
-use locale::{LiteralType, Locale, LocaleValue};
-use parsed_value::{InterpolOrLit, TRANSLATIONS_KEY};
+use locale::LiteralType;
+use parsed_value::TRANSLATIONS_KEY;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-
-use crate::load_locales::parsed_value::ParsedValue;
-
-use self::{
-    locale::{BuildersKeys, BuildersKeysInner, LocalesOrNamespaces, Namespace},
-    warning::generate_warnings,
-};
+use warning::generate_warnings;
 
 /// Steps:
 ///
@@ -43,35 +38,30 @@ use self::{
 /// 4.4: discard any surplus key and emit a warning
 /// 5: generate code (and warnings)
 pub fn load_locales() -> Result<TokenStream> {
-    let mut cargo_manifest_dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR")
-        .map_err(Error::CargoDirEnvNotPresent)?
-        .into();
 
-    let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
-    let mut locales = LocalesOrNamespaces::new(&mut cargo_manifest_dir, &cfg_file)?;
+    let (locales, cfg_file, foreign_keys, warnings, tracked_files) = leptos_i18n_parser::parse_locales::parse_locales_raw()?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
-    load_locales_inner(&crate_path, &cfg_file, &mut locales)
+    load_locales_inner(&crate_path, &cfg_file, locales, foreign_keys, warnings, Some(tracked_files))
 }
 
 fn load_locales_inner(
     crate_path: &syn::Path,
     cfg_file: &ConfigFile,
-    locales: &mut LocalesOrNamespaces,
+    locales: LocalesOrNamespaces,
+    foreign_keys_paths: ForeignKeysPaths,
+    warnings: Warnings,
+    tracked_files: Option<Vec<String>>
 ) -> Result<TokenStream> {
-    locales.merge_plurals()?;
-
-    ParsedValue::resolve_foreign_keys(locales, &cfg_file.default)?;
-
-    let keys = Locale::check_locales(locales)?;
+    let keys = leptos_i18n_parser::parse_locales::make_builder_keys(locales, cfg_file, foreign_keys_paths, &warnings)?;
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
     let translation_unit_enum_ident = syn::Ident::new("I18nTranslationUnitsId", Span::call_site());
 
     let locale_type =
-        create_locale_type(keys, &keys_ident, &enum_ident, &translation_unit_enum_ident);
+        create_locale_type(&keys, &keys_ident, &enum_ident, &translation_unit_enum_ident);
     let locale_enum = create_locales_enum(
         &enum_ident,
         &keys_ident,
@@ -80,9 +70,9 @@ fn load_locales_inner(
         &cfg_file.locales,
     );
 
-    let warnings = generate_warnings();
+    let warnings = generate_warnings(warnings);
 
-    let file_tracking = tracking::generate_file_tracking();
+    let file_tracking = tracking::generate_file_tracking(tracked_files);
 
     let mut macros_reexport = vec![
         quote!(t),
@@ -308,7 +298,7 @@ fn create_locales_enum(
     keys_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     default: &Key,
-    locales: &[Rc<Key>],
+    locales: &[Key],
 ) -> TokenStream {
     let as_str_match_arms = locales
         .iter()
@@ -534,7 +524,7 @@ fn create_locales_enum(
 }
 
 struct Subkeys<'a> {
-    original_key: Rc<Key>,
+    original_key: Key,
     key: syn::Ident,
     mod_key: syn::Ident,
     locales: &'a [Locale],
@@ -542,9 +532,9 @@ struct Subkeys<'a> {
 }
 
 impl<'a> Subkeys<'a> {
-    pub fn new(key: Rc<Key>, locales: &'a [Locale], keys: &'a BuildersKeysInner) -> Self {
-        let mod_key = format_ident!("sk_{}", key.ident);
-        let new_key = format_ident!("{}_subkeys", key.ident);
+    pub fn new(key: Key, locales: &'a [Locale], keys: &'a BuildersKeysInner) -> Self {
+        let mod_key = format_ident!("sk_{}", key);
+        let new_key = format_ident!("{}_subkeys", key);
         Subkeys {
             original_key: key,
             key: new_key,
@@ -556,7 +546,7 @@ impl<'a> Subkeys<'a> {
 }
 
 fn strings_accessor_method_name(locale: &Locale) -> Ident {
-    format_ident!("__get_{}_translations__", &locale.top_locale_name.ident)
+    format_ident!("__get_{}_translations__", locale.top_locale_name)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -566,7 +556,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     locales: &[Locale],
-    keys: &BTreeMap<Rc<Key>, LocaleValue>,
+    keys: &BTreeMap<Key, LocaleValue>,
     key_path: &mut KeyPath,
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
@@ -574,7 +564,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     let literal_keys = keys
         .iter()
         .filter_map(|(key, value)| match value {
-            LocaleValue::Value(InterpolOrLit::Lit(t)) => Some((key.clone(), t)),
+            LocaleValue::Value(InterpolOrLit::Lit(t)) => Some((key.clone(), LiteralType::from(*t))),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -608,14 +598,14 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 }
             } else {
                 let match_arms = locales.iter().map(|locale| {
-                    let ident = &*locale.top_locale_name;
+                    let ident = &locale.top_locale_name;
                     let accessor = strings_accessor_method_name(locale);
                     let lit = locale
                         .keys
                         .get(key)
-                        .expect("this value should be present.")
-                        .to_token_stream(locale.top_locale_string_count);
-                    if **literal_type == LiteralType::String {
+                        .expect("this value should be present.");
+                    let lit = parsed_value::to_token_stream(lit, locale.top_locale_string_count);
+                    if *literal_type == LiteralType::String {
                         let strings_count = locale.top_locale_string_count;
                         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                             quote! {
@@ -781,7 +771,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         locales
             .iter()
             .map(|locale| {
-                let locale_name = &locale.top_locale_name.ident;
+                let locale_name = &*locale.top_locale_name.ident;
                 let struct_name = format_ident!("{}_{}", type_ident, locale_name);
                 let strings_count = locale.top_locale_string_count;
                 let strings = &*locale.strings;
@@ -898,7 +888,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             }
             _ => {
                 let string_holder =
-                    format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
+                    format_ident!("{}_{}", type_ident, locale.top_locale_name);
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
                         pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
@@ -924,8 +914,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let i18n_request_translations_fn = if IS_TOP {
         let match_arms = locales.iter().map(|locale| {
-            let string_holder = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
-            let locale_name = &*locale.top_locale_name;
+            let string_holder = format_ident!("{}_{}", type_ident, locale.top_locale_name);
+            let locale_name = &locale.top_locale_name;
             quote! {
                 #enum_ident::#locale_name => #string_holder::get_translations()
             }
@@ -957,8 +947,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let init_translations = if IS_TOP && cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
         let match_arms = locales.iter().map(|locale| {
-            let string_holder = format_ident!("{}_{}", type_ident, &locale.top_locale_name.ident);
-            let locale_name = &*locale.top_locale_name;
+            let string_holder = format_ident!("{}_{}", type_ident, locale.top_locale_name);
+            let locale_name = &locale.top_locale_name;
             quote! {
                 #enum_ident::#locale_name => <#string_holder as l_i18n_crate::__private::fetch_translations::TranslationUnit>::init_translations(values)
             }
@@ -1040,7 +1030,7 @@ fn create_namespaces_types(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     namespaces: &[Namespace],
-    keys: &BTreeMap<Rc<Key>, BuildersKeysInner>,
+    keys: &BTreeMap<Key, BuildersKeysInner>,
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1240,7 +1230,7 @@ fn create_namespaces_types(
 }
 
 fn create_locale_type(
-    keys: BuildersKeys,
+    keys: &BuildersKeys,
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
@@ -1251,7 +1241,7 @@ fn create_locale_type(
             enum_ident,
             translation_unit_enum_ident,
             namespaces,
-            &keys,
+            keys,
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,

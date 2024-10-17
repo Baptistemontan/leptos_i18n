@@ -1,46 +1,26 @@
-use crate::load_locales::warning::{emit_warning, Warning};
-use crate::utils::key::Key;
-use std::path::Path;
-use std::rc::Rc;
-
-thread_local! {
-    pub static LOCALES_PATH: std::cell::RefCell<Vec<String>>  = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-pub fn generate_file_tracking() -> proc_macro2::TokenStream {
-    if cfg!(all(
-        feature = "track_locale_files",
-        not(feature = "nightly")
-    )) {
-        let paths = LOCALES_PATH.with_borrow_mut(std::mem::take);
-        quote::quote!(#(const _: &'static [u8] = include_bytes!(#paths);)*)
-    } else {
-        proc_macro2::TokenStream::new()
-    }
-}
-
-pub fn track_file(locale: &Rc<Key>, namespace: Option<&Rc<Key>>, path: &Path) {
+pub fn generate_file_tracking(tracked_files: Option<Vec<String>>) -> proc_macro2::TokenStream {
     if cfg!(all(
         not(feature = "track_locale_files"),
         not(feature = "nightly")
     )) {
-        return;
+        return proc_macro2::TokenStream::new();
     }
 
-    if let Some(path) = path.as_os_str().to_str() {
-        if cfg!(not(feature = "nightly")) {
-            LOCALES_PATH.with_borrow_mut(|paths| paths.push(path.to_owned()));
-        }
-        #[cfg(feature = "nightly")]
-        proc_macro::tracked_path::path(path);
+    let Some(paths) = tracked_files else {
+        return proc_macro2::TokenStream::new();
+    };
+
+    if cfg!(all(
+        feature = "track_locale_files",
+        not(feature = "nightly")
+    )) {
+        quote::quote!(#(const _: &'static [u8] = include_bytes!(#paths);)*)
     } else {
-        emit_warning(
-            Warning::NonUnicodePath {
-                locale: locale.clone(),
-                namespace: namespace.cloned(),
-                path: path.to_owned(),
-            },
-            None,
-        );
+        #[cfg(feature = "nightly")]
+        for path in paths {
+            proc_macro::tracked_path::path(path);
+        }
+
+        proc_macro2::TokenStream::new()
     }
 }

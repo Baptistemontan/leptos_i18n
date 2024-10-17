@@ -1,36 +1,17 @@
-use serde::de::DeserializeOwned;
+use std::{borrow::Cow, collections::BTreeSet, path::PathBuf};
 
 use super::error::{Error, Result};
-use crate::utils::key::Key;
-use std::{borrow::Cow, collections::BTreeSet, path::PathBuf, rc::Rc};
+use crate::utils::Key;
 
 #[derive(Debug)]
 pub struct ConfigFile {
-    pub default: Rc<Key>,
-    pub locales: Vec<Rc<Key>>,
-    pub name_spaces: Option<Vec<Rc<Key>>>,
+    pub default: Key,
+    pub locales: Vec<Key>,
+    pub name_spaces: Option<Vec<Key>>,
     pub locales_dir: Cow<'static, str>,
 }
 
 impl ConfigFile {
-    fn contain_duplicates(locales: &[Rc<Key>]) -> Option<BTreeSet<String>> {
-        // monkey time
-
-        let mut marked = BTreeSet::new();
-
-        let mut duplicates = None;
-
-        for key in locales {
-            if !marked.insert(key) {
-                duplicates
-                    .get_or_insert_with(BTreeSet::new)
-                    .insert(key.name.clone());
-            }
-        }
-
-        duplicates
-    }
-
     pub fn new(manifest_dir_path: &mut PathBuf) -> Result<ConfigFile> {
         manifest_dir_path.push("Cargo.toml");
 
@@ -59,7 +40,7 @@ impl ConfigFile {
             cfg.locales.swap(0, i);
         } else {
             let len = cfg.locales.len();
-            cfg.locales.push(Rc::clone(&cfg.default));
+            cfg.locales.push(cfg.default.clone());
             cfg.locales.swap(0, len);
         }
 
@@ -74,6 +55,24 @@ impl ConfigFile {
         } else {
             Ok(cfg)
         }
+    }
+
+    fn contain_duplicates(locales: &[Key]) -> Option<BTreeSet<Key>> {
+        // monkey time
+
+        let mut marked = BTreeSet::new();
+
+        let mut duplicates = None;
+
+        for key in locales {
+            if !marked.insert(key) {
+                duplicates
+                    .get_or_insert_with(BTreeSet::new)
+                    .insert(key.clone());
+            }
+        }
+
+        duplicates
     }
 }
 
@@ -154,7 +153,7 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
         ) -> Result<(), A::Error>
         where
             A: serde::de::MapAccess<'de>,
-            T: DeserializeOwned,
+            T: serde::de::DeserializeOwned,
         {
             if option.replace(map.next_value()?).is_some() {
                 Err(serde::de::Error::duplicate_field(field_name))
