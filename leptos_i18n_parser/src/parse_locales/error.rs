@@ -209,3 +209,5 @@ impl Display for Error {
 }
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
+
+impl std::error::Error for Error {}
