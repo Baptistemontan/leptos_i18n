@@ -3,7 +3,7 @@ use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use syn::Token;
 
 pub mod formatter;
-pub mod key;
+// pub mod key;
 pub mod scoped;
 
 pub enum Keys {

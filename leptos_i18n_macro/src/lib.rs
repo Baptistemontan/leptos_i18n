@@ -30,7 +30,10 @@ use t_macro::{InputType, OutputType};
 pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match load_locales::load_locales() {
         Ok(ts) => ts.into(),
-        Err(err) => err.into(),
+        Err(err) => {
+            let err = err.to_string();
+            quote::quote!(compile_error!(#err);).into()
+        }
     }
 }
 

@@ -30,13 +30,17 @@ jobs:
         run: cargo test-all-features
 
   macros_test:
-    # Why not also use cargo-all-features with the macros package ?
+    # Why not also use cargo-all-features with the parser and macros packages ?
     # Because all features are forwarded from leptos_i18n,
     # so if some features mix creates a problem they will appear in leptos_i18n tests.
     # All leptos_i18n_macro tests don't require any feature flag, so no need to test each feature and matchup
     # just run once with default, this speeds up CI
     name: Test leptos_i18n_macro package
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        packages: [leptos_i18n_macro, leptos_i18n_parser]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -45,7 +49,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: "Run tests"
-        run: cargo test --package leptos_i18n_macro
+        run: cargo test --package ${{ matrix.packages }}
 
   test_ssr_examples:
     name: Test ${{ matrix.examples }} SSR example

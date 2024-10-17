@@ -1,73 +1,39 @@
-use super::key::Key;
+use leptos_i18n_parser::utils::Key;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DateLength {
     Full,
     Long,
-    #[default]
     Medium,
     Short,
 }
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TimeLength {
     Full,
     Long,
     Medium,
-    #[default]
     Short,
 }
 
-fn from_args_helper<'a, T: Default, S: PartialEq + PartialEq<&'a str>>(
-    args: Option<&[(S, S)]>,
-    name: &'a str,
-    f: impl Fn(&S) -> Option<T>,
-) -> T {
-    let Some(args) = args else {
-        return Default::default();
-    };
-    for (arg_name, value) in args {
-        if arg_name != &name {
-            continue;
-        }
-        if let Some(v) = f(value) {
-            return v;
-        }
-    }
-    Default::default()
-}
-
-macro_rules! impl_from_args {
-    ($name:literal, $($arg_name:literal => $value:expr,)*) => {
-        pub fn from_args<'a, S: PartialEq + PartialEq<&'a str>>(args: Option<&[(S, S)]>) -> Self {
-        from_args_helper(args, $name, |arg| {
-            $(
-                if arg == &$arg_name {
-                    Some($value)
-                } else
-            )*
-            {
-                None
+macro_rules! impl_from {
+    ($t: ident, $($variant:ident),*) => {
+        impl From<leptos_i18n_parser::utils::formatter::$t> for $t {
+            fn from(value: leptos_i18n_parser::utils::formatter::$t) -> Self {
+                match value {
+                    $(
+                        leptos_i18n_parser::utils::formatter::$t::$variant => Self::$variant,
+                    )*
+                }
             }
-        })
-    }
-    }
+        }
+    };
 }
 
 macro_rules! impl_length {
-    ($t:ty, $arg_name:literal, $name:ident) => {
-        impl $t {
-            impl_from_args! {
-                $arg_name,
-                "full" => Self::Full,
-                "long" => Self::Long,
-                "medium" => Self::Medium,
-                "short" => Self::Short,
-            }
-        }
-
+    ($t:ident, $name:ident) => {
         impl ToTokens for $t {
             fn to_token_stream(&self) -> TokenStream {
                 match self {
@@ -95,37 +61,27 @@ macro_rules! impl_length {
                 tokens.extend(ts);
             }
         }
+
+        impl_from!($t, Full, Long, Medium, Short);
     };
 }
 
-impl_length!(DateLength, "date_length", Date);
-impl_length!(TimeLength, "time_length", Time);
+impl_length!(DateLength, Date);
+impl_length!(TimeLength, Time);
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListType {
     And,
     Or,
-    #[default]
     Unit,
 }
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListStyle {
-    #[default]
     Wide,
     Short,
     Narrow,
 }
-
-impl ListType {
-    impl_from_args! {
-        "list_type",
-        "and" => Self::And,
-        "or" => Self::Or,
-        "unit" => Self::Unit,
-    }
-}
-
 impl ToTokens for ListType {
     fn to_token_stream(&self) -> TokenStream {
         match self {
@@ -141,14 +97,7 @@ impl ToTokens for ListType {
     }
 }
 
-impl ListStyle {
-    impl_from_args! {
-        "list_style",
-        "wide" => Self::Wide,
-        "short" => Self::Short,
-        "narrow" => Self::Narrow,
-    }
-}
+impl_from!(ListType, And, Or, Unit);
 
 impl ToTokens for ListStyle {
     fn to_token_stream(&self) -> TokenStream {
@@ -165,6 +114,8 @@ impl ToTokens for ListStyle {
     }
 }
 
+impl_from!(ListStyle, Wide, Short, Narrow);
+
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
     #[default]
@@ -176,51 +127,28 @@ pub enum Formatter {
     List(ListType, ListStyle),
 }
 
-impl Formatter {
-    pub fn from_name_and_args<'a, S: PartialEq + PartialEq<&'a str>>(
-        name: S,
-        args: Option<&[(S, S)]>,
-    ) -> Result<Option<Formatter>, Formatter> {
-        if name == "number" {
-            if cfg!(feature = "format_nums") {
-                Ok(Some(Formatter::Number))
-            } else {
-                Err(Formatter::Number)
+impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
+    fn from(value: leptos_i18n_parser::utils::formatter::Formatter) -> Self {
+        match value {
+            leptos_i18n_parser::utils::formatter::Formatter::None => Self::None,
+            leptos_i18n_parser::utils::formatter::Formatter::Number => Self::Number,
+            leptos_i18n_parser::utils::formatter::Formatter::Date(date_length) => {
+                Self::Date(date_length.into())
             }
-        } else if name == "datetime" {
-            let formatter =
-                Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args));
-            if cfg!(feature = "format_datetime") {
-                Ok(Some(formatter))
-            } else {
-                Err(formatter)
+            leptos_i18n_parser::utils::formatter::Formatter::Time(time_length) => {
+                Self::Time(time_length.into())
             }
-        } else if name == "date" {
-            let formatter = Formatter::Date(DateLength::from_args(args));
-            if cfg!(feature = "format_datetime") {
-                Ok(Some(formatter))
-            } else {
-                Err(formatter)
+            leptos_i18n_parser::utils::formatter::Formatter::DateTime(date_length, time_length) => {
+                Self::DateTime(date_length.into(), time_length.into())
             }
-        } else if name == "time" {
-            let formatter = Formatter::Time(TimeLength::from_args(args));
-            if cfg!(feature = "format_datetime") {
-                Ok(Some(formatter))
-            } else {
-                Err(formatter)
+            leptos_i18n_parser::utils::formatter::Formatter::List(list_type, list_style) => {
+                Self::List(list_type.into(), list_style.into())
             }
-        } else if name == "list" {
-            let formatter = Formatter::List(ListType::from_args(args), ListStyle::from_args(args));
-            if cfg!(feature = "format_list") {
-                Ok(Some(formatter))
-            } else {
-                Err(formatter)
-            }
-        } else {
-            Ok(None)
         }
     }
+}
 
+impl Formatter {
     pub fn var_to_view(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         match self {
             Formatter::None => {
@@ -309,17 +237,6 @@ impl Formatter {
             Formatter::Time(_) => quote!(l_i18n_crate::__private::AsIcuTime),
             Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
-        }
-    }
-
-    pub fn err_message(&self) -> &'static str {
-        match self {
-            Formatter::None => "",
-            Formatter::Number => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
-            Formatter::Date(_) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::Time(_) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::DateTime(_, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::List(_, _) => "Formatting lists is not enabled, enable the \"format_list\" feature to do so",
         }
     }
 }

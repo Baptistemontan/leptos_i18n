@@ -1,17 +1,19 @@
-use std::rc::Rc;
-
+use leptos_i18n_parser::parse_locales::locale::InterpolationKeys;
+use leptos_i18n_parser::parse_locales::locale::Locale;
+use leptos_i18n_parser::utils::Key;
+use leptos_i18n_parser::utils::KeyPath;
 use proc_macro2::{Span, TokenStream};
 use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
-use super::locale::Locale;
-use super::parsed_value::InterpolationKeys;
-use super::parsed_value::RangeOrPlural;
+use super::parsed_value;
+// use super::parsed_value::InterpolationKeys;
+// use super::parsed_value::RangeOrPlural;
 use super::parsed_value::TRANSLATIONS_KEY;
+use super::ranges::RangeType;
 use super::strings_accessor_method_name;
 use crate::utils::formatter::Formatter;
-use crate::utils::key::{Key, KeyPath};
 use crate::utils::EitherOfWrapper;
 
 pub const LOCALE_FIELD_KEY: &str = "_locale";
@@ -38,6 +40,38 @@ pub struct Interpolation {
     pub imp: TokenStream,
 }
 
+#[derive(Debug, Copy, Clone)]
+enum RangeOrPlural {
+    Range(RangeType),
+    Plural,
+}
+
+impl From<leptos_i18n_parser::parse_locales::locale::RangeOrPlural> for RangeOrPlural {
+    fn from(value: leptos_i18n_parser::parse_locales::locale::RangeOrPlural) -> Self {
+        match value {
+            leptos_i18n_parser::parse_locales::locale::RangeOrPlural::Range(range_type) => {
+                RangeOrPlural::Range(range_type.into())
+            }
+            leptos_i18n_parser::parse_locales::locale::RangeOrPlural::Plural => {
+                RangeOrPlural::Plural
+            }
+        }
+    }
+}
+
+impl RangeOrPlural {
+    pub fn to_bound(self) -> TokenStream {
+        match self {
+            RangeOrPlural::Range(range_type) => {
+                quote!(l_i18n_crate::__private::InterpolateRangeCount<#range_type>)
+            }
+            RangeOrPlural::Plural => {
+                quote!(l_i18n_crate::__private::InterpolatePluralCount)
+            }
+        }
+    }
+}
+
 enum VarOrComp {
     Var {
         formatters: Vec<Formatter>,
@@ -49,7 +83,7 @@ enum VarOrComp {
 }
 
 struct Field {
-    key: Rc<Key>,
+    key: Key,
     generic: syn::Ident,
     var_or_comp: VarOrComp,
 }
@@ -166,13 +200,18 @@ impl Field {
 impl Interpolation {
     fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
         let vars = keys.iter_vars().map(|(key, infos)| {
-            let mut formatters = infos.formatters.iter().copied().collect::<Vec<_>>();
+            let mut formatters = infos
+                .formatters
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>();
             formatters.sort_unstable();
             let var_or_comp = VarOrComp::Var {
                 formatters,
-                plural: infos.range_count,
+                plural: infos.range_count.map(Into::into),
             };
-            let generic = format_ident!("__{}__", key.ident);
+            let generic = format_ident!("__{}__", key);
             Field {
                 key,
                 var_or_comp,
@@ -181,9 +220,9 @@ impl Interpolation {
         });
 
         let comps = keys.iter_comps().map(|key| {
-            let into_view = format_ident!("__into_view_{}__", key.ident);
+            let into_view = format_ident!("__into_view_{}__", key);
             let var_or_comp = VarOrComp::Comp { into_view };
-            let generic = format_ident!("__{}__", key.ident);
+            let generic = format_ident!("__{}__", key);
             Field {
                 key,
                 var_or_comp,
@@ -206,7 +245,7 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
     ) -> Self {
-        let builder_name = format!("{}_builder", key.name);
+        let builder_name = format!("{}_builder", key);
 
         let ident = syn::Ident::new(&builder_name, Span::call_site());
 
@@ -503,7 +542,7 @@ impl Interpolation {
             .flat_map(Field::as_right_generics)
             .collect::<Vec<_>>();
 
-        let fields_key = fields.iter().map(|f| &*f.key);
+        let fields_key = fields.iter().map(|f| &f.key);
 
         let destructure = quote!(let #ident { #(#fields_key,)* #locale_field, .. } = &self.1;);
 
@@ -632,7 +671,7 @@ impl Interpolation {
             };
         }
 
-        let fields_key = fields.iter().map(|f| &*f.key);
+        let fields_key = fields.iter().map(|f| &f.key);
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
@@ -684,8 +723,9 @@ impl Interpolation {
 
                 let value = locale
                     .keys
-                    .get(key)?
-                    .to_token_stream(locale.top_locale_string_count);
+                    .get(key)?;
+
+                let value = parsed_value::to_token_stream(value, locale.top_locale_string_count);
 
                 let wrapped_value = either_wrapper.wrap(i, value);
 
@@ -729,8 +769,9 @@ impl Interpolation {
             let locale_key = &locale.top_locale_name;
             let value = locale
                 .keys
-                .get(key)?
-                .as_string_impl(locale.top_locale_string_count);
+                .get(key)?;
+
+            let value = parsed_value::as_string_impl(value, locale.top_locale_string_count);
 
             let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
 

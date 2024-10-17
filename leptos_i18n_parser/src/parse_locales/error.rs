@@ -1,11 +1,10 @@
-use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
+use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
-use quote::quote;
 
 #[derive(Debug)]
-pub(crate) enum Error {
+pub enum Error {
     CargoDirEnvNotPresent(std::env::VarError),
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
@@ -15,10 +14,10 @@ pub(crate) enum Error {
         path: PathBuf,
         err: SerdeError,
     },
-    DuplicateLocalesInConfig(BTreeSet<String>),
-    DuplicateNamespacesInConfig(BTreeSet<String>),
+    DuplicateLocalesInConfig(BTreeSet<Key>),
+    DuplicateNamespacesInConfig(BTreeSet<Key>),
     SubKeyMissmatch {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     RangeParse {
@@ -49,53 +48,53 @@ pub(crate) enum Error {
     },
     ExplicitDefaultInDefault(KeyPath),
     RecursiveForeignKey {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     MissingForeignKey {
         foreign_key: KeyPath,
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     InvalidForeignKey {
         foreign_key: KeyPath,
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     UnknownFormatter {
         name: String,
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     ConflictingPluralRuleType {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     InvalidForeignKeyArgs {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
         err: serde_json::Error,
     },
     InvalidCountArg {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
         foreign_key: KeyPath,
     },
     InvalidCountArgType {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
         foreign_key: KeyPath,
         input_type: RangeType,
         range_type: RangeType,
     },
     CountArgOutsideRange {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
         foreign_key: KeyPath,
         err: TryFromIntError,
     },
     UnexpectedToken {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
         message: String,
     },
@@ -103,16 +102,16 @@ pub(crate) enum Error {
         key_path: KeyPath,
     },
     PluralsAtNormalKey {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
     DisabledFormatter {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
         formatter: crate::utils::formatter::Formatter,
     },
     DisabledPlurals {
-        locale: Rc<Key>,
+        locale: Key,
         key_path: KeyPath,
     },
 }
@@ -206,13 +205,6 @@ impl Display for Error {
             Error::DisabledFormatter { locale, key_path, formatter } => write!(f, "{}, at key \"{}\" in locale {:?}", formatter.err_message(), key_path, locale),
             Error::DisabledPlurals { locale, key_path } => write!(f, "Plurals are not enabled, enable the \"plurals\" feature to use them, at key \"{}\" in locale {:?}", key_path, locale),
         }
-    }
-}
-
-impl From<Error> for proc_macro::TokenStream {
-    fn from(value: Error) -> Self {
-        let error = value.to_string();
-        quote!(compile_error!(#error);).into()
     }
 }
 
