@@ -222,9 +222,12 @@ pub(crate) mod inner {
         pub provider: data_provider::BakedDataProvider,
     }
 
-    #[cfg(not(feature = "icu_compiled_data"))]
     /// Supply a custom ICU data provider
+    /// Does nothing if the "icu_compiled_data" feature is enabled.
     pub fn set_icu_data_provider(data_provider: impl super::data_provider::IcuDataProvider) {
+        #[cfg(feature = "icu_compiled_data")]
+        let _ = data_provider;
+        #[cfg(not(feature = "icu_compiled_data"))]
         inner::FORMATTERS.with_mut(|formatters| {
             formatters.provider =
                 super::data_provider::BakedDataProvider(Some(Box::new(data_provider)));
