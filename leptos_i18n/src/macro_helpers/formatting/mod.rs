@@ -235,14 +235,35 @@ pub(crate) mod inner {
     }
 }
 
-#[cfg(any(
+#[cfg(not(any(
     feature = "format_nums",
     feature = "format_datetime",
     feature = "format_list",
     feature = "plurals"
-))]
+)))]
+pub(crate) mod inner {
+    /// Supply a custom ICU data provider
+    /// Does nothing if the "icu_compiled_data" feature is enabled.
+    pub fn set_icu_data_provider(data_provider: impl super::data_provider::IcuDataProvider) {
+        let _ = data_provider;
+    }
+}
+
 pub(crate) mod data_provider {
+    #[cfg(any(
+        feature = "format_nums",
+        feature = "format_datetime",
+        feature = "format_list",
+        feature = "plurals"
+    ))]
     use super::*;
+
+    #[cfg(any(
+        feature = "format_nums",
+        feature = "format_datetime",
+        feature = "format_list",
+        feature = "plurals"
+    ))]
     use icu_provider::DataLocale;
 
     /// Trait for custom ICU data providers.
@@ -397,6 +418,7 @@ pub(crate) mod data_provider {
 
     #[cfg(not(feature = "icu_compiled_data"))]
     impl BakedDataProvider {
+        #[allow(dead_code)]
         fn get_provider(&self) -> &dyn IcuDataProvider {
             self.0.as_deref().expect("No DataProvider provided.")
         }
