@@ -35,7 +35,7 @@ jobs:
     # so if some features mix creates a problem they will appear in leptos_i18n tests.
     # All leptos_i18n_macro tests don't require any feature flag, so no need to test each feature and matchup
     # just run once with default, this speeds up CI
-    name: Test leptos_i18n_macro package
+    name: Test ${{ matrix.packages }} package
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
