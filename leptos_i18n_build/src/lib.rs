@@ -47,6 +47,10 @@ impl TranslationsInfos {
         Ok(TranslationsInfos { locales, paths })
     }
 
+    pub fn files_paths(&self) -> &[String] {
+        &self.paths
+    }
+
     pub fn rerun_if_locales_changed(&self) {
         for path in &self.paths {
             println!("cargo:rerun-if-changed={}", path);
