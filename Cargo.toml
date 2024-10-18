@@ -4,6 +4,7 @@ members = [
     "leptos_i18n",
     "leptos_i18n_macro",
     "leptos_i18n_parser",
+    "leptos_i18n_build",
     "tests/json",
     "tests/common",
     "tests/namespaces",
