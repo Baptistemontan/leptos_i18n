@@ -40,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        packages: [leptos_i18n_macro, leptos_i18n_parser]
+        packages: [leptos_i18n_macro, leptos_i18n_parser, leptos_i18n_build]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
