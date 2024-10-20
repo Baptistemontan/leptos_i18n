@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use datakey::DataK;
 use icu::locid::LanguageIdentifier;
 use icu_datagen::baked_exporter::BakedExporter;
 use icu_datagen::prelude::DataKey;
@@ -88,31 +89,48 @@ impl TranslationsInfos {
             .map(|locale| locale.parse::<LanguageIdentifier>().unwrap())
     }
 
-    pub fn get_icu_keys(&self) -> HashSet<DataKey> {
-        let mut used_icu_keys = HashSet::new();
+    fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<DataK>) {
         match &self.locales {
             BuildersKeys::NameSpaces { keys, .. } => {
                 for builder_keys in keys.values() {
-                    datakey::find_used_datakey(builder_keys, &mut used_icu_keys);
+                    datakey::find_used_datakey(builder_keys, used_icu_keys);
                 }
             }
             BuildersKeys::Locales { keys, .. } => {
-                datakey::find_used_datakey(keys, &mut used_icu_keys);
+                datakey::find_used_datakey(keys, used_icu_keys);
             }
         }
+    }
 
+    pub fn get_icu_keys(&self) -> HashSet<DataKey> {
+        let mut used_icu_keys = HashSet::new();
+        self.get_icu_keys_inner(&mut used_icu_keys);
         datakey::get_keys(used_icu_keys)
     }
 
-    pub fn build_datagen_driver(&self) -> DatagenDriver {
-        let keys = self.get_icu_keys();
+    pub fn build_datagen_driver_with_data_keys(&self, keys: HashSet<DataKey>) -> DatagenDriver {
+        let mut icu_keys = self.get_icu_keys();
+        icu_keys.extend(keys);
+
         let locales = self.get_locales_langids();
         DatagenDriver::new()
-            .with_keys(keys)
+            .with_keys(icu_keys)
             .with_locales_no_fallback(locales, Default::default())
     }
 
-    pub fn generate_data(&self, mod_directory: PathBuf) -> Result<(), DataError> {
+    pub fn build_datagen_driver_with_options(&self, keys: HashSet<DataK>) -> DatagenDriver {
+        self.build_datagen_driver_with_data_keys(datakey::get_keys(keys))
+    }
+
+    pub fn build_datagen_driver(&self) -> DatagenDriver {
+        self.build_datagen_driver_with_options(Default::default())
+    }
+
+    pub fn generate_data_with_data_keys(
+        &self,
+        mod_directory: PathBuf,
+        keys: HashSet<DataKey>,
+    ) -> Result<(), DataError> {
         // This is'nt really needed, but ICU4X wants the directory to be empty
         // and Rust Analyzer can trigger the build.rs without cleaning the out directory.
         if mod_directory.exists() {
@@ -121,7 +139,19 @@ impl TranslationsInfos {
 
         let exporter = BakedExporter::new(mod_directory, Default::default()).unwrap();
 
-        self.build_datagen_driver()
+        self.build_datagen_driver_with_data_keys(keys)
             .export(&DatagenProvider::new_latest_tested(), exporter)
+    }
+
+    pub fn generate_data_with_options(
+        &self,
+        mod_directory: PathBuf,
+        keys: HashSet<DataK>,
+    ) -> Result<(), DataError> {
+        self.generate_data_with_data_keys(mod_directory, datakey::get_keys(keys))
+    }
+
+    pub fn generate_data(&self, mod_directory: PathBuf) -> Result<(), DataError> {
+        self.generate_data_with_options(mod_directory, Default::default())
     }
 }
