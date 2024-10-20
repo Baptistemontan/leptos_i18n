@@ -43,7 +43,7 @@ pub struct TranslationsInfos {
 impl TranslationsInfos {
     pub fn parse() -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
-        let (locales, _, paths) = parse_locales::parse_locales()?;
+        let (locales, _, paths) = parse_locales::parse_locales(true)?;
 
         Ok(TranslationsInfos { locales, paths })
     }
