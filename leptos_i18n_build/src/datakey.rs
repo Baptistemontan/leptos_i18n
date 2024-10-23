@@ -7,14 +7,14 @@ use leptos_i18n_parser::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum DataK {
+pub enum Options {
     Plurals,
     FormatDateTime,
     FormatList,
     FormatNums,
 }
 
-pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<DataK>) {
+pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<Options>) {
     for locale_value in keys.0.values() {
         match locale_value {
             LocaleValue::Subkeys { keys, .. } => find_used_datakey(keys, used_icu_keys),
@@ -22,17 +22,17 @@ pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<D
             LocaleValue::Value(InterpolOrLit::Interpol(interpolation_keys)) => {
                 for (_, var_infos) in interpolation_keys.iter_vars() {
                     if matches!(var_infos.range_count, Some(RangeOrPlural::Plural)) {
-                        used_icu_keys.insert(DataK::Plurals);
+                        used_icu_keys.insert(Options::Plurals);
                     }
 
                     for formatter in &var_infos.formatters {
                         let dk = match formatter {
                             Formatter::None => continue,
-                            Formatter::Number => DataK::FormatNums,
+                            Formatter::Number => Options::FormatNums,
                             Formatter::Date(_) | Formatter::Time(_) | Formatter::DateTime(_, _) => {
-                                DataK::FormatDateTime
+                                Options::FormatDateTime
                             }
-                            Formatter::List(_, _) => DataK::FormatList,
+                            Formatter::List(_, _) => Options::FormatList,
                         };
                         used_icu_keys.insert(dk);
                     }
@@ -42,18 +42,18 @@ pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<D
     }
 }
 
-pub fn get_keys(used_icu_keys: HashSet<DataK>) -> HashSet<DataKey> {
+pub fn get_keys(used_icu_keys: HashSet<Options>) -> HashSet<DataKey> {
     used_icu_keys
         .into_iter()
-        .flat_map(DataK::into_data_keys)
+        .flat_map(Options::into_data_keys)
         .collect()
 }
 
-impl DataK {
+impl Options {
     pub fn into_data_keys(self) -> Vec<DataKey> {
         match self {
-            DataK::Plurals => icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"]),
-            DataK::FormatDateTime => icu_datagen::keys(&[
+            Options::Plurals => icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"]),
+            Options::FormatDateTime => icu_datagen::keys(&[
                 "datetime/timesymbols@1",
                 "datetime/timelengths@1",
                 "datetime/skeletons@1",
@@ -93,8 +93,8 @@ impl DataK {
                 "datetime/roc/datelengths@1",
                 "datetime/roc/datesymbols@1",
             ]),
-            DataK::FormatList => icu_datagen::keys(&["list/and@1", "list/or@1", "list/unit@1"]),
-            DataK::FormatNums => icu_datagen::keys(&["decimal/symbols@1"]),
+            Options::FormatList => icu_datagen::keys(&["list/and@1", "list/or@1", "list/unit@1"]),
+            Options::FormatNums => icu_datagen::keys(&["decimal/symbols@1"]),
         }
     }
 }

@@ -6,7 +6,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use datakey::DataK;
+use datakey::Options;
 use icu::locid::LanguageIdentifier;
 use icu_datagen::baked_exporter::BakedExporter;
 use icu_datagen::prelude::DataKey;
@@ -89,7 +89,7 @@ impl TranslationsInfos {
             .map(|locale| locale.parse::<LanguageIdentifier>().unwrap())
     }
 
-    fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<DataK>) {
+    fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<Options>) {
         match &self.locales {
             BuildersKeys::NameSpaces { keys, .. } => {
                 for builder_keys in keys.values() {
@@ -118,7 +118,7 @@ impl TranslationsInfos {
             .with_locales_no_fallback(locales, Default::default())
     }
 
-    pub fn build_datagen_driver_with_options(&self, keys: HashSet<DataK>) -> DatagenDriver {
+    pub fn build_datagen_driver_with_options(&self, keys: HashSet<Options>) -> DatagenDriver {
         self.build_datagen_driver_with_data_keys(datakey::get_keys(keys))
     }
 
@@ -146,7 +146,7 @@ impl TranslationsInfos {
     pub fn generate_data_with_options(
         &self,
         mod_directory: PathBuf,
-        keys: HashSet<DataK>,
+        keys: HashSet<Options>,
     ) -> Result<(), DataError> {
         self.generate_data_with_data_keys(mod_directory, datakey::get_keys(keys))
     }
