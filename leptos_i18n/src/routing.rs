@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{future::Future, sync::Arc};
 
 use leptos::{either::Either, ev, prelude::*};
 use leptos_router::{
@@ -213,21 +213,17 @@ impl<View> Clone for ViewWrapper<View> {
 }
 
 impl ChooseView for RedirectView {
-    type Output = leptos::prelude::View<()>;
-
-    async fn choose(self) -> Self::Output {
-        self.0()
+    async fn choose(self) -> AnyView {
+        self.0().into_any()
     }
 
     async fn preload(&self) {}
 }
 
 impl<View: ChooseView> ChooseView for ViewWrapper<View> {
-    type Output = Either<View::Output, <RedirectView as ChooseView>::Output>;
-
-    async fn choose(self) -> Self::Output {
+    fn choose(self) -> impl Future<Output = AnyView> {
         let inner = self.0();
-        ChooseView::choose(inner).await
+        ChooseView::choose(inner)
     }
 
     async fn preload(&self) {}
@@ -349,13 +345,9 @@ pub type BaseRoute<View, Chil> = Arc<NestedRoute<StaticSegment<&'static str>, Ch
 #[doc(hidden)]
 pub struct I18nRouteMatch<L, View, Chil>
 where
-    Chil: MatchNestedRoutes,
-    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
-    <Chil as MatchNestedRoutes>::Match: MatchParams,
-    Chil: 'static,
-    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    Chil: MatchNestedRoutes + 'static,
+    Chil::Match: MatchParams,
     View: ChooseView + Clone,
-    View::Output: Render + RenderHtml + Send + 'static,
 {
     locale: Option<L>,
     base_path: &'static str,
@@ -366,17 +358,11 @@ where
 
 impl<L, View, Chil> MatchParams for I18nRouteMatch<L, View, Chil>
 where
-    Chil: MatchNestedRoutes,
-    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
-    <Chil as MatchNestedRoutes>::Match: MatchParams,
-    Chil: 'static,
-    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    Chil: MatchNestedRoutes + 'static,
+    Chil::Match: MatchParams,
     View: ChooseView + Clone,
-    View::Output: Render + RenderHtml + Send + 'static,
 {
-    type Params = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View> as MatchNestedRoutes>::Match as MatchParams>::Params;
-
-    fn to_params(&self) -> Self::Params {
+    fn to_params(&self) -> Vec<(std::borrow::Cow<'static, str>, String)> {
         MatchParams::to_params(&self.inner_match)
     }
 }
@@ -384,17 +370,11 @@ where
 impl<L, View, Chil> MatchInterface for I18nRouteMatch<L, View, Chil>
 where
     L: Locale,
-    Chil: MatchNestedRoutes,
-    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
-    <Chil as MatchNestedRoutes>::Match: MatchParams,
-    Chil: 'static,
-    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    Chil: MatchNestedRoutes + 'static,
+    Chil::Match: MatchParams,
     View: ChooseView + Clone + Sync,
-    View::Output: Render + RenderHtml + Send + 'static,
 {
     type Child = <<NestedRoute<StaticSegment<&'static str>, Chil, (), View> as MatchNestedRoutes>::Match as MatchInterface>::Child;
-
-    type View = Either<<View as ChooseView>::Output, <RedirectView as ChooseView>::Output>;
 
     fn as_id(&self) -> leptos_router::RouteMatchId {
         MatchInterface::as_id(&self.inner_match)
@@ -404,7 +384,7 @@ where
         &self.matched
     }
 
-    fn into_view_and_child(self) -> (impl ChooseView<Output = Self::View>, Option<Self::Child>) {
+    fn into_view_and_child(self) -> (impl ChooseView, Option<Self::Child>) {
         let (view, child) = MatchInterface::into_view_and_child(self.inner_match);
         let new_view = Arc::new(move || view_wrapper(view.clone(), self.locale, self.base_path));
         (ViewWrapper(new_view), child)
@@ -413,17 +393,11 @@ where
 
 impl<L: Locale, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
 where
-    Chil: MatchNestedRoutes,
-    <<<Chil as MatchNestedRoutes>::Match as MatchParams>::Params as IntoIterator>::IntoIter: Clone,
-    <Chil as MatchNestedRoutes>::Match: MatchParams,
-    Chil: 'static,
-    <<Chil as MatchNestedRoutes>::Match as MatchParams>::Params: Clone,
+    Chil: MatchNestedRoutes + 'static,
+    Chil::Match: MatchParams,
     View: ChooseView + Clone + Sync,
-    View::Output: Render + RenderHtml + Send + 'static,
 {
     type Data = ();
-
-    type View = View::Output;
 
     type Match = I18nRouteMatch<L, View, Chil>;
 
