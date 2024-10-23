@@ -28,7 +28,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         let routes = generate_route_list(App);
         let leptos_options = &conf.leptos_options;
-        let site_root = &leptos_options.site_root;
+        let site_root = &*leptos_options.site_root;
 
         App::new()
             // serve JS/WASM/CSS from `pkg`
