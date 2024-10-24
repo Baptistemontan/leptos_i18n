@@ -6,11 +6,16 @@ use leptos_i18n_parser::{
     utils::formatter::Formatter,
 };
 
+/// This enum represent the different `Fromatters` and options your translations could be using.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Options {
+    /// Use of plurals.
     Plurals,
+    /// Use of the `date`, `time` or `datetime` formatter.
     FormatDateTime,
+    /// Use of the `list` formatter.
     FormatList,
+    /// Use of the `number` formatter.
     FormatNums,
 }
 
@@ -50,6 +55,7 @@ pub fn get_keys(used_icu_keys: HashSet<Options>) -> HashSet<DataKey> {
 }
 
 impl Options {
+    /// Return a `Vec<DataKey>` needed to use the given option.
     pub fn into_data_keys(self) -> Vec<DataKey> {
         match self {
             Options::Plurals => icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"]),

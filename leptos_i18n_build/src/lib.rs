@@ -1,12 +1,13 @@
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![deny(warnings)]
+//! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use datakey::Options;
+pub use datakey::Options;
 use icu::locid::LanguageIdentifier;
 use icu_datagen::baked_exporter::BakedExporter;
 use icu_datagen::prelude::DataKey;
@@ -35,12 +36,14 @@ impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A,
     }
 }
 
+/// Contains informations about the translations.
 pub struct TranslationsInfos {
     locales: BuildersKeys,
     paths: Vec<String>,
 }
 
 impl TranslationsInfos {
+    /// Parse the translations and obtain informations about them.
     pub fn parse() -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
         let (locales, _, paths) = parse_locales::parse_locales(true)?;
@@ -48,16 +51,19 @@ impl TranslationsInfos {
         Ok(TranslationsInfos { locales, paths })
     }
 
+    /// Paths to all files containing translations.
     pub fn files_paths(&self) -> &[String] {
         &self.paths
     }
 
+    /// Output "cargo:rerun-if-changed" for all locales files.
     pub fn rerun_if_locales_changed(&self) {
         for path in &self.paths {
             println!("cargo:rerun-if-changed={}", path);
         }
     }
 
+    /// Return an iterator containing the name of each locales.
     pub fn get_locales(&self) -> impl Iterator<Item = Rc<str>> + '_ {
         fn map_locales(locales: &[Locale]) -> impl Iterator<Item = Rc<str>> + '_ {
             locales.iter().map(|locale| locale.name.name.clone())
@@ -74,6 +80,7 @@ impl TranslationsInfos {
         }
     }
 
+    /// Return an iterator containing the name of each namespaces, if any.
     pub fn get_namespaces(&self) -> Option<impl Iterator<Item = Rc<str>> + '_> {
         match &self.locales {
             BuildersKeys::NameSpaces { namespaces, .. } => {
@@ -84,6 +91,7 @@ impl TranslationsInfos {
         }
     }
 
+    /// Return an iterator containing each locales in the form of `LanguageIdentifier`.
     pub fn get_locales_langids(&self) -> impl Iterator<Item = LanguageIdentifier> + '_ {
         self.get_locales()
             .map(|locale| locale.parse::<LanguageIdentifier>().unwrap())
@@ -102,12 +110,14 @@ impl TranslationsInfos {
         }
     }
 
+    /// Return the ICU `DataKey` needed by the translations.
     pub fn get_icu_keys(&self) -> HashSet<DataKey> {
         let mut used_icu_keys = HashSet::new();
         self.get_icu_keys_inner(&mut used_icu_keys);
         datakey::get_keys(used_icu_keys)
     }
 
+    /// Same as `build_datagen_driver` but can be supplied with additional ICU `DataKey`.
     pub fn build_datagen_driver_with_data_keys(&self, keys: HashSet<DataKey>) -> DatagenDriver {
         let mut icu_keys = self.get_icu_keys();
         icu_keys.extend(keys);
@@ -118,14 +128,18 @@ impl TranslationsInfos {
             .with_locales_no_fallback(locales, Default::default())
     }
 
+    /// Same as `build_datagen_driver` but can be supplied with additional options.
+    /// This usefull if you use `t*_format!` and use formatters not used in the translations.
     pub fn build_datagen_driver_with_options(&self, keys: HashSet<Options>) -> DatagenDriver {
         self.build_datagen_driver_with_data_keys(datakey::get_keys(keys))
     }
 
+    /// Build a `DatagenDriver` using the locales and keys needed for the translations.
     pub fn build_datagen_driver(&self) -> DatagenDriver {
         self.build_datagen_driver_with_options(Default::default())
     }
 
+    /// Same as `generate_data` but can be supplied additionnal ICU `DataKey`.
     pub fn generate_data_with_data_keys(
         &self,
         mod_directory: PathBuf,
@@ -143,6 +157,7 @@ impl TranslationsInfos {
             .export(&DatagenProvider::new_latest_tested(), exporter)
     }
 
+    /// Same as `generate_data` but can be supplied additionnal options.
     pub fn generate_data_with_options(
         &self,
         mod_directory: PathBuf,
@@ -151,6 +166,7 @@ impl TranslationsInfos {
         self.generate_data_with_data_keys(mod_directory, datakey::get_keys(keys))
     }
 
+    /// Generate an ICU datagen at the given mod_directory using the infos from the translations.
     pub fn generate_data(&self, mod_directory: PathBuf) -> Result<(), DataError> {
         self.generate_data_with_options(mod_directory, Default::default())
     }
