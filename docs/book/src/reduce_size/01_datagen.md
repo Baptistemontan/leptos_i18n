@@ -110,7 +110,7 @@ when all informations are already in the translations.
 ```toml
 # Cargo.toml
 [build-dependencies]
-leptos_i18n_build = "0.5.0-gamma"
+leptos_i18n_build = "0.5.0-gamma2"
 ```
 
 ```rust
