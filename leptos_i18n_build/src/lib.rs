@@ -111,15 +111,18 @@ impl TranslationsInfos {
     }
 
     /// Return the ICU `DataKey` needed by the translations.
-    pub fn get_icu_keys(&self) -> HashSet<DataKey> {
+    pub fn get_icu_keys(&self) -> impl Iterator<Item = DataKey> {
         let mut used_icu_keys = HashSet::new();
         self.get_icu_keys_inner(&mut used_icu_keys);
         datakey::get_keys(used_icu_keys)
     }
 
     /// Same as `build_datagen_driver` but can be supplied with additional ICU `DataKey`.
-    pub fn build_datagen_driver_with_data_keys(&self, keys: HashSet<DataKey>) -> DatagenDriver {
-        let mut icu_keys = self.get_icu_keys();
+    pub fn build_datagen_driver_with_data_keys(
+        &self,
+        keys: impl IntoIterator<Item = DataKey>,
+    ) -> DatagenDriver {
+        let mut icu_keys: HashSet<DataKey> = self.get_icu_keys().collect();
         icu_keys.extend(keys);
 
         let locales = self.get_locales_langids();
@@ -130,20 +133,23 @@ impl TranslationsInfos {
 
     /// Same as `build_datagen_driver` but can be supplied with additional options.
     /// This usefull if you use `t*_format!` and use formatters not used in the translations.
-    pub fn build_datagen_driver_with_options(&self, keys: HashSet<Options>) -> DatagenDriver {
+    pub fn build_datagen_driver_with_options(
+        &self,
+        keys: impl IntoIterator<Item = Options>,
+    ) -> DatagenDriver {
         self.build_datagen_driver_with_data_keys(datakey::get_keys(keys))
     }
 
     /// Build a `DatagenDriver` using the locales and keys needed for the translations.
     pub fn build_datagen_driver(&self) -> DatagenDriver {
-        self.build_datagen_driver_with_options(Default::default())
+        self.build_datagen_driver_with_options(std::iter::empty())
     }
 
     /// Same as `generate_data` but can be supplied additionnal ICU `DataKey`.
     pub fn generate_data_with_data_keys(
         &self,
         mod_directory: PathBuf,
-        keys: HashSet<DataKey>,
+        keys: impl IntoIterator<Item = DataKey>,
     ) -> Result<(), DataError> {
         // This is'nt really needed, but ICU4X wants the directory to be empty
         // and Rust Analyzer can trigger the build.rs without cleaning the out directory.
@@ -161,13 +167,13 @@ impl TranslationsInfos {
     pub fn generate_data_with_options(
         &self,
         mod_directory: PathBuf,
-        keys: HashSet<Options>,
+        keys: impl IntoIterator<Item = Options>,
     ) -> Result<(), DataError> {
         self.generate_data_with_data_keys(mod_directory, datakey::get_keys(keys))
     }
 
     /// Generate an ICU datagen at the given mod_directory using the infos from the translations.
     pub fn generate_data(&self, mod_directory: PathBuf) -> Result<(), DataError> {
-        self.generate_data_with_options(mod_directory, Default::default())
+        self.generate_data_with_options(mod_directory, std::iter::empty())
     }
 }

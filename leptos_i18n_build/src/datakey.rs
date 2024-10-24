@@ -47,11 +47,8 @@ pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<O
     }
 }
 
-pub fn get_keys(used_icu_keys: HashSet<Options>) -> HashSet<DataKey> {
-    used_icu_keys
-        .into_iter()
-        .flat_map(Options::into_data_keys)
-        .collect()
+pub fn get_keys(used_icu_keys: impl IntoIterator<Item = Options>) -> impl Iterator<Item = DataKey> {
+    used_icu_keys.into_iter().flat_map(Options::into_data_keys)
 }
 
 impl Options {
