@@ -150,15 +150,6 @@ pub mod __private {
 }
 
 /// This module contain utilities to create custom ICU providers.
-#[cfg(all(
-    not(feature = "icu_compiled_data"),
-    any(
-        feature = "format_nums",
-        feature = "format_datetime",
-        feature = "format_list",
-        feature = "plurals"
-    )
-))]
 pub mod custom_provider {
     pub use crate::macro_helpers::formatting::data_provider::IcuDataProvider;
     pub use crate::macro_helpers::formatting::inner::set_icu_data_provider;

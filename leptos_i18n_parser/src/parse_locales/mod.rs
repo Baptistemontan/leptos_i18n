@@ -18,17 +18,21 @@ pub mod warning;
 use error::{Error, Result};
 use warning::Warnings;
 
-use crate::utils::{Key, KeyPath};
+use crate::utils::{formatter::SkipIcuCfgGuard, Key, KeyPath};
 
 pub const VAR_COUNT_KEY: &str = "var_count";
 
-pub fn parse_locales_raw() -> Result<(
+pub fn parse_locales_raw(
+    skip_icu_cfg: bool,
+) -> Result<(
     LocalesOrNamespaces,
     ConfigFile,
     ForeignKeysPaths,
     Warnings,
     Vec<String>,
 )> {
+    let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
+
     let mut cargo_manifest_dir: PathBuf = std::env::var("CARGO_MANIFEST_DIR")
         .map_err(Error::CargoDirEnvNotPresent)?
         .into();
@@ -65,7 +69,10 @@ pub fn make_builder_keys(
     cfg_file: &ConfigFile,
     foreign_keys_paths: ForeignKeysPaths,
     warnings: &Warnings,
+    skip_icu_cfg: bool,
 ) -> Result<BuildersKeys> {
+    let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
+
     locales.merge_plurals(warnings)?;
 
     resolve_foreign_keys(&locales, &cfg_file.default, foreign_keys_paths.into_inner())?;
@@ -73,10 +80,17 @@ pub fn make_builder_keys(
     check_locales(locales, warnings)
 }
 
-pub fn parse_locales() -> Result<(BuildersKeys, Warnings, Vec<String>)> {
-    let (locales, cfg_file, foreign_keys_paths, warnings, tracked_files) = parse_locales_raw()?;
+pub fn parse_locales(skip_icu_cfg: bool) -> Result<(BuildersKeys, Warnings, Vec<String>)> {
+    let (locales, cfg_file, foreign_keys_paths, warnings, tracked_files) =
+        parse_locales_raw(skip_icu_cfg)?;
 
-    let builder_keys = make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings)?;
+    let builder_keys = make_builder_keys(
+        locales,
+        &cfg_file,
+        foreign_keys_paths,
+        &warnings,
+        skip_icu_cfg,
+    )?;
 
     Ok((builder_keys, warnings, tracked_files))
 }

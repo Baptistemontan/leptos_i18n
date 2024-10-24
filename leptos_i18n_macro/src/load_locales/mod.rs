@@ -39,7 +39,7 @@ use warning::generate_warnings;
 /// 5: generate code (and warnings)
 pub fn load_locales() -> Result<TokenStream> {
 
-    let (locales, cfg_file, foreign_keys, warnings, tracked_files) = leptos_i18n_parser::parse_locales::parse_locales_raw()?;
+    let (locales, cfg_file, foreign_keys, warnings, tracked_files) = leptos_i18n_parser::parse_locales::parse_locales_raw(false)?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
@@ -54,7 +54,7 @@ fn load_locales_inner(
     warnings: Warnings,
     tracked_files: Option<Vec<String>>
 ) -> Result<TokenStream> {
-    let keys = leptos_i18n_parser::parse_locales::make_builder_keys(locales, cfg_file, foreign_keys_paths, &warnings)?;
+    let keys = leptos_i18n_parser::parse_locales::make_builder_keys(locales, cfg_file, foreign_keys_paths, &warnings, false)?;
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());

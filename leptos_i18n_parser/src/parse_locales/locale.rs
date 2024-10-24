@@ -1,6 +1,6 @@
 use serde::de::MapAccess;
 
-use crate::utils::formatter::Formatter;
+use crate::utils::formatter::{Formatter, SKIP_ICU_CFG};
 use crate::utils::{Key, KeyPath};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
@@ -541,7 +541,7 @@ impl Locale {
             };
             let key = Key::new(&base_key).unwrap();
             key_path.push_key(key);
-            if !cfg!(feature = "plurals") {
+            if !cfg!(feature = "plurals") && !SKIP_ICU_CFG.get() {
                 return Err(Error::DisabledPlurals {
                     locale: locale.clone(),
                     key_path: std::mem::take(key_path),

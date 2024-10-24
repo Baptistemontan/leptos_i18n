@@ -1,0 +1,21 @@
+[package]
+name = "leptos_i18n_build"
+version = { workspace = true }
+edition = "2021"
+authors = ["Baptiste de Montangon"]
+license = "MIT"
+repository = "https://github.com/Baptistemontan/leptos_i18n"
+description = "build.rs utilities for the leptos_i18n crate"
+readme = "../README.md"
+
+[dependencies]
+leptos_i18n_parser = { workspace = true }
+icu_datagen = { version = "1.5" }
+icu = { version = "1.5" }
+icu_provider = { version = "1.5" }
+
+[features]
+default = ["json_files"]
+json_files = ["leptos_i18n_parser/json_files"]
+yaml_files = ["leptos_i18n_parser/yaml_files"]
+json5_files = ["leptos_i18n_parser/json5_files"]

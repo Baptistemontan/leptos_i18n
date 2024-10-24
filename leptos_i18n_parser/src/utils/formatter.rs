@@ -1,3 +1,24 @@
+use std::cell::Cell;
+
+thread_local! {
+    pub(crate) static SKIP_ICU_CFG: Cell<bool> = const { Cell::new(false) };
+}
+
+pub(crate) struct SkipIcuCfgGuard(());
+
+impl SkipIcuCfgGuard {
+    pub fn new(skip_icu_cfg: bool) -> Self {
+        SKIP_ICU_CFG.set(skip_icu_cfg);
+        SkipIcuCfgGuard(())
+    }
+}
+
+impl Drop for SkipIcuCfgGuard {
+    fn drop(&mut self) {
+        SKIP_ICU_CFG.set(false);
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
     #[default]
@@ -49,7 +70,7 @@ impl Formatter {
         args: Option<&[(S, S)]>,
     ) -> Result<Option<Formatter>, Formatter> {
         if name == "number" {
-            if cfg!(feature = "format_nums") {
+            if cfg!(feature = "format_nums") || SKIP_ICU_CFG.get() {
                 Ok(Some(Formatter::Number))
             } else {
                 Err(Formatter::Number)
@@ -57,28 +78,28 @@ impl Formatter {
         } else if name == "datetime" {
             let formatter =
                 Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args));
-            if cfg!(feature = "format_datetime") {
+            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "date" {
             let formatter = Formatter::Date(DateLength::from_args(args));
-            if cfg!(feature = "format_datetime") {
+            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "time" {
             let formatter = Formatter::Time(TimeLength::from_args(args));
-            if cfg!(feature = "format_datetime") {
+            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "list" {
             let formatter = Formatter::List(ListType::from_args(args), ListStyle::from_args(args));
-            if cfg!(feature = "format_list") {
+            if cfg!(feature = "format_list") || SKIP_ICU_CFG.get() {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)

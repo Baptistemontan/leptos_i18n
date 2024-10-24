@@ -101,6 +101,74 @@ fn main() {
 
 Here we are generating the informations for locales `"en"` and `"fr"`, with the data needed for plurals.
 
+## Using `leptos_i18n_build` crate
+
+You can use the `leptos_i18n_build` crate that contains utils for the datagen.
+The problem with above `build.rs` is that it can go out of sync with your translations,
+when all informations are already in the translations.
+
+```toml
+# Cargo.toml
+[build-dependencies]
+leptos_i18n_build = "0.5.0-gamma"
+```
+
+```rust
+use leptos_i18n_build::TranslationsInfos;
+use std::path::PathBuf;
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=Cargo.toml");
+
+    let mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("baked_data");
+
+    let translations_infos = TranslationsInfos::parse().unwrap();
+
+    translations_infos.rerun_if_locales_changed();
+
+    translations_infos.generate_data(mod_directory).unwrap();
+}
+```
+
+This will parse the config and the translations and generate the data for you using the informations gained when parsing the translations.
+This will trigger a rerun if the config or translations changed and be kept in sync.
+If your code use plurals, it will build with informations for plurals. If it use a formatter it will build with the informations for that formatter.
+
+If you use more data someway, like for example using `t*_format!` with a formatter not used in the translations, there is functions to either supply additionnal options or keys:
+
+```rust
+use leptos_i18n_build::Options;
+
+translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();
+```
+
+This will inject the ICU `DataKey`s needed for the `date`, `time` and `datetime` formatters.
+
+```rust
+use leptos_i18n_build::Options;
+
+translations_infos.generate_data_with_data_keys(
+    mod_directory,
+    icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"])
+).unwrap();
+```
+
+This will inject the keys for cardinal and ordinal plurals.
+
+If you need both, `Options` can be turned into the need keys:
+
+```rust
+use leptos_i18n_build::Options;
+
+let mut keys = icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"])
+let keys.extend(Options::FormatDateTime.into_data_keys())
+
+// keys now contains the `DataKey`s needed for plurals and for the `time`, `date` and `datetime` formatters.
+
+translations_infos.generate_data_with_data_keys(mod_directory, keys).unwrap();
+```
+
 ## Is it worth the trouble ?
 
 YES. With `opt-level = "z"` and `lto = true`, the plurals example is at 394ko (at the time of writing), now by just providing a custom provider tailored to the used locales ("en" and "fr"), it shrinks down to 248ko! It almost cutted in half the binary size!
