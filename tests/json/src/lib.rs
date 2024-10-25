@@ -21,3 +21,5 @@ mod tests;
 
 #[cfg(test)]
 mod t_format;
+#[cfg(test)]
+mod t_plural;

@@ -12,8 +12,10 @@ mod data_provider;
 pub(crate) mod load_locales;
 pub(crate) mod t_format;
 pub(crate) mod t_macro;
+pub(crate) mod t_plural;
 pub(crate) mod utils;
 
+use load_locales::plurals::PluralRuleType;
 use t_macro::{InputType, OutputType};
 
 // for deserializing the files custom deserialization is done,
@@ -396,7 +398,7 @@ pub fn td_format_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStr
 /// Format a given value with a given formatter and return a `impl Display`:
 ///
 /// ```rust, ignore
-/// let i18n =  use_i18n();
+/// let i18n = use_i18n();
 /// let num = 100_000usize;
 ///
 /// t_format_display!(i18n, num, formatter: number);
@@ -438,6 +440,110 @@ pub fn td_format_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenSt
         t_format::InputType::Locale,
         t_format::OutputType::Display,
     )
+}
+
+/// Match against the plural form of a given count:
+///
+/// ```rust, ignore
+/// let i18n = use_i18n();
+///
+/// let form = t_plural! {
+///     i18n,
+///     count = || 0,
+///     one => "one",
+///     _ => "other"
+/// };
+///
+/// Effect::new(|| {
+///     let s = form();
+///     log!("{}", s);
+/// })
+/// ```
+///
+/// This will print "one" with locale "fr" but "other" with locale "en".
+///
+/// Accepted forms are: `zero`, `one`, `two`, `few`, `many`, `other` and `_`.
+///
+/// This is for the cardinal form of plurals, for ordinal form see `t_plural_ordinal!`.
+#[proc_macro]
+pub fn t_plural(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_plural::t_plural(
+        tokens,
+        t_plural::InputType::Context,
+        PluralRuleType::Cardinal,
+    )
+}
+
+/// Same as the `t_plural!` macro but untracked.
+/// Directly return the value instead of wrapping it in a closure.
+#[proc_macro]
+pub fn tu_plural(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_plural::t_plural(
+        tokens,
+        t_plural::InputType::Untracked,
+        PluralRuleType::Cardinal,
+    )
+}
+
+/// Same as the `t_plural!` macro but takes the desired `Locale` as the first argument.
+/// Directly return the value instead of wrapping it in a closure.
+#[proc_macro]
+pub fn td_plural(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_plural::t_plural(
+        tokens,
+        t_plural::InputType::Locale,
+        PluralRuleType::Cardinal,
+    )
+}
+
+/// Match against the plural form of a given count:
+///
+/// ```rust, ignore
+/// let i18n = use_i18n();
+///
+/// let form = t_plural! {
+///     i18n,
+///     count = || 2,
+///     two => "two",
+///     _ => "other"
+/// };
+///
+/// Effect::new(|| {
+///     let s = form();
+///     log!("{}", s);
+/// })
+/// ```
+///
+/// This will print "other" with locale "fr" but "two" with locale "en".
+///
+/// Accepted forms are: `zero`, `one`, `two`, `few`, `many`, `other` and `_`.
+///
+/// This is for the ordinal form of plurals, for cardinal form see `t_plural!`.
+#[proc_macro]
+pub fn t_plural_ordinal(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_plural::t_plural(
+        tokens,
+        t_plural::InputType::Context,
+        PluralRuleType::Ordinal,
+    )
+}
+
+/// Same as the `t_plural_ordinal!` macro but untracked.
+/// Directly return the value instead of wrapping it in a closure.
+#[proc_macro]
+pub fn tu_plural_ordinal(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_plural::t_plural(
+        tokens,
+        t_plural::InputType::Untracked,
+        PluralRuleType::Ordinal,
+    )
+}
+
+/// Same as the `t_plural_ordinal!` macro but takes the desired `Locale` as the first argument.
+/// Directly return the value instead of wrapping it in a closure.
+#[proc_macro]
+pub fn td_plural_ordinal(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    t_plural::t_plural(tokens, t_plural::InputType::Locale, PluralRuleType::Ordinal)
 }
 
 /// Derive the `IcuDataProvider` trait

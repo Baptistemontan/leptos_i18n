@@ -175,7 +175,7 @@ impl Formatter {
     pub fn var_to_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         match self {
             Formatter::None => unreachable!(
-                "This function should not have been called ona variable with no formatter."
+                "This function should not have been called on a variable with no formatter."
             ),
             Formatter::Number => {
                 quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key))
