@@ -86,18 +86,18 @@ impl Plurals {
         PluralRules::try_new(&locale.into(), self.rule_type.into()).unwrap()
     }
 
-    pub fn check_categories(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) {
+    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) {
         let plural_rules = self.get_plural_rules(locale);
-        let categs = self.forms.keys().copied().collect::<BTreeSet<_>>();
-        let used_categs = plural_rules
+        let forms = self.forms.keys().copied().collect::<BTreeSet<_>>();
+        let used_forms = plural_rules
             .categories()
             .map(PluralForm::from_icu_category)
             .collect::<BTreeSet<_>>();
-        for cat in categs.difference(&used_categs) {
-            warnings.emit_warning(Warning::UnusedCategory {
+        for form in forms.difference(&used_forms).copied() {
+            warnings.emit_warning(Warning::UnusedForm {
                 locale: locale.clone(),
                 key_path: key_path.to_owned(),
-                category: *cat,
+                form,
                 rule_type: self.rule_type,
             });
         }

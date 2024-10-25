@@ -13,10 +13,10 @@ pub enum Warning {
         locale: Key,
         key_path: KeyPath,
     },
-    UnusedCategory {
+    UnusedForm {
         locale: Key,
         key_path: KeyPath,
-        category: PluralForm,
+        form: PluralForm,
         rule_type: PluralRuleType,
     },
     NonUnicodePath {
@@ -54,8 +54,8 @@ impl Display for Warning {
                 "Key \"{}\" is present in locale {:?} but not in default locale, it is ignored",
                 key_path, locale
             ),
-            Warning::UnusedCategory { locale, key_path, category, rule_type } => {
-                write!(f, "at key \"{}\", locale {:?} does not use {} category {}, it is still kept but is useless.", key_path, locale, rule_type, category)
+            Warning::UnusedForm { locale, key_path, form, rule_type } => {
+                write!(f, "At key \"{}\", locale {:?} does not use {} plural form \"{}\", it is still kept but is useless.", key_path, locale, rule_type, form)
             },
             Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, path),
             Warning::NonUnicodePath { locale, namespace: Some(ns), path } => write!(f, "File path for locale {:?} in namespace {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, ns, path),
