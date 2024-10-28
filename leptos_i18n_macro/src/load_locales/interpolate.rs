@@ -406,6 +406,14 @@ impl Interpolation {
             #into_view_field: core::marker::PhantomData<(#(#into_views,)*)>
         };
 
+        let string_builder_trait_impl = if cfg!(feature = "interpolate_display") {
+            quote! {
+                impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
+            }
+        } else {
+            quote!()
+        };
+
         quote! {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -413,7 +421,7 @@ impl Interpolation {
                 #locale_field: #enum_ident
             }
 
-            impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
+            #string_builder_trait_impl
 
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
