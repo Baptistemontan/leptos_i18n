@@ -358,9 +358,8 @@ impl Interpolation {
                 }
 
                 #[inline]
-                pub async fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    let display_struct = self.build_display().await;
-                    std::borrow::Cow::Owned(display_struct.to_string())
+                pub async fn build_string(self) -> String {
+                    self.build_display().await.to_string()
                 }
             }
         } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
@@ -372,9 +371,8 @@ impl Interpolation {
                 }
 
                 #[inline]
-                pub async fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    let display_struct = self.build_display();
-                    std::borrow::Cow::Owned(display_struct.to_string())
+                pub async fn build_string(self) -> String {
+                    self.build_display().to_string()
                 }
             }
         } else {
@@ -386,8 +384,8 @@ impl Interpolation {
                 }
 
                 #[inline]
-                pub fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    std::borrow::Cow::Owned(self.build_display().to_string())
+                pub fn build_string(self) -> String {
+                    self.build_display().to_string()
                 }
             }
         };
@@ -454,6 +452,14 @@ impl Interpolation {
 
         let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
+        let string_builder_trait_impl = if cfg!(feature = "interpolate_display") {
+            quote! {
+                impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
+            }
+        } else {
+            quote!()
+        };
+
         quote! {
             impl #dummy_ident {
                 pub const fn new(#locale_field: #enum_ident) -> Self {
@@ -468,6 +474,8 @@ impl Interpolation {
 
                 #display_builder_fn
             }
+
+            #string_builder_trait_impl
         }
     }
 
