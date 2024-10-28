@@ -4,10 +4,10 @@ members = ["leptos_i18n", "leptos_i18n_macro", "tests/json", "tests/common"]
 exclude = ["examples", "tests"]
 
 [workspace.package]
-version = "0.4.1"
+version = "0.4.2"
 
 [workspace.dependencies]
-leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "0.4.1" }
-leptos_i18n = { path = "./leptos_i18n", version = "0.4.1" }
+leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "0.4.2" }
+leptos_i18n = { path = "./leptos_i18n", version = "0.4.2" }
 tests_common = { path = "./tests/common", version = "0.1.0" }
 leptos = { version = "0.6.15" }
