@@ -1,8 +1,9 @@
 # The `td_string!` Macro
 
-The `td_string!` macro is to use interpolations outside the context of rendering views, it let you give a different kind of values and return a `Cow<'static, str>`.
+The `td_string!` macro is to use interpolations outside the context of rendering views, it let you give a different kind of values and return a `&'static str` or a `String` depending on the value of the key.
+If the value is a plain string or a boolean it returns a `&'static str`, if it's an interpolations or a number it returns a `String`.
 
-This requires the `interpolate_display` feature to be enabled.
+This requires the `interpolate_display` feature to be enabled to work with interpolations.
 
 It enable you to do this:
 
@@ -87,3 +88,7 @@ assert_eq!(format!("before {t} after"), "before You clicked 10 times after");
 let t_str = t.to_string(); // can call `to_string` as the value impl `Display`
 assert_eq!(t_str, "You clicked 10 times");
 ```
+
+# `t_string` and `t_display`
+
+They also exist, `td_string` was used here for easier demonstration. Remember that `t_string` access a signal reactively.

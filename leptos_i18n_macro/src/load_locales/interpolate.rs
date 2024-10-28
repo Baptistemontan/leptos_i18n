@@ -310,8 +310,8 @@ impl Interpolation {
                 }
 
                 #[inline]
-                pub fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    std::borrow::Cow::Owned(self.build().to_string())
+                pub fn build_string(self) -> String {
+                    self.build().to_string()
                 }
             }
         }
@@ -412,6 +412,8 @@ impl Interpolation {
             pub struct #dummy_ident {
                 #locale_field: #enum_ident
             }
+
+            impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
 
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]

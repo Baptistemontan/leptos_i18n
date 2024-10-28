@@ -55,7 +55,7 @@ pub fn t_macro_inner(
 
         let inner = quote! {
             {
-                let _builder = #get_key.#builder_fn();
+                let _builder = leptos_i18n::__private::InterpolationStringBuilder::check(#get_key).#builder_fn();
                 #(
                     let _builder = _builder.#interpolations;
                 )*
