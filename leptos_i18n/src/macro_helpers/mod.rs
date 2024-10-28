@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{borrow::Cow, marker::PhantomData};
+use std::{fmt::Display, marker::PhantomData};
 
 pub mod formatting;
 mod interpol_args;
@@ -12,12 +12,39 @@ pub use scope::*;
 use crate::Locale;
 
 #[doc(hidden)]
-pub struct DisplayBuilder(Cow<'static, str>);
+pub trait Lit {
+    type AsSTring: Display;
 
-impl DisplayBuilder {
+    fn into_string(self) -> Self::AsSTring;
+}
+
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
+pub struct DisplayBuilder<T>(T);
+
+impl<T: Lit> DisplayBuilder<T> {
     #[inline]
-    pub fn build_display(self) -> Cow<'static, str> {
-        self.0
+    pub fn build_display(self) -> T::AsSTring {
+        self.0.into_string()
+    }
+
+    #[inline]
+    pub fn build_string(self) -> T::AsSTring {
+        self.0.into_string()
+    }
+}
+
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "Interpolated values can't be used inside t_string/t_display without the \"interpolate_display\" feature enabled."
+)]
+pub trait InterpolationStringBuilder
+where
+    Self: Sized,
+{
+    fn check(self) -> Self {
+        self
     }
 }
 
@@ -40,7 +67,9 @@ pub trait BuildLit: Sized {
         self
     }
 
-    fn display_builder(self) -> DisplayBuilder;
+    fn display_builder(self) -> DisplayBuilder<Self> {
+        DisplayBuilder(self)
+    }
 
     #[inline]
     fn build(self) -> Self {
@@ -53,28 +82,34 @@ pub trait BuildLit: Sized {
     }
 }
 
-impl BuildLit for &'static str {
-    #[inline]
-    fn display_builder(self) -> DisplayBuilder {
-        DisplayBuilder(Cow::Borrowed(self))
+impl BuildLit for &'static str {}
+impl BuildLit for bool {}
+
+impl Lit for &'static str {
+    type AsSTring = Self;
+    fn into_string(self) -> Self::AsSTring {
+        self
     }
 }
 
-impl BuildLit for bool {
-    #[inline]
-    fn display_builder(self) -> DisplayBuilder {
+impl Lit for bool {
+    type AsSTring = &'static str;
+    fn into_string(self) -> Self::AsSTring {
         match self {
-            true => DisplayBuilder(Cow::Borrowed("true")),
-            false => DisplayBuilder(Cow::Borrowed("false")),
+            true => "true",
+            false => "false",
         }
     }
 }
 
 macro_rules! impl_build_lit_nums {
     ($t:ty) => {
-        impl BuildLit for $t {
-            fn display_builder(self) -> DisplayBuilder {
-                DisplayBuilder(Cow::Owned(ToString::to_string(&self)))
+        impl BuildLit for $t {}
+
+        impl Lit for $t {
+            type AsSTring = String;
+            fn into_string(self) -> Self::AsSTring {
+                ToString::to_string(&self)
             }
         }
     };

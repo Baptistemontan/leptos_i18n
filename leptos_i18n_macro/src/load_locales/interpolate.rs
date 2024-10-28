@@ -310,8 +310,8 @@ impl Interpolation {
                 }
 
                 #[inline]
-                pub fn build_string(self) -> std::borrow::Cow<'static, str> {
-                    std::borrow::Cow::Owned(self.build().to_string())
+                pub fn build_string(self) -> String {
+                    self.build().to_string()
                 }
             }
         }
@@ -406,12 +406,22 @@ impl Interpolation {
             #into_view_field: core::marker::PhantomData<(#(#into_views,)*)>
         };
 
+        let string_builder_trait_impl = if cfg!(feature = "interpolate_display") {
+            quote! {
+                impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
+            }
+        } else {
+            quote!()
+        };
+
         quote! {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
             pub struct #dummy_ident {
                 #locale_field: #enum_ident
             }
+
+            #string_builder_trait_impl
 
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
