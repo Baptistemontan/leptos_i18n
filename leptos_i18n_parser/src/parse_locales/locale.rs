@@ -52,23 +52,6 @@ const fn get_files_exts() -> &'static [&'static str] {
 
 const FILE_EXTS: &[&str] = get_files_exts();
 
-#[cfg(feature = "json5_files")]
-#[derive(Debug)]
-pub enum Json5Error {
-    Serde(json5::Error),
-    Io(std::io::Error),
-}
-
-#[cfg(feature = "json5_files")]
-impl std::fmt::Display for Json5Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Json5Error::Serde(error) => std::fmt::Display::fmt(error, f),
-            Json5Error::Io(error) => std::fmt::Display::fmt(error, f),
-        }
-    }
-}
-
 fn de_inner_json<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
     let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
     serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json)
@@ -93,14 +76,8 @@ fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeEr
         de_inner_yaml(locale_file, seed)
     } else if cfg!(feature = "json5_files") {
         de_inner_json5(locale_file, seed)
-    } else if cfg!(any(
-        feature = "json_files",
-        feature = "yaml_files",
-        feature = "json5_files"
-    )) {
-        Err(SerdeError::Multiple)
     } else {
-        Err(SerdeError::None)
+        unreachable!()
     }
 }
 
@@ -204,7 +181,18 @@ fn find_file(path: &mut PathBuf) -> Result<File> {
         };
     }
 
-    Err(Error::LocaleFileNotFound(errs))
+    #[allow(clippy::const_is_empty)]
+    if !FILE_EXTS.is_empty() {
+        Err(Error::LocaleFileNotFound(errs))
+    } else if cfg!(any(
+        feature = "json_files",
+        feature = "yaml_files",
+        feature = "json5_files"
+    )) {
+        Err(Error::MultipleFilesFormats)
+    } else {
+        Err(Error::NoFileFormats)
+    }
 }
 
 impl InterpolOrLit {
