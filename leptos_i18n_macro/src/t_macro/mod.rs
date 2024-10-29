@@ -53,6 +53,14 @@ pub fn t_macro_inner(
             let (#(#keys,)*) = (#(#values,)*);
         };
 
+        let get_key = if matches!(output_type, OutputType::String | OutputType::Display) {
+            quote! {
+                leptos_i18n::__private::InterpolationStringBuilder::check(#get_key)
+            }
+        } else {
+            get_key
+        };
+
         let inner = quote! {
             {
                 let _builder = #get_key.#builder_fn();

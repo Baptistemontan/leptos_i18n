@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{borrow::Cow, fmt::Display, future::Future, marker::PhantomData};
+use std::{fmt::Display, future::Future, marker::PhantomData};
 
 pub mod formatting;
 mod interpol_args;
@@ -13,20 +13,23 @@ pub use scope::*;
 
 #[doc(hidden)]
 pub trait Literal: Sized + Display + IntoView + Copy {
-    fn into_str(self) -> Cow<'static, str>;
+    type AsStr;
+    fn into_str(self) -> Self::AsStr;
 }
 
 impl Literal for &'static str {
-    fn into_str(self) -> Cow<'static, str> {
-        Cow::Borrowed(self)
+    type AsStr = Self;
+    fn into_str(self) -> Self::AsStr {
+        self
     }
 }
 
 impl Literal for bool {
-    fn into_str(self) -> Cow<'static, str> {
+    type AsStr = &'static str;
+    fn into_str(self) -> Self::AsStr {
         match self {
-            true => Cow::Borrowed("true"),
-            false => Cow::Borrowed("false"),
+            true => "true",
+            false => "false",
         }
     }
 }
@@ -34,8 +37,9 @@ impl Literal for bool {
 macro_rules! impl_build_lit_nums {
     ($t:ty) => {
         impl Literal for $t {
-            fn into_str(self) -> Cow<'static, str> {
-                Cow::Owned(self.to_string())
+            type AsStr = String;
+            fn into_str(self) -> Self::AsStr {
+                self.to_string()
             }
         }
     };
@@ -46,6 +50,19 @@ macro_rules! impl_build_lit_nums {
 }
 
 impl_build_lit_nums!(u64, i64, f64);
+
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(
+    message = "Interpolated values can't be used inside t_string/t_display without the \"interpolate_display\" feature enabled."
+)]
+pub trait InterpolationStringBuilder
+where
+    Self: Sized,
+{
+    fn check(self) -> Self {
+        self
+    }
+}
 
 #[doc(hidden)]
 #[repr(transparent)]
@@ -73,7 +90,7 @@ impl<T: Literal> LitWrapper<T> {
         self.0
     }
 
-    pub fn build_string(self) -> Cow<'static, str> {
+    pub fn build_string(self) -> T::AsStr {
         Literal::into_str(self.0)
     }
 
@@ -107,7 +124,7 @@ impl<T: Literal, F: Future<Output = LitWrapper<T>>> LitWrapperFut<F> {
         self.0.await.into_view()
     }
 
-    pub async fn build_string(self) -> Cow<'static, str> {
+    pub async fn build_string(self) -> T::AsStr {
         self.0.await.build_string()
     }
 
@@ -137,7 +154,7 @@ impl<T: Literal> LitWrapperFut<LitWrapper<T>> {
         self.0.into_view()
     }
 
-    pub async fn build_string(self) -> Cow<'static, str> {
+    pub async fn build_string(self) -> T::AsStr {
         self.0.build_string()
     }
 
