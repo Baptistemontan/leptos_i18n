@@ -133,6 +133,14 @@ pub use leptos_i18n_macro::{
 };
 pub use scopes::{ConstScope, Scope};
 
+/// This module contain utilities for plurals.
+#[cfg(feature = "plurals")]
+pub mod plurals {
+    pub use leptos_i18n_macro::{
+        t_plural, t_plural_ordinal, td_plural, td_plural_ordinal, tu_plural, tu_plural_ordinal,
+    };
+}
+
 #[cfg(all(feature = "dynamic_load", feature = "csr"))]
 compile_error!("dynamic_load feature is a WIP for CSR.");
 

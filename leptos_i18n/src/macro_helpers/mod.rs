@@ -278,3 +278,17 @@ pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 
     let fut = AsyncDerived::new_unsync(fut);
     move || fut.get().or_else(|| maybe_ready.clone())
 }
+
+#[doc(hidden)]
+#[cfg(feature = "plurals")]
+pub fn get_plural_category_for<L, F>(
+    locale: L,
+    count: &F,
+    plural_rule_type: icu_plurals::PluralRuleType,
+) -> icu_plurals::PluralCategory
+where
+    L: Locale,
+    F: InterpolatePluralCount,
+{
+    formatting::get_plural_rules(locale, plural_rule_type).category_for(count())
+}
