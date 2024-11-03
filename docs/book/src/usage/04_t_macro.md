@@ -153,10 +153,18 @@ Basically `<name .../>` expand to `move |children| view! { <name ...>{children}<
 
 ## Ranges
 
-Ranges expect a variable `$` that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
+Ranges expect a variable `count` that implement `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
 
 ```rust
 t!(i18n, key_to_range, count = count);
+```
+
+## Plurals
+
+Plurals expect a variable `count` that implement `Fn() -> N + Clone + 'static` where `N` implement `Into<icu_plurals::PluralsOperands>` ([`PluralsOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implements it, along with `FixedDecimal`.
+
+```rust
+t!(i18n, key_to_plurals, count = count);
 ```
 
 ## Access subkeys

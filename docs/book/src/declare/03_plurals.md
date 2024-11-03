@@ -23,7 +23,7 @@ This can be solved by defining 2 plural forms:
 }
 ```
 
-Providing the count to the `t!` macro with the `$`, this will result in:
+Providing the count to the `t!` macro, this will result in:
 
 ```rust
 let i18n = use_i18n();
@@ -33,7 +33,16 @@ t!(i18n, items, count = || 1) // -> "1 item"
 t!(i18n, items, count = || 4) // -> "4 items"
 ```
 
-`{{ count }}` is a special variable when using plurals, you don't supply it as `t!(i18n, key, count = ..)` but with the `$`.
+`{{ count }}` is a special variable when using plurals, even if you don't interpolate it you ust supply it:
+
+```json
+{
+  "items_one": "one item",
+  "items_other": "some items"
+}
+```
+
+This will still need you to supply the `count` variable: `t!(i18n, items, count = ...)`.
 
 ## Why bother ?
 
