@@ -120,7 +120,7 @@ pub mod display;
 
 pub use macro_helpers::formatting;
 
-pub use locale_traits::{Locale, LocaleKeys};
+pub use locale_traits::{Direction, Locale, LocaleKeys};
 
 pub use context::{use_i18n_context, I18nContext};
 
