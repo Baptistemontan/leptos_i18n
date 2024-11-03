@@ -15,106 +15,71 @@ use super::ranges::RangeType;
 use super::warning::{Warning, Warnings};
 use super::{ForeignKeysPaths, StringIndexer, VAR_COUNT_KEY};
 
-macro_rules! define_by_format {
-    (json => $($tt:tt)*) => {
-        #[cfg(all(feature = "json_files", not(any(feature = "yaml_files", feature = "json5_files"))))]
-        $($tt)*
-    };
-    (yaml => $($tt:tt)*) => {
-        #[cfg(all(feature = "yaml_files", not(any(feature = "json_files", feature = "json5_files"))))]
-        $($tt)*
-    };
-    (json5 => $($tt:tt)*) => {
-        #[cfg(all(feature = "json5_files", not(any(feature = "json_files", feature = "yaml_files"))))]
-        $($tt)*
-    };
-    (none => $($tt:tt)*) => {
-        #[cfg(not(any(feature = "json_files", feature = "yaml_files", feature = "json5_files")))]
-        $($tt)*
-    };
-    // This is attrocious, found a better way fgs
-    (multiple => $($tt:tt)*) => {
-        #[cfg(any(all(feature = "json_files", feature = "yaml_files"), all(feature = "json_files", feature = "json5_files"), all(feature = "yaml_files", feature = "json5_files")))]
-        $($tt)*
-    }
-}
-
-macro_rules! define_error {
-    ($ident:ident => $t:ty) => {
-        define_by_format!($ident => pub type SerdeError = $t;);
-    };
-}
-
-macro_rules! define_files_exts {
-    ($ident:ident => $($lit:literal),*) => {
-        define_by_format!($ident => const FILE_EXTS: &[&str] = &[$($lit,)*];);
-    };
-    ($ident:ident) => {
-        define_by_format!($ident => const FILE_EXTS: &[&str] = &[];);
-    };
-}
-
-#[cfg(feature = "json5_files")]
 #[derive(Debug)]
-pub enum Json5Error {
-    Serde(json5::Error),
+pub enum SerdeError {
+    Json(serde_json::Error),
+    Yaml(serde_yaml::Error),
+    Json5(json5::Error),
     Io(std::io::Error),
+    None,
+    Multiple,
 }
 
-#[cfg(feature = "json5_files")]
-impl std::fmt::Display for Json5Error {
+impl std::fmt::Display for SerdeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Json5Error::Serde(error) => std::fmt::Display::fmt(error, f),
-            Json5Error::Io(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Json(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Yaml(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Json5(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Io(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::None => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
+            SerdeError::Multiple => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
         }
     }
 }
 
-define_error!(json => serde_json::Error);
-define_error!(json5 => Json5Error);
-define_error!(yaml => serde_yaml::Error);
-define_error!(none => &'static str); // whatever impl Display
-define_error!(multiple => &'static str); // whatever impl Display
+const fn get_files_exts() -> &'static [&'static str] {
+    if cfg!(feature = "json_files") {
+        &["json"]
+    } else if cfg!(feature = "yaml_files") {
+        &["yaml", "yml"]
+    } else if cfg!(feature = "json5_files") {
+        &["json5"]
+    } else {
+        &[]
+    }
+}
 
-define_files_exts!(json => "json");
-define_files_exts!(json5 => "json5");
-define_files_exts!(yaml => "yaml", "yml");
-define_files_exts!(none);
-define_files_exts!(multiple);
+const FILE_EXTS: &[&str] = get_files_exts();
 
-define_by_format!(json =>
-    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-        let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
-        serde::de::DeserializeSeed::deserialize(seed, &mut deserializer)
+fn de_inner_json<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
+    serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json)
+}
+
+fn de_inner_json5<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let mut buff = String::new();
+    Read::read_to_string(&mut locale_file, &mut buff).map_err(SerdeError::Io)?;
+    let mut deserializer = json5::Deserializer::from_str(&buff).map_err(SerdeError::Json5)?;
+    serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json5)
+}
+
+fn de_inner_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
+    serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Yaml)
+}
+
+fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    if cfg!(feature = "json_files") {
+        de_inner_json(locale_file, seed)
+    } else if cfg!(feature = "yaml_files") {
+        de_inner_yaml(locale_file, seed)
+    } else if cfg!(feature = "json5_files") {
+        de_inner_json5(locale_file, seed)
+    } else {
+        unreachable!()
     }
-);
-define_by_format!(json5 =>
-    fn de_inner<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-        let mut buff = String::new();
-        Read::read_to_string(&mut locale_file, &mut buff).map_err(Json5Error::Io)?;
-        let mut deserializer = json5::Deserializer::from_str(&buff).map_err(Json5Error::Serde)?;
-        serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(Json5Error::Serde)
-    }
-);
-define_by_format!(yaml =>
-    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-        let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
-        serde::de::DeserializeSeed::deserialize(seed, deserializer)
-    }
-);
-define_by_format!(none =>
-    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-        let _ = (locale_file, seed);
-        compile_error!("No file format has been provided for leptos_i18n, supported formats are: json and yaml")
-    }
-);
-define_by_format!(multiple =>
-    fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-        let _ = (locale_file, seed);
-        compile_error!("Multiple file format have been provided for leptos_i18n, choose only one, supported formats are: json and yaml")
-    }
-);
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
@@ -216,7 +181,18 @@ fn find_file(path: &mut PathBuf) -> Result<File> {
         };
     }
 
-    Err(Error::LocaleFileNotFound(errs))
+    #[allow(clippy::const_is_empty)]
+    if !FILE_EXTS.is_empty() {
+        Err(Error::LocaleFileNotFound(errs))
+    } else if cfg!(any(
+        feature = "json_files",
+        feature = "yaml_files",
+        feature = "json5_files"
+    )) {
+        Err(Error::MultipleFilesFormats)
+    } else {
+        Err(Error::NoFileFormats)
+    }
 }
 
 impl InterpolOrLit {
