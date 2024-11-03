@@ -2,10 +2,13 @@
 
 use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
-use leptos::tachys::{
-    html::directive::IntoDirective, reactive_graph::OwnedView, view::any_view::AnyView,
+use icu_locid_transform::LocaleDirectionality;
+use leptos::{
+    children,
+    either::Either,
+    prelude::*,
+    tachys::{html::directive::IntoDirective, reactive_graph::OwnedView, view::any_view::AnyView},
 };
-use leptos::{children, either::Either, prelude::*};
 use leptos_meta::{provide_meta_context, Html};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
@@ -413,9 +416,7 @@ fn embed_translations<L: Locale>(
     reg_ctx: crate::fetch_translations::RegisterCtx<L>,
 ) -> impl IntoView {
     let translations = reg_ctx.to_array();
-    view! {
-        <script inner_html=translations />
-    }
+    view! { <script inner_html=translations /> }
 }
 
 macro_rules! fill_options {
@@ -465,8 +466,21 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     let embed_translations = view! { <script /> };
     if set_lang_attr_on_html.unwrap_or(true) {
         let lang = move || i18n.get_locale().as_str();
+        let dir = move || {
+            let ld = LocaleDirectionality::new();
+            if let Some(dir) = ld.get(i18n.get_locale().as_langid()) {
+                match dir {
+                    icu_locid_transform::Direction::LeftToRight => "ltr",
+                    icu_locid_transform::Direction::RightToLeft => "rtl",
+                    _ => "auto",
+                }
+            } else {
+                "auto"
+            }
+        };
+
         Either::Left(view! {
-            <Html attr:lang=lang />
+            <Html attr:lang=lang attr:dir=dir />
             {children}
             {embed_translations}
         })
