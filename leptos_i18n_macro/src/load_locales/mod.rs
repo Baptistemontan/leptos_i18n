@@ -104,9 +104,12 @@ fn load_locales_inner(
             #[l_i18n_crate::reexports::leptos::island]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider(
-                /// If the "lang" and "dir" attributes should be set on the root `<html>` element. (default to true)
+                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
-                set_attr_on_html: Option<bool>,
+                set_lang_attr_on_html: Option<bool>,
+                /// If the "dir" attribute should be set on the root `<html>` element. (default to true)
+                #[prop(optional)]
+                set_dir_attr_on_html: Option<bool>,
                 /// Enable the use of a cookie to save the choosen locale (default to true).
                 /// Does nothing without the "cookie" feature
                 #[prop(optional)]
@@ -117,7 +120,8 @@ fn load_locales_inner(
                 children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
-                    set_attr_on_html,
+                    set_lang_attr_on_html,
+                    set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
                     children
@@ -154,9 +158,12 @@ fn load_locales_inner(
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider<Chil: IntoView>(
-                /// If the "lang" and "dir" attributes should be set on the root `<html>` element. (default to true)
+                /// If the "dir" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
-                set_attr_on_html: Option<bool>,
+                set_lang_attr_on_html: Option<bool>,
+                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
+                #[prop(optional)]
+                set_dir_attr_on_html: Option<bool>,
                 /// Enable the use of a cookie to save the choosen locale (default to true).
                 /// Does nothing without the "cookie" feature
                 #[prop(optional)]
@@ -173,7 +180,8 @@ fn load_locales_inner(
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
-                    set_attr_on_html,
+                    set_lang_attr_on_html,
+                    set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
                     cookie_options,
