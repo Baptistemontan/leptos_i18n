@@ -946,20 +946,29 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     };
 
     let init_translations = if IS_TOP && cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
-        let match_arms = locales.iter().map(|locale| {
-            let string_holder = format_ident!("{}_{}", type_ident, locale.top_locale_name);
-            let locale_name = &locale.top_locale_name;
+        if cfg!(feature = "ssr") {
             quote! {
-                #enum_ident::#locale_name => <#string_holder as l_i18n_crate::__private::fetch_translations::TranslationUnit>::init_translations(values)
+                #[doc(hidden)]
+                pub fn __init_translations__(_locale: #enum_ident, _: (), _values: Vec<Box<str>>) {
+                    panic!("Tried to compile with both \"ssr\" and \"hydrate\" features enabled.")
+                }
             }
-        });
-        quote! {
-            #[doc(hidden)]
-            pub fn __init_translations__(locale: #enum_ident, _: (), values: Vec<Box<str>>) {
-                match locale {
-                    #(
-                        #match_arms,
-                    )*
+        } else {
+            let match_arms = locales.iter().map(|locale| {
+                let string_holder = format_ident!("{}_{}", type_ident, locale.top_locale_name);
+                let locale_name = &locale.top_locale_name;
+                quote! {
+                    #enum_ident::#locale_name => <#string_holder as l_i18n_crate::__private::fetch_translations::TranslationUnit>::init_translations(values)
+                }
+            });
+            quote! {
+                #[doc(hidden)]
+                pub fn __init_translations__(locale: #enum_ident, _: (), values: Vec<Box<str>>) {
+                    match locale {
+                        #(
+                            #match_arms,
+                        )*
+                    }
                 }
             }
         }

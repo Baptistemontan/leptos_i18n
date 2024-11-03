@@ -31,7 +31,7 @@ pub trait TranslationUnit: Sized {
         async move { core::ops::Deref::deref(fut.await) }
     }
 
-    #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
+    #[cfg(all(feature = "dynamic_load", feature = "hydrate", not(feature = "ssr")))]
     fn init_translations(values: Vec<Box<str>>) {
         let string_lock = Self::get_strings_lock();
         let fut = string_lock.get_or_init(async { StringArray::cast(values) });
