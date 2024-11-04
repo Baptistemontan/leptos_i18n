@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { version = "0.7.0-rc0", features = ["ssr"] }
+leptos = { version = "0.7.0-rc1", features = ["ssr"] }
 tests_common = { path = "../common" }
 leptos_i18n = { path = "../../leptos_i18n", default-features = false, features = [
     "yaml_files",
