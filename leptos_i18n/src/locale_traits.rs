@@ -142,7 +142,7 @@ impl TranslationUnitId for () {
 
 #[cfg(test)]
 mod test {
-    leptos_i18n_macro::declare_locales! {
+    crate::declare_locales! {
         path: crate,
         default: "en",
         locales: ["en", "fr"],

@@ -130,7 +130,7 @@ where
 
 #[cfg(test)]
 mod test {
-    leptos_i18n_macro::declare_locales! {
+    crate::declare_locales! {
         path: crate,
         default: "de",
         locales: ["de", "en-US", "de-DE", "de-CH", "en", "fr", "fr-FR"],

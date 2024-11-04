@@ -113,6 +113,7 @@ mod fetch_translations;
 mod langid;
 mod locale_traits;
 mod macro_helpers;
+mod macros;
 mod routing;
 mod scopes;
 
@@ -127,10 +128,7 @@ pub use context::{use_i18n_context, I18nContext};
 #[allow(deprecated)]
 pub use context::provide_i18n_context;
 
-pub use leptos_i18n_macro::{
-    load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,
-    tu_display, tu_string, use_i18n_scoped,
-};
+pub use leptos_i18n_macro::IcuDataProvider;
 pub use scopes::{ConstScope, Scope};
 
 /// This module contain utilities for plurals.
@@ -154,7 +152,7 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
-    pub use leptos_i18n_macro::declare_locales;
+    pub use leptos_i18n_macro as macros_reexport;
 }
 
 /// This module contain utilities to create custom ICU providers.
