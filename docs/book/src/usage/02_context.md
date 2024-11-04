@@ -119,6 +119,7 @@ The `I18nContextProvider` component accept multiple props, all optionnal (except
 
 - `children`: obviously
 - `set_lang_attr_on_html`: should or not set the "lang" attribute on the root `<html>` element (default to true)
+- `set_dir_attr_on_html`: should or not set the "dir" attribute on the root `<html>` element (default to true)
 - `enable_cookie`: should set a cookie to keep track of the locale when page reload (default to true) (do nothing without the "cookie" feature)
 - `cookie_name`: give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
 - `cookie_options`: options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
@@ -150,16 +151,20 @@ fn MyI18nProvider(
     );
     provide_context(i18n);
     let lang = move || i18n.get_locale().as_str();
+    let dir = move || i18n.get_locale().direction().as_str();
     view! {
-        <Html lang />
+        <Html
+            attr:lang=lang
+            attr:dir=dir
+        />
         {children}
     }
 }
 ```
 
-## "lang" html attribute
+## "lang" and "dir" html attributes
 
-You may want to add a "lang" attribute on a html element such that
+You may want to add a "lang" or/and "dir" attribute on a html element such that
 
 ```html
 <div lang="fr"></div>
@@ -177,4 +182,5 @@ view! {
 }
 ```
 
-And it will set the "lang" attribute for you on the `<div>` element !
+And it will set the "lang" and "dir" attributes for you on the `<div>` element !
+_note_ : use directives don't work on the server, so don't rely on this for server side rendering.

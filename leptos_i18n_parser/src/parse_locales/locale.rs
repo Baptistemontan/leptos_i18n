@@ -543,7 +543,7 @@ impl Locale {
                 count_key: Key::new(VAR_COUNT_KEY).unwrap(),
                 other: Box::new(other),
             };
-            plural.check_forms(&locale, key_path, warnings);
+            plural.check_forms(&locale, key_path, warnings)?;
             let value = ParsedValue::Plurals(plural);
             let key = key_path
                 .pop_key()
