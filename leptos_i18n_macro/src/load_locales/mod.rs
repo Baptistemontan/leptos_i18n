@@ -158,10 +158,10 @@ fn load_locales_inner(
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
             pub fn I18nContextProvider<Chil: IntoView>(
-                /// If the "dir" attribute should be set on the root `<html>` element. (default to true)
+                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
-                /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
+                /// If the "dir" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_dir_attr_on_html: Option<bool>,
                 /// Enable the use of a cookie to save the choosen locale (default to true).
