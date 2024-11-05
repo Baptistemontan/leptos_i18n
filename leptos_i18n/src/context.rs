@@ -144,9 +144,9 @@ fn init_context_inner<L: Locale>(
     }
 }
 
-/// *********************************************
-/// * CONTEXT
-/// *********************************************
+// *********************************************
+// * CONTEXT
+// *********************************************
 
 /// Options to init of provide a `I18nContext`
 #[derive(default_struct_builder::DefaultBuilder)]
@@ -165,7 +165,7 @@ where
     ssr_lang_header_getter: UseLocalesOptions,
 }
 
-impl<'a, L: Locale> Default for I18nContextOptions<'a, L> {
+impl<L: Locale> Default for I18nContextOptions<'_, L> {
     fn default() -> Self {
         I18nContextOptions {
             enable_cookie: ENABLE_COOKIE,
@@ -242,9 +242,9 @@ pub fn provide_i18n_context_with_options<L: Locale>(
     provide_i18n_context_with_options_inner(options)
 }
 
-/// *********************************************
-/// * SUB CONTEXT
-/// *********************************************
+// *********************************************
+// * SUB CONTEXT
+// *********************************************
 
 #[track_caller]
 fn init_subcontext_with_options<L: Locale>(

@@ -266,7 +266,7 @@ pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
 ///
 /// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
 /// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
-
+///
 /// t!(subkeys_i18n, value);
 /// ```
 #[proc_macro]
@@ -293,7 +293,7 @@ pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 ///
 /// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
 /// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
-
+///
 /// t!(subkeys_i18n, value);
 /// ```
 #[proc_macro]

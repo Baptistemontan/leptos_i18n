@@ -44,7 +44,7 @@ pub enum Literal<'a> {
     Bool(bool),
 }
 
-impl<'a> Literal<'a> {
+impl Literal<'_> {
     fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         match self {
             Literal::String(_, index) => {
