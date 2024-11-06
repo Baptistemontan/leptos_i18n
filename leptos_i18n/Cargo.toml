@@ -46,6 +46,7 @@ tower = { version = "0.4.13", default-features = false, optional = true, feature
 ] }
 leptos_server = { version = "=0.7.0-rc0", optional = true }
 server_fn = { version = "=0.7.0-rc0", optional = true }
+server_fn_macro = { version = "=0.7.0-rc0", optional = true }
 
 [features]
 default = ["cookie", "json_files", "icu_compiled_data"]
