@@ -19,12 +19,7 @@ fn emit_warning(warning: &Warning) {
     {
         use proc_macro::Diagnostic;
 
-        Diagnostic::spanned(
-            self.span,
-            proc_macro::Level::Warning,
-            self.warning.to_string(),
-        )
-        .emit();
+        Diagnostic::new(proc_macro::Level::Warning, warning.to_string()).emit();
     }
 }
 
