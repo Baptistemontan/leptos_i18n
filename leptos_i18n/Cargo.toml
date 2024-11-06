@@ -85,11 +85,6 @@ hydrate = [
     "dep:serde-wasm-bindgen",
 ]
 csr = ["leptos/csr", "leptos_i18n_macro/csr"]
-cookie = []
-experimental-islands = [
-    "leptos/experimental-islands",
-    "leptos_i18n_macro/experimental-islands",
-]
 ssr = [
     "leptos/ssr",
     "leptos_meta/ssr",
@@ -100,6 +95,11 @@ ssr = [
     "dep:leptos_server",
     "dep:server_fn",
     "dep:server_fn_macro",
+]
+cookie = []
+experimental-islands = [
+    "leptos/experimental-islands",
+    "leptos_i18n_macro/experimental-islands",
 ]
 nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 
