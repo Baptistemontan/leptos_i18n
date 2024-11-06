@@ -1025,7 +1025,7 @@ impl<'de> Deserialize<'de> for Literal {
     }
 }
 
-impl<'de> Visitor<'de> for LiteralVisitor {
+impl Visitor<'_> for LiteralVisitor {
     type Value = Literal;
 
     fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>

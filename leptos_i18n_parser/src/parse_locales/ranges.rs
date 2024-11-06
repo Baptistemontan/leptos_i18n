@@ -104,7 +104,10 @@ pub trait ParseRanges<'a, 'de> {
 }
 
 impl<'a, 'de, A: serde::de::SeqAccess<'de>> ParseRanges<'a, 'de> for A {
-    type Result<O> = Result<O, A::Error> where O: 'de + 'a;
+    type Result<O>
+        = Result<O, A::Error>
+    where
+        O: 'de + 'a;
 
     type Seed = ParsedValueSeed<'a>;
 
@@ -264,7 +267,7 @@ impl Ranges {
     {
         let type_or_range = seq
             .next_element_seed(TypeOrRangeSeed(parsed_value_seed))?
-            .ok_or_else(|| Error::EmptyRange)
+            .ok_or(Error::EmptyRange)
             .map_err(serde::de::Error::custom)?;
 
         let mut ranges = match type_or_range {
@@ -954,7 +957,7 @@ impl<'de> serde::de::Deserialize<'de> for RangeField {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for RangeFieldVisitor {
+impl serde::de::Visitor<'_> for RangeFieldVisitor {
     type Value = RangeField;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

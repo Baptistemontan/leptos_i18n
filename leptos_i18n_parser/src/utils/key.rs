@@ -166,7 +166,7 @@ impl<'de> serde::de::Deserialize<'de> for Key {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for KeyVisitor {
+impl serde::de::Visitor<'_> for KeyVisitor {
     type Value = Key;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

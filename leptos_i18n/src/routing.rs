@@ -16,7 +16,7 @@ use crate::{use_i18n_context, I18nContext, Locale};
 #[derive(Debug)]
 struct PathBuilder<'a>(Vec<&'a str>);
 
-impl<'a> Default for PathBuilder<'a> {
+impl Default for PathBuilder<'_> {
     fn default() -> Self {
         Self::new()
     }

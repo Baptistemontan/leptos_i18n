@@ -616,7 +616,7 @@ impl Locale {
     }
 }
 
-impl<'de, 'a> serde::de::DeserializeSeed<'de> for LocaleSeed<'a> {
+impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed<'_> {
     type Value = Locale;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -639,7 +639,7 @@ impl<'de, 'a> serde::de::DeserializeSeed<'de> for LocaleSeed<'a> {
     }
 }
 
-impl<'de, 'a> serde::de::Visitor<'de> for LocaleSeed<'a> {
+impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
     type Value = BTreeMap<Key, ParsedValue>;
 
     fn visit_map<A>(mut self, mut map: A) -> Result<Self::Value, A::Error>

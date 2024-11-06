@@ -15,8 +15,8 @@ exclude = ["examples", "tests"]
 version = "0.5.0-gamma2"
 
 [workspace.dependencies]
-leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "0.5.0-gamma2" }
-leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "0.5.0-gamma2" }
+leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.5.0-gamma2" }
+leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.5.0-gamma2" }
 leptos_i18n = { path = "./leptos_i18n", version = "0.5.0-gamma2" }
 tests_common = { path = "./tests/common", version = "0.1.0" }
 leptos = { version = "0.7.0-rc0" }
