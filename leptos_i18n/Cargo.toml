@@ -96,6 +96,10 @@ ssr = [
     "leptos-use/ssr",
     "leptos_router/ssr",
     "leptos_i18n_macro/ssr",
+    # FIXME:
+    "dep:leptos_server",
+    "dep:server_fn",
+    "dep:server_fn_macro",
 ]
 nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 
