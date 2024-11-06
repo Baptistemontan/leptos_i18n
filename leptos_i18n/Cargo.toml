@@ -16,8 +16,8 @@ leptos = { workspace = true }
 leptos_meta = { version = "=0.7.0-rc0" }
 leptos_router = { version = "=0.7.0-rc0" }
 leptos-use = { version = "=0.14.0-gamma1", default-features = false, features = [
-    "use_locales",
-    "use_cookie",
+  "use_locales",
+  "use_cookie",
 ] }
 codee = "0.2"
 # icu = { version = "1.5", features = ["sync"] }
@@ -118,7 +118,6 @@ track_locale_files = ["leptos_i18n_macro/track_locale_files"]
 
 
 [package.metadata.cargo-all-features]
-max_combination_size = 1
 denylist = [
   # Always exclude:
   "ssr",         # Should always be enabled via a server integration rather than directly
