@@ -25,6 +25,9 @@ jobs:
       - name: "Install cargo-all-features"
         run: cargo install cargo-all-features --locked
 
+      - name: "Install clippy"
+        run: rustup component add clippy
+
       - name: "Run clippy"
         run: cargo clippy --package leptos_i18n
 
