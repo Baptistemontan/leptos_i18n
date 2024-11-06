@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::ops::Not;
+use std::{collections::BTreeMap, ops::Not};
 
 // pub mod cfg_file;
 pub mod declare_locales;
@@ -14,16 +13,21 @@ pub mod warning;
 pub mod plurals;
 
 use crate::utils::fit_in_leptos_tuple;
+use icu::locid::LanguageIdentifier;
 use interpolate::Interpolation;
-use leptos_i18n_parser::parse_locales::error::Result;
-use leptos_i18n_parser::parse_locales::locale::{
-    BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue, Namespace,
+use leptos_i18n_parser::{
+    parse_locales::{
+        cfg_file::ConfigFile,
+        error::{Error, Result},
+        locale::{
+            BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
+            LocalesOrNamespaces, Namespace,
+        },
+        warning::Warnings,
+        ForeignKeysPaths,
+    },
+    utils::key::{Key, KeyPath},
 };
-use leptos_i18n_parser::parse_locales::warning::Warnings;
-use leptos_i18n_parser::parse_locales::{
-    cfg_file::ConfigFile, locale::LocalesOrNamespaces, ForeignKeysPaths,
-};
-use leptos_i18n_parser::utils::key::{Key, KeyPath};
 use locale::LiteralType;
 use parsed_value::TRANSLATIONS_KEY;
 use proc_macro2::{Ident, Span, TokenStream};
@@ -89,7 +93,7 @@ fn load_locales_inner(
         &translation_unit_enum_ident,
         &cfg_file.default,
         &cfg_file.locales,
-    );
+    )?;
 
     let warnings = generate_warnings(warnings);
 
@@ -127,6 +131,9 @@ fn load_locales_inner(
                 /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
+                /// If the "dir" attribute should be set on the root `<html>` element. (default to true)
+                #[prop(optional)]
+                set_dir_attr_on_html: Option<bool>,
                 /// Enable the use of a cookie to save the choosen locale (default to true).
                 /// Does nothing without the "cookie" feature
                 #[prop(optional)]
@@ -138,6 +145,7 @@ fn load_locales_inner(
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
                     set_lang_attr_on_html,
+                    set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
                     children
@@ -177,6 +185,9 @@ fn load_locales_inner(
                 /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
+                /// If the "dir" attribute should be set on the root `<html>` element. (default to true)
+                #[prop(optional)]
+                set_dir_attr_on_html: Option<bool>,
                 /// Enable the use of a cookie to save the choosen locale (default to true).
                 /// Does nothing without the "cookie" feature
                 #[prop(optional)]
@@ -194,6 +205,7 @@ fn load_locales_inner(
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
                     set_lang_attr_on_html,
+                    set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
                     cookie_options,
@@ -320,7 +332,7 @@ fn create_locales_enum(
     translation_unit_enum_ident: &syn::Ident,
     default: &Key,
     locales: &[Key],
-) -> TokenStream {
+) -> Result<TokenStream> {
     let as_str_match_arms = locales
         .iter()
         .map(|key| (&key.ident, &key.name))
@@ -419,8 +431,32 @@ fn create_locales_enum(
     } else {
         quote!()
     };
+    let ld = icu::locid_transform::LocaleDirectionality::new();
 
-    quote! {
+    let locids = locales
+        .iter()
+        .map(|locale| match locale.name.parse::<LanguageIdentifier>() {
+            Ok(locid) => Ok((locale, locid)),
+            Err(err) => Err(Error::InvalidLocale {
+                locale: locale.name.clone(),
+                err,
+            }),
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let direction_match_arms = locids.iter().map(|(locale, locid)| {
+        let dir = match ld.get(locid) {
+            Some(icu::locid_transform::Direction::LeftToRight) => quote!(LeftToRight),
+            Some(icu::locid_transform::Direction::RightToLeft) => quote!(RightToLeft),
+            _ => quote!(Auto),
+        };
+
+        quote! {
+            #enum_ident::#locale => l_i18n_crate::Direction::#dir
+        }
+    });
+
+    let ts = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
@@ -459,7 +495,9 @@ fn create_locales_enum(
 
             fn as_str(self) -> &'static str {
                 let s = match self {
-                    #(#as_str_match_arms,)*
+                    #(
+                        #as_str_match_arms,
+                    )*
                 };
                 l_i18n_crate::__private::intern(s)
             }
@@ -469,7 +507,17 @@ fn create_locales_enum(
                     #const_icu_locales;
                 )*
                 match self {
-                    #(#as_icu_locale_match_arms,)*
+                    #(
+                        #as_icu_locale_match_arms,
+                    )*
+                }
+            }
+
+            fn direction(self) -> l_i18n_crate::Direction {
+                match self {
+                    #(
+                        #direction_match_arms,
+                    )*
                 }
             }
 
@@ -541,7 +589,8 @@ fn create_locales_enum(
         }
 
         #server_fn_mod
-    }
+    };
+    Ok(ts)
 }
 
 struct Subkeys<'a> {

@@ -8,7 +8,7 @@ use std::{
 
 use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
 
-use crate::{I18nContext, Locale, LocaleKeys};
+use crate::{Direction, I18nContext, Locale, LocaleKeys};
 
 /// Represent a scope in a locale.
 pub trait Scope<L: Locale>: 'static + Send + Sync {
@@ -162,6 +162,10 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
 
     fn as_str(self) -> &'static str {
         <L as Locale>::as_str(self.locale)
+    }
+
+    fn direction(self) -> Direction {
+        <L as Locale>::direction(self.locale)
     }
 
     fn as_icu_locale(self) -> &'static IcuLocale {

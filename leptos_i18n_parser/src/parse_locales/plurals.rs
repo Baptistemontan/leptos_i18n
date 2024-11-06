@@ -78,16 +78,20 @@ impl From<PluralRuleType> for IcuRuleType {
 }
 
 impl Plurals {
-    fn get_plural_rules(&self, locale: &Key) -> PluralRules {
-        let locale = locale
-            .name
-            .parse::<icu::locid::Locale>()
-            .expect("Invalid locale name");
-        PluralRules::try_new(&locale.into(), self.rule_type.into()).unwrap()
+    fn get_plural_rules(&self, locale: &Key) -> Result<PluralRules> {
+        let locale =
+            locale
+                .name
+                .parse::<icu::locid::Locale>()
+                .map_err(|err| Error::InvalidLocale {
+                    locale: locale.name.clone(),
+                    err,
+                })?;
+        PluralRules::try_new(&locale.into(), self.rule_type.into()).map_err(Error::PluralRulesError)
     }
 
-    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) {
-        let plural_rules = self.get_plural_rules(locale);
+    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) -> Result<()> {
+        let plural_rules = self.get_plural_rules(locale)?;
         let forms = self.forms.keys().copied().collect::<BTreeSet<_>>();
         let used_forms = plural_rules
             .categories()
@@ -101,6 +105,7 @@ impl Plurals {
                 rule_type: self.rule_type,
             });
         }
+        Ok(())
     }
 
     fn populate_with_new_key(
@@ -188,9 +193,10 @@ impl Plurals {
             plurals: &Plurals,
             locale: &Key,
             input: I,
-        ) -> PluralCategory {
-            let plural_rules = plurals.get_plural_rules(locale);
-            plural_rules.category_for(input)
+        ) -> Result<PluralCategory> {
+            let plural_rules = plurals.get_plural_rules(locale)?;
+            let cat = plural_rules.category_for(input);
+            Ok(cat)
         }
 
         let category = match count_arg {
@@ -215,6 +221,8 @@ impl Plurals {
                 })
             }
         };
+
+        let category = category?;
 
         match PluralForm::from_icu_category(category) {
             PluralForm::Other => self.other.populate(args, foreign_key, locale, key_path),

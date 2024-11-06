@@ -1,10 +1,17 @@
-use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf};
+use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
+
+use icu::{locid::Error as ParserError, plurals::Error as PluralsError};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
 
 #[derive(Debug)]
 pub enum Error {
+    InvalidLocale {
+        locale: Rc<str>,
+        err: ParserError,
+    },
+    PluralRulesError(PluralsError),
     CargoDirEnvNotPresent(std::env::VarError),
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,
@@ -208,6 +215,11 @@ impl Display for Error {
             Error::DisabledPlurals { locale, key_path } => write!(f, "Plurals are not enabled, enable the \"plurals\" feature to use them, at key \"{}\" in locale {:?}", key_path, locale),
             Error::NoFileFormats => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
             Error::MultipleFilesFormats => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
+            Error::InvalidLocale {
+                locale,
+                err
+            } => write!(f, "Found invalid locale {:?}: {}", locale, err),
+            Error::PluralRulesError(plurals_error) => write!(f, "Error while computing plurals categories: {}", plurals_error),
         }
     }
 }
