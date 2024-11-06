@@ -81,7 +81,8 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos --locked
+        # FIXME: Remove version
+        run: cargo install cargo-leptos@0.2.20 --locked
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}
@@ -133,7 +134,8 @@ jobs:
           targets: "wasm32-unknown-unknown"
 
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos --locked
+        # FIXME: Remove version
+        run: cargo install cargo-leptos@0.2.20 --locked
 
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/dynamic_load/${{ matrix.examples }}

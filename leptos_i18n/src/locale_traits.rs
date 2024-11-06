@@ -47,6 +47,9 @@ pub trait Locale<L: Locale = Self>:
     /// Return a static reference to a icu `Locale`
     fn as_icu_locale(self) -> &'static IcuLocale;
 
+    /// Return the direction of the locale.
+    fn direction(self) -> Direction;
+
     /// Return a static reference to a `LanguageIdentifier`
     fn as_langid(self) -> &'static LanguageIdentifier {
         Locale::as_icu_locale(self).as_ref()
@@ -137,6 +140,29 @@ pub trait TranslationUnitId:
 impl TranslationUnitId for () {
     fn to_str(self) -> Option<&'static str> {
         None
+    }
+}
+
+/// Represents the direction of a script.
+/// This is computed at compile time with [`icu_locid_transform::LocaleDirectionality`](https://docs.rs/icu_locid_transform/1.5.0/icu_locid_transform/struct.LocaleDirectionality.html)
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum Direction {
+    /// The script is left-to-right.
+    LeftToRight,
+    /// The script is right-to-left.
+    RightToLeft,
+    /// `icu_locid_transform::LocaleDirectionality::get` return an Option, this variant represent the None case, it is unknown.
+    Auto,
+}
+
+impl Direction {
+    /// Return the string representation for the the html `dir` attribute: "ltr", "rtl" and "auto".
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Direction::LeftToRight => "ltr",
+            Direction::RightToLeft => "rtl",
+            Direction::Auto => "auto",
+        }
     }
 }
 

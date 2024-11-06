@@ -264,7 +264,7 @@ macro_rules! use_i18n_scoped {
 ///
 /// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
 /// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
-
+///
 /// t!(subkeys_i18n, value);
 /// ```
 #[macro_export]
@@ -293,7 +293,7 @@ macro_rules! scope_i18n {
 ///
 /// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
 /// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
-
+///
 /// t!(subkeys_i18n, value);
 /// ```
 #[macro_export]

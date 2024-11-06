@@ -415,7 +415,10 @@ impl syn::parse::Parse for ParsedInput {
 pub struct RangeParseBuffer<'de>(ParseBuffer<'de>);
 
 impl<'a, 'de> ParseRanges<'a, 'de> for RangeParseBuffer<'de> {
-    type Result<O> = syn::Result<O> where O: 'de + 'a;
+    type Result<O>
+        = syn::Result<O>
+    where
+        O: 'de + 'a;
 
     type Seed = super::declare_locales::ParseRangeSeed<'a>;
 

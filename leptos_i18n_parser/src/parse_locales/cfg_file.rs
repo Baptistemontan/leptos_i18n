@@ -76,9 +76,9 @@ impl ConfigFile {
     }
 }
 
-/// -----------------------------------------
-/// Deserialization
-/// -----------------------------------------
+// -----------------------------------------
+// Deserialization
+// -----------------------------------------
 
 struct CfgFileVisitor;
 
@@ -114,7 +114,7 @@ impl<'de> serde::Deserialize<'de> for Field {
     }
 }
 
-impl<'de> serde::de::Visitor<'de> for FieldVisitor {
+impl serde::de::Visitor<'_> for FieldVisitor {
     type Value = Field;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
