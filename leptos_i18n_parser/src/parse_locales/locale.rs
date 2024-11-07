@@ -2,6 +2,7 @@ use serde::de::MapAccess;
 
 use crate::utils::formatter::{Formatter, SKIP_ICU_CFG};
 use crate::utils::{Key, KeyPath};
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -571,14 +572,19 @@ impl Locale {
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(key.clone());
-            if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
-                value.merge(def, keys, self.name.clone(), key_path, strings, warnings)?;
-            } else {
-                warnings.emit_warning(Warning::MissingKey {
-                    locale: top_locale.clone(),
-                    key_path: key_path.clone(),
-                });
-            }
+            let def = default_locale.keys.get(key).unwrap();
+            let entry = self.keys.entry(key.clone());
+            let value = match entry {
+                Entry::Vacant(entry) => {
+                    warnings.emit_warning(Warning::MissingKey {
+                        locale: top_locale.clone(),
+                        key_path: key_path.clone(),
+                    });
+                    entry.insert(ParsedValue::Default)
+                }
+                Entry::Occupied(entry) => entry.into_mut(),
+            };
+            value.merge(def, keys, self.name.clone(), key_path, strings, warnings)?;
             key_path.pop_key();
         }
 
