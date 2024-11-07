@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-leptos = { version = "0.7.0-rc0", features = ["csr"] }
-leptos_meta = { version = "0.7.0-rc0" }
+leptos = { version = "0.7.0-rc1", features = ["csr"] }
+leptos_meta = { version = "0.7.0-rc1" }
 leptos_i18n = { path = "../../../leptos_i18n", features = ["csr", "plurals"] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1" }

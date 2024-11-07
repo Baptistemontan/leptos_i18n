@@ -13,11 +13,11 @@ readme = "../README.md"
 [dependencies]
 leptos_i18n_macro = { workspace = true }
 leptos = { workspace = true }
-leptos_meta = { version = "=0.7.0-rc0" }
-leptos_router = { version = "=0.7.0-rc0" }
-leptos-use = { version = "=0.14.0-gamma1", default-features = false, features = [
-    "use_locales",
-    "use_cookie",
+leptos_meta = { version = "0.7.0-rc1" }
+leptos_router = { version = "0.7.0-rc1" }
+leptos-use = { version = "0.14.0-rc1", default-features = false, features = [
+  "use_locales",
+  "use_cookie",
 ] }
 codee = "0.2"
 # icu = { version = "1.5", features = ["sync"] }
@@ -28,7 +28,7 @@ icu_datetime = { version = "1.5", optional = true }
 icu_calendar = { version = "1.5", optional = true }
 icu_list = { version = "1.5", optional = true }
 icu_decimal = { version = "1.5", optional = true }
-typed-builder = "0.19"
+typed-builder = "0.20"
 fixed_decimal = { version = "0.5", optional = true, features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
@@ -40,61 +40,49 @@ futures = { version = "0.3.30", optional = true }
 noop-waker = { version = "0.1.0", optional = true }
 default-struct-builder = "0.5"
 
-# FIXME:
-tower = { version = "0.4.13", default-features = false, optional = true, features = [
-    "util",
-] }
-leptos_server = { version = "=0.7.0-rc0", optional = true }
-server_fn = { version = "=0.7.0-rc0", optional = true }
-server_fn_macro = { version = "=0.7.0-rc0", optional = true }
-
 [features]
 default = ["cookie", "json_files", "icu_compiled_data"]
 icu_compiled_data = [
-    "icu_plurals?/compiled_data",
-    "icu_datetime?/compiled_data",
-    "icu_calendar?/compiled_data",
-    "icu_list?/compiled_data",
-    "icu_decimal?/compiled_data",
-    "leptos_i18n_macro/icu_compiled_data",
+  "icu_plurals?/compiled_data",
+  "icu_datetime?/compiled_data",
+  "icu_calendar?/compiled_data",
+  "icu_list?/compiled_data",
+  "icu_decimal?/compiled_data",
+  "leptos_i18n_macro/icu_compiled_data",
 ]
 plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
 format_datetime = [
-    "dep:icu_datetime",
-    "dep:icu_calendar",
-    "dep:icu_provider",
-    "leptos_i18n_macro/format_datetime",
+  "dep:icu_datetime",
+  "dep:icu_calendar",
+  "dep:icu_provider",
+  "leptos_i18n_macro/format_datetime",
 ]
 format_list = [
-    "dep:icu_list",
-    "dep:icu_provider",
-    "leptos_i18n_macro/format_list",
+  "dep:icu_list",
+  "dep:icu_provider",
+  "leptos_i18n_macro/format_list",
 ]
 format_nums = [
-    "dep:icu_decimal",
-    "dep:fixed_decimal",
-    "dep:icu_provider",
-    "leptos_i18n_macro/format_nums",
+  "dep:icu_decimal",
+  "dep:fixed_decimal",
+  "dep:icu_provider",
+  "leptos_i18n_macro/format_nums",
 ]
 actix = ["ssr", "leptos-use/actix"]
-axum = ["ssr", "leptos-use/axum", "dep:tower"]
+axum = ["ssr", "leptos-use/axum"]
 hydrate = [
-    "leptos/hydrate",
-    "leptos_i18n_macro/hydrate",
-    "dep:js-sys",
-    "dep:serde-wasm-bindgen",
+  "leptos/hydrate",
+  "leptos_i18n_macro/hydrate",
+  "dep:js-sys",
+  "dep:serde-wasm-bindgen",
 ]
 csr = ["leptos/csr", "leptos_i18n_macro/csr"]
 ssr = [
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos-use/ssr",
-    "leptos_router/ssr",
-    "leptos_i18n_macro/ssr",
-    # FIXME:
-    "dep:leptos_server",
-    "dep:server_fn",
-    "dep:server_fn_macro",
+  "leptos/ssr",
+  "leptos_meta/ssr",
+  "leptos-use/ssr",
+  "leptos_router/ssr",
+  "leptos_i18n_macro/ssr",
 ]
 cookie = []
 experimental-islands = [
@@ -104,10 +92,10 @@ experimental-islands = [
 nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 
 dynamic_load = [
-    "leptos_i18n_macro/dynamic_load",
-    "dep:async-once-cell",
-    "dep:futures",
-    "dep:noop-waker",
+  "leptos_i18n_macro/dynamic_load",
+  "dep:async-once-cell",
+  "dep:futures",
+  "dep:noop-waker",
 ]
 
 
@@ -123,60 +111,60 @@ track_locale_files = ["leptos_i18n_macro/track_locale_files"]
 
 [package.metadata.cargo-all-features]
 denylist = [
-    # Always exclude:
-    "ssr",         # Should always be enabled via a server integration rather than directly
-    "yaml_files",  # See leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
-    "json5_files",
+  # Always exclude:
+  "ssr",         # Should always be enabled via a server integration rather than directly
+  "yaml_files",  # See leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
+  "json5_files",
 
-    # Only passed through to `leptos_i18n_macros`, exclude to save time:
-    "serde",
-    "suppress_key_warnings",
-    "track_locale_files",
-    "show_keys_only",
+  # Only passed through to `leptos_i18n_macros`, exclude to save time:
+  "serde",
+  "suppress_key_warnings",
+  "track_locale_files",
+  "show_keys_only",
 ]
 skip_feature_sets = [
-    # Axum and Actix features are incompatible with each other
-    [
-        "axum",
-        "actix",
-    ],
+  # Axum and Actix features are incompatible with each other
+  [
+    "axum",
+    "actix",
+  ],
 
-    # Only one of `hydrate`, (`axum`, `actix`), `csr` should be enabled in a single crate, exclude to save time:
-    [
-        "actix",
-        "hydrate",
-    ],
-    [
-        "axum",
-        "hydrate",
-    ],
-    [
-        "axum",
-        "actix",
-    ],
-    [
-        "actix",
-        "csr",
-    ],
-    [
-        "axum",
-        "csr",
-    ],
-    [
-        "hydrate",
-        "csr",
-    ],
-    [
-        "dynamic_load",
-        "csr",
-    ],
+  # Only one of `hydrate`, (`axum`, `actix`), `csr` should be enabled in a single crate, exclude to save time:
+  [
+    "actix",
+    "hydrate",
+  ],
+  [
+    "axum",
+    "hydrate",
+  ],
+  [
+    "axum",
+    "actix",
+  ],
+  [
+    "actix",
+    "csr",
+  ],
+  [
+    "axum",
+    "csr",
+  ],
+  [
+    "hydrate",
+    "csr",
+  ],
+  [
+    "dynamic_load",
+    "csr",
+  ],
 ]
 # see leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
 always_include_features = [
-    "json_files",
-    "icu_compiled_data",
-    "plurals",
-    "format_datetime",
-    "format_list",
-    "format_nums",
+  "json_files",
+  "icu_compiled_data",
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
 ]
