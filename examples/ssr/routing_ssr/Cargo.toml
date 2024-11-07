@@ -10,11 +10,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = { version = "0.7.0-rc0" }
-leptos_meta = { version = "0.7.0-rc0" }
-leptos_axum = { version = "0.7.0-rc0", optional = true }
+leptos = { version = "0.7.0-rc1" }
+leptos_meta = { version = "0.7.0-rc1" }
+leptos_axum = { version = "0.7.0-rc1", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
-    "track_locale_files",
+  "track_locale_files",
 ] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
@@ -22,29 +22,29 @@ wasm-bindgen = { version = "0.2", optional = true }
 simple_logger = "4"
 tokio = { version = "1.35", features = ["rt-multi-thread"], optional = true }
 log = "0.4"
-tower = { version = "0.4.13", optional = true }
-tower-http = { version = "0.5", features = ["fs"], optional = true }
+tower = { version = "0.5.1", optional = true }
+tower-http = { version = "0.6.1", features = ["fs"], optional = true }
 
-leptos_router = { version = "0.7.0-rc0" }
+leptos_router = { version = "0.7.0-rc1" }
 
 [features]
 default = ["hydrate", "ssr"]
 hydrate = [
-    "dep:console_error_panic_hook",
-    "dep:wasm-bindgen",
-    "leptos/hydrate",
-    "leptos_i18n/hydrate",
+  "dep:console_error_panic_hook",
+  "dep:wasm-bindgen",
+  "leptos/hydrate",
+  "leptos_i18n/hydrate",
 ]
 ssr = [
-    "dep:axum",
-    "dep:tokio",
-    "dep:tower",
-    "dep:tower-http",
-    "dep:leptos_axum",
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos_i18n/axum",
-    "leptos_router/ssr",
+  "dep:axum",
+  "dep:tokio",
+  "dep:tower",
+  "dep:tower-http",
+  "dep:leptos_axum",
+  "leptos/ssr",
+  "leptos_meta/ssr",
+  "leptos_i18n/axum",
+  "leptos_router/ssr",
 ]
 
 [package.metadata.leptos-i18n]
