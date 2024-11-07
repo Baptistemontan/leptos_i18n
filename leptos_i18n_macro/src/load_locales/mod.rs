@@ -91,7 +91,6 @@ fn load_locales_inner(
         &enum_ident,
         &keys_ident,
         &translation_unit_enum_ident,
-        &cfg_file.default,
         &cfg_file.locales,
     )?;
 
@@ -330,7 +329,6 @@ fn create_locales_enum(
     enum_ident: &syn::Ident,
     keys_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
-    default: &Key,
     locales: &[Key],
 ) -> Result<TokenStream> {
     let as_str_match_arms = locales
@@ -359,7 +357,7 @@ fn create_locales_enum(
         .iter()
         .map(|(key, ident)| {
             let locale = &key.name;
-            quote!(const #ident: &'static l_i18n_crate::reexports::icu::locid::Locale = &l_i18n_crate::reexports::icu::locid::locale!(#locale);)
+            quote!(const #ident: &l_i18n_crate::reexports::icu::locid::Locale = &l_i18n_crate::reexports::icu::locid::locale!(#locale);)
         })
         .collect::<Vec<_>>();
 
@@ -457,16 +455,11 @@ fn create_locales_enum(
     });
 
     let ts = quote! {
-        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Default)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
+            #[default]
             #(#locales,)*
-        }
-
-        impl Default for #enum_ident {
-            fn default() -> Self {
-                #enum_ident::#default
-            }
         }
 
         impl l_i18n_crate::reexports::serde::Serialize for #enum_ident {
@@ -504,7 +497,7 @@ fn create_locales_enum(
 
             fn as_icu_locale(self) -> &'static l_i18n_crate::reexports::icu::locid::Locale {
                 #(
-                    #const_icu_locales;
+                    #const_icu_locales
                 )*
                 match self {
                     #(
@@ -694,7 +687,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         } else {
                             quote! {
                                 #enum_ident::#ident => {
-                                    const #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
+                                    const #translations_key: &[&str; #strings_count] = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
                             }
@@ -876,7 +869,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                 let get_string = if cfg!(not(all(feature = "dynamic_load", not(feature = "ssr")))) {
                     quote!{
-                        const STRINGS: &'static [&'static str; #strings_count] = &[#(#strings,)*];
+                        const STRINGS: &[&str; #strings_count] = &[#(#strings,)*];
                     }
                 } else {
                     quote! {

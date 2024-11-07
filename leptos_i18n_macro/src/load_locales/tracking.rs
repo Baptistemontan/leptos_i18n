@@ -14,7 +14,7 @@ pub fn generate_file_tracking(tracked_files: Option<Vec<String>>) -> proc_macro2
         feature = "track_locale_files",
         not(feature = "nightly")
     )) {
-        quote::quote!(#(const _: &'static [u8] = include_bytes!(#paths);)*)
+        quote::quote!(#(const _: &[u8] = include_bytes!(#paths);)*)
     } else {
         #[cfg(feature = "nightly")]
         for path in paths {

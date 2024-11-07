@@ -54,7 +54,7 @@ impl Literal<'_> {
                 } else {
                     quote! {
                         {
-                            const S: &'static str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
+                            const S: &str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
                             S
                         }
                     }
@@ -168,7 +168,7 @@ pub fn to_token_stream(this: &ParsedValue, strings_count: usize) -> TokenStream 
     flatten(this, &mut tokens, &locale_field, strings_count);
 
     match &mut tokens[..] {
-        [] => quote!(None::<()>),
+        [] => quote!(""),
         [value] => std::mem::take(value),
         values => fit_in_leptos_tuple(values),
     }
@@ -179,9 +179,9 @@ pub fn as_string_impl(this: &ParsedValue, strings_count: usize) -> TokenStream {
     let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
     flatten_string(this, &mut tokens, &locale_field, strings_count);
 
-    match &tokens[..] {
+    match &mut tokens[..] {
         [] => quote!(Ok(())),
-        [value] => value.clone(),
+        [value] => std::mem::take(value),
         values => quote!({ #(#values?;)* Ok(()) }),
     }
 }

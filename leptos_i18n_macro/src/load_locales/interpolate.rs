@@ -415,6 +415,7 @@ impl Interpolation {
             .map(|_| quote!(()));
 
         quote! {
+            #[allow(non_camel_case_types)]
             pub fn display_builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
                 #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
             }
@@ -468,6 +469,7 @@ impl Interpolation {
                     }
                 }
 
+                #[allow(non_camel_case_types)]
                 pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#empty_builder_marker,)*)> {
                     #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
                 }
@@ -507,7 +509,10 @@ impl Interpolation {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
             #[builder(crate_module_path = l_i18n_crate::reexports::typed_builder)]
-            pub struct #ident<#(#generics,)*> {
+            pub struct #ident<#(
+                #[allow(non_camel_case_types)]
+                #generics,
+            )*> {
                 #locale_field: #enum_ident,
                 #into_views_marker,
                 #(#fields,)*
@@ -645,6 +650,7 @@ impl Interpolation {
                 }
             }
 
+            #[allow(non_camel_case_types)]
             impl<#(#raw_generics,)*> #display_struct_ident<#(#raw_generics,)*> {
                 #new_fn
             }
@@ -726,12 +732,13 @@ impl Interpolation {
             .iter()
             .enumerate()
             .rev()
-            .filter_map(move |(i, locale)| {
+            .map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
                 let value = locale
                     .keys
-                    .get(key)?;
+                    .get(key)
+                    .expect("Key not found while creating locale impl.");
 
                 let value = parsed_value::to_token_stream(value, locale.top_locale_string_count);
 
@@ -741,7 +748,7 @@ impl Interpolation {
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
-                let ts = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
                         #enum_ident::#locale_key => {
                             let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
@@ -758,12 +765,11 @@ impl Interpolation {
                 } else {
                     quote!{
                         #enum_ident::#locale_key => {
-                            const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
                     }
-                };
-                Some(ts)
+                }
             })
     }
 
@@ -795,7 +801,7 @@ impl Interpolation {
             } else {
                 quote!{
                     #enum_ident::#locale_key => {
-                        const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }
                 }
