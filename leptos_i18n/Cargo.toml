@@ -40,14 +40,6 @@ futures = { version = "0.3.30", optional = true }
 noop-waker = { version = "0.1.0", optional = true }
 default-struct-builder = "0.5"
 
-# FIXME:
-tower = { version = "0.5.1", default-features = false, optional = true, features = [
-  "util",
-] }
-leptos_server = { version = "0.7.0-rc1", optional = true }
-server_fn = { version = "0.7.0-rc1", optional = true }
-server_fn_macro = { version = "0.7.0-rc1", optional = true }
-
 [features]
 default = ["cookie", "json_files", "icu_compiled_data"]
 icu_compiled_data = [
@@ -77,7 +69,7 @@ format_nums = [
   "leptos_i18n_macro/format_nums",
 ]
 actix = ["ssr", "leptos-use/actix"]
-axum = ["ssr", "leptos-use/axum", "dep:tower"]
+axum = ["ssr", "leptos-use/axum"]
 hydrate = [
   "leptos/hydrate",
   "leptos_i18n_macro/hydrate",
@@ -96,10 +88,6 @@ ssr = [
   "leptos-use/ssr",
   "leptos_router/ssr",
   "leptos_i18n_macro/ssr",
-  # FIXME:
-  "dep:leptos_server",
-  "dep:server_fn",
-  "dep:server_fn_macro",
 ]
 nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 
