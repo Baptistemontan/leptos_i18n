@@ -10,12 +10,12 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = { version = "0.7.0-rc0", features = ["experimental-islands"] }
-leptos_meta = { version = "0.7.0-rc0" }
-leptos_axum = { version = "0.7.0-rc0", optional = true }
+leptos = { version = "0.7.0-rc1", features = ["experimental-islands"] }
+leptos_meta = { version = "0.7.0-rc1" }
+leptos_axum = { version = "0.7.0-rc1", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
-    "track_locale_files",
-    "experimental-islands",
+  "track_locale_files",
+  "experimental-islands",
 ] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
@@ -29,20 +29,20 @@ tower-http = { version = "0.5", features = ["fs"], optional = true }
 [features]
 default = ["hydrate", "ssr"]
 hydrate = [
-    "dep:console_error_panic_hook",
-    "dep:wasm-bindgen",
-    "leptos/hydrate",
-    "leptos_i18n/hydrate",
+  "dep:console_error_panic_hook",
+  "dep:wasm-bindgen",
+  "leptos/hydrate",
+  "leptos_i18n/hydrate",
 ]
 ssr = [
-    "dep:axum",
-    "dep:tokio",
-    "dep:tower",
-    "dep:tower-http",
-    "dep:leptos_axum",
-    "leptos/ssr",
-    "leptos_meta/ssr",
-    "leptos_i18n/axum",
+  "dep:axum",
+  "dep:tokio",
+  "dep:tower",
+  "dep:tower-http",
+  "dep:leptos_axum",
+  "leptos/ssr",
+  "leptos_meta/ssr",
+  "leptos_i18n/axum",
 ]
 
 [package.metadata.leptos-i18n]

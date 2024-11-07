@@ -1,5 +1,4 @@
 name: Tests
-
 on:
   push:
     branches:
@@ -7,10 +6,8 @@ on:
   pull_request:
     branches:
       - master
-
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   lib_test:
     name: Test leptos_i18n package
@@ -18,23 +15,17 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-
       - name: "Load cargo toolchain"
         uses: dtolnay/rust-toolchain@nightly
-
       - name: "Install cargo-all-features"
         run: cargo install cargo-all-features --locked
-
       - name: "Install clippy"
         run: rustup component add clippy
-
       - name: "Run clippy"
         run: cargo clippy --package leptos_i18n
-
       - name: "Test all features"
         working-directory: "leptos_i18n"
         run: cargo test-all-features
-
   macros_test:
     # Why not also use cargo-all-features with the parser and macros packages ?
     # Because all features are forwarded from leptos_i18n,
@@ -50,65 +41,46 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-
       - name: "Load cargo toolchain"
         uses: dtolnay/rust-toolchain@stable
-
       - name: "Run tests"
         run: cargo test --package ${{ matrix.packages }}
-
   test_ssr_examples:
     name: Test ${{ matrix.examples }} SSR example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        examples:
-          [
-            hello_world_actix,
-            hello_world_axum,
-            workspace,
-            axum_island,
-            routing_ssr,
-          ]
+        examples: [hello_world_actix, hello_world_axum, workspace, axum_island, routing_ssr]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-
       - name: "Setup Node"
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
       - name: "Setup Rust toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
-
       - name: "Install cargo-leptos"
-        # FIXME: Remove version
-        run: cargo install cargo-leptos@0.2.20 --locked
-
+        run: cargo install cargo-leptos@0.2.21 --locked
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: cargo leptos build
-
       - name: "Build e2e utils"
         working-directory: examples/utils
         run: npm ci
-
       - name: "Install Playwright"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: |
           npm ci
           npx playwright install --with-deps
-
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
         working-directory: examples/ssr/${{ matrix.examples }}
         run: npx playwright test
-
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
         # upload artifact only if e2e test failed
@@ -116,7 +88,6 @@ jobs:
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/ssr/${{ matrix.examples }}/playwright-report/
-
   test_dyn_load_examples:
     name: Test ${{ matrix.examples }} dynamic_load example
     runs-on: ubuntu-latest
@@ -127,41 +98,33 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-
       - name: "Setup Node"
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
       - name: "Setup Rust toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
-
       - name: "Install cargo-leptos"
         # FIXME: Remove version
         run: cargo install cargo-leptos@0.2.20 --locked
-
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: cargo leptos build
-
       - name: "Build e2e utils"
         working-directory: examples/utils
         run: npm ci
-
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
           npm ci
           npx playwright install --with-deps
-
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: npx playwright test
-
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
         # upload artifact only if e2e test failed
@@ -169,63 +132,42 @@ jobs:
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/dynamic_load/${{ matrix.examples }}/playwright-report/
-
   test_csr_examples:
     name: Test ${{ matrix.examples }} CSR example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        examples:
-          [
-            counter,
-            counter_icu_datagen,
-            counter_plurals,
-            counter_ranges,
-            interpolation,
-            namespaces,
-            subkeys,
-            yaml,
-            routing_csr,
-            subcontext,
-          ]
+        examples: [counter, counter_icu_datagen, counter_plurals, counter_ranges, interpolation, namespaces, subkeys, yaml, routing_csr, subcontext]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-
       - name: "Setup Node"
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
       - name: "Setup Rust toolchain"
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
-
       - name: "Install trunk"
         run: cargo install trunk --locked
-
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/csr/${{ matrix.examples }}
         run: trunk build
-
       - name: "Build e2e utils"
         working-directory: examples/utils
         run: npm ci
-
       - name: "Install Playwright"
         working-directory: examples/csr/${{ matrix.examples }}
         run: |
           npm ci
           npx playwright install --with-deps
-
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
         working-directory: examples/csr/${{ matrix.examples }}
         run: npx playwright test
-
       - name: "Upload e2e report"
         uses: actions/upload-artifact@v4
         # upload artifact only if e2e test failed
@@ -233,7 +175,6 @@ jobs:
         with:
           name: playwright-report-${{ matrix.examples }}
           path: examples/csr/${{ matrix.examples }}/playwright-report/
-
   test_suite:
     name: Test suite ${{ matrix.tests_suites }}
     runs-on: ubuntu-latest
@@ -244,12 +185,10 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-
       - name: "Install wasm32-unknown-unknown"
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "stable"
-
       - name: Running test suite ${{ matrix.tests_suites }}
         working-directory: tests/${{ matrix.tests_suites }}
         run: cargo test
