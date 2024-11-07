@@ -5,7 +5,7 @@ use serde::{
     Deserialize,
 };
 
-use crate::utils::{formatter::Formatter, Key, KeyPath};
+use crate::utils::{formatter::Formatter, Key, KeyPath, UnwrapAt};
 
 use super::{
     error::{Error, Result},
@@ -667,7 +667,7 @@ impl ParsedValue {
                         value.reduce();
                         Ok(())
                     })
-                    .unwrap();
+                    .unwrap_at("reduce_1");
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
             ParsedValue::Subkeys(Some(subkeys)) => {

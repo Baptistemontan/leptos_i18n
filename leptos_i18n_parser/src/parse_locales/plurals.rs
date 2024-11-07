@@ -12,7 +12,7 @@ use super::{
     warning::{Warning, Warnings},
     StringIndexer,
 };
-use crate::utils::{Key, KeyPath};
+use crate::utils::{Key, KeyPath, UnwrapAt};
 
 use super::parsed_value::ParsedValue;
 
@@ -201,7 +201,8 @@ impl Plurals {
 
         let category = match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
-                let count = FixedDecimal::try_from_f64(*count, FloatPrecision::Floating).unwrap();
+                let count = FixedDecimal::try_from_f64(*count, FloatPrecision::Floating)
+                    .unwrap_at("populate_with_count_arg_1");
                 get_category(self, locale, &count)
             }
             ParsedValue::Literal(Literal::Unsigned(count)) => get_category(self, locale, *count),

@@ -26,7 +26,10 @@ use leptos_i18n_parser::{
         warning::Warnings,
         ForeignKeysPaths,
     },
-    utils::key::{Key, KeyPath},
+    utils::{
+        key::{Key, KeyPath},
+        UnwrapAt,
+    },
 };
 use locale::LiteralType;
 use parsed_value::TRANSLATIONS_KEY;
@@ -622,7 +625,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     keys: &BTreeMap<Key, LocaleValue>,
     key_path: &mut KeyPath,
 ) -> TokenStream {
-    let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+    let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
     let literal_keys = keys
         .iter()

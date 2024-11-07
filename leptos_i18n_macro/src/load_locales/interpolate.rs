@@ -2,6 +2,7 @@ use leptos_i18n_parser::parse_locales::locale::InterpolationKeys;
 use leptos_i18n_parser::parse_locales::locale::Locale;
 use leptos_i18n_parser::utils::Key;
 use leptos_i18n_parser::utils::KeyPath;
+use leptos_i18n_parser::utils::UnwrapAt;
 use proc_macro2::{Span, TokenStream};
 use quote::format_ident;
 use quote::quote;
@@ -251,8 +252,8 @@ impl Interpolation {
 
         let dummy_ident = format_ident!("{}_dummy", ident);
 
-        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
-        let into_view_field = Key::new("_into_views_marker").unwrap();
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
+        let into_view_field = Key::new("_into_views_marker").unwrap_at("Interpolation::new_1");
 
         let typed_builder_name = format_ident!("{}Builder", ident);
         let display_struct_ident = format_ident!("{}Display", ident);
@@ -744,7 +745,7 @@ impl Interpolation {
 
                 let wrapped_value = either_wrapper.wrap(i, value);
 
-                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
@@ -787,7 +788,7 @@ impl Interpolation {
 
             let value = parsed_value::as_string_impl(value, locale.top_locale_string_count);
 
-            let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+            let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
