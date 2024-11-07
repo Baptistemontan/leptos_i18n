@@ -669,7 +669,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     let lit = locale
                         .keys
                         .get(key)
-                        .expect("this value should be present.");
+                        .unwrap_at("create_locale_type_inner_1");
                     let lit = parsed_value::to_token_stream(lit, locale.top_locale_string_count);
                     if *literal_type == LiteralType::String {
                         let strings_count = locale.top_locale_string_count;
@@ -1119,7 +1119,7 @@ fn create_namespaces_types(
         .map(|(namespace, namespace_module_ident)| {
             let keys = keys
                 .get(&namespace.key)
-                .expect("There should be a namspace of that name.");
+                .unwrap_at("create_namespaces_types_1");
             let mut key_path = KeyPath::new(Some(namespace.key.clone()));
             let type_impl = create_locale_type_inner::<true>(
                 &namespace.key.ident,

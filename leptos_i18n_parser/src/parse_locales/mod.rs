@@ -18,7 +18,7 @@ pub mod warning;
 use error::{Error, Result};
 use warning::Warnings;
 
-use crate::utils::{formatter::SkipIcuCfgGuard, Key, KeyPath};
+use crate::utils::{formatter::SkipIcuCfgGuard, Key, KeyPath, UnwrapAt};
 
 pub const VAR_COUNT_KEY: &str = "var_count";
 
@@ -103,7 +103,7 @@ fn resolve_foreign_keys(
     for (locale, value_path) in foreign_keys_paths {
         let value = values
             .get_value_at(&locale, &value_path)
-            .expect("The foreign key to be present a that path.");
+            .unwrap_at("resolve_foreign_keys_1");
         value.resolve_foreign_key(values, &locale, default_locale, &value_path)?;
     }
     Ok(())
@@ -136,9 +136,7 @@ fn check_locales_inner(
     warnings: &Warnings,
 ) -> Result<BuildersKeysInner> {
     let mut locales_iter = locales.iter_mut();
-    let default_locale = locales_iter
-        .next()
-        .expect("There should be at least one Locale");
+    let default_locale = locales_iter.next().unwrap_at("check_locales_inner_1");
     let mut key_path = KeyPath::new(namespace);
 
     let mut string_indexer = StringIndexer::default();

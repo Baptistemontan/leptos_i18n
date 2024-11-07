@@ -739,7 +739,7 @@ impl Interpolation {
                 let value = locale
                     .keys
                     .get(key)
-                    .expect("Key not found while creating locale impl.");
+                    .unwrap_at("create_locale_impl_1");
 
                 let value = parsed_value::to_token_stream(value, locale.top_locale_string_count);
 

@@ -611,9 +611,7 @@ impl Locale {
             value.reduce();
             key_path.push_key(key.clone());
             let locale_value = value.make_locale_value(key_path, strings)?;
-            let key = key_path
-                .pop_key()
-                .expect("Unexpected empty KeyPath in make_builder_keys. If you got this error please open an issue on github.");
+            let key = key_path.pop_key().unwrap_at("make_builder_keys_1");
             keys.0.insert(key, locale_value);
         }
         Ok(keys)

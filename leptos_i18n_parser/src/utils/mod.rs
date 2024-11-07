@@ -18,7 +18,7 @@ impl<T> UnwrapAt for Option<T> {
     type Value = T;
 
     fn unwrap_at(self, location: &str) -> Self::Value {
-        let msg = format!("Unexpected None value at {}.", location);
+        let msg = format!("Unexpected None value at {}. If you got this error please open an issue on the leptos_i18n github repo.", location);
         self.expect(&msg)
     }
 }
@@ -27,7 +27,7 @@ impl<T, E: Debug> UnwrapAt for Result<T, E> {
     type Value = T;
 
     fn unwrap_at(self, location: &str) -> Self::Value {
-        let msg = format!("Unexpected Err value at {}.", location);
+        let msg = format!("Unexpected Err value at {}. If you got this error please open an issue on the leptos_i18n github repo.", location);
         self.expect(&msg)
     }
 }
