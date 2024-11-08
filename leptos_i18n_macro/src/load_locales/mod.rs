@@ -695,6 +695,12 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                                 }
                             }
                         }
+                    } else if cfg!(feature = "dynamic_load") {
+                        quote! {
+                            #enum_ident::#ident => {
+                                l_i18n_crate::__private::LitWrapperFut::new_not_fut(#lit)
+                            }
+                        }
                     } else {
                         quote! {
                             #enum_ident::#ident => {
@@ -882,10 +888,10 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 };
 
-                let string_type = if cfg!(not(all(feature = "dynamic_load", not(feature = "ssr")))) {
-                    quote!([&'static str; #strings_count])
-                } else {
+                let string_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!([Box<str>; #strings_count])
+                } else {
+                    quote!([&'static str; #strings_count])
                 };
 
                 let translation_unit_impl = quote! {

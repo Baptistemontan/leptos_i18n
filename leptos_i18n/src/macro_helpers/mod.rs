@@ -259,7 +259,7 @@ pub fn intern(s: &str) -> &str {
 
 #[doc(hidden)]
 #[track_caller]
-#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+#[cfg(any(not(feature = "dynamic_load"), feature = "ssr"))]
 pub const fn index_translations<const N: usize, const I: usize>(
     translations: &'static [&'static str; N],
 ) -> &'static str {
@@ -268,7 +268,7 @@ pub const fn index_translations<const N: usize, const I: usize>(
 
 #[doc(hidden)]
 #[track_caller]
-#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+#[cfg(not(any(not(feature = "dynamic_load"), feature = "ssr")))]
 pub fn index_translations<const N: usize, const I: usize>(
     translations: &'static [Box<str>; N],
 ) -> &'static str {
