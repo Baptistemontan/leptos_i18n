@@ -5,7 +5,7 @@ use serde::{
     Deserialize,
 };
 
-use crate::utils::{formatter::Formatter, Key, KeyPath};
+use crate::utils::{formatter::Formatter, Key, KeyPath, UnwrapAt};
 
 use super::{
     error::{Error, Result},
@@ -598,7 +598,7 @@ impl ParsedValue {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
-                let default_locale = locales.first().expect("locales vec empty during merge. If you got this error please open a issue on github.");
+                let default_locale = locales.first().unwrap_at("merge_1");
                 loc.merge(
                     keys,
                     default_locale,
@@ -667,7 +667,7 @@ impl ParsedValue {
                         value.reduce();
                         Ok(())
                     })
-                    .unwrap();
+                    .unwrap_at("reduce_1");
             }
             ParsedValue::Component { inner, .. } => inner.reduce(),
             ParsedValue::Subkeys(Some(subkeys)) => {

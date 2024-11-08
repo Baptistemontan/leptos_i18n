@@ -15,7 +15,7 @@ use super::{
     error::{Error, Result},
     locale::{InterpolOrLit, LocalesOrNamespaces},
     parsed_value::{ParsedValue, ParsedValueSeed},
-    StringIndexer, VAR_COUNT_KEY,
+    StringIndexer,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -273,7 +273,7 @@ impl Ranges {
         let mut ranges = match type_or_range {
             TypeOrRange::Type(range_type) => Self::from_type(range_type),
             TypeOrRange::Range(range) => Ranges {
-                count_key: Key::new(VAR_COUNT_KEY).unwrap(),
+                count_key: Key::count(),
                 inner: UntypedRangesInner::I32(vec![range]),
             },
         };
@@ -296,7 +296,7 @@ impl Ranges {
             RangeType::F64 => UntypedRangesInner::F64(vec![]),
         };
         Ranges {
-            count_key: Key::new(VAR_COUNT_KEY).unwrap(),
+            count_key: Key::count(),
             inner,
         }
     }

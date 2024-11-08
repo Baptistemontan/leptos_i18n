@@ -4,6 +4,8 @@ use std::fmt::{Debug, Display};
 use std::hash::Hash;
 use std::rc::Rc;
 
+use super::UnwrapAt;
+
 #[derive(Clone)]
 pub struct Key {
     pub name: Rc<str>,
@@ -44,7 +46,7 @@ impl Key {
     }
 
     pub fn count() -> Self {
-        Self::new(VAR_COUNT_KEY).unwrap()
+        Self::new(VAR_COUNT_KEY).unwrap_at("VAR_COUNT_KEY")
     }
 }
 

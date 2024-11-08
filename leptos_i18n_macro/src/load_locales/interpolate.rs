@@ -2,6 +2,7 @@ use leptos_i18n_parser::parse_locales::locale::InterpolationKeys;
 use leptos_i18n_parser::parse_locales::locale::Locale;
 use leptos_i18n_parser::utils::Key;
 use leptos_i18n_parser::utils::KeyPath;
+use leptos_i18n_parser::utils::UnwrapAt;
 use proc_macro2::{Span, TokenStream};
 use quote::format_ident;
 use quote::quote;
@@ -251,8 +252,8 @@ impl Interpolation {
 
         let dummy_ident = format_ident!("{}_dummy", ident);
 
-        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
-        let into_view_field = Key::new("_into_views_marker").unwrap();
+        let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
+        let into_view_field = Key::new("_into_views_marker").unwrap_at("Interpolation::new_1");
 
         let typed_builder_name = format_ident!("{}Builder", ident);
         let display_struct_ident = format_ident!("{}Display", ident);
@@ -415,6 +416,7 @@ impl Interpolation {
             .map(|_| quote!(()));
 
         quote! {
+            #[allow(non_camel_case_types)]
             pub fn display_builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#builder_marker,)*)> {
                 #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
             }
@@ -468,6 +470,7 @@ impl Interpolation {
                     }
                 }
 
+                #[allow(non_camel_case_types)]
                 pub fn builder<#(#left_generics,)*>(self) -> #typed_builder_name<#(#right_generics,)* ((#enum_ident,), (core::marker::PhantomData<(#(#into_views,)*)>,), #(#empty_builder_marker,)*)> {
                     #ident::builder().#locale_field(self.#locale_field).#into_view_field(core::marker::PhantomData)
                 }
@@ -507,7 +510,10 @@ impl Interpolation {
             #[allow(non_camel_case_types, non_snake_case)]
             #[derive(l_i18n_crate::reexports::typed_builder::TypedBuilder)]
             #[builder(crate_module_path = l_i18n_crate::reexports::typed_builder)]
-            pub struct #ident<#(#generics,)*> {
+            pub struct #ident<#(
+                #[allow(non_camel_case_types)]
+                #generics,
+            )*> {
                 #locale_field: #enum_ident,
                 #into_views_marker,
                 #(#fields,)*
@@ -645,6 +651,7 @@ impl Interpolation {
                 }
             }
 
+            #[allow(non_camel_case_types)]
             impl<#(#raw_generics,)*> #display_struct_ident<#(#raw_generics,)*> {
                 #new_fn
             }
@@ -726,22 +733,23 @@ impl Interpolation {
             .iter()
             .enumerate()
             .rev()
-            .filter_map(move |(i, locale)| {
+            .map(move |(i, locale)| {
                 let locale_key = &locale.top_locale_name;
 
                 let value = locale
                     .keys
-                    .get(key)?;
+                    .get(key)
+                    .unwrap_at("create_locale_impl_1");
 
                 let value = parsed_value::to_token_stream(value, locale.top_locale_string_count);
 
                 let wrapped_value = either_wrapper.wrap(i, value);
 
-                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
-                let ts = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
                         #enum_ident::#locale_key => {
                             let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
@@ -758,12 +766,11 @@ impl Interpolation {
                 } else {
                     quote!{
                         #enum_ident::#locale_key => {
-                            const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
                     }
-                };
-                Some(ts)
+                }
             })
     }
 
@@ -773,20 +780,21 @@ impl Interpolation {
         locales: &'a [Locale],
         locale_type_ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        locales.iter().rev().filter_map(move |locale| {
+        locales.iter().rev().map(move |locale| {
             let locale_key = &locale.top_locale_name;
             let value = locale
                 .keys
-                .get(key)?;
+                .get(key)
+                .unwrap_at("create_locale_string_impl_1");
 
             let value = parsed_value::as_string_impl(value, locale.top_locale_string_count);
 
-            let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+            let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
 
-            let ts = if cfg!(feature = "dynamic_load") {
+            if cfg!(feature = "dynamic_load") {
                 quote!{
                     #enum_ident::#locale_key(#translations_key) => {
                         #value
@@ -795,12 +803,11 @@ impl Interpolation {
             } else {
                 quote!{
                     #enum_ident::#locale_key => {
-                        const #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }
                 }
-            };
-            Some(ts)
+            }
         })
     }
 }

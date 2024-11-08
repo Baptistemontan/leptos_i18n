@@ -1,7 +1,8 @@
 use serde::de::MapAccess;
 
 use crate::utils::formatter::{Formatter, SKIP_ICU_CFG};
-use crate::utils::{Key, KeyPath};
+use crate::utils::{Key, KeyPath, UnwrapAt};
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -13,7 +14,7 @@ use super::parsed_value::{ParsedValue, ParsedValueSeed};
 use super::plurals::{PluralForm, PluralRuleType, Plurals};
 use super::ranges::RangeType;
 use super::warning::{Warning, Warnings};
-use super::{ForeignKeysPaths, StringIndexer, VAR_COUNT_KEY};
+use super::{ForeignKeysPaths, StringIndexer};
 
 #[derive(Debug)]
 pub enum SerdeError {
@@ -515,7 +516,7 @@ impl Locale {
                 }
                 continue;
             };
-            let key = Key::new(&base_key).unwrap();
+            let key = Key::new(&base_key).unwrap_at("merge_plurals_1");
             key_path.push_key(key);
             if !cfg!(feature = "plurals") && !SKIP_ICU_CFG.get() {
                 return Err(Error::DisabledPlurals {
@@ -540,14 +541,12 @@ impl Locale {
             let plural = Plurals {
                 rule_type,
                 forms,
-                count_key: Key::new(VAR_COUNT_KEY).unwrap(),
+                count_key: Key::count(),
                 other: Box::new(other),
             };
             plural.check_forms(&locale, key_path, warnings)?;
             let value = ParsedValue::Plurals(plural);
-            let key = key_path
-                .pop_key()
-                .expect("The KeyPath should not be empty.");
+            let key = key_path.pop_key().unwrap_at("merge_plurals_3");
             if self.keys.insert(key.clone(), value).is_some() {
                 key_path.push_key(key);
                 return Err(Error::PluralsAtNormalKey {
@@ -571,14 +570,19 @@ impl Locale {
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(key.clone());
-            if let Some((value, def)) = self.keys.get_mut(key).zip(default_locale.keys.get(key)) {
-                value.merge(def, keys, self.name.clone(), key_path, strings, warnings)?;
-            } else {
-                warnings.emit_warning(Warning::MissingKey {
-                    locale: top_locale.clone(),
-                    key_path: key_path.clone(),
-                });
-            }
+            let def = default_locale.keys.get(key).unwrap_at("merge_1");
+            let entry = self.keys.entry(key.clone());
+            let value = match entry {
+                Entry::Vacant(entry) => {
+                    warnings.emit_warning(Warning::MissingKey {
+                        locale: top_locale.clone(),
+                        key_path: key_path.clone(),
+                    });
+                    entry.insert(ParsedValue::Default)
+                }
+                Entry::Occupied(entry) => entry.into_mut(),
+            };
+            value.merge(def, keys, self.name.clone(), key_path, strings, warnings)?;
             key_path.pop_key();
         }
 
@@ -607,9 +611,7 @@ impl Locale {
             value.reduce();
             key_path.push_key(key.clone());
             let locale_value = value.make_locale_value(key_path, strings)?;
-            let key = key_path
-                .pop_key()
-                .expect("Unexpected empty KeyPath in make_builder_keys. If you got this error please open an issue on github.");
+            let key = key_path.pop_key().unwrap_at("make_builder_keys_1");
             keys.0.insert(key, locale_value);
         }
         Ok(keys)

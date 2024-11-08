@@ -525,7 +525,6 @@ pub fn provide_i18n_context_component_island<L: Locale>(
 impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
     type Output = L;
     #[inline]
-    #[track_caller]
     extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
         self.get_locale()
     }
@@ -534,7 +533,6 @@ impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
     #[inline]
-    #[track_caller]
     extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
         self.get_locale()
     }
@@ -543,7 +541,6 @@ impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
     #[inline]
-    #[track_caller]
     extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
         self.get_locale()
     }
@@ -554,7 +551,6 @@ impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
 impl<L: Locale, S: Scope<L>> FnOnce<(L,)> for I18nContext<L, S> {
     type Output = ();
     #[inline]
-    #[track_caller]
     extern "rust-call" fn call_once(self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
@@ -563,7 +559,6 @@ impl<L: Locale, S: Scope<L>> FnOnce<(L,)> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> FnMut<(L,)> for I18nContext<L, S> {
     #[inline]
-    #[track_caller]
     extern "rust-call" fn call_mut(&mut self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }
@@ -572,7 +567,6 @@ impl<L: Locale, S: Scope<L>> FnMut<(L,)> for I18nContext<L, S> {
 #[cfg(feature = "nightly")]
 impl<L: Locale, S: Scope<L>> Fn<(L,)> for I18nContext<L, S> {
     #[inline]
-    #[track_caller]
     extern "rust-call" fn call(&self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
     }

@@ -3,7 +3,7 @@ use leptos_i18n_parser::{
         locale::{InterpolOrLit, LiteralType},
         plurals::Plurals,
     },
-    utils::{Key, KeyPath},
+    utils::{Key, KeyPath, UnwrapAt},
 };
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -97,7 +97,7 @@ pub fn as_string_impl(this: &Plurals, count_key: &Key, strings_count: usize) -> 
         quote!(#form => { #ts })
     });
 
-    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
+    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
 
     let other = parsed_value::as_string_impl(&this.other, strings_count);
 
@@ -121,7 +121,7 @@ pub fn to_token_stream(this: &Plurals, strings_count: usize) -> TokenStream {
         quote!(#form => { #ts })
     });
 
-    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
+    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
     let other = &*this.other;
 
     let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
@@ -130,7 +130,7 @@ pub fn to_token_stream(this: &Plurals, strings_count: usize) -> TokenStream {
     for value in this.forms.values().chain(Some(other)) {
         value
             .get_keys_inner(&mut key_path, &mut captured_values, false)
-            .unwrap();
+            .unwrap_at("plurals::to_token_stream_1");
     }
 
     let captured_values = captured_values.is_interpol().map(|keys| {

@@ -4,7 +4,7 @@ use quote::{quote, ToTokens};
 
 use leptos_i18n_parser::{
     parse_locales::parsed_value::ParsedValue,
-    utils::{Key, KeyPath},
+    utils::{Key, KeyPath, UnwrapAt},
 };
 
 use super::{interpolate::LOCALE_FIELD_KEY, plurals, ranges};
@@ -48,13 +48,13 @@ impl Literal<'_> {
     fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         match self {
             Literal::String(_, index) => {
-                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap();
+                let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
                 if cfg!(feature = "dynamic_load") {
                     quote!(l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key))
                 } else {
                     quote! {
                         {
-                            const S: &'static str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
+                            const S: &str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
                             S
                         }
                     }
@@ -89,7 +89,7 @@ fn flatten(
             let mut key_path = KeyPath::new(None);
             let captured_keys = inner
                 .get_keys(&mut key_path)
-                .unwrap()
+                .unwrap_at("parsed_value::flatten_1")
                 .is_interpol()
                 .map(|keys| {
                     let keys = keys
@@ -164,11 +164,11 @@ fn flatten_string(
 
 pub fn to_token_stream(this: &ParsedValue, strings_count: usize) -> TokenStream {
     let mut tokens = Vec::new();
-    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
+    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
     flatten(this, &mut tokens, &locale_field, strings_count);
 
     match &mut tokens[..] {
-        [] => quote!(None::<()>),
+        [] => quote!(""),
         [value] => std::mem::take(value),
         values => fit_in_leptos_tuple(values),
     }
@@ -176,12 +176,12 @@ pub fn to_token_stream(this: &ParsedValue, strings_count: usize) -> TokenStream 
 
 pub fn as_string_impl(this: &ParsedValue, strings_count: usize) -> TokenStream {
     let mut tokens = Vec::new();
-    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap();
+    let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
     flatten_string(this, &mut tokens, &locale_field, strings_count);
 
-    match &tokens[..] {
+    match &mut tokens[..] {
         [] => quote!(Ok(())),
-        [value] => value.clone(),
+        [value] => std::mem::take(value),
         values => quote!({ #(#values?;)* Ok(()) }),
     }
 }
