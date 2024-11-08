@@ -1,12 +1,15 @@
 use std::ops::Bound;
 
-use leptos_i18n_parser::parse_locales::{
-    locale::InterpolOrLit,
-    ranges::{Range, RangeNumber, Ranges, UntypedRangesInner},
-};
 use leptos_i18n_parser::{
     parse_locales::parsed_value::ParsedValue,
     utils::{Key, KeyPath},
+};
+use leptos_i18n_parser::{
+    parse_locales::{
+        locale::InterpolOrLit,
+        ranges::{Range, RangeNumber, Ranges, UntypedRangesInner},
+    },
+    utils::UnwrapAt,
 };
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -136,7 +139,7 @@ fn to_tokens_integers<T: RangeNumber>(
     for (_, value) in ranges {
         value
             .get_keys_inner(&mut key_path, &mut captured_values, false)
-            .unwrap();
+            .unwrap_at("ranges::to_tokens_integers_1");
     }
 
     let captured_values = captured_values.is_interpol().map(|keys| {
@@ -190,7 +193,7 @@ fn to_tokens_floats<T: RangeNumber>(
     for (_, value) in ranges {
         value
             .get_keys_inner(&mut key_path, &mut captured_values, false)
-            .unwrap();
+            .unwrap_at("ranges::to_tokens_floats_1");
     }
 
     let captured_values = captured_values.is_interpol().map(|keys| {
