@@ -54,6 +54,8 @@ pub fn load_locales() -> Result<TokenStream> {
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
+    let interpolate_display = cfg!(feature = "interpolate_display");
+
     load_locales_inner(
         &crate_path,
         &cfg_file,
@@ -61,6 +63,7 @@ pub fn load_locales() -> Result<TokenStream> {
         foreign_keys,
         warnings,
         Some(tracked_files),
+        interpolate_display,
     )
 }
 
@@ -71,6 +74,7 @@ fn load_locales_inner(
     foreign_keys_paths: ForeignKeysPaths,
     warnings: Warnings,
     tracked_files: Option<Vec<String>>,
+    interpolate_display: bool,
 ) -> Result<TokenStream> {
     let keys = leptos_i18n_parser::parse_locales::make_builder_keys(
         locales,
@@ -89,6 +93,7 @@ fn load_locales_inner(
         &keys_ident,
         &enum_ident,
         &translation_unit_enum_ident,
+        interpolate_display,
     );
     let locale_enum = create_locales_enum(
         &enum_ident,
@@ -108,17 +113,13 @@ fn load_locales_inner(
         quote!(use_i18n_scoped),
         quote!(scope_i18n),
         quote!(scope_locale),
+        quote!(t_string),
+        quote!(tu_string),
+        quote!(t_display),
+        quote!(tu_display),
+        quote!(td_string),
+        quote!(td_display),
     ];
-    if cfg!(feature = "interpolate_display") {
-        macros_reexport.extend([
-            quote!(t_string),
-            quote!(tu_string),
-            quote!(t_display),
-            quote!(tu_display),
-            quote!(td_string),
-            quote!(td_display),
-        ]);
-    }
 
     let providers = if cfg!(feature = "experimental-islands") {
         macros_reexport.push(quote!(ti));
@@ -624,6 +625,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     locales: &[Locale],
     keys: &BTreeMap<Key, LocaleValue>,
     key_path: &mut KeyPath,
+    interpolate_display: bool,
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
@@ -768,6 +770,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             sk.locales,
             &sk.keys.0,
             key_path,
+            interpolate_display,
         );
         key_path.pop_key();
         quote! {
@@ -809,7 +812,15 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         .filter_map(|(key, value)| match value {
             LocaleValue::Value(InterpolOrLit::Interpol(keys)) => Some((
                 key,
-                Interpolation::new(key, enum_ident, keys, locales, key_path, type_ident),
+                Interpolation::new(
+                    key,
+                    enum_ident,
+                    keys,
+                    locales,
+                    key_path,
+                    type_ident,
+                    interpolate_display,
+                ),
             )),
             _ => None,
         })
@@ -1111,6 +1122,7 @@ fn create_namespaces_types(
     translation_unit_enum_ident: &syn::Ident,
     namespaces: &[Namespace],
     keys: &BTreeMap<Key, BuildersKeysInner>,
+    interpolate_display: bool,
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1135,6 +1147,7 @@ fn create_namespaces_types(
                 &namespace.locales,
                 &keys.0,
                 &mut key_path,
+                interpolate_display,
             );
 
             quote! {
@@ -1314,6 +1327,7 @@ fn create_locale_type(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
+    interpolate_display: bool,
 ) -> TokenStream {
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
@@ -1322,6 +1336,7 @@ fn create_locale_type(
             translation_unit_enum_ident,
             namespaces,
             keys,
+            interpolate_display,
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,
@@ -1331,6 +1346,7 @@ fn create_locale_type(
             locales,
             &keys.0,
             &mut KeyPath::new(None),
+            interpolate_display,
         ),
     }
 }

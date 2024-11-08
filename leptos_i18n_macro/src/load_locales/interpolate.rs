@@ -245,6 +245,7 @@ impl Interpolation {
         locales: &[Locale],
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
+        interpolate_display: bool,
     ) -> Self {
         let builder_name = format!("{}_builder", key);
 
@@ -277,6 +278,7 @@ impl Interpolation {
             &locale_field,
             &into_view_field,
             &fields,
+            interpolate_display,
         );
 
         let into_view_impl = Self::into_view_impl(
@@ -292,7 +294,7 @@ impl Interpolation {
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
-        let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
+        let (display_impl, builder_display) = if interpolate_display {
             let display_impl = Self::display_impl(
                 key,
                 &ident,
@@ -432,6 +434,7 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
+        interpolate_display: bool,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -439,7 +442,7 @@ impl Interpolation {
 
         let empty_builder_marker = fields.iter().map(|_| quote!(()));
 
-        let display_builder_fn = if cfg!(feature = "interpolate_display") {
+        let display_builder_fn = if interpolate_display {
             Self::display_builder_fn(
                 ident,
                 enum_ident,
@@ -454,7 +457,7 @@ impl Interpolation {
 
         let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
-        let string_builder_trait_impl = if cfg!(feature = "interpolate_display") {
+        let string_builder_trait_impl = if interpolate_display {
             quote! {
                 impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
             }
