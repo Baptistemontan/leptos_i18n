@@ -168,7 +168,7 @@ impl Direction {
 
 #[cfg(test)]
 mod test {
-    crate::declare_locales! {
+    leptos_i18n_macro::declare_locales! {
         path: crate,
         default: "en",
         locales: ["en", "fr"],

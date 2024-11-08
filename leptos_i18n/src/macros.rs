@@ -27,30 +27,75 @@ macro_rules! declare_locales {
 /// Utility macro to easily put translation in your application.
 ///
 /// Usage:
-///
-/// ```rust, ignore
-/// use crate::i18n::*;
-///
+///s
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           key: "",
+/// #           interpolate_key: "<component>{{ variable }}</component>",
+/// #       },
+/// #   };
+/// #
+/// # use i18n::*;
+/// # use leptos::prelude::*;
+/// # let var = "";
+/// # let comp = |_: leptos::children::ChildrenFn| {};
 /// let i18n = use_i18n();
-///
+/// # let _ =
 /// view! {
-///     <p>{t!(i18n, $key)}</p>
-///     <p>{t!(i18n, $key, $variable = $value, <$component> = |child| ... )}</p>
+///     <p>{t!(i18n, key)}</p>
+///     <p>{t!(i18n, interpolate_key, variable = var, <component> = comp)}</p>
 /// }
+/// # ;
 /// ```
 ///
 /// # Notes
 ///
 /// If your variable/component value is the same as the key, you remove the assignment, such that this:
 ///
-/// ```rust, ignore
-/// t!(i18n, $key, variable = variable, <component> = component, $other_key = $other_value, ..)
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           key: "<component>{{ variable }}</component>",
+/// #       },
+/// #   };
+/// #
+/// # use i18n::*;
+/// # use leptos::prelude::*;
+/// # let var = "";
+/// # let comp = |_: leptos::children::ChildrenFn| {};
+/// # let i18n = use_i18n();
+/// # let _ =  
+/// t!(i18n, key, variable = var, <component> = comp)
+/// # ;
 /// ```
 ///
 /// can be shortened to:
 ///
-/// ```rust, ignore
-/// t!(i18n, $key, variable, <component>, $other_key = $other_value, ..)
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           key: "<component>{{ variable }}</component>",
+/// #       },
+/// #   };
+/// #
+/// # use i18n::*;
+/// # use leptos::prelude::*;
+/// # let variable = "";
+/// # let component = |_: leptos::children::ChildrenFn| {};
+/// # let i18n = use_i18n();
+/// # let _ =  
+/// t!(i18n, key, variable, <component>)
+/// # ;
 /// ```
 #[macro_export]
 macro_rules! t {
@@ -63,13 +108,28 @@ macro_rules! t {
 ///
 /// Usage:
 ///
-/// ```rust, ignore
-/// use crate::i18n::*;
-///
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {
+/// #           key: "",
+/// #           interpolate_key: "<component>{{ variable }}</component>",
+/// #       },
+/// #       fr: {
+/// #           key: "",
+/// #           interpolate_key: "",
+/// #       }
+/// #   };
+/// # use i18n::*;
+/// # use leptos::prelude::*;
+/// # let _ =
 /// view! {
-///     <p>{td!(Locale::en, $key)}</p>
-///     <p>{td!(Locale::fr, $key, $variable = $value, <$component> = |child| ... )}</p>
+///     <p>{td!(Locale::en, key)}</p>
+///     <p>{td!(Locale::fr, interpolate_key, variable = "some value", <component> = |child| { /* ... */} )}</p>
 /// }
+/// # ;
 /// ```
 ///
 /// This let you use a specific locale regardless of the current one.
