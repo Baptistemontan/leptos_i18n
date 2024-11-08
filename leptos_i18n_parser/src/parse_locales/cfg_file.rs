@@ -184,7 +184,7 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
 
         let locales_dir = locales_dir
             .map(Cow::Owned)
-            .unwrap_or(Cow::Borrowed("./locales"));
+            .unwrap_or(Cow::Borrowed("locales"));
 
         Ok(ConfigFile {
             default,
