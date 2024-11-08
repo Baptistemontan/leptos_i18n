@@ -471,10 +471,12 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     let dir = set_dir_attr_on_html
         .unwrap_or(true)
         .then_some(move || i18n.get_locale().direction().as_str());
+
     view! {
-        <Html attr:lang=lang attr:dir=dir />
+        // Render children first, for 2 reasons: register the used translations and if it change the locale <Html> will have the correct one.
         {children}
         {embed_translations}
+        <Html attr:lang=lang attr:dir=dir />
     }
 }
 
