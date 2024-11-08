@@ -649,7 +649,6 @@ impl ParsedValue {
         match self {
             ParsedValue::Literal(Literal::String(s, _)) if s.is_empty() => {
                 // skip empty strings
-                *self = ParsedValue::None;
             }
             ParsedValue::None
             | ParsedValue::Variable { .. }
