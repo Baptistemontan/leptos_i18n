@@ -45,12 +45,23 @@ impl DisplayComponent for String {
     }
 }
 
-/// This struct is made to be used with the `td_string!` macro when interpolating a component
+/// This struct is made to be used with the `t_string!` macro when interpolating a component
 ///
-/// ```rust,ignore
-/// /* key = "highlight <b>me</b>" */
-/// let t = td_string!(locale, key, <b> = DisplayComp("div"));
-/// assert_eq!(t.to_string(), "highlight <div>me</div>");
+/// ```rust
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       interpolate_display,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           key: "highlight <b>me</b>",
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::display::DisplayComp;
+/// // key = "highlight <b>me</b>"
+/// let t = td_string!(Locale::en, key, <b> = DisplayComp::new("div", &[("id", "my_div")]));
+/// assert_eq!(t.to_string(), "highlight <div id=\"my_div\">me</div>");
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct DisplayComp<'a> {

@@ -108,7 +108,7 @@ macro_rules! t {
 ///
 /// Usage:
 ///
-/// ```rust, no_run
+/// ```rust
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       default: "en",
@@ -148,27 +148,38 @@ macro_rules! tu {
     };
 }
 
-/// Just like the `t!` macro but return a `Cow<'static, str>` instead of a view.
+/// Just like the `t!` macro but return a `&'static str` or a `String` instead of a view.
 ///
 /// Usage:
 ///
-/// ```rust, ignore
-/// use crate::i18n::*;
-///
-/// let i18n = use_i18n(); // locale = "en"
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       interpolate_display,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           click_count: "You clicked {{ count }} times",
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// let i18n = use_i18n();
 ///
 /// // click_count = "You clicked {{ count }} times"
 ///
 /// assert_eq!(
 ///     t_string!(i18n, click_count, count = 10),
 ///     "You clicked 10 times"
-/// )
+/// );
 ///
 /// assert_eq!(
 ///     t_string!(i18n, click_count, count = "a lot of"),
 ///     "You clicked a lot of times"
-/// )
+/// );
 /// ```
+///
+/// If you want to avoid a temporary `String` to format in a buffer, you can use `t_display!` which return the raw builder which implement `Display`.
+/// In fact, `t_string!(args)` internally is `t_display!(args).to_string()` (when using interpolation, else it just returns a `&'static str`).
 #[macro_export]
 macro_rules! t_string {
     ($($tt:tt)*) => {
@@ -180,19 +191,28 @@ macro_rules! t_string {
 ///
 /// Usage:
 ///
-/// ```rust, ignore
-/// use crate::i18n::*;
-///
+/// ```rust
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       interpolate_display,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           click_count: "You clicked {{ count }} times",
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// // click_count = "You clicked {{ count }} times"
+///
 /// assert_eq!(
 ///     td_string!(Locale::en, click_count, count = 10),
 ///     "You clicked 10 times"
-/// )
+/// );
 ///
 /// assert_eq!(
 ///     td_string!(Locale::en, click_count, count = "a lot of"),
 ///     "You clicked a lot of times"
-/// )
+/// );
 /// ```
 #[macro_export]
 macro_rules! td_string {
@@ -209,15 +229,23 @@ macro_rules! tu_string {
     };
 }
 
-/// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
+/// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead.
 ///
 /// This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 ///
 /// Usage:
 ///
-/// ```rust, ignore
-/// use crate::i18n::*;
-///
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       interpolate_display,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           click_count: "You clicked {{ count }} times",
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// let i18n = use_i18n(); // locale = "en"
 ///
 /// // click_count = "You clicked {{ count }} times"
@@ -229,6 +257,8 @@ macro_rules! tu_string {
 ///
 /// assert_eq!(t_str, "You clicked 10 times");
 /// ```
+///
+/// Note that this is only usefull with interpolations, as with plain strings `t_display!` and `t_string!` both just returns the inner `&'static str`.
 #[macro_export]
 macro_rules! t_display {
     ($($tt:tt)*) => {
@@ -242,10 +272,19 @@ macro_rules! t_display {
 ///
 /// Usage:
 ///
-/// ```rust, ignore
-/// use crate::i18n::*;
-///
+/// ```rust
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       interpolate_display,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           click_count: "You clicked {{ count }} times",
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// // click_count = "You clicked {{ count }} times"
+///
 /// let t = td_display!(Locale::en, click_count, count = 10); // this only return the builder, no work has been done.
 ///
 /// assert_eq!(format!("before {t} after"), "before You clicked 10 times after");
@@ -273,28 +312,80 @@ macro_rules! tu_display {
 ///
 /// Instead of
 ///
-/// ```rust, ignore
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// let i18n = use_i18n();
 /// t!(i18n, namespace.subkeys.value);
 /// ```
 ///
 /// You can do
 ///
-/// ```rust, ignore
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// let i18n = use_i18n_scoped!(namespace);
 /// t!(i18n, subkeys.value);
 /// ```
 ///
 /// Or
 ///
-/// ```rust, ignore
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// let i18n = use_i18n_scoped!(namespace.subkeys);
 /// t!(i18n, value);
 /// ```
 ///
 /// This macro is the equivalent to do
 ///
-/// ```rust, ignore
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// let i18n = use_i18n();
 /// let i18n = scope_i18n!(i18n, namespace.subkeys);
 /// ```
@@ -309,14 +400,40 @@ macro_rules! use_i18n_scoped {
 ///
 /// Instead of
 ///
-/// ```rust, ignore
-/// let i18n = use_i18n;
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// let i18n = use_i18n();
 /// t!(i18n, namespace.subkeys.value);
 /// ```
 ///
 /// You can do
 ///
-/// ```rust, ignore
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
 /// let i18n = use_i18n();
 /// let namespace_i18n = scope_i18n!(i18n, namespace);
 ///
@@ -338,23 +455,49 @@ macro_rules! scope_i18n {
 ///
 /// Instead of
 ///
-/// ```rust, ignore
-/// let i18n = use_i18n();
-/// t!(i18n, namespace.subkeys.value);
+/// ```rust
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// let locale = Locale::en;
+/// td!(locale, namespace.subkeys.value);
 /// ```
 ///
 /// You can do
 ///
-/// ```rust, ignore
-/// let i18n = use_i18n();
-/// let namespace_i18n = scope_i18n!(i18n, namespace);
+/// ```rust
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// let locale = Locale::en;
+/// let namespace_locale = scope_locale!(locale, namespace);
 ///
-/// t!(namespace_i18n, subkeys.value);
+/// td!(namespace_locale, subkeys.value);
 ///
-/// let subkeys_i18n = scope_i18n!(namespace_i18n, subkeys);
-/// //  subkeys_i18n = scope_i18n!(i18n, namespace.subkeys);
+/// let subkeys_locale = scope_locale!(namespace_locale, subkeys);
+/// //  subkeys_locale = scope_locale!(locale, namespace.subkeys);
 ///
-/// t!(subkeys_i18n, value);
+/// td!(subkeys_locale, value);
 /// ```
 #[macro_export]
 macro_rules! scope_locale {
@@ -363,16 +506,29 @@ macro_rules! scope_locale {
     };
 }
 
-/// Format a given value with a given formatter and return:
+/// Format a given value with a given formatter and return a `impl IntoView`.
 ///
-/// ```rust, ignore
-/// let i18n =  use_i18n();
-/// let num = 100_000usize;
+#[cfg_attr(
+    all(feature = "format_list", feature = "format_nums"),
+    doc = "```rust, no_run"
+)]
+#[cfg_attr(
+    not(all(feature = "format_list", feature = "format_nums")),
+    doc = "```rust, ignore"
+)]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {},
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::t_format;
 ///
+/// let i18n = use_i18n();
+/// let num = || 100_000usize;
 /// t_format!(i18n, num, formatter: number);
-///
 /// let list = || ["A", "B", "C"];
-///
 /// t_format!(i18n, list, formatter: list(list_type: and; list_style: wide));
 /// ```
 /// This function does exactly the same as if you had "{{ var, formatter_name(formatter_arg: value; ...) }}"
@@ -389,6 +545,26 @@ macro_rules! t_format {
 }
 
 /// Same as the `t_format!` macro but takes the desired `Locale` as the first argument.
+///
+#[cfg_attr(all(feature = "format_list", feature = "format_nums"), doc = "```rust")]
+#[cfg_attr(
+    not(all(feature = "format_list", feature = "format_nums")),
+    doc = "```rust, ignore"
+)]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {},
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::td_format;
+///
+/// let num = || 100_000usize;
+/// td_format!(Locale::en, num, formatter: number);
+/// let list = || ["A", "B", "C"];
+/// td_format!(Locale::en, list, formatter: list(list_type: and; list_style: wide));
+/// ```
 #[macro_export]
 macro_rules! td_format {
     ($($tt:tt)*) => {
@@ -404,15 +580,31 @@ macro_rules! tu_format {
     };
 }
 
-/// Format a given value with a given formatter and return a `String`:
+/// Format a given value with a given formatter and return a `String`.
 ///
-/// ```rust, ignore
-/// let i18n =  use_i18n();
+#[cfg_attr(
+    all(feature = "format_list", feature = "format_nums"),
+    doc = "```rust, no_run"
+)]
+#[cfg_attr(
+    not(all(feature = "format_list", feature = "format_nums")),
+    doc = "```rust, ignore"
+)]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {},
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::t_format_string;
+///
+/// let i18n = use_i18n();
 /// let num = 100_000usize;
 ///
 /// t_format_string!(i18n, num, formatter: number);
 ///
-/// let list = || ["A", "B", "C"];
+/// let list = ["A", "B", "C"];
 ///
 /// t_format_string!(i18n, list, formatter: list(list_type: and; list_style: wide));
 /// ```
@@ -430,6 +622,36 @@ macro_rules! t_format_string {
 }
 
 /// Same as the `t_format_string!` macro but takes the desired `Locale` as the first argument.
+///
+#[cfg_attr(all(feature = "format_list", feature = "format_nums"), doc = "```rust")]
+#[cfg_attr(
+    not(all(feature = "format_list", feature = "format_nums")),
+    doc = "```rust, ignore"
+)]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::td_format_string;
+///
+/// let num = 100_000usize;
+///
+/// let formated_num = td_format_string!(Locale::en, num, formatter: number);
+/// assert_eq!(formated_num, "100,000");
+/// let formated_num = td_format_string!(Locale::fr, num, formatter: number);
+/// assert_eq!(formated_num, "100\u{202f}000");
+///
+/// let list = ["A", "B", "C"];
+///
+/// let formated_list = td_format_string!(Locale::en, list, formatter: list(list_type: and; list_style: wide));
+/// assert_eq!(formated_list, "A, B, and C");
+/// let formated_list = td_format_string!(Locale::fr, list, formatter: list(list_type: and; list_style: wide));
+/// assert_eq!(formated_list, "A, B et C");
+/// ```
 #[macro_export]
 macro_rules! td_format_string {
     ($($tt:tt)*) => {
@@ -447,13 +669,30 @@ macro_rules! tu_format_string {
 
 /// Format a given value with a given formatter and return a `impl Display`:
 ///
-/// ```rust, ignore
+#[cfg_attr(
+    all(feature = "format_list", feature = "format_nums"),
+    doc = "```rust, no_run"
+)]
+#[cfg_attr(
+    not(all(feature = "format_list", feature = "format_nums")),
+    doc = "```rust, ignore"
+)]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::t_format_display;
+///
 /// let i18n = use_i18n();
 /// let num = 100_000usize;
 ///
 /// t_format_display!(i18n, num, formatter: number);
 ///
-/// let list = || ["A", "B", "C"];
+/// let list = ["A", "B", "C"];
 ///
 /// t_format_display!(i18n, list, formatter: list(list_type: and; list_style: wide));
 /// ```
@@ -471,6 +710,35 @@ macro_rules! t_format_display {
 }
 
 /// Same as the `t_format_display!` macro but takes the desired `Locale` as the first argument.
+///
+#[cfg_attr(all(feature = "format_list", feature = "format_nums"), doc = "```rust")]
+#[cfg_attr(
+    not(all(feature = "format_list", feature = "format_nums")),
+    doc = "```rust, ignore"
+)]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::td_format_display;
+///
+/// let num = 100_000usize;
+///
+/// let num_formatter = td_format_display!(Locale::en, num, formatter: number);
+/// assert_eq!(format!("number: {}.", num_formatter), "number: 100,000.");
+/// let num_formatter = td_format_display!(Locale::fr, num, formatter: number);
+/// assert_eq!(format!("nombre: {}.", num_formatter), "nombre: 100\u{202f}000.");
+///
+/// let list = ["A", "B", "C"];
+///
+/// let list_formatter = td_format_display!(Locale::en, list, formatter: list(list_type: and; list_style: wide));
+/// assert_eq!(format!("values: {}.", list_formatter), "values: A, B, and C.");
+/// let list_formatter = td_format_display!(Locale::fr, list, formatter: list(list_type: and; list_style: wide));
+/// assert_eq!(format!("valeurs: {}.", list_formatter), "valeurs: A, B et C.");
 #[macro_export]
 macro_rules! td_format_display {
     ($($tt:tt)*) => {
@@ -488,7 +756,20 @@ macro_rules! tu_format_display {
 
 /// Match against the plural form of a given count:
 ///
-/// ```rust, ignore
+#[cfg_attr(feature = "plurals", doc = "```rust, no_run")]
+#[cfg_attr(not(feature = "plurals"), doc = "```rust, ignore")]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// # use leptos::logging::log;
+/// # use leptos::prelude::Effect;
+/// use leptos_i18n::t_plural;
+///
 /// let i18n = use_i18n();
 ///
 /// let form = t_plural! {
@@ -498,10 +779,10 @@ macro_rules! tu_format_display {
 ///     _ => "other"
 /// };
 ///
-/// Effect::new(|| {
+/// Effect::new(move || {
 ///     let s = form();
 ///     log!("{}", s);
-/// })
+/// });
 /// ```
 ///
 /// This will print "one" with locale "fr" but "other" with locale "en".
@@ -518,6 +799,39 @@ macro_rules! t_plural {
 
 /// Same as the `t_plural!` macro but takes the desired `Locale` as the first argument.
 /// Directly return the value instead of wrapping it in a closure.
+///
+#[cfg_attr(feature = "plurals", doc = "```rust")]
+#[cfg_attr(not(feature = "plurals"), doc = "```rust, ignore")]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// # use leptos::logging::log;
+/// # use leptos::prelude::Effect;
+/// use leptos_i18n::td_plural;
+///
+/// let form_en = td_plural! {
+///     Locale::en,
+///     count = || 0,
+///     one => "one",
+///     _ => "other"
+/// };
+///
+/// assert_eq!(form_en, "other");
+///
+/// let form_fr = td_plural! {
+///     Locale::fr,
+///     count = || 0,
+///     one => "one",
+///     _ => "other"
+/// };
+///
+/// assert_eq!(form_fr, "one");
+/// ```
 #[macro_export]
 macro_rules! td_plural {
     ($($tt:tt)*) => {
@@ -536,20 +850,33 @@ macro_rules! tu_plural {
 
 /// Match against the plural form of a given count:
 ///
-/// ```rust, ignore
+#[cfg_attr(feature = "plurals", doc = "```rust, no_run")]
+#[cfg_attr(not(feature = "plurals"), doc = "```rust, ignore")]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// # use leptos::logging::log;
+/// # use leptos::prelude::Effect;
+/// use leptos_i18n::t_plural_ordinal;
+///
 /// let i18n = use_i18n();
 ///
-/// let form = t_plural! {
+/// let form = t_plural_ordinal! {
 ///     i18n,
 ///     count = || 2,
 ///     two => "two",
 ///     _ => "other"
 /// };
 ///
-/// Effect::new(|| {
+/// Effect::new(move || {
 ///     let s = form();
 ///     log!("{}", s);
-/// })
+/// });
 /// ```
 ///
 /// This will print "other" with locale "fr" but "two" with locale "en".
@@ -566,6 +893,39 @@ macro_rules! t_plural_ordinal {
 
 /// Same as the `t_plural_ordinal!` macro but takes the desired `Locale` as the first argument.
 /// Directly return the value instead of wrapping it in a closure.
+///
+#[cfg_attr(feature = "plurals", doc = "```rust")]
+#[cfg_attr(not(feature = "plurals"), doc = "```rust, ignore")]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {},
+/// #       fr: {},
+/// #   };
+/// # use i18n::*;
+/// # use leptos::logging::log;
+/// # use leptos::prelude::Effect;
+/// use leptos_i18n::td_plural_ordinal;
+///
+/// let form_en = td_plural_ordinal! {
+///     Locale::en,
+///     count = || 2,
+///     two => "two",
+///     _ => "other"
+/// };
+///
+/// assert_eq!(form_en, "two");
+///
+/// let form_fr = td_plural_ordinal! {
+///     Locale::fr,
+///     count = || 2,
+///     two => "two",
+///     _ => "other"
+/// };
+///
+/// assert_eq!(form_fr, "other");
+/// ```
 #[macro_export]
 macro_rules! td_plural_ordinal {
     ($($tt:tt)*) => {

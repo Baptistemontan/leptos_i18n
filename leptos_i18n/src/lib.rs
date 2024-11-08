@@ -52,8 +52,25 @@
 //!
 //! ### Rust code:
 //!
-//! ```rust,ignore
+//! ```rust
+//! #   leptos_i18n::declare_locales! {
+//! #       path: leptos_i18n,
+//! #       default: "en",
+//! #       locales: ["en", "fr"],
+//! #       en: {
+//! #           click_to_change_lang: "Click to change language",
+//! #           click_count: "You clicked {{ count }} times",
+//! #           click_to_inc: "Click to increment the counter"
+//! #       },
+//! #       fr: {
+//! #           click_to_change_lang: "Cliquez pour changez de langue",
+//! #           click_count: "Vous avez cliqué {{ count }} fois",
+//! #           click_to_inc: "Cliquez pour incrémenter le compteur"
+//! #       },
+//! #   };
+//! # /*
 //! leptos_i18n::load_locales!();
+//! # */
 //! use i18n::*; // `i18n` module created by the macro above
 //! use leptos::prelude::*;
 //!
