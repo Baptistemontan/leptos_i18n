@@ -780,11 +780,12 @@ impl Interpolation {
         locales: &'a [Locale],
         locale_type_ident: &'a syn::Ident,
     ) -> impl Iterator<Item = TokenStream> + 'a {
-        locales.iter().rev().filter_map(move |locale| {
+        locales.iter().rev().map(move |locale| {
             let locale_key = &locale.top_locale_name;
             let value = locale
                 .keys
-                .get(key)?;
+                .get(key)
+                .unwrap_at("create_locale_string_impl_1");
 
             let value = parsed_value::as_string_impl(value, locale.top_locale_string_count);
 
@@ -793,7 +794,7 @@ impl Interpolation {
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
 
-            let ts = if cfg!(feature = "dynamic_load") {
+            if cfg!(feature = "dynamic_load") {
                 quote!{
                     #enum_ident::#locale_key(#translations_key) => {
                         #value
@@ -806,8 +807,7 @@ impl Interpolation {
                         #value
                     }
                 }
-            };
-            Some(ts)
+            }
         })
     }
 }
