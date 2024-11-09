@@ -1,7 +1,3 @@
-// for deserializing the files custom deserialization is done,
-// this is to use `serde::de::DeserializeSeed` to pass information on what locale or key we are currently at
-// and give better information on what went wrong when an error is emitted.
-
 /// Look for the configuration in the cargo manifest `Cargo.toml` at the root of the project and load the given locales.
 ///
 /// It creates multiple types allowing to easily incorporate translations in you application such as:
