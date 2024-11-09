@@ -75,7 +75,7 @@ fn flatten(
     strings_count: usize,
 ) {
     match this {
-        ParsedValue::None | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+        ParsedValue::Subkeys(_) | ParsedValue::Default => {}
         ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream(strings_count)),
         ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges, strings_count)),
         ParsedValue::Variable { key, formatter } => {
@@ -130,7 +130,7 @@ fn flatten_string(
     strings_count: usize,
 ) {
     match this {
-        ParsedValue::None | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
+        ParsedValue::Subkeys(_) | ParsedValue::Default => {}
         ParsedValue::Literal(lit) => {
             let ts = Literal::from(lit).to_token_stream(strings_count);
             tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))

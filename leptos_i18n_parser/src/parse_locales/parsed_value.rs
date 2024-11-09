@@ -19,25 +19,23 @@ use super::{
     ForeignKeysPaths, StringIndexer,
 };
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
-    #[default]
-    None,
     Default,
     ForeignKey(RefCell<ForeignKey>),
     Ranges(Ranges),
     Literal(Literal),
-    Variable {
-        key: Key,
-        formatter: Formatter,
-    },
-    Component {
-        key: Key,
-        inner: Box<Self>,
-    },
+    Variable { key: Key, formatter: Formatter },
+    Component { key: Key, inner: Box<Self> },
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
     Plurals(Plurals),
+}
+
+impl Default for ParsedValue {
+    fn default() -> Self {
+        ParsedValue::Literal(Literal::String(String::new(), usize::MAX))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -497,10 +495,7 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::None
-            | ParsedValue::Variable { .. }
-            | ParsedValue::Literal(_)
-            | ParsedValue::Default => Ok(()),
+            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -547,10 +542,9 @@ impl ParsedValue {
         key_path: &KeyPath,
     ) -> Result<Self> {
         match self {
-            ParsedValue::None
-            | ParsedValue::Default
-            | ParsedValue::ForeignKey(_)
-            | ParsedValue::Literal(_) => Ok(self.clone()),
+            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::Literal(_) => {
+                Ok(self.clone())
+            }
             ParsedValue::Variable { key, formatter } => match args.get(&*key.name) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
@@ -650,10 +644,7 @@ impl ParsedValue {
             ParsedValue::Literal(Literal::String(s, _)) if s.is_empty() => {
                 // skip empty strings
             }
-            ParsedValue::None
-            | ParsedValue::Variable { .. }
-            | ParsedValue::Literal(_)
-            | ParsedValue::Default => {}
+            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -683,7 +674,7 @@ impl ParsedValue {
                 }
 
                 match values.as_mut_slice() {
-                    [] => *self = ParsedValue::Literal(Literal::String(String::new(), usize::MAX)),
+                    [] => *self = ParsedValue::default(),
                     [one] => *self = std::mem::take(one),
                     _ => {}
                 }
@@ -698,7 +689,6 @@ impl ParsedValue {
 
     pub fn reduce_into(self, bloc: &mut Vec<Self>) {
         match self {
-            ParsedValue::None => {}
             ParsedValue::Default => {}    // default in a bloc ? skip
             ParsedValue::Subkeys(_) => {} // same for subkeys
             mut plurals_like @ (ParsedValue::Ranges(_) | ParsedValue::Plurals(_)) => {
@@ -770,10 +760,7 @@ impl ParsedValue {
             ParsedValue::Literal(lit_type) if is_top => {
                 *keys = InterpolOrLit::Lit(lit_type.get_type());
             }
-            ParsedValue::None
-            | ParsedValue::Literal(_)
-            | ParsedValue::Subkeys(_)
-            | ParsedValue::Default => {}
+            ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable { key, formatter } => {
                 keys.get_interpol_keys_mut()
                     .push_var(key.clone(), *formatter);
@@ -844,8 +831,7 @@ impl ParsedValue {
                     value.index_strings::<CLONE>(strings);
                 }
             }
-            ParsedValue::None
-            | ParsedValue::Default
+            ParsedValue::Default
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
             | ParsedValue::Subkeys(_) => {}
