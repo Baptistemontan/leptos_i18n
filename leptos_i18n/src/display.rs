@@ -47,7 +47,8 @@ impl DisplayComponent for String {
 
 /// This struct is made to be used with the `t_string!` macro when interpolating a component
 ///
-/// ```rust
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       interpolate_display,

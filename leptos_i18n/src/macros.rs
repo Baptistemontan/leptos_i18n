@@ -108,7 +108,8 @@ macro_rules! t {
 ///
 /// Usage:
 ///
-/// ```rust
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, no_run")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       default: "en",
@@ -152,7 +153,8 @@ macro_rules! tu {
 ///
 /// Usage:
 ///
-/// ```rust, no_run
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust, no_run")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       interpolate_display,
@@ -191,7 +193,8 @@ macro_rules! t_string {
 ///
 /// Usage:
 ///
-/// ```rust
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       interpolate_display,
@@ -235,7 +238,8 @@ macro_rules! tu_string {
 ///
 /// Usage:
 ///
-/// ```rust, no_run
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust, no_run")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       interpolate_display,
@@ -272,7 +276,8 @@ macro_rules! t_display {
 ///
 /// Usage:
 ///
-/// ```rust
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       interpolate_display,
@@ -455,7 +460,8 @@ macro_rules! scope_i18n {
 ///
 /// Instead of
 ///
-/// ```rust
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       default: "en",
@@ -475,7 +481,8 @@ macro_rules! scope_i18n {
 ///
 /// You can do
 ///
-/// ```rust
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       default: "en",
@@ -785,7 +792,7 @@ macro_rules! tu_format_display {
 /// });
 /// ```
 ///
-/// This will print "one" with locale "fr" but "other" with locale "en".
+/// This will log "one" with locale "fr" but "other" with locale "en".
 ///
 /// Accepted forms are: `zero`, `one`, `two`, `few`, `many`, `other` and `_`.
 ///
@@ -879,7 +886,7 @@ macro_rules! tu_plural {
 /// });
 /// ```
 ///
-/// This will print "other" with locale "fr" but "two" with locale "en".
+/// This will log "other" with locale "fr" but "two" with locale "en".
 ///
 /// Accepted forms are: `zero`, `one`, `two`, `few`, `many`, `other` and `_`.
 ///
