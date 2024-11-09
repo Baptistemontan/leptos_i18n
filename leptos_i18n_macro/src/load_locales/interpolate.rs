@@ -245,6 +245,7 @@ impl Interpolation {
         locales: &[Locale],
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
+        interpolate_display: bool,
     ) -> Self {
         let builder_name = format!("{}_builder", key);
 
@@ -277,6 +278,7 @@ impl Interpolation {
             &locale_field,
             &into_view_field,
             &fields,
+            interpolate_display,
         );
 
         let into_view_impl = Self::into_view_impl(
@@ -292,7 +294,7 @@ impl Interpolation {
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
-        let (display_impl, builder_display) = if cfg!(feature = "interpolate_display") {
+        let (display_impl, builder_display) = if interpolate_display {
             let display_impl = Self::display_impl(
                 key,
                 &ident,
@@ -373,7 +375,7 @@ impl Interpolation {
 
                 #[inline]
                 pub async fn build_string(self) -> String {
-                    self.build_display().to_string()
+                    self.build_display().await.to_string()
                 }
             }
         } else {
@@ -432,6 +434,7 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
+        interpolate_display: bool,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -439,7 +442,7 @@ impl Interpolation {
 
         let empty_builder_marker = fields.iter().map(|_| quote!(()));
 
-        let display_builder_fn = if cfg!(feature = "interpolate_display") {
+        let display_builder_fn = if interpolate_display {
             Self::display_builder_fn(
                 ident,
                 enum_ident,
@@ -454,7 +457,7 @@ impl Interpolation {
 
         let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
-        let string_builder_trait_impl = if cfg!(feature = "interpolate_display") {
+        let string_builder_trait_impl = if interpolate_display {
             quote! {
                 impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
             }
@@ -570,12 +573,13 @@ impl Interpolation {
 
         let str_name = display_struct_ident.to_string();
 
-        let translations_holder_enum = if cfg!(feature = "dynamic_load") {
+        let translations_holder_enum = if cfg!(all(feature = "dynamic_load", not(feature = "ssr")))
+        {
             let translations_holder_enum_ident_variants = locales.iter().map(|locale| {
                 let top_locale = &locale.top_locale_name.ident;
                 let strings_count = locale.top_locale_string_count;
                 quote! {
-                    #top_locale(&'static [&'static str; #strings_count])
+                    #top_locale(&'static [Box<str>; #strings_count])
                 }
             });
 
@@ -602,7 +606,7 @@ impl Interpolation {
                 let strings_count = locale.top_locale_string_count;
                 quote! {
                     #enum_ident::#top_locale => {
-                        let translations: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                        let translations: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
                         #translations_holder_enum_ident::#top_locale(translations)
                     }
                 }
@@ -794,13 +798,20 @@ impl Interpolation {
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
 
-            if cfg!(feature = "dynamic_load") {
+            if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 quote!{
                     #enum_ident::#locale_key(#translations_key) => {
                         #value
                     }
                 }
-            } else {
+            } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                quote!{
+                    #enum_ident::#locale_key => {
+                        let #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        #value
+                    }
+                }
+            }else {
                 quote!{
                     #enum_ident::#locale_key => {
                         const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();

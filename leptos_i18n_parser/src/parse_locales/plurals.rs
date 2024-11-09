@@ -143,9 +143,6 @@ impl Plurals {
                 ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => {
                     iter.next();
                 }
-                ParsedValue::None => {
-                    iter.next();
-                }
                 ParsedValue::Variable { .. } => break,
                 _ => {
                     return Err(Error::InvalidCountArg {
@@ -167,7 +164,6 @@ impl Plurals {
         for next in iter {
             match next {
                 ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => continue,
-                ParsedValue::None => continue,
                 _ => {
                     return Err(Error::InvalidCountArg {
                         locale: locale.clone(),

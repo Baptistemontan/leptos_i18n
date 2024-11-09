@@ -52,8 +52,25 @@
 //!
 //! ### Rust code:
 //!
-//! ```rust,ignore
+//! ```rust
+//! #   leptos_i18n::declare_locales! {
+//! #       path: leptos_i18n,
+//! #       default: "en",
+//! #       locales: ["en", "fr"],
+//! #       en: {
+//! #           click_to_change_lang: "Click to change language",
+//! #           click_count: "You clicked {{ count }} times",
+//! #           click_to_inc: "Click to increment the counter"
+//! #       },
+//! #       fr: {
+//! #           click_to_change_lang: "Cliquez pour changez de langue",
+//! #           click_count: "Vous avez cliqué {{ count }} fois",
+//! #           click_to_inc: "Cliquez pour incrémenter le compteur"
+//! #       },
+//! #   };
+//! # /*
 //! leptos_i18n::load_locales!();
+//! # */
 //! use i18n::*; // `i18n` module created by the macro above
 //! use leptos::prelude::*;
 //!
@@ -113,6 +130,7 @@ mod fetch_translations;
 mod langid;
 mod locale_traits;
 mod macro_helpers;
+mod macros;
 mod routing;
 mod scopes;
 
@@ -127,10 +145,7 @@ pub use context::{use_i18n_context, I18nContext};
 #[allow(deprecated)]
 pub use context::provide_i18n_context;
 
-pub use leptos_i18n_macro::{
-    load_locales, scope_i18n, scope_locale, t, t_display, t_string, td, td_display, td_string, tu,
-    tu_display, tu_string, use_i18n_scoped,
-};
+pub use leptos_i18n_macro::IcuDataProvider;
 pub use scopes::{ConstScope, Scope};
 
 /// This module contain utilities for plurals.
@@ -154,7 +169,7 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use crate::routing::{i18n_routing, BaseRoute, I18nNestedRoute};
-    pub use leptos_i18n_macro::declare_locales;
+    pub use leptos_i18n_macro as macros_reexport;
 }
 
 /// This module contain utilities to create custom ICU providers.

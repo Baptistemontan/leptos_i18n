@@ -26,8 +26,10 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         locales,
         crate_path,
         foreign_keys_paths,
+        interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
     let warnings = Warnings::new();
+
     let result = super::load_locales_inner(
         &crate_path,
         &cfg_file,
@@ -35,6 +37,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         foreign_keys_paths,
         warnings,
         None,
+        interpolate_display,
     );
     match result {
         Ok(ts) => ts.into(),
@@ -50,6 +53,7 @@ pub struct ParsedInput {
     cfg_file: ConfigFile,
     locales: LocalesOrNamespaces,
     foreign_keys_paths: ForeignKeysPaths,
+    interpolate_display: bool,
 }
 
 fn emit_err<A, T: ToTokens, U: Display>(tokens: T, message: U) -> syn::Result<A> {
@@ -346,12 +350,20 @@ impl syn::parse::Parse for ParsedInput {
         } else {
             None
         };
-
-        // default: "defaultloc",
-        let def_ident: Ident = if crate_path.is_none() {
+        let ident: Ident = if crate_path.is_none() {
             ident
         } else {
             input.parse()?
+        };
+
+        let interpolate_display = ident == "interpolate_display";
+
+        // default: "defaultloc",
+        let def_ident: Ident = if interpolate_display {
+            input.parse::<Token![,]>()?;
+            input.parse()?
+        } else {
+            ident
         };
         if def_ident != "default" {
             return emit_err(def_ident, "not default");
@@ -398,6 +410,8 @@ impl syn::parse::Parse for ParsedInput {
         let crate_path = crate_path
             .unwrap_or_else(|| syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site())));
 
+        let interpolate_display = interpolate_display || cfg!(feature = "interpolate_display");
+
         Ok(ParsedInput {
             cfg_file: ConfigFile {
                 default,
@@ -408,6 +422,7 @@ impl syn::parse::Parse for ParsedInput {
             locales: LocalesOrNamespaces::Locales(locales),
             crate_path,
             foreign_keys_paths,
+            interpolate_display,
         })
     }
 }
