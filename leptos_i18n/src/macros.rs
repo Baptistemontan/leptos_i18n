@@ -948,3 +948,15 @@ macro_rules! tu_plural_ordinal {
         $crate::__private::macros_reexport::tu_plural_ordinal!{$($tt)*}
     };
 }
+
+/// Create a route segment that is possible to define based on a locale.
+///
+/// ```rust, ignore
+/// <Route path=i18n_path!(Locale, |locale| td_string(locale, path_name)) view=.. />
+/// ``
+#[macro_export]
+macro_rules! i18n_path {
+    ($t:ty, $func:expr) => {{
+        leptos_i18n::__private::make_i18n_segment::<$t, _>($func)
+    }};
+}

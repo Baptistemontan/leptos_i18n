@@ -1,4 +1,12 @@
-use std::{future::Future, sync::Arc};
+use std::{
+    any::Any,
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    fmt::Debug,
+    future::Future,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 use leptos::{either::Either, ev, prelude::*};
 use leptos_router::{
@@ -44,33 +52,147 @@ impl<'a> PathBuilder<'a> {
     }
 }
 
+fn match_path_segments(segments: &[&str], old_segments: &[PathSegment]) -> Option<HashSet<usize>> {
+    // This hurt my eyes
+
+    let mut optionals = HashSet::new();
+
+    let mut segments_iter = old_segments.iter().enumerate();
+    'outer: for seg in segments {
+        'inner: loop {
+            let (index, next_seg) = segments_iter.next()?;
+
+            match next_seg {
+                PathSegment::Unit => continue 'inner,
+                PathSegment::Param(_) => continue 'outer,
+                PathSegment::OptionalParam(to_match) if to_match == seg => {
+                    optionals.insert(index);
+                    continue 'outer;
+                }
+                PathSegment::OptionalParam(_) => continue 'inner,
+                PathSegment::Static(to_match) if to_match.is_empty() => continue 'inner,
+                PathSegment::Static(to_match) if to_match == seg => continue 'outer,
+                PathSegment::Static(_) => return None,
+                PathSegment::Splat(_) => return Some(optionals),
+            }
+        }
+    }
+
+    // if iter is empty, perfect match !
+    segments_iter.next().is_none().then_some(optionals)
+}
+
+fn construct_path_segments<'b, 'p: 'b>(
+    segments: &[&'p str],
+    new_segments: &'p [PathSegment],
+    path_builder: &mut PathBuilder<'b>,
+    optionals: &HashSet<usize>,
+) {
+    let mut segments_iter = new_segments.iter().enumerate();
+    'outer: for seg in segments {
+        'inner: loop {
+            let (index, next_seg) = segments_iter.next().unwrap();
+
+            match next_seg {
+                PathSegment::Unit => continue 'inner,
+                PathSegment::Param(_) => {
+                    path_builder.push(seg);
+                    continue 'outer;
+                }
+                PathSegment::OptionalParam(_) if optionals.contains(&index) => {
+                    path_builder.push(seg);
+                    continue 'outer;
+                }
+                PathSegment::OptionalParam(_) => continue 'inner,
+                PathSegment::Static(to_push) if to_push.is_empty() => continue 'inner,
+                PathSegment::Static(to_push) => {
+                    path_builder.push(to_push);
+                    continue 'outer;
+                }
+                PathSegment::Splat(_) => {
+                    todo!()
+                }
+            }
+        }
+    }
+}
+
+fn localize_path<'b, 'p: 'b>(
+    path: &'p str,
+    old_locale_segments: &[Vec<PathSegment>],
+    new_locale_segments: &'p [Vec<PathSegment>],
+    path_builder: &mut PathBuilder<'b>,
+) -> Option<()> {
+    let path_segments = path
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>();
+
+    let (pos, optionals) =
+        old_locale_segments
+            .iter()
+            .enumerate()
+            .find_map(|(pos, old_segments)| {
+                match_path_segments(&path_segments, old_segments).map(|op| (pos, op))
+            })?;
+
+    let new_segments = &new_locale_segments[pos];
+
+    construct_path_segments(&path_segments, new_segments, path_builder, &optionals);
+
+    Some(())
+}
+
 fn get_new_path<L: Locale>(
     location: &Location,
     base_path: &str,
     new_locale: L,
     locale: Option<L>,
+    segments: InnerRouteSegments<L>,
 ) -> String {
+    let _ = segments;
     let mut new_path = location.pathname.with_untracked(|path_name| {
+        let segments = segments.lock().unwrap();
         let mut path_builder = PathBuilder::default();
         path_builder.push(base_path);
         if new_locale != L::default() {
             path_builder.push(new_locale.as_str());
         }
         if let Some(path_rest) = path_name.strip_prefix(base_path) {
-            match locale {
-                None => path_builder.push(path_rest),
+            let path_rest = match locale {
+                None => path_rest,
                 Some(l) => {
                     if let Some(path_rest) = path_rest.strip_prefix(l.as_str()) {
-                        path_builder.push(path_rest)
+                        path_rest
                     } else {
-                        path_builder.push(path_rest) // Should happen only if l == L::default()
+                        path_rest // Should happen only if l == L::default()
                     }
                 }
+            };
+
+            let old_locale_segments = segments.get(&locale.unwrap_or_default());
+            let new_locale_segments = segments.get(&new_locale);
+
+            let localized = match (old_locale_segments, new_locale_segments) {
+                (Some(old_locale_segments), Some(new_locale_segments)) => localize_path(
+                    path_rest,
+                    old_locale_segments,
+                    new_locale_segments,
+                    &mut path_builder,
+                )
+                .is_some(),
+                _ => false,
+            };
+
+            if !localized {
+                path_builder.push(path_rest);
             }
+
             // else ?
         }
         path_builder.build()
     });
+
     location.search.with_untracked(|search| {
         if !search.is_empty() {
             new_path.push('?');
@@ -91,6 +213,7 @@ fn update_path_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     history_changed_locale: StoredValue<Option<L>>,
+    segments: InnerRouteSegments<L>,
 ) -> impl Fn(Option<L>) -> L + 'static {
     let location = use_location();
     let navigate = use_navigate();
@@ -108,7 +231,13 @@ fn update_path_effect<L: Locale>(
             return new_locale;
         }
 
-        let new_path = get_new_path(&location, base_path, new_locale, Some(prev_loc));
+        let new_path = get_new_path(
+            &location,
+            base_path,
+            new_locale,
+            Some(prev_loc),
+            segments.clone(),
+        );
 
         let navigate = navigate.clone();
 
@@ -132,6 +261,7 @@ fn update_path_effect<L: Locale>(
 fn correct_locale_prefix_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
+    segments: InnerRouteSegments<L>,
 ) -> impl Fn(Option<()>) + 'static {
     let location = use_location();
     let navigate = use_navigate();
@@ -143,7 +273,13 @@ fn correct_locale_prefix_effect<L: Locale>(
             return;
         }
 
-        let new_path = get_new_path(&location, base_path, current_locale, path_locale);
+        let new_path = get_new_path(
+            &location,
+            base_path,
+            current_locale,
+            path_locale,
+            segments.clone(),
+        );
 
         let navigate = navigate.clone();
 
@@ -191,12 +327,22 @@ fn check_history_change<L: Locale>(
     }
 }
 
-fn maybe_redirect<L: Locale>(previously_resolved_locale: L, base_path: &str) -> Option<String> {
+fn maybe_redirect<L: Locale>(
+    previously_resolved_locale: L,
+    base_path: &str,
+    segments: InnerRouteSegments<L>,
+) -> Option<String> {
     let location = use_location();
     if cfg!(not(feature = "ssr")) || previously_resolved_locale == L::default() {
         return None;
     }
-    let new_path = get_new_path(&location, base_path, previously_resolved_locale, None);
+    let new_path = get_new_path(
+        &location,
+        base_path,
+        previously_resolved_locale,
+        None,
+        segments,
+    );
     Some(new_path)
 }
 
@@ -233,6 +379,7 @@ fn view_wrapper<L: Locale, View: ChooseView>(
     view: View,
     route_locale: Option<L>,
     base_path: &'static str,
+    segments: InnerRouteSegments<L>,
 ) -> Either<View, RedirectView> {
     let i18n = use_i18n_context::<L>();
 
@@ -245,7 +392,7 @@ fn view_wrapper<L: Locale, View: ChooseView>(
         i18n.set_locale(locale);
         None
     } else {
-        maybe_redirect(previously_resolved_locale, base_path)
+        maybe_redirect(previously_resolved_locale, base_path, segments.clone())
     };
 
     // This variable is there to sync history changes, because we step out of the Leptos routes reactivity we don't get forward and backward history changes triggers
@@ -255,7 +402,12 @@ fn view_wrapper<L: Locale, View: ChooseView>(
     // it starts at None such that on the first render the effect don't change the locale instantly.
     let history_changed_locale = StoredValue::new(None);
 
-    Effect::new(update_path_effect(i18n, base_path, history_changed_locale));
+    Effect::new(update_path_effect(
+        i18n,
+        base_path,
+        history_changed_locale,
+        segments.clone(),
+    ));
 
     // listen for history changes
     let handle = window_event_listener(
@@ -266,7 +418,7 @@ fn view_wrapper<L: Locale, View: ChooseView>(
     on_cleanup(move || handle.remove());
 
     // correct the url when using <a> that removes the locale prefix
-    Effect::new(correct_locale_prefix_effect(i18n, base_path));
+    Effect::new(correct_locale_prefix_effect(i18n, base_path, segments));
 
     match redir {
         None => Either::Left(view),
@@ -286,6 +438,7 @@ pub fn i18n_routing<L: Locale, View, Chil>(
 ) -> L::Routes<View, Chil>
 where
     View: ChooseView,
+    L::Routes<View, Chil>: MatchNestedRoutes,
 {
     let children = children.into_inner();
     let base_route = NestedRoute::new(StaticSegment(""), view)
@@ -293,14 +446,24 @@ where
         .child(children);
     let base_route = Arc::new(base_route);
 
-    L::make_routes(base_route, base_path)
+    let segments = InnerRouteSegments::<L>::default();
+
+    let routes = L::make_routes(base_route, base_path, segments);
+
+    routes.generate_routes().into_iter().count();
+
+    routes
 }
+
+#[doc(hidden)]
+pub type InnerRouteSegments<L> = Arc<Mutex<HashMap<L, Vec<Vec<PathSegment>>>>>;
 
 #[doc(hidden)]
 pub struct I18nNestedRoute<L, View, Chil> {
     route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>,
     locale: Option<L>,
     base_path: &'static str,
+    segments: InnerRouteSegments<L>,
 }
 
 impl<L: Clone, View, Chil> Clone for I18nNestedRoute<L, View, Chil> {
@@ -308,10 +471,12 @@ impl<L: Clone, View, Chil> Clone for I18nNestedRoute<L, View, Chil> {
         let route = self.route.clone();
         let locale = self.locale.clone();
         let base_path = self.base_path;
+        let segments = self.segments.clone();
         I18nNestedRoute {
             route,
             locale,
             base_path,
+            segments,
         }
     }
 }
@@ -321,11 +486,13 @@ impl<L: Locale, View: ChooseView, Chil> I18nNestedRoute<L, View, Chil> {
         locale: Option<L>,
         base_path: &'static str,
         route: Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>,
+        segments: InnerRouteSegments<L>,
     ) -> Self {
         Self {
             route,
             locale,
             base_path,
+            segments,
         }
     }
 }
@@ -342,6 +509,10 @@ impl<L: Locale, View: ChooseView, Chil> I18nNestedRoute<L, View, Chil> {
 #[doc(hidden)]
 pub type BaseRoute<View, Chil> = Arc<NestedRoute<StaticSegment<&'static str>, Chil, (), View>>;
 
+thread_local! {
+    static CURRENT_ROUTE_LOCALE: RefCell<Option<Box<dyn Any>>> = const { RefCell::new(None) };
+}
+
 #[doc(hidden)]
 pub struct I18nRouteMatch<L, View, Chil>
 where
@@ -354,6 +525,7 @@ where
     matched: String,
     inner_match:
         <NestedRoute<StaticSegment<&'static str>, Chil, (), View> as MatchNestedRoutes>::Match,
+    segments: InnerRouteSegments<L>,
 }
 
 impl<L, View, Chil> MatchParams for I18nRouteMatch<L, View, Chil>
@@ -386,7 +558,14 @@ where
 
     fn into_view_and_child(self) -> (impl ChooseView, Option<Self::Child>) {
         let (view, child) = MatchInterface::into_view_and_child(self.inner_match);
-        let new_view = Arc::new(move || view_wrapper(view.clone(), self.locale, self.base_path));
+        let new_view = Arc::new(move || {
+            view_wrapper(
+                view.clone(),
+                self.locale,
+                self.base_path,
+                self.segments.clone(),
+            )
+        });
         (ViewWrapper(new_view), child)
     }
 }
@@ -420,6 +599,7 @@ where
                         matched,
                         inner_match,
                         base_path: self.base_path,
+                        segments: self.segments.clone(),
                     };
                     Some((Some((route_match_id, route_match)), remaining))
                 })
@@ -433,6 +613,7 @@ where
                         matched: String::new(),
                         inner_match,
                         base_path: self.base_path,
+                        segments: self.segments.clone(),
                     };
                     (Some((route_match_id, route_match)), remaining)
                 })
@@ -441,9 +622,18 @@ where
     }
 
     fn generate_routes(&self) -> impl IntoIterator<Item = leptos_router::GeneratedRouteData> + '_ {
+        CURRENT_ROUTE_LOCALE.with_borrow_mut(|current_locale| {
+            *current_locale = Some(Box::new(self.locale.unwrap_or_default()))
+        });
+
         MatchNestedRoutes::generate_routes(&*self.route)
             .into_iter()
             .map(|mut generated_route| {
+                if let Some(locale) = self.locale {
+                    let segments = generated_route.segments.clone();
+                    let mut guard = self.segments.lock().unwrap();
+                    guard.entry(locale).or_default().push(segments);
+                }
                 if let (Some(locale), Some(first)) =
                     (self.locale, generated_route.segments.first_mut())
                 {
@@ -452,5 +642,53 @@ where
                 }
                 generated_route
             })
+    }
+}
+
+#[doc(hidden)]
+pub struct I18nSegment<L, F> {
+    func: F,
+    marker: PhantomData<L>,
+}
+
+impl<L, F> Debug for I18nSegment<L, F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("I18nSegment").finish()
+    }
+}
+
+impl<L: Locale, F> PossibleRouteMatch for I18nSegment<L, F>
+where
+    F: Fn(L) -> &'static str,
+{
+    fn test<'a>(&self, path: &'a str) -> Option<leptos_router::PartialPathMatch<'a>> {
+        let locale = leptos::prelude::use_context::<I18nContext<L>>()
+            .map(I18nContext::get_locale_untracked)
+            .unwrap_or_default();
+        let seg = (self.func)(locale);
+        StaticSegment(seg).test(path)
+    }
+
+    fn generate_path(&self, path: &mut Vec<PathSegment>) {
+        let locale = CURRENT_ROUTE_LOCALE.with_borrow(|locale| {
+            locale
+                .as_ref()
+                .and_then(|l| l.downcast_ref::<L>().copied())
+                .unwrap_or_default()
+        });
+        let seg = (self.func)(locale);
+        StaticSegment(seg).generate_path(path);
+    }
+}
+
+#[doc(hidden)]
+pub fn make_i18n_segment<L, F>(f: F) -> I18nSegment<L, F>
+where
+    L: Locale,
+    F: Fn(L) -> &'static str + 'static + Send + Sync,
+{
+    I18nSegment {
+        func: f,
+        marker: PhantomData,
     }
 }

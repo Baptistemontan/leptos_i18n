@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::{fmt::Debug, hash::Hash};
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
+use crate::routing::InnerRouteSegments;
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
@@ -95,6 +96,7 @@ pub trait Locale<L: Locale = Self>:
     fn make_routes<View, Chil>(
         base_route: crate::routing::BaseRoute<View, Chil>,
         base_path: &'static str,
+        segments: InnerRouteSegments<L>,
     ) -> Self::Routes<View, Chil>
     where
         View: ChooseView;

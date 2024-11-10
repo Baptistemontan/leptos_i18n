@@ -312,7 +312,7 @@ fn load_locales_inner(
                     /// `children` may be empty or include nested routes.
                     children: RouteChildren<Chil>,
                 ) -> <#enum_ident as l_i18n_crate::Locale>::Routes<View, Chil>
-                    where View: ChooseView,
+                    where View: ChooseView + 'static + Send + Sync, Chil: MatchNestedRoutes + 'static,
                 {
                     l_i18n_crate::__private::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
                 }
@@ -379,9 +379,9 @@ fn create_locales_enum(
     let routes = fit_in_leptos_tuple(&routes);
 
     let make_routes = locales.iter().map(|locale| {
-        quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route)))
+        quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route), core::clone::Clone::clone(&segments)))
     })
-    .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route))))
+    .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route, segments))))
     .collect::<Vec<_>>();
 
     let make_routes = fit_in_leptos_tuple(&make_routes);
@@ -532,7 +532,8 @@ fn create_locales_enum(
 
             fn make_routes<View, Chil>(
                 base_route: l_i18n_crate::__private::BaseRoute<View, Chil>,
-                base_path: &'static str
+                base_path: &'static str,
+                segments: l_i18n_crate::__private::InnerRouteSegments<Self>
             ) -> Self::Routes<View, Chil>
                 where View: l_i18n_crate::reexports::leptos_router::ChooseView
             {
