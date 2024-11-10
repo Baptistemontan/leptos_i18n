@@ -152,7 +152,7 @@ fn get_new_path<L: Locale>(
 ) -> String {
     let _ = segments;
     let mut new_path = location.pathname.with_untracked(|path_name| {
-        let segments = segments.lock().unwrap();
+        let segments = segments.0.lock().unwrap();
         let mut path_builder = PathBuilder::default();
         path_builder.push(base_path);
         if new_locale != L::default() {
@@ -170,8 +170,8 @@ fn get_new_path<L: Locale>(
                 }
             };
 
-            let old_locale_segments = segments.get(&locale.unwrap_or_default());
-            let new_locale_segments = segments.get(&new_locale);
+            let old_locale_segments = segments.0.get(&locale.unwrap_or_default());
+            let new_locale_segments = segments.0.get(&new_locale);
 
             let localized = match (old_locale_segments, new_locale_segments) {
                 (Some(old_locale_segments), Some(new_locale_segments)) => localize_path(
@@ -448,15 +448,21 @@ where
 
     let segments = InnerRouteSegments::<L>::default();
 
-    let routes = L::make_routes(base_route, base_path, segments);
+    let routes = L::make_routes(base_route, base_path, segments.clone());
 
     routes.generate_routes().into_iter().count();
+
+    let mut guard = segments.0.lock().unwrap();
+
+    guard.1 = true;
 
     routes
 }
 
 #[doc(hidden)]
-pub type InnerRouteSegments<L> = Arc<Mutex<HashMap<L, Vec<Vec<PathSegment>>>>>;
+#[derive(Clone, Default)]
+#[allow(clippy::type_complexity)]
+pub struct InnerRouteSegments<L>(Arc<Mutex<(HashMap<L, Vec<Vec<PathSegment>>>, bool)>>);
 
 #[doc(hidden)]
 pub struct I18nNestedRoute<L, View, Chil> {
@@ -636,9 +642,11 @@ where
             .into_iter()
             .map(|mut generated_route| {
                 if let Some(locale) = self.locale {
-                    let segments = generated_route.segments.clone();
-                    let mut guard = self.segments.lock().unwrap();
-                    guard.entry(locale).or_default().push(segments);
+                    let mut guard = self.segments.0.lock().unwrap();
+                    if !guard.1 {
+                        let segments = generated_route.segments.clone();
+                        guard.0.entry(locale).or_default().push(segments);
+                    }
                 }
                 if let (Some(locale), Some(first)) =
                     (self.locale, generated_route.segments.first_mut())
