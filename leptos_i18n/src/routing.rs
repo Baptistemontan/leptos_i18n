@@ -585,6 +585,9 @@ where
         path: &'a str,
     ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
         if let Some(locale) = self.locale {
+            CURRENT_ROUTE_LOCALE.with_borrow_mut(|loc| {
+                *loc = Some(Box::new(locale));
+            });
             StaticSegment(locale.as_str())
                 .test(path)
                 .and_then(|partial_path_match| {
@@ -605,6 +608,9 @@ where
                 })
                 .unwrap_or((None, path))
         } else {
+            CURRENT_ROUTE_LOCALE.with_borrow_mut(|loc| {
+                *loc = Some(Box::new(L::default()));
+            });
             let (inner_match, remaining) = MatchNestedRoutes::match_nested(&*self.route, path);
             inner_match
                 .map(|(route_match_id, inner_match)| {
@@ -657,25 +663,27 @@ impl<L, F> Debug for I18nSegment<L, F> {
     }
 }
 
+fn get_current_route_locale<L: Locale>() -> L {
+    CURRENT_ROUTE_LOCALE.with_borrow(|locale| {
+        locale
+            .as_ref()
+            .and_then(|l| l.downcast_ref::<L>().copied())
+            .unwrap_or_default()
+    })
+}
+
 impl<L: Locale, F> PossibleRouteMatch for I18nSegment<L, F>
 where
     F: Fn(L) -> &'static str,
 {
     fn test<'a>(&self, path: &'a str) -> Option<leptos_router::PartialPathMatch<'a>> {
-        let locale = leptos::prelude::use_context::<I18nContext<L>>()
-            .map(I18nContext::get_locale_untracked)
-            .unwrap_or_default();
+        let locale = get_current_route_locale();
         let seg = (self.func)(locale);
         StaticSegment(seg).test(path)
     }
 
     fn generate_path(&self, path: &mut Vec<PathSegment>) {
-        let locale = CURRENT_ROUTE_LOCALE.with_borrow(|locale| {
-            locale
-                .as_ref()
-                .and_then(|l| l.downcast_ref::<L>().copied())
-                .unwrap_or_default()
-        });
+        let locale = get_current_route_locale();
         let seg = (self.func)(locale);
         StaticSegment(seg).generate_path(path);
     }
