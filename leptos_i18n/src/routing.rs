@@ -241,14 +241,18 @@ fn update_path_effect<L: Locale>(
 
         let navigate = navigate.clone();
 
-        navigate(
-            &new_path,
-            NavigateOptions {
-                resolve: false,
-                scroll: false,
-                ..Default::default()
-            },
-        );
+        // TODO FIXME: see https://github.com/leptos-rs/leptos/issues/2979
+        // It works for now, but it is not ideal.
+        request_animation_frame(move || {
+            navigate(
+                &new_path,
+                NavigateOptions {
+                    resolve: false,
+                    scroll: false,
+                    ..Default::default()
+                },
+            );
+        });
 
         new_locale
     }
@@ -289,15 +293,19 @@ fn correct_locale_prefix_effect<L: Locale>(
 
         i18n.set_locale(new_locale);
 
-        navigate(
-            &new_path,
-            NavigateOptions {
-                resolve: false,
-                replace: true,
-                scroll: false,
-                ..Default::default()
-            },
-        );
+        // TODO FIXME: see https://github.com/leptos-rs/leptos/issues/2979
+        // It works for now, but it is not ideal.
+        request_animation_frame(move || {
+            navigate(
+                &new_path,
+                NavigateOptions {
+                    resolve: false,
+                    replace: true,
+                    scroll: false,
+                    ..Default::default()
+                },
+            );
+        });
     }
 }
 
