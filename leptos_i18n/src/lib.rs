@@ -168,10 +168,7 @@ pub mod __private {
     #[cfg(feature = "plurals")]
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
-    pub use crate::routing::{
-        i18n_routing, make_i18n_segment, BaseRoute, I18nNestedRoute, I18nSegment,
-        InnerRouteSegments,
-    };
+    pub use crate::routing::{i18n_routing, make_i18n_segment, BaseRoute, I18nSegment};
     pub use leptos_i18n_macro as macros_reexport;
 }
 

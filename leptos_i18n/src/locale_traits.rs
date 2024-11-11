@@ -1,10 +1,8 @@
 use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
-use leptos_router::ChooseView;
 use std::str::FromStr;
 use std::{fmt::Debug, hash::Hash};
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
-use crate::routing::InnerRouteSegments;
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
@@ -31,9 +29,6 @@ pub trait Locale<L: Locale = Self>:
 {
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = L>;
-
-    /// Associated routes for routing
-    type Routes<View, Chil>;
 
     /// Associated `#[server]` function type to request the translations
     #[cfg(feature = "dynamic_load")]
@@ -91,15 +86,6 @@ pub trait Locale<L: Locale = Self>:
     fn map_locale(self, locale: L) -> Self {
         Self::from_base_locale(locale)
     }
-
-    /// Make the routes
-    fn make_routes<View, Chil>(
-        base_route: crate::routing::BaseRoute<View, Chil>,
-        base_path: &'static str,
-        segments: InnerRouteSegments<L>,
-    ) -> Self::Routes<View, Chil>
-    where
-        View: ChooseView;
 
     /// Associated `#[server]` function to request the translations
     #[cfg(feature = "dynamic_load")]

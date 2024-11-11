@@ -1,18 +1,14 @@
 use std::{collections::BTreeMap, ops::Not};
 
-// pub mod cfg_file;
 pub mod declare_locales;
-// pub mod error;
 pub mod interpolate;
 pub mod locale;
 pub mod parsed_value;
+pub mod plurals;
 pub mod ranges;
 pub mod tracking;
 pub mod warning;
 
-pub mod plurals;
-
-use crate::utils::fit_in_leptos_tuple;
 use icu::locid::LanguageIdentifier;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
@@ -311,8 +307,8 @@ fn load_locales_inner(
                     ssr: SsrMode,
                     /// `children` may be empty or include nested routes.
                     children: RouteChildren<Chil>,
-                ) -> <#enum_ident as l_i18n_crate::Locale>::Routes<View, Chil>
-                    where View: ChooseView + 'static + Send + Sync, Chil: MatchNestedRoutes + 'static,
+                ) -> impl MatchNestedRoutes + 'static + Send + Sync + Clone
+                    where View: ChooseView + 'static + Send + Sync, Chil: MatchNestedRoutes + 'static + Send + Sync + Clone,
                 {
                     l_i18n_crate::__private::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
                 }
@@ -369,22 +365,6 @@ fn create_locales_enum(
         .iter()
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
-
-    let routes = std::iter::repeat(quote!(
-        l_i18n_crate::__private::I18nNestedRoute<Self, View, Chil>
-    ))
-    .take(locales.len() + 1)
-    .collect::<Vec<_>>();
-
-    let routes = fit_in_leptos_tuple(&routes);
-
-    let make_routes = locales.iter().map(|locale| {
-        quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route), core::clone::Clone::clone(&segments)))
-    })
-    .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route, segments))))
-    .collect::<Vec<_>>();
-
-    let make_routes = fit_in_leptos_tuple(&make_routes);
 
     let server_fn_mod = if cfg!(feature = "dynamic_load") {
         quote! {
@@ -486,7 +466,6 @@ fn create_locales_enum(
 
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
-            type Routes<View, Chil> = #routes;
             type TranslationUnitId = #translation_unit_enum_ident;
             #server_fn_type
 
@@ -528,16 +507,6 @@ fn create_locales_enum(
 
             fn from_base_locale(locale: Self) -> Self {
                 locale
-            }
-
-            fn make_routes<View, Chil>(
-                base_route: l_i18n_crate::__private::BaseRoute<View, Chil>,
-                base_path: &'static str,
-                segments: l_i18n_crate::__private::InnerRouteSegments<Self>
-            ) -> Self::Routes<View, Chil>
-                where View: l_i18n_crate::reexports::leptos_router::ChooseView
-            {
-                #make_routes
             }
 
             #request_translations
