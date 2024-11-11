@@ -218,6 +218,7 @@ fn update_path_effect<L: Locale>(
     let location = use_location();
     let navigate = use_navigate();
     move |prev_loc: Option<L>| {
+        let path_locale = get_locale_from_path::<L>(&location, base_path);
         let new_locale = i18n.get_locale();
         // don't react on history change.
         if let Some(new_locale) = history_changed_locale.get_value() {
@@ -227,7 +228,7 @@ fn update_path_effect<L: Locale>(
         let Some(prev_loc) = prev_loc else {
             return new_locale;
         };
-        if new_locale == prev_loc {
+        if new_locale == prev_loc || new_locale == path_locale.unwrap_or_default() {
             return new_locale;
         }
 
@@ -273,15 +274,19 @@ fn correct_locale_prefix_effect<L: Locale>(
             return;
         }
 
+        let new_locale = path_locale.unwrap_or(current_locale);
+
         let new_path = get_new_path(
             &location,
             base_path,
-            current_locale,
+            new_locale,
             path_locale,
             segments.clone(),
         );
 
         let navigate = navigate.clone();
+
+        i18n.set_locale(new_locale);
 
         // TODO FIXME: see https://github.com/leptos-rs/leptos/issues/2979
         // It works for now, but it is not ideal.
