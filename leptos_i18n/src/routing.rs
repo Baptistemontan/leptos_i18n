@@ -263,6 +263,7 @@ fn correct_locale_prefix_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     segments: InnerRouteSegments<L>,
+    history_changed: StoredValue<bool>,
 ) -> impl Fn(Option<()>) + 'static {
     let location = use_location();
     let navigate = use_navigate();
@@ -274,7 +275,12 @@ fn correct_locale_prefix_effect<L: Locale>(
             return;
         }
 
-        let new_locale = path_locale.unwrap_or(current_locale);
+        let new_locale = if history_changed.get_value() {
+            history_changed.set_value(false);
+            current_locale
+        } else {
+            path_locale.unwrap_or(current_locale)
+        };
 
         let new_path = get_new_path(
             &location,
@@ -318,6 +324,7 @@ fn check_history_change<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     sync: StoredValue<Option<L>>,
+    history_changed: StoredValue<bool>,
 ) -> impl Fn(ev::PopStateEvent) + 'static {
     let location = use_location();
 
@@ -325,6 +332,7 @@ fn check_history_change<L: Locale>(
         let path_locale = get_locale_from_path::<L>(&location, base_path).unwrap_or_default();
 
         sync.set_value(Some(path_locale));
+        history_changed.set_value(true);
 
         if i18n.get_locale_untracked() != path_locale {
             i18n.set_locale(path_locale);
@@ -405,25 +413,26 @@ fn view_wrapper<L: Locale, View: ChooseView>(
     // but changing the locale on history change will trigger the locale change effect, causing to change the URL again but with a wrong previous locale
     // so this variable sync them together on what is the locale currently in the URL.
     // it starts at None such that on the first render the effect don't change the locale instantly.
-    let history_changed_locale = StoredValue::new(None);
+    let sync = StoredValue::new(None);
+    let history_changed = StoredValue::new(false);
 
-    Effect::new(update_path_effect(
-        i18n,
-        base_path,
-        history_changed_locale,
-        segments.clone(),
-    ));
+    Effect::new(update_path_effect(i18n, base_path, sync, segments.clone()));
 
     // listen for history changes
     let handle = window_event_listener(
         ev::popstate,
-        check_history_change(i18n, base_path, history_changed_locale),
+        check_history_change(i18n, base_path, sync, history_changed),
     );
 
     on_cleanup(move || handle.remove());
 
     // correct the url when using <a> that removes the locale prefix
-    Effect::new(correct_locale_prefix_effect(i18n, base_path, segments));
+    Effect::new(correct_locale_prefix_effect(
+        i18n,
+        base_path,
+        segments,
+        history_changed,
+    ));
 
     match redir {
         None => Either::Left(view),
