@@ -679,6 +679,7 @@ where
 }
 
 #[doc(hidden)]
+#[derive(Clone, Copy)]
 pub struct I18nSegment<L, F> {
     func: F,
     marker: PhantomData<L>,
