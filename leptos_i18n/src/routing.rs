@@ -518,7 +518,7 @@ impl<L, View, Chil> I18nNestedRoute<L, View, Chil> {
 pub type BaseRoute<View, Chil> = NestedRoute<StaticSegment<&'static str>, Chil, (), View>;
 
 thread_local! {
-    static CURRENT_ROUTE_LOCALE: RefCell<&'static str> = const { RefCell::new("") };
+    static CURRENT_ROUTE_LOCALE: RefCell<Option<&'static str>> = const { RefCell::new(None) };
 }
 
 #[doc(hidden)]
@@ -591,7 +591,7 @@ where
         &'a self,
         path: &'a str,
     ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
-        L::get_all()
+        let res = L::get_all()
             .iter()
             .copied()
             .find_map(|locale| {
@@ -629,10 +629,16 @@ where
                     (Some((route_match_id, route_match)), remaining)
                 })
             })
-            .unwrap_or((None, path))
+            .unwrap_or((None, path));
+        reset_current_route_locale();
+        res
     }
 
     fn generate_routes(&self) -> impl IntoIterator<Item = leptos_router::GeneratedRouteData> + '_ {
+        let reset = std::iter::from_fn(|| {
+            reset_current_route_locale();
+            None
+        });
         let default_locale_routes = std::iter::once_with(|| {
             set_current_route_locale(L::default());
             MatchNestedRoutes::generate_routes(&self.route)
@@ -660,6 +666,7 @@ where
                     })
             })
             .chain(default_locale_routes)
+            .chain(reset)
     }
 }
 
@@ -682,6 +689,8 @@ where
             segments.insert(*locale, inner_segments);
         }
 
+        reset_current_route_locale();
+
         segments
     }
 }
@@ -701,12 +710,18 @@ impl<L, F> Debug for I18nSegment<L, F> {
 
 fn set_current_route_locale<L: Locale>(new_locale: L) {
     CURRENT_ROUTE_LOCALE.with_borrow_mut(|locale| {
-        *locale = new_locale.as_str();
+        *locale = Some(new_locale.as_str());
     })
 }
 
+fn reset_current_route_locale() {
+    CURRENT_ROUTE_LOCALE.with_borrow_mut(|locale| *locale = None);
+}
+
 fn get_current_route_locale<L: Locale>() -> L {
-    CURRENT_ROUTE_LOCALE.with_borrow(|locale| L::from_str(locale).unwrap_or_default())
+    CURRENT_ROUTE_LOCALE
+        .with_borrow(|locale| locale.as_ref().and_then(|locale| L::from_str(locale).ok()))
+        .unwrap_or_default()
 }
 
 impl<L: Locale, F> I18nSegment<L, F>
