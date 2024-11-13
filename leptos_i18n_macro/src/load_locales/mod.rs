@@ -140,6 +140,11 @@ fn load_locales_inner(
                 /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
+                /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
+                /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
+                /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
+                #[prop(optional, into)]
+                parse_locale_from_path: Option<Cow<'static, str>>,
                 children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
@@ -147,6 +152,7 @@ fn load_locales_inner(
                     set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
+                    parse_locale_from_path,
                     children
                 )
             }
