@@ -953,7 +953,7 @@ macro_rules! tu_plural_ordinal {
 ///
 /// ```rust, ignore
 /// <Route path=i18n_path!(Locale, |locale| td_string(locale, path_name)) view=.. />
-/// ``
+/// ```
 #[macro_export]
 macro_rules! i18n_path {
     ($t:ty, $func:expr) => {{

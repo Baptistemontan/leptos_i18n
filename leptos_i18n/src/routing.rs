@@ -217,7 +217,9 @@ fn update_path_effect<L: Locale>(
     let location = use_location();
     let navigate = use_navigate();
     move |prev_loc: Option<L>| {
-        let path_locale = get_locale_from_path::<L>(&location, base_path);
+        let path_locale = location
+            .pathname
+            .with_untracked(|path| get_locale_from_path::<L>(path, base_path));
         let new_locale = i18n.get_locale();
         // don't react on history change.
         if let Some(new_locale) = history_changed_locale.get_value() {
@@ -267,7 +269,9 @@ fn correct_locale_prefix_effect<L: Locale>(
     let location = use_location();
     let navigate = use_navigate();
     move |_| {
-        let path_locale = get_locale_from_path::<L>(&location, base_path);
+        let path_locale = location
+            .pathname
+            .with(|path| get_locale_from_path::<L>(path, base_path));
         let current_locale = i18n.get_locale_untracked();
 
         if current_locale == path_locale.unwrap_or_default() {
@@ -309,14 +313,16 @@ fn correct_locale_prefix_effect<L: Locale>(
     }
 }
 
-fn get_locale_from_path<L: Locale>(location: &Location, base_path: &'static str) -> Option<L> {
-    location.pathname.with(|path| {
-        let stripped_path = path.strip_prefix(base_path)?;
-        L::get_all()
-            .iter()
-            .copied()
-            .find(|l| stripped_path.starts_with(l.as_str()))
-    })
+pub(crate) fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
+    let base_path = base_path.trim_start_matches('/');
+    let stripped_path = path
+        .trim_start_matches('/')
+        .strip_prefix(base_path)?
+        .trim_start_matches('/');
+    L::get_all()
+        .iter()
+        .copied()
+        .find(|l| stripped_path.starts_with(l.as_str()))
 }
 
 fn check_history_change<L: Locale>(
@@ -328,7 +334,9 @@ fn check_history_change<L: Locale>(
     let location = use_location();
 
     move |_| {
-        let path_locale = get_locale_from_path::<L>(&location, base_path).unwrap_or_default();
+        let path_locale = location
+            .pathname
+            .with_untracked(|path| get_locale_from_path::<L>(path, base_path).unwrap_or_default());
 
         sync.set_value(Some(path_locale));
         history_changed.set_value(true);
@@ -729,7 +737,7 @@ where
 pub fn make_i18n_segment<L, F>(f: F) -> I18nSegment<L, F>
 where
     L: Locale,
-    F: Fn(L) -> &'static str + 'static + Send + Sync,
+    F: Fn(L) -> &'static str + 'static + Send + Sync + Clone,
 {
     I18nSegment {
         func: f,

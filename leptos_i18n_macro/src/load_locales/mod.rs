@@ -200,6 +200,11 @@ fn load_locales_inner(
                 /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
+                /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
+                /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
+                /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
+                #[prop(optional, into)]
+                parse_locale_from_path: Option<Cow<'static, str>>,
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
@@ -209,6 +214,7 @@ fn load_locales_inner(
                     cookie_name,
                     cookie_options,
                     ssr_lang_header_getter,
+                    parse_locale_from_path,
                     children
                 )
             }
@@ -293,8 +299,8 @@ fn load_locales_inner(
                 pub fn I18nRoute<View, Chil>(
                     /// The base path of this application.
                     /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
-                    /// the expected base path is `/foo/`.
-                    /// Defaults to `"/"``.
+                    /// the expected base path is `"foo"`, `"/foo"`, `"foo/"` or `"/foo/"`.
+                    /// Defaults to `"/"`.
                     #[prop(default = "/")]
                     base_path: &'static str,
                     /// The view that should be shown when this route is matched. This can be any function
