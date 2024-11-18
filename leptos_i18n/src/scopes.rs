@@ -1,4 +1,3 @@
-use leptos_router::ChooseView;
 use std::{
     fmt::{self, Debug},
     hash::Hash,
@@ -155,7 +154,6 @@ impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
 
 impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
-    type Routes<View, Chil> = L::Routes<View, Chil>;
     type TranslationUnitId = L::TranslationUnitId;
     #[cfg(feature = "dynamic_load")]
     type ServerFn = L::ServerFn;
@@ -185,16 +183,6 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
             locale,
             scope_marker: PhantomData,
         }
-    }
-
-    fn make_routes<View, Chil>(
-        base_route: crate::routing::BaseRoute<View, Chil>,
-        base_path: &'static str,
-    ) -> Self::Routes<View, Chil>
-    where
-        View: ChooseView,
-    {
-        L::make_routes(base_route, base_path)
     }
 
     #[cfg(feature = "dynamic_load")]

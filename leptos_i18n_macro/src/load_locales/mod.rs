@@ -1,18 +1,14 @@
 use std::{collections::BTreeMap, ops::Not};
 
-// pub mod cfg_file;
 pub mod declare_locales;
-// pub mod error;
 pub mod interpolate;
 pub mod locale;
 pub mod parsed_value;
+pub mod plurals;
 pub mod ranges;
 pub mod tracking;
 pub mod warning;
 
-pub mod plurals;
-
-use crate::utils::fit_in_leptos_tuple;
 use icu::locid::LanguageIdentifier;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
@@ -144,6 +140,11 @@ fn load_locales_inner(
                 /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
+                /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
+                /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
+                /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
+                #[prop(optional, into)]
+                parse_locale_from_path: Option<Cow<'static, str>>,
                 children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
@@ -151,6 +152,7 @@ fn load_locales_inner(
                     set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
+                    parse_locale_from_path,
                     children
                 )
             }
@@ -204,6 +206,11 @@ fn load_locales_inner(
                 /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
+                /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
+                /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
+                /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
+                #[prop(optional, into)]
+                parse_locale_from_path: Option<Cow<'static, str>>,
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
@@ -213,6 +220,7 @@ fn load_locales_inner(
                     cookie_name,
                     cookie_options,
                     ssr_lang_header_getter,
+                    parse_locale_from_path,
                     children
                 )
             }
@@ -297,8 +305,8 @@ fn load_locales_inner(
                 pub fn I18nRoute<View, Chil>(
                     /// The base path of this application.
                     /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
-                    /// the expected base path is `/foo/`.
-                    /// Defaults to `"/"``.
+                    /// the expected base path is `"foo"`, `"/foo"`, `"foo/"` or `"/foo/"`.
+                    /// Defaults to `"/"`.
                     #[prop(default = "/")]
                     base_path: &'static str,
                     /// The view that should be shown when this route is matched. This can be any function
@@ -311,8 +319,8 @@ fn load_locales_inner(
                     ssr: SsrMode,
                     /// `children` may be empty or include nested routes.
                     children: RouteChildren<Chil>,
-                ) -> <#enum_ident as l_i18n_crate::Locale>::Routes<View, Chil>
-                    where View: ChooseView,
+                ) -> impl MatchNestedRoutes + 'static + Send + Sync + Clone
+                    where View: ChooseView + 'static + Send + Sync, Chil: MatchNestedRoutes + 'static + Send + Sync + Clone,
                 {
                     l_i18n_crate::__private::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
                 }
@@ -369,22 +377,6 @@ fn create_locales_enum(
         .iter()
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
-
-    let routes = std::iter::repeat(quote!(
-        l_i18n_crate::__private::I18nNestedRoute<Self, View, Chil>
-    ))
-    .take(locales.len() + 1)
-    .collect::<Vec<_>>();
-
-    let routes = fit_in_leptos_tuple(&routes);
-
-    let make_routes = locales.iter().map(|locale| {
-        quote!(l_i18n_crate::__private::I18nNestedRoute::new(Some(Self::#locale), base_path, core::clone::Clone::clone(&base_route)))
-    })
-    .chain(Some(quote!(l_i18n_crate::__private::I18nNestedRoute::new(None, base_path, base_route))))
-    .collect::<Vec<_>>();
-
-    let make_routes = fit_in_leptos_tuple(&make_routes);
 
     let server_fn_mod = if cfg!(feature = "dynamic_load") {
         quote! {
@@ -486,7 +478,6 @@ fn create_locales_enum(
 
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
-            type Routes<View, Chil> = #routes;
             type TranslationUnitId = #translation_unit_enum_ident;
             #server_fn_type
 
@@ -528,15 +519,6 @@ fn create_locales_enum(
 
             fn from_base_locale(locale: Self) -> Self {
                 locale
-            }
-
-            fn make_routes<View, Chil>(
-                base_route: l_i18n_crate::__private::BaseRoute<View, Chil>,
-                base_path: &'static str
-            ) -> Self::Routes<View, Chil>
-                where View: l_i18n_crate::reexports::leptos_router::ChooseView
-            {
-                #make_routes
             }
 
             #request_translations
