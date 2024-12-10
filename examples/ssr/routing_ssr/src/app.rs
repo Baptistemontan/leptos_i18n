@@ -1,5 +1,6 @@
 use crate::i18n::*;
 use leptos::prelude::*;
+use leptos_i18n_router::I18nRoute;
 use leptos_router::{components::*, path};
 
 #[component]
@@ -11,10 +12,10 @@ pub fn App() -> impl IntoView {
         <I18nContextProvider>
             <Router>
                 <Routes fallback=|| "This page could not be found.">
-                    <I18nRoute view=|| view! { <Outlet /> }>
+                    <I18nRoute<Locale, _, _> view=|| view! { <Outlet /> }>
                         <Route path=path!("/") view=Home />
                         <Route path=path!("/counter") view=Counter />
-                    </I18nRoute>
+                    </I18nRoute<Locale, _, _>>
                 </Routes>
                 <br/>
                 <SwitchLang />

@@ -13,10 +13,10 @@ use leptos_router::*;
 view! {
     <Router>
         <Routes fallback=||"Page not found">
-            <I18nRoute view=Outlet>
+            <I18nRoute<Locale, _, _> view=Outlet>
                 <Route path=path!("") view=Home />
                 <Route path=path!("counter") view=Counter />
-            </I18nRoute>
+            </I18nRoute<Locale, _, _>>
         </Routes>
     </Router>
 }
@@ -70,9 +70,9 @@ You can use inside the `i18nRoute` the `i18n_path!` to create localized path seg
 ```rust
 use leptos_i18n::i18n_path;
 
-<I18nRoute view=Outlet>
+<I18nRoute<Locale, _, _> view=Outlet>
     <Route path=i18n_path!(Locale, |locale| td_string(locale, segment_path_name)) view={/* */} />
-</I18nRoute>
+</I18nRoute<Locale, _, _>>
 ```
 
 If you have `segment_path_name = "search"` for english, and `segment_path_name = "rechercher"` for french, the `I18nRoute` will produce 3 paths:
@@ -93,9 +93,9 @@ view! {
         <Menu />
         <Router>
             <Routes fallback=||"Page not found">
-                <I18nRoute view=Outlet>
+                <I18nRoute<Locale, _, _> view=Outlet>
                     <Route path=path!("") view=Home />
-                </I18nRoute>
+                </I18nRoute<Locale, _, _>>
             </Routes>
         </Router>
     </I18nContextProvider>
@@ -112,12 +112,12 @@ view! {
     <I18nContextProvider>
         <Router>
             <Routes fallback=||"Page not found">
-                <I18nRoute view=|| view! {
+                <I18nRoute<Locale, _, _> view=|| view! {
                     <Menu />
                     <Outlet />
                 }>
                     <Route path=path!("") view=Home />
-                </I18nRoute>
+                </I18nRoute<Locale, _, _>>
             </Routes>
         </Router>
     </I18nContextProvider>
@@ -132,9 +132,9 @@ view! {
         <Menu />
         <Router>
             <Routes fallback=||"Page not found">
-                <I18nRoute view=Outlet>
+                <I18nRoute<Locale, _, _> view=Outlet>
                     <Route path=path!("") view=Home />
-                </I18nRoute>
+                </I18nRoute<Locale, _, _>>
             </Routes>
         </Router>
     </I18nContextProvider>

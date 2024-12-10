@@ -16,7 +16,7 @@ leptos = { workspace = true }
 leptos_router = { workspace = true }
 
 [features]
-ssr = ["leptos_router/ssr", "leptos_i18n/ssr"]
+ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_i18n/ssr"]
 
 
 [package.metadata.cargo-all-features]
