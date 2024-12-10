@@ -21,8 +21,9 @@ proc-macro2 = "1"
 quote = "1"
 syn = "2.0"
 toml = "0.8"
-icu = "1.5"
-fixed_decimal = { version = "0.5", features = ["ryu"] }
+icu_locid = { workspace = true }
+icu_locid_transform = { workspace = true, features = ["compiled_data"] }
+fixed_decimal = { workspace = true, features = ["ryu"] }
 json5 = { version = "0.4", optional = true }
 leptos_i18n_parser = { workspace = true, features = ["quote"] }
 

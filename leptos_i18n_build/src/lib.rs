@@ -8,10 +8,10 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 pub use datakey::Options;
-use icu::locid::LanguageIdentifier;
 use icu_datagen::baked_exporter::BakedExporter;
 use icu_datagen::prelude::DataKey;
 use icu_datagen::{DatagenDriver, DatagenProvider};
+use icu_locid::LanguageIdentifier;
 use icu_provider::DataError;
 use leptos_i18n_parser::parse_locales;
 use leptos_i18n_parser::parse_locales::error::Result;

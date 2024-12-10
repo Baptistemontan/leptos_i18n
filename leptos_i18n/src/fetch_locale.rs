@@ -1,42 +1,20 @@
-use std::borrow::Cow;
-
 use leptos::prelude::*;
-use leptos_router::location::{BrowserUrl, LocationProvider, RequestUrl};
 use leptos_use::UseLocalesOptions;
 
 use crate::Locale;
 
-pub fn fetch_locale<L: Locale>(
-    current_cookie: Option<L>,
-    options: UseLocalesOptions,
-    parse_locale_from_path: Option<Cow<'static, str>>,
-) -> Memo<L> {
+pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> Memo<L> {
     let accepted_locales = leptos_use::use_locales_with_options(options);
     let accepted_locale =
         Memo::new(move |_| accepted_locales.with(|accepted| L::find_locale(accepted)));
 
-    let url_locale = get_locale_from_path::<L>(parse_locale_from_path);
-
     if cfg!(feature = "ssr") {
-        fetch_locale_ssr(current_cookie, accepted_locale, url_locale)
+        fetch_locale_ssr(current_cookie, accepted_locale)
     } else if cfg!(feature = "hydrate") {
         fetch_locale_hydrate(current_cookie, accepted_locale)
     } else {
-        fetch_locale_csr(current_cookie, accepted_locale, url_locale)
+        fetch_locale_csr(current_cookie, accepted_locale)
     }
-}
-
-fn get_locale_from_path<L: Locale>(parse_locale_from_path: Option<Cow<'static, str>>) -> Option<L> {
-    let base_path = parse_locale_from_path?;
-    let url = if cfg!(feature = "ssr") {
-        let req = use_context::<RequestUrl>().expect("no RequestUrl provided");
-        req.parse().expect("could not parse RequestUrl")
-    } else {
-        let location = BrowserUrl::new().expect("could not access browser navigation");
-        location.as_url().get_untracked()
-    };
-
-    crate::routing::get_locale_from_path(url.path(), &base_path)
 }
 
 pub fn signal_once_then<T: Clone + PartialEq + Send + Sync + 'static>(
@@ -64,12 +42,8 @@ pub fn signal_maybe_once_then<T: Clone + PartialEq + Send + Sync + 'static>(
 }
 
 // ssr fetch
-fn fetch_locale_ssr<L: Locale>(
-    current_cookie: Option<L>,
-    accepted_locale: Memo<L>,
-    url_locale: Option<L>,
-) -> Memo<L> {
-    signal_maybe_once_then(url_locale.or(current_cookie), accepted_locale)
+fn fetch_locale_ssr<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
+    signal_maybe_once_then(current_cookie, accepted_locale)
 }
 
 // hydrate fetch
@@ -90,10 +64,6 @@ fn fetch_locale_hydrate<L: Locale>(current_cookie: Option<L>, accepted_locale: M
 }
 
 // csr fetch
-fn fetch_locale_csr<L: Locale>(
-    current_cookie: Option<L>,
-    accepted_locale: Memo<L>,
-    url_locale: Option<L>,
-) -> Memo<L> {
-    signal_maybe_once_then(url_locale.or(current_cookie), accepted_locale)
+fn fetch_locale_csr<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
+    signal_maybe_once_then(current_cookie, accepted_locale)
 }

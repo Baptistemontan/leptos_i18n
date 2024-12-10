@@ -131,7 +131,7 @@ mod langid;
 mod locale_traits;
 mod macro_helpers;
 mod macros;
-mod routing;
+// mod routing;
 mod scopes;
 
 pub mod display;
@@ -165,10 +165,10 @@ pub mod __private {
     pub mod fetch_translations {
         pub use crate::fetch_translations::*;
     }
+    // pub use crate::fetch_locale::get_locale_from_path_inner;
     #[cfg(feature = "plurals")]
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
-    pub use crate::routing::{i18n_routing, make_i18n_segment, BaseRoute, I18nSegment};
     pub use leptos_i18n_macro as macros_reexport;
 }
 
@@ -208,7 +208,6 @@ pub mod reexports {
         pub use icu_locid as locid;
     }
     pub use leptos;
-    pub use leptos_router;
     pub use serde;
     pub use typed_builder;
     pub use wasm_bindgen;

@@ -9,7 +9,7 @@ pub mod ranges;
 pub mod tracking;
 pub mod warning;
 
-use icu::locid::LanguageIdentifier;
+use icu_locid::LanguageIdentifier;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
@@ -140,11 +140,6 @@ fn load_locales_inner(
                 /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
-                /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
-                /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
-                /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
-                #[prop(optional, into)]
-                parse_locale_from_path: Option<Cow<'static, str>>,
                 children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
@@ -152,7 +147,6 @@ fn load_locales_inner(
                     set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
-                    parse_locale_from_path,
                     children
                 )
             }
@@ -206,11 +200,6 @@ fn load_locales_inner(
                 /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
-                /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
-                /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
-                /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
-                #[prop(optional, into)]
-                parse_locale_from_path: Option<Cow<'static, str>>,
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
@@ -220,7 +209,6 @@ fn load_locales_inner(
                     cookie_name,
                     cookie_options,
                     ssr_lang_header_getter,
-                    parse_locale_from_path,
                     children
                 )
             }
@@ -293,41 +281,7 @@ fn load_locales_inner(
                 #providers
             }
 
-            mod routing {
-                use super::{l_i18n_crate, #enum_ident};
-                use l_i18n_crate::reexports::leptos_router;
-                use l_i18n_crate::reexports::leptos;
-                use leptos::prelude::IntoView;
-                use leptos_router::{SsrMode, MatchNestedRoutes, ChooseView, components::RouteChildren};
-
-                #[l_i18n_crate::reexports::leptos::component(transparent)]
-                #[allow(non_snake_case)]
-                pub fn I18nRoute<View, Chil>(
-                    /// The base path of this application.
-                    /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
-                    /// the expected base path is `"foo"`, `"/foo"`, `"foo/"` or `"/foo/"`.
-                    /// Defaults to `"/"`.
-                    #[prop(default = "/")]
-                    base_path: &'static str,
-                    /// The view that should be shown when this route is matched. This can be any function
-                    /// that returns a type that implements [`IntoView`] (like `|| view! { <p>"Show this"</p> })`
-                    /// or `|| view! { <MyComponent/>` } or even, for a component with no props, `MyComponent`).
-                    /// If you use nested routes you can just set it to `view=Outlet`
-                    view: View,
-                    /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming.
-                    #[prop(optional)]
-                    ssr: SsrMode,
-                    /// `children` may be empty or include nested routes.
-                    children: RouteChildren<Chil>,
-                ) -> impl MatchNestedRoutes + 'static + Send + Sync + Clone
-                    where View: ChooseView + 'static + Send + Sync, Chil: MatchNestedRoutes + 'static + Send + Sync + Clone,
-                {
-                    l_i18n_crate::__private::i18n_routing::<#enum_ident, View, Chil>(base_path, children, ssr, view)
-                }
-            }
-
             pub use providers::{I18nContextProvider, I18nSubContextProvider};
-            pub use routing::I18nRoute;
             pub use l_i18n_crate::Locale as I18nLocaleTrait;
 
             #macros_reexport
@@ -425,7 +379,7 @@ fn create_locales_enum(
     } else {
         quote!()
     };
-    let ld = icu::locid_transform::LocaleDirectionality::new();
+    let ld = icu_locid_transform::LocaleDirectionality::new();
 
     let locids = locales
         .iter()
@@ -440,8 +394,8 @@ fn create_locales_enum(
 
     let direction_match_arms = locids.iter().map(|(locale, locid)| {
         let dir = match ld.get(locid) {
-            Some(icu::locid_transform::Direction::LeftToRight) => quote!(LeftToRight),
-            Some(icu::locid_transform::Direction::RightToLeft) => quote!(RightToLeft),
+            Some(icu_locid_transform::Direction::LeftToRight) => quote!(LeftToRight),
+            Some(icu_locid_transform::Direction::RightToLeft) => quote!(RightToLeft),
             _ => quote!(Auto),
         };
 

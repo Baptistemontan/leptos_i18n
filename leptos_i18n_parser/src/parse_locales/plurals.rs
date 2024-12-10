@@ -4,7 +4,7 @@ use std::{
 };
 
 use fixed_decimal::{FixedDecimal, FloatPrecision};
-use icu::plurals::{PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules};
+use icu_plurals::{PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules};
 
 use super::{
     error::{Error, Result},
@@ -82,7 +82,7 @@ impl Plurals {
         let locale =
             locale
                 .name
-                .parse::<icu::locid::Locale>()
+                .parse::<icu_locid::Locale>()
                 .map_err(|err| Error::InvalidLocale {
                     locale: locale.name.clone(),
                     err,
