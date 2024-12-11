@@ -1,7 +1,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![deny(warnings)]
-//! edzdz
+//! WIP
 //!
 //!
 //!
