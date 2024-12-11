@@ -31,7 +31,7 @@ wasm-bindgen = "=0.2.96"
 default = ["hydrate", "ssr"]
 hydrate = [
   "dep:console_error_panic_hook",
-  "dep:wasm-bindgen",
+  # "dep:wasm-bindgen",
   "leptos/hydrate",
   "leptos_i18n/hydrate",
 ]
