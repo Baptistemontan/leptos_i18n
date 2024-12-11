@@ -166,10 +166,6 @@ where
     cookie_options: CookieOptions<L>,
     /// Options to pass to `leptos_use::use_locales`.
     ssr_lang_header_getter: UseLocalesOptions,
-    /// Try to parse the locale from the URL pathname, expect the basepath. (default to `None`).
-    /// If `None` do nothing, if `Some(base_path)` strip the URL from `base_path` then expect to found a path segment that represent a locale.
-    /// This is usefull when using the `I18nRoute` with usage of the context outside the router.
-    parse_locale_from_path: Option<Cow<'static, str>>,
 }
 
 impl<L: Locale> Default for I18nContextOptions<'_, L> {
@@ -179,7 +175,6 @@ impl<L: Locale> Default for I18nContextOptions<'_, L> {
             cookie_name: Cow::Borrowed(COOKIE_PREFERED_LANG),
             cookie_options: Default::default(),
             ssr_lang_header_getter: Default::default(),
-            parse_locale_from_path: None,
         }
     }
 }
@@ -192,7 +187,6 @@ pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>)
         cookie_name,
         cookie_options,
         ssr_lang_header_getter,
-        parse_locale_from_path,
     } = options;
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
         leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
@@ -201,11 +195,8 @@ pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>)
         (lang_cookie.into(), set_lang_cookie)
     };
 
-    let initial_locale = fetch_locale::fetch_locale(
-        lang_cookie.get_untracked(),
-        ssr_lang_header_getter,
-        parse_locale_from_path,
-    );
+    let initial_locale =
+        fetch_locale::fetch_locale(lang_cookie.get_untracked(), ssr_lang_header_getter);
 
     init_context_inner::<L>(set_lang_cookie, initial_locale)
 }
@@ -277,7 +268,7 @@ fn init_subcontext_with_options<L: Locale>(
     };
 
     let fetch_locale_memo =
-        fetch_locale::fetch_locale(None, ssr_lang_header_getter.unwrap_or_default(), None);
+        fetch_locale::fetch_locale(None, ssr_lang_header_getter.unwrap_or_default());
 
     let parent_locale = use_context::<I18nContext<L>>().map(|ctx| ctx.get_locale_untracked());
 
@@ -456,7 +447,6 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
-    parse_locale_from_path: Option<Cow<'static, str>>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
     #[cfg(all(feature = "dynamic_load", feature = "hydrate", not(feature = "ssr")))]
@@ -464,7 +454,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let reg_ctx = crate::fetch_translations::RegisterCtx::<L>::provide_context();
     let options = fill_options!(
-        I18nContextOptions::<L>::default().parse_locale_from_path(parse_locale_from_path),
+        I18nContextOptions::<L>::default(),
         enable_cookie,
         cookie_name,
         cookie_options,
@@ -501,7 +491,6 @@ pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
-    parse_locale_from_path: Option<Cow<'static, str>>,
     children: TypedChildren<Chil>,
 ) -> impl IntoView {
     provide_i18n_context_component_inner(
@@ -511,7 +500,6 @@ pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
         cookie_name,
         cookie_options,
         ssr_lang_header_getter,
-        parse_locale_from_path,
         children.into_inner(),
     )
 }
@@ -523,7 +511,6 @@ pub fn provide_i18n_context_component_island<L: Locale>(
     set_dir_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
-    parse_locale_from_path: Option<Cow<'static, str>>,
     children: children::Children,
 ) -> impl IntoView {
     provide_i18n_context_component_inner::<L, AnyView>(
@@ -533,7 +520,6 @@ pub fn provide_i18n_context_component_island<L: Locale>(
         cookie_name,
         None,
         None,
-        parse_locale_from_path,
         children,
     )
 }

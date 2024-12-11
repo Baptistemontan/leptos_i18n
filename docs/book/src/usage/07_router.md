@@ -1,22 +1,23 @@
 # `I18nRoute`
 
-The `i18n` module generated from the `load_locales!()` macro export the `I18nRoute` component,
+You can use the `leptos_i18n_router` crate that export the `I18nRoute` component,
 this component act exactly like a `leptos_router::Route` and take the same args, except for the path.
 
 What it does is manage a prefix on the URL such that
 
 ```rust
-use crate::i18n::I18nRoute;
+use crate::i18n::Locale;
+use leptos_i18n_router::I118nRoute;
 use leptos::prelude::*;
 use leptos_router::*;
 
 view! {
     <Router>
         <Routes fallback=||"Page not found">
-            <I18nRoute view=Outlet>
+            <I18nRoute<Locale, _, _> view=Outlet>
                 <Route path=path!("") view=Home />
                 <Route path=path!("counter") view=Counter />
-            </I18nRoute>
+            </I18nRoute<Locale, _, _>>
         </Routes>
     </Router>
 }
@@ -68,11 +69,11 @@ and the history will look like you directly navigated from `"/fr/counter"` to `"
 You can use inside the `i18nRoute` the `i18n_path!` to create localized path segments:
 
 ```rust
-use leptos_i18n::i18n_path;
+use leptos_i18n_router::i18n_path;
 
-<I18nRoute view=Outlet>
+<I18nRoute<Locale, _, _> view=Outlet>
     <Route path=i18n_path!(Locale, |locale| td_string(locale, segment_path_name)) view={/* */} />
-</I18nRoute>
+</I18nRoute<Locale, _, _>>
 ```
 
 If you have `segment_path_name = "search"` for english, and `segment_path_name = "rechercher"` for french, the `I18nRoute` will produce 3 paths:
@@ -93,9 +94,9 @@ view! {
         <Menu />
         <Router>
             <Routes fallback=||"Page not found">
-                <I18nRoute view=Outlet>
+                <I18nRoute<Locale, _, _> view=Outlet>
                     <Route path=path!("") view=Home />
-                </I18nRoute>
+                </I18nRoute<Locale, _, _>>
             </Routes>
         </Router>
     </I18nContextProvider>
@@ -105,41 +106,21 @@ view! {
 And the `Menu` component use localization, you could be suprised to see that sometimes there is a mismatch beetween the locale used by the `Menu` and the one inside the router.
 This is due to the locale being read from the URL only when the `i18nRoute` is rendered. So the context may be initialized with another locale, and then hit the router that update it.
 
-You have multiple solutions, you can either use the `Menu` component inside the `i18nRoute`:
+One solution would be to use the `Menu` component inside the `i18nRoute`:
 
 ```rust
 view! {
     <I18nContextProvider>
         <Router>
             <Routes fallback=||"Page not found">
-                <I18nRoute view=|| view! {
+                <I18nRoute<Locale, _, _> view=|| view! {
                     <Menu />
                     <Outlet />
                 }>
                     <Route path=path!("") view=Home />
-                </I18nRoute>
+                </I18nRoute<Locale, _, _>>
             </Routes>
         </Router>
     </I18nContextProvider>
 }
 ```
-
-Or you can use the `parse_locale_from_path` option on the `I18nContextProvider`:
-
-```rust
-view! {
-    <I18nContextProvider parse_locale_from_path="">
-        <Menu />
-        <Router>
-            <Routes fallback=||"Page not found">
-                <I18nRoute view=Outlet>
-                    <Route path=path!("") view=Home />
-                </I18nRoute>
-            </Routes>
-        </Router>
-    </I18nContextProvider>
-}
-```
-
-This option force the context to initialize itself with the locale from the URL. It is not enabled by default because the only time it is neededis this particular case.
-It expect the base_path argument you would pass to the `I18nRoute`.

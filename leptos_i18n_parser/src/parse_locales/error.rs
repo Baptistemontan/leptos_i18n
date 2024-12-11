@@ -1,6 +1,6 @@
+use icu_locid::Error as LocidError;
+use icu_plurals::Error as PluralsError;
 use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
-
-use icu::{locid::Error as ParserError, plurals::Error as PluralsError};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::utils::key::{Key, KeyPath};
@@ -9,7 +9,7 @@ use crate::utils::key::{Key, KeyPath};
 pub enum Error {
     InvalidLocale {
         locale: Rc<str>,
-        err: ParserError,
+        err: LocidError,
     },
     PluralRulesError(PluralsError),
     CargoDirEnvNotPresent(std::env::VarError),

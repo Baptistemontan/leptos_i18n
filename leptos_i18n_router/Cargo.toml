@@ -1,0 +1,25 @@
+[package]
+name = "leptos_i18n_router"
+version = { workspace = true }
+edition = "2021"
+authors = ["Baptiste de Montangon"]
+license = "MIT"
+repository = "https://github.com/Baptistemontan/leptos_i18n"
+description = "Translations integration helper for the Leptos web framework"
+readme = "../README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+leptos_i18n = { workspace = true }
+leptos = { workspace = true }
+leptos_router = { workspace = true }
+
+[features]
+ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_i18n/ssr"]
+
+
+[package.metadata.cargo-all-features]
+denylist = []
+skip_feature_sets = []
+always_include_features = []

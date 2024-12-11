@@ -131,7 +131,7 @@ mod langid;
 mod locale_traits;
 mod macro_helpers;
 mod macros;
-mod routing;
+// mod routing;
 mod scopes;
 
 pub mod display;
@@ -165,10 +165,10 @@ pub mod __private {
     pub mod fetch_translations {
         pub use crate::fetch_translations::*;
     }
+    // pub use crate::fetch_locale::get_locale_from_path_inner;
     #[cfg(feature = "plurals")]
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
-    pub use crate::routing::{i18n_routing, make_i18n_segment, BaseRoute, I18nSegment};
     pub use leptos_i18n_macro as macros_reexport;
 }
 
@@ -208,7 +208,6 @@ pub mod reexports {
         pub use icu_locid as locid;
     }
     pub use leptos;
-    pub use leptos_router;
     pub use serde;
     pub use typed_builder;
     pub use wasm_bindgen;
@@ -254,7 +253,7 @@ pub mod reexports {
 /// Also note that this macro does NOT take the context as the first argument, instead it takes the name for the generated island.
 ///
 /// If you need to pass variable args, you will have to make yourself an island that take those args.
-#[cfg(feature = "experimental-islands")]
+#[cfg(feature = "islands")]
 #[macro_export]
 macro_rules! ti {
     ($island_name: ident, $($tt:tt)*) => {
@@ -316,7 +315,7 @@ macro_rules! ti {
 ///     }
 /// }
 /// ```
-#[cfg(feature = "experimental-islands")]
+#[cfg(feature = "islands")]
 #[macro_export]
 macro_rules! make_i18n_island {
     ($island_name: ident, $($tt:tt)*) => {

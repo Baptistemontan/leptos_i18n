@@ -26,7 +26,7 @@ This feature must be enabled when building the client in csr mode
 
 Set a cookie to remember the last chosen locale.
 
-#### `experimental-islands`
+#### `islands`
 
 This feature is, as it's name says, experimental.
 This make this lib somewhat usable when using `islands` with Leptos.

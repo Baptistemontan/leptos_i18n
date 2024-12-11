@@ -16,7 +16,7 @@ use leptos_router::{
     PathSegment, PossibleRouteMatch, SsrMode, StaticSegment,
 };
 
-use crate::{use_i18n_context, I18nContext, Locale};
+use leptos_i18n::{use_i18n_context, I18nContext, Locale};
 
 // this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
 
@@ -79,6 +79,18 @@ fn match_path_segments(segments: &[&str], old_segments: &[PathSegment]) -> Optio
 
     // if iter is empty, perfect match !
     segments_iter.next().is_none().then_some(optionals)
+}
+
+fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
+    let base_path = base_path.trim_start_matches('/');
+    let stripped_path = path
+        .trim_start_matches('/')
+        .strip_prefix(base_path)?
+        .trim_start_matches('/');
+    L::get_all()
+        .iter()
+        .copied()
+        .find(|l| stripped_path.starts_with(l.as_str()))
 }
 
 fn construct_path_segments<'b, 'p: 'b>(
@@ -311,18 +323,6 @@ fn correct_locale_prefix_effect<L: Locale>(
             );
         });
     }
-}
-
-pub(crate) fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
-    let base_path = base_path.trim_start_matches('/');
-    let stripped_path = path
-        .trim_start_matches('/')
-        .strip_prefix(base_path)?
-        .trim_start_matches('/');
-    L::get_all()
-        .iter()
-        .copied()
-        .find(|l| stripped_path.starts_with(l.as_str()))
 }
 
 fn check_history_change<L: Locale>(
