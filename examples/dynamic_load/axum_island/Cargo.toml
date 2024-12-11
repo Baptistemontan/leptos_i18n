@@ -10,12 +10,12 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.7", optional = true }
-leptos = { version = "0.7.0-beta", features = ["experimental-islands"] }
+leptos = { version = "0.7.0-beta", features = ["islands"] }
 leptos_meta = { version = "0.7.0-beta" }
 leptos_axum = { version = "0.7.0-beta", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
   "track_locale_files",
-  "experimental-islands",
+  "islands",
   "dynamic_load",
 ] }
 serde = { version = "1", features = ["derive"] }

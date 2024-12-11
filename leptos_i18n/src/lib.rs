@@ -253,7 +253,7 @@ pub mod reexports {
 /// Also note that this macro does NOT take the context as the first argument, instead it takes the name for the generated island.
 ///
 /// If you need to pass variable args, you will have to make yourself an island that take those args.
-#[cfg(feature = "experimental-islands")]
+#[cfg(feature = "islands")]
 #[macro_export]
 macro_rules! ti {
     ($island_name: ident, $($tt:tt)*) => {
@@ -315,7 +315,7 @@ macro_rules! ti {
 ///     }
 /// }
 /// ```
-#[cfg(feature = "experimental-islands")]
+#[cfg(feature = "islands")]
 #[macro_export]
 macro_rules! make_i18n_island {
     ($island_name: ident, $($tt:tt)*) => {

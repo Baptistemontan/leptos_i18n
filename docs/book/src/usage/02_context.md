@@ -126,7 +126,7 @@ The `I18nContextProvider` component accept multiple props, all optionnal (except
 
 ## Note on island
 
-If you use the `experimental-islands` feature from Leptos the `I18nContextProvider` loose two props: `cookie_options` and `ssr_lang_header_getter`, because they are not serializable. If you need them you can use the `init_context_with_options` function and provide the context yourself:
+If you use the `islands` feature from Leptos the `I18nContextProvider` loose two props: `cookie_options` and `ssr_lang_header_getter`, because they are not serializable. If you need them you can use the `init_context_with_options` function and provide the context yourself:
 
 ```rust
 use leptos_i18n::init_i18n_context_with_options;

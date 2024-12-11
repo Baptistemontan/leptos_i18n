@@ -81,9 +81,9 @@ ssr = [
     "leptos-use/ssr",
     "leptos_i18n_macro/ssr",
 ]
-experimental-islands = [
-    "leptos/experimental-islands",
-    "leptos_i18n_macro/experimental-islands",
+islands = [
+    "leptos/islands",
+    "leptos_i18n_macro/islands",
 ]
 nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
 

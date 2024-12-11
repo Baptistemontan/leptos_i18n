@@ -117,7 +117,7 @@ fn load_locales_inner(
         quote!(td_display),
     ];
 
-    let providers = if cfg!(feature = "experimental-islands") {
+    let providers = if cfg!(feature = "islands") {
         macros_reexport.push(quote!(ti));
         quote! {
             use leptos::children::Children;
