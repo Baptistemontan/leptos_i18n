@@ -11,7 +11,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos-use = { version = "0.14.0-rc1", default-features = false, features = [
+leptos-use = { version = "0.14.0", default-features = false, features = [
     "use_locales",
     "use_cookie",
 ] }
@@ -30,17 +30,12 @@ typed-builder = "0.20"
 fixed_decimal = { workspace = true, optional = true, features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
-wasm-bindgen = "0.2.93"
 async-once-cell = { version = "0.5.3", optional = true }
 js-sys = { version = "0.3.70", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
 futures = { version = "0.3.30", optional = true }
 noop-waker = { version = "0.1.0", optional = true }
 default-struct-builder = "0.5"
-
-# FIXME
-leptos_actix = { version = "0.7.0-rc1", optional = true }
-leptos_axum = { version = "0.7.0-rc1", optional = true }
 
 [features]
 default = ["cookie", "json_files", "icu_compiled_data"]
@@ -71,8 +66,8 @@ format_nums = [
     "dep:icu_provider",
     "leptos_i18n_macro/format_nums",
 ]
-actix = ["ssr", "leptos-use/actix", "dep:leptos_actix"]
-axum = ["ssr", "leptos-use/axum", "dep:leptos_axum"]
+actix = ["ssr", "leptos-use/actix"]
+axum = ["ssr", "leptos-use/axum"]
 hydrate = [
     "leptos/hydrate",
     "leptos_i18n_macro/hydrate",

@@ -23,9 +23,9 @@ leptos_i18n = { path = "./leptos_i18n", version = "0.5.0-rc1" }
 leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.0-rc1" }
 
 # leptos
-leptos = { version = "0.7.0-rc1" }
-leptos_router = { version = "0.7.0-rc1" }
-leptos_meta = { version = "0.7.0-rc1" }
+leptos = { version = "0.7.0" }
+leptos_router = { version = "0.7.0" }
+leptos_meta = { version = "0.7.0" }
 
 # icu
 icu_locid = { version = "1.5" }
