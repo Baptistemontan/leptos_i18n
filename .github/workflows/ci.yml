@@ -8,7 +8,7 @@ on:
       - master
 env:
   CARGO_TERM_COLOR: always
-  CARGO_LEPTOS_VERSION: 0.2.21
+  CARGO_LEPTOS_VERSION: 0.2.22
 jobs:
   lib_test:
     name: Test leptos_i18n package
