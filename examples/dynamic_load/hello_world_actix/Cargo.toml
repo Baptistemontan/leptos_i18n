@@ -20,7 +20,8 @@ leptos_i18n = { path = "../../../leptos_i18n", features = [
 ] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
-wasm-bindgen = { version = "0.2", optional = true }
+# wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen = "=0.2.96"
 
 [features]
 default = ["hydrate", "ssr"]
