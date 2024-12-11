@@ -1,12 +1,7 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![deny(warnings)]
-//! WIP
-//!
-//!
-//!
-//!
-//!
+//! This crate contain anything related to routing for the `leptos_i18n` crate.
 
 mod components;
 mod routing;
