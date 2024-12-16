@@ -94,6 +94,10 @@ impl<T: Literal> LitWrapper<T> {
         Literal::into_str(self.0)
     }
 
+    pub const fn inner(self) -> T {
+        self.0
+    }
+
     pub fn build_display(self) -> impl Display {
         self.0
     }

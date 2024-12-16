@@ -175,6 +175,39 @@ mod test {
     use crate::Locale as _;
     use i18n::Locale;
 
+    macro_rules! td_const {
+        ($locale:expr, $first_key:ident $(.$key:ident)*) => {
+            ($locale).get_keys_const()
+                .$first_key()
+                $(.$key())*
+                .inner()
+        };
+    }
+
+    #[cfg(not(feature = "dynamic_load"))]
+    const _: () = {
+        const fn check_str_eq_const(a: &str, b: &str) -> bool {
+            if a.len() != b.len() {
+                return false;
+            }
+            let (mut a, mut b) = (a.as_bytes(), b.as_bytes());
+            loop {
+                match (a.split_first(), b.split_first()) {
+                    (Some((first_a, rest_a)), Some((first_b, rest_b))) if *first_a == *first_b => {
+                        a = rest_a;
+                        b = rest_b;
+                    }
+                    (None, None) => return true,
+                    _ => return false,
+                }
+            }
+        }
+        let fr_ssk = td_const!(Locale::fr, sk.ssk);
+        assert!(check_str_eq_const(fr_ssk, "test fr"));
+        let fr_ssk = td_const!(Locale::en, sk.ssk);
+        assert!(check_str_eq_const(fr_ssk, "test en"));
+    };
+
     #[test]
     fn test_find_locale() {
         let res = Locale::find_locale(&["de"]);

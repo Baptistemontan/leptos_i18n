@@ -430,6 +430,12 @@ fn create_locales_enum(
             }
         }
 
+        impl #enum_ident {
+            pub const fn get_keys_const(self) -> #keys_ident {
+                #keys_ident::new(self)
+            }
+        }
+
         impl l_i18n_crate::Locale for #enum_ident {
             type Keys = #keys_ident;
             type TranslationUnitId = #translation_unit_enum_ident;
