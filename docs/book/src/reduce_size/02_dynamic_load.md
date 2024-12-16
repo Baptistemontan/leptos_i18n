@@ -21,11 +21,28 @@ When the client need access to an unloaded unit, it will request it to the serve
 
 ### Async accessors
 
-For obvious reason, with the `"dynamic_load"` accessing a value is now async, `t!`, `td!` and `tu!` still return `impl Fn() -> impl IntoView`,
-as the async part is handled inside of it with some optimizations, but the `*_display!` and `*_string!` variants now return a future and need to be awaited.
-(You can turn them into some kind of `Signal<Option<String>>` using leptos `AsyncDerived::new_unsync`)
+For obvious reason, with the `"dynamic_load"` accessing a value is now async, `t!`, `td!` and `tu!` still return `impl Fn() -> impl IntoView`, as the async part is handled inside of it with some optimizations, but the `*_display!` and `*_string!` variants now return a future and need to be awaited.
 
-They are technically not needed to be async on the server, as translations are still baked in for them,
+You can turn them into some kind of `Signal<Option<String>>` using leptos `AsyncDerived`:
+
+```rust
+let i18n = use_i18n();
+let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option<&'static str>`
+```
+
+Feel free to make yourself a macro to wrap them:
+
+```rust
+macro_rules! t_string_async {
+    (($tt:tt)*) => {
+        AsyncDerived::new(move || t_string!(($tt)*))
+    }
+}
+```
+
+This could have been the design by default, but there is multiple ways to handle it so I decided to leave the choice to the user.
+
+_note_: They are technically not needed to be async on the server, as translations are still baked in for them,
 but for the API to be the same on the client and the server they return the value wrapped in an async bloc.
 
 ### Server Fn
