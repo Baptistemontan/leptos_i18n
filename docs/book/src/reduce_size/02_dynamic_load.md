@@ -34,8 +34,8 @@ Feel free to make yourself a macro to wrap them:
 
 ```rust
 macro_rules! t_string_async {
-    (($tt:tt)*) => {
-        AsyncDerived::new(move || t_string!(($tt)*))
+    ($($tt:tt),*) => {
+        AsyncDerived::new(move || leptos_i18n::t_string!($($tt),*))
     }
 }
 ```
@@ -43,7 +43,7 @@ macro_rules! t_string_async {
 This could have been the design by default, but there is multiple ways to handle it so I decided to leave the choice to the user.
 
 _note_: They are technically not needed to be async on the server, as translations are still baked in for them,
-but for the API to be the same on the client and the server they return the value wrapped in an async bloc.
+but for the API to be the same on the client and the server they return the value wrapped in an async block.
 
 ### Server Fn
 
