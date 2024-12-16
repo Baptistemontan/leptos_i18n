@@ -175,17 +175,16 @@ mod test {
     use crate::Locale as _;
     use i18n::Locale;
 
-    macro_rules! td_const {
-        ($locale:expr, $first_key:ident $(.$key:ident)*) => {
-            ($locale).get_keys_const()
-                .$first_key()
-                $(.$key())*
-                .inner()
-        };
-    }
-
     #[cfg(not(feature = "dynamic_load"))]
     const _: () = {
+        macro_rules! td_const {
+            ($locale:expr, $first_key:ident $(.$key:ident)*) => {
+                ($locale).get_keys_const()
+                    .$first_key()
+                    $(.$key())*
+                    .inner()
+            };
+        }
         const fn check_str_eq_const(a: &str, b: &str) -> bool {
             if a.len() != b.len() {
                 return false;
