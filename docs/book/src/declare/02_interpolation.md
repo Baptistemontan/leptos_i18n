@@ -2,8 +2,8 @@
 
 ## Interpolate Values
 
-There may be situations where you must interpolate a value inside your translations, for example a dynamic number.
-You could declare 2 translations and use them around that number, but this is not an elegant solution.
+There may be situations where you must interpolate a value inside your translations, for example, a dynamic number.
+You could declare 2 translations and use them with that number, but this is not an elegant solution.
 
 To declare a value that will be interpolated in your translations, simply give it a name surrounded by `{{ }}`:
 
@@ -15,9 +15,9 @@ To declare a value that will be interpolated in your translations, simply give i
 
 ## Interpolate Components
 
-There may also be situations where you want to wrap part of your translation into a component, for example to highlight it.
+There may also be situations where you want to wrap part of your translation into a component, for example, to highlight it.
 
-You can declare a component with html-like syntax:
+You can declare a component with HTML-like syntax:
 
 ```json
 {
@@ -27,7 +27,7 @@ You can declare a component with html-like syntax:
 
 ## Use both
 
-You can mix them both without problem:
+You can mix them both without a problem:
 
 ```json
 {
@@ -37,4 +37,4 @@ You can mix them both without problem:
 
 ## Names
 
-Just like keys, names of variable/components can be anything as long as it is a valid Rust identifier, apart from `-` which will be converted to `_`.
+Just like keys, names of variables/components can be anything as long as it is a valid Rust identifier, apart from `-` which will be converted to `_`.

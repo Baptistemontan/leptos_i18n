@@ -1,12 +1,12 @@
 # The `td!` Macro
 
-The `td!` macro works just like the `t!` macro but instead of taking the context as it first argument, it takes the desired locale:
+The `td!` macro works just like the `t!` macro but instead of taking the context as its first argument, it takes the desired locale:
 
 ```rust
 td!(Locale::fr, hello_world)
 ```
 
-This is useful if for example you want the buttons to switch locale to always be in the language they switch to:
+This is useful if, for example, you want the buttons to switch locale to always be in the language they switch to:
 
 ```rust
 use crate::i18n::*;
@@ -30,7 +30,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-This could just be written has
+This could just be written as
 
 ```rust
 use crate::i18n::*;
@@ -51,4 +51,4 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-But the above scale better.
+But the above scale is better.

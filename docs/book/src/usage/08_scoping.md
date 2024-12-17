@@ -3,11 +3,11 @@
 If you are using subkeys or namespaces, access keys can get pretty big and repetitive,
 wouldn't it be nice to scope a context to a namespace or subkeys ?
 
-Well this page explain how to do it!
+Well, this page explains how to do it!
 
 ## The `scope_i18n!` macro
 
-Using namespaces and subkeys can make things quite cumbersome very fast, imagine you have this:
+Using namespaces and subkeys can make things quite cumbersome very fast. Imagine you have this:
 
 ```rust
 let i18n = use_i18n();
@@ -17,8 +17,8 @@ t!(i18n, namespace.subkeys.more_subkeys.subvalue);
 t!(i18n, namespace.subkeys.more_subkeys.another_subvalue);
 ```
 
-This only use `namespace.subkeys.*` but we have to repeat it everywhere,
-well here comes the `scope_i18n!` macro, you can rewrite to:
+This only uses `namespace.subkeys.*`, but we have to repeat it everywhere. Well,
+well here comes the `scope_i18n!` macro. You can rewrite it to:
 
 ```rust
 let i18n = use_i18n();
@@ -45,13 +45,13 @@ t!(i18n, another_subvalue);
 
 ## The `use_i18n_scoped!` macro
 
-On the above example we do `let i18n = use_i18n();` but only access the context to scope it afterward, we could do
+In the above example, we do `let i18n = use_i18n();` but only access the context to scope it afterward. We could do
 
 ```rust
 let i18n = scope_i18n!(use_i18n(), namespace.subkeys);
 ```
 
-Well this is what the `use_i18n_scoped!` macro is for:
+Well, this is what the `use_i18n_scoped!` macro is for:
 
 ```rust
 let i18n = use_i18n_scoped!(namespace.subkeys);
@@ -100,15 +100,15 @@ fn foo(locale: Locale) {
 
 Unfortunately, it looks too good to be true... What's the catch ? Where is the tradeoff ?
 
-To make this possible, it use a typestate pattern, but some of the types are hard to access as a user as they defined deep in the generated `i18n` module.
+To make this possible, it uses a typestate pattern, but some of the types are hard to access as a user as they are defined deep in the generated `i18n` module.
 This makes it difficult to write the type of a scoped context or a scoped locale.
 
-By default `I18nContext<L, S>` is only generic over `L` because the `S` scope is the "default" one provided by `L`, so you can easily write `I18nContext<Locale>`.
-But once you scope it the `S` parameters will look like `i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys`.
+By default, `I18nContext<L, S>` is only generic over `L` because the `S` scope is the "default" one provided by `L`, so you can easily write `I18nContext<Locale>`.
+But once you scope it, the `S` parameters will look like `i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys`.
 
 Yes. This is the path to the struct holding the keys of `namespace.subkeys`.
 
-This makes it difficult to pass a scoped type around, as it would require to write `I18nContext<Locale, i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys>`.
+This makes it difficult to pass a scoped type around, as it would require writing `I18nContext<Locale, i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys>`.
 
 Maybe in the future there will be a macro to write this horrible path for you, but I don't think it is really needed for now.
 
@@ -118,9 +118,9 @@ If you look at the generated code you will see this:
 let i18n = { leptos_i18n::__private::scope_ctx_util(use_i18n(), |_k| &_k.$keys) };
 ```
 
-Hummm, what is this closure for? it's just here for type inference and key checking! The function parameter is even `_:fn(&OS) -> &NS`, it's never used.
-The function is even const (not for `scope_locale` tho, the only one that could really benefit from it lol, because trait functions can't be const...).
+Hmm, what is this closure for? It’s just here for type inference and key checking! The function parameter is even `_:fn(&OS) -> &NS`, it's never used.
+The function is even const (not for `scope_locale` though, the only one that could really benefit from it lol, because trait functions can't be const...).
 
-But being a typestate using it or not actually result in the same code path.
-And with how aggressive Rust is with inlining small functions, it probably compile to the exact same thing.
-So no runtime performance loss! Yeaah!
+But being a typestate using it or not actually results in the same code path.
+And with how aggressive Rust is with inlining small functions, it probably compiles to the exact same thing.
+So no runtime performance loss! Yeah!
