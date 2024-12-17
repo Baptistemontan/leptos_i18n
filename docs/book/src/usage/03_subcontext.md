@@ -1,17 +1,17 @@
 # Sub Context
 
-You may want to have sections of you application to use the translations but be isolated from the "main" locale, this is what sub-context are for.
+You may want to have sections of your application to use the translations but be isolated from the "main" locale, this is what sub-contexts are for.
 
 ## Why not just use `I18nContextProvider` ?
 
-`I18nContextProvider` does not shadow any context if one already exist,
-this is because it should only be one "main" context, or they will battle for the cookie, the "lang" attribute, the routing, ect..
+`I18nContextProvider` does not shadow any context if one already exists,
+this is because it should only be one "main" context, or they will battle for the cookie, the "lang" attribute, the routing, etc.
 
-`init_i18n_subcontext_*` functions create a context that does not battle with the main context and makes it more obvious that a sub context is created, improving code clarity.
+`init_i18n_subcontext_*` functions create a context that does not battle with the main context and makes it more obvious that a sub-context is created, improving code clarity.
 
 ## Initialize a sub-context
 
-`leptos_i18n::context::init_i18n_subcontext` takes an `initial_locale: Option<Signal<L>>` argument, this is so you can control the sub-context locale outside of it, you can for example makes it so the locale of the sub-context is always the opposite of the "main" one:
+`leptos_i18n::context::init_i18n_subcontext` takes an `initial_locale: Option<Signal<L>>` argument, this is so you can control the sub-context locale outside of it, you can for example make it so the locale of the sub-context is always the opposite of the "main" one:
 
 ```rust
 fn neg_locale(locale: Locale) -> Locale {
@@ -32,11 +32,11 @@ fn opposite_context() {
 }
 ```
 
-If it is not supplied, it takes the parent context locale as a default, and if no parent context exist (yes you can use sub-context as a "main" context if you want) it uses the same locale resolution as the normal context.
+If it is not supplied, it takes the parent context locale as a default, and if no parent context exists (yes, you can use sub-context as a "main" context if you want), it uses the same locale resolution as the normal context.
 
 ## Providing a sub-context
 
-There is no `provide_i18n_subcontext`. It does exist but is marked as deprecated, it is not actually deprecated, it is only there as a information point, although is does what you thing.
+There is no `provide_i18n_subcontext`. It does exist but is marked as deprecated; it is not actually deprecated, it is only there as an information point, although it does what you think.
 
 #### Shadowing correctly
 
@@ -76,7 +76,7 @@ fn Home() -> impl IntoView {
 
 This will actually make the sub-context provided in the `<Sub />` component replace the parent context and leak into the `<Home />` component.
 
-`leptos::provide_context` has a section about shadowing in there docs, the best approach is to use a provider:
+`leptos::provide_context` has a section about shadowing in there docs. The best approach is to use a provider:
 
 ```rust
 #[component]
@@ -119,10 +119,10 @@ fn Sub() -> impl IntoView {
 
 ## Options
 
-Same has with the normal context, sub-contexts have behavior control options, they all take the `initial_locale: Option<Signal<L>>` as their first argument.
+Same as with the normal context, sub-contexts have behavior control options; they all take the `initial_locale: Option<Signal<L>>` as their first argument.
 
-`init_i18n_subcontext_with_options` takes options a cookie,
+`init_i18n_subcontext_with_options` takes options as a cookie;
 that function is useless without the `cookie` feature.
 
-- `cookie_name` is an option to a name for a cookie to be set to keep state of the chosen locale
+- `cookie_name` is an option to a name for a cookie to be set to keep state of the chosen locale.
 - `cookie_options` is an option to some options for a cookie.

@@ -1,10 +1,10 @@
 # Ranges
 
-We just talked about plurals, which are standardized, but we have a little unorthodox features that I called ranges.
+We just talked about plurals, which are standardized, but we have a little unorthodox feature that I called ranges.
 
 They are based around a count and display different translations based on this count.
 
-To declare them the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
+To declare them, the key takes a sequence where each element is a sequence with the first element being the value, and the other element the count to match against:
 
 ```json
 {
@@ -32,7 +32,7 @@ You can declare multiple counts to match against:
 
 ## Ranges
 
-You can also declare a range where the translations is used:
+You can also declare a range where the translations are used:
 
 ```json
 {
@@ -44,11 +44,11 @@ You can also declare a range where the translations is used:
 }
 ```
 
-You can use all Rust ranges syntax: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will be considered fallback `_`)
+You can use all Rust ranges syntax: `s..e`, `..e`, `s..`, `s..=e`, `..=e` or even `..` ( `..` will be considered fallback `_`).
 
 ## Number type
 
-By default the count is expected to be an `i32`, but you can change that by specifying the type as the first element of the sequence:
+By default, the count is expected to be an `i32`, but you can change that by specifying the type as the first element of the sequence:
 
 ```json
 {
@@ -63,7 +63,7 @@ By default the count is expected to be an `i32`, but you can change that by spec
 
 Now you only have to cover the `u32` range.
 
-The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32` and `f64`.
+The supported types are `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`, `f32`, and `f64`.
 
 ## Fallback
 
@@ -96,7 +96,7 @@ Fallbacks are always required for `f32` and `f64`.
 
 ## Order
 
-The order of the ranges matter, for example:
+The order of the ranges matters, for example:
 
 ```json
 {
@@ -178,4 +178,4 @@ If you need multiple counts, for example:
 }
 ```
 
-There isn't a way to represent this in a single key, You will need `Foreign keys` that you can read about in a future chapter.
+There isn't a way to represent this in a single key. You will need `Foreign keys` that you can read about in a future chapter.

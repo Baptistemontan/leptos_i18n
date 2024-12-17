@@ -12,7 +12,7 @@ But there are additional rules you must follow in addition to those of the forma
 
 ## Keys
 
-Key names must be [valid Rust identifier](https://doc.rust-lang.org/reference/identifiers.html), with the exception of `-` that would be converted to `_`.
+Key names must be [valid Rust identifiers](https://doc.rust-lang.org/reference/identifiers.html), with the exception of `-` that would be converted to `_`.
 
 ## Same keys across files
 
@@ -20,9 +20,9 @@ The keys must be the same across all files, else the `load_locales!` macro will 
 
 ### Missing key
 
-If a key is present in the default locale but not in another locale, the other locale will default it's value to the default locale one and emit a warning that a key is missing in that locale.
+If a key is present in the default locale but not in another locale, the other locale will default its value to the default locale one and emit a warning that a key is missing in that locale.
 
-If you want to explicitly state that this value take the value of the default locale, you can declare it as `null`:
+If you want to explicitly state that this value takes the value of the default locale, you can declare it as `null`:
 
 ```json
 {
@@ -45,4 +45,4 @@ You can specify multiple kinds of values:
 - Ranges
 - Plurals
 
-The next chapters of this section will cover them, apart for literals, those are self explanatory.
+The next chapters of this section will cover them, apart from literals, those are self-explanatory.

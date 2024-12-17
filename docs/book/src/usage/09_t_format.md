@@ -1,6 +1,6 @@
 # `t_format!`
 
-You may want to use the formatting capability without the need to create an entry in you translations, you can use the `t_format!` macro for that:
+You may want to use the formatting capability without the need to create an entry in your translations; you can use the `t_format!` macro for that:
 
 ```rust
 use crate::i18n::*;
@@ -13,7 +13,7 @@ let num = move || 100_000;
 t_format!(i18n, num, formatter: number);
 ```
 
-There are 9 variants, just like the `t!` macro, `td_format!`, `tu_format!`, `*_format_string` and `*_format_display`.
+There are 9 variants, just like the `t!` macro, `td_format!`, `tu_format!`, `*_format_string`, and `*_format_display`.
 
 ### Example
 

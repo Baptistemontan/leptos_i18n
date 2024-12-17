@@ -13,9 +13,9 @@ This will replace `$t(hello_world)` by the value of the key `hello_world`, makin
 
 You can point to any key other than ranges and keys containing subkeys.
 
-To point to subkeys you give the path by separating the key by `.`: `$t(key.subkey.subsubkey)`.
+To point to subkeys, you give the path by separating the key by `.`: `$t(key.subkey.subsubkey)`.
 
-When using namespaces you _must_ specify the namespace of the key you are looking for, using `:`: `$t(namespace:key)`.
+When using namespaces, you _must_ specify the namespace of the key you are looking for, using `:`: `$t(namespace:key)`.
 
 You can point to explicitly defaulted keys, but not implicitly defaulted ones.
 
@@ -30,13 +30,13 @@ You can also supply arguments to fill variables of the pointed key:
 }
 ```
 
-This will result to `clicked_twice` to have the value `"You clicked two times"`.
+This will result in `clicked_twice` to have the value `"You clicked two times"`.
 
-Arguments must be string, delimited by either single quotes or double quotes.
+Arguments must be strings, delimited by either single quotes or double quotes.
 
-> **Note**: Any argument with no matching variable are just discarded, they will not emit any warning/error.
+> **Note**: Any argument with no matching variable is just discarded; they will not emit any warning/error.
 
-Arguments can be anything that could be parsed as a normal key value:
+Arguments can be anything that could be parsed as a normal key-value:
 
 ```json
 {
@@ -76,14 +76,14 @@ You can supply the count as a foreign key in 2 ways, as a variable:
 }
 ```
 
-This will just rename the key:
+This will just rename the key.
 
 ```rust
 t!(i18n, new_key, new_count = move || 1); // -> "one item"
 t!(i18n, new_key, new_count = move || 2); // -> "2 items"
 ```
 
-> **note**: for the `count` arg to plurals/ranges, the value provided must be single variable (whitespaces around are supported though).
+> **note**: for the `count` arg to plurals/ranges, the value provided must be a single variable (whitespaces around are supported though).
 
 Or by an actual value:
 
@@ -99,7 +99,7 @@ t!(i18n, singular_key); // -> "one item"
 t!(i18n, multiple_key); // -> "6 items"
 ```
 
-> **note**: while floats are supported, they don't carry all the informations once deserialized such as leading 0, so some truncation may occur.
+> **note**: while floats are supported, they don't carry all the information once deserialized such as leading 0, so some truncation may occur.
 
 ## Multiple counts ranges or plurals
 
@@ -111,7 +111,7 @@ If you need multiple counts for a plural or a range, for example:
 }
 ```
 
-You can use `Foreign keys` to construct a single key from multiple plurals/ranges by overriding there `"count"` variable:
+You can use `Foreign keys` to construct a single key from multiple plurals/ranges by overriding their `"count"` variable:
 
 ```json
 {
