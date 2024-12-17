@@ -35,7 +35,7 @@ Feel free to make yourself a macro to wrap them:
 ```rust
 macro_rules! t_string_async {
     ($($tt:tt),*) => {
-        AsyncDerived::new(move || leptos_i18n::t_string!($($tt),*))
+        leptos::prelude::AsyncDerived::new(move || leptos_i18n::t_string!($($tt),*))
     }
 }
 ```
