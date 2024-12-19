@@ -183,7 +183,10 @@ fn make_overlap<'a>(s1: &str, s2: &'a str) -> (&'a str, usize) {
 
 impl StringIndexer {
     pub fn push_str(&mut self, s: &str) -> (usize, usize) {
-        if let Some(start) = self.acc.find(s) {
+        if let Some(start) = cfg!(not(debug_assertions))
+            .then(|| self.acc.find(s))
+            .flatten()
+        {
             (start, start + s.len())
         } else {
             let (to_push, start) = make_overlap(&self.acc, s);
