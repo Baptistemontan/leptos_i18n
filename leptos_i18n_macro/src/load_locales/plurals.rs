@@ -90,16 +90,16 @@ impl ToTokens for PluralForm {
     }
 }
 
-pub fn as_string_impl(this: &Plurals, count_key: &Key, strings_count: usize) -> TokenStream {
+pub fn as_string_impl(this: &Plurals, count_key: &Key) -> TokenStream {
     let match_arms = this.forms.iter().map(|(form, value)| {
         let form = PluralForm::from(*form);
-        let ts = parsed_value::as_string_impl(value, strings_count);
+        let ts = parsed_value::as_string_impl(value);
         quote!(#form => { #ts })
     });
 
     let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
 
-    let other = parsed_value::as_string_impl(&this.other, strings_count);
+    let other = parsed_value::as_string_impl(&this.other);
 
     let rule_type = PluralRuleType::from(this.rule_type);
 
@@ -112,11 +112,11 @@ pub fn as_string_impl(this: &Plurals, count_key: &Key, strings_count: usize) -> 
     }}
 }
 
-pub fn to_token_stream(this: &Plurals, strings_count: usize) -> TokenStream {
+pub fn to_token_stream(this: &Plurals) -> TokenStream {
     let either_of = EitherOfWrapper::new(this.forms.len() + 1);
     let match_arms = this.forms.iter().enumerate().map(|(i, (form, value))| {
         let form = PluralForm::from(*form);
-        let ts = parsed_value::to_token_stream(value, strings_count);
+        let ts = parsed_value::to_token_stream(value);
         let ts = either_of.wrap(i, ts);
         quote!(#form => { #ts })
     });
@@ -144,7 +144,7 @@ pub fn to_token_stream(this: &Plurals, strings_count: usize) -> TokenStream {
 
     let count_key = &this.count_key;
 
-    let other_ts = parsed_value::to_token_stream(&this.other, strings_count);
+    let other_ts = parsed_value::to_token_stream(&this.other);
     let other = either_of.wrap(this.forms.len(), other_ts);
 
     quote! {

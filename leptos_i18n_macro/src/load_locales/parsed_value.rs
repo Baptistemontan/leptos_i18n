@@ -37,7 +37,7 @@ impl<'a> From<&'a leptos_i18n_parser::parse_locales::parsed_value::Literal> for 
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal<'a> {
-    String(&'a str, usize),
+    String(&'a str, (usize, usize)),
     Signed(i64),
     Unsigned(u64),
     Float(f64),
@@ -45,16 +45,16 @@ pub enum Literal<'a> {
 }
 
 impl Literal<'_> {
-    fn to_token_stream(&self, strings_count: usize) -> TokenStream {
+    fn to_token_stream(&self) -> TokenStream {
         match self {
-            Literal::String(_, index) => {
+            Literal::String(_, (start, end)) => {
                 let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
                 if cfg!(feature = "dynamic_load") {
-                    quote!(l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key))
+                    quote!(l_i18n_crate::__private::index_translations(#start, #end, #translations_key))
                 } else {
                     quote! {
                         {
-                            const S: &str = l_i18n_crate::__private::index_translations::<#strings_count, #index>(#translations_key);
+                            const S: &str = l_i18n_crate::__private::index_translations(#start, #end, #translations_key);
                             S
                         }
                     }
@@ -68,16 +68,11 @@ impl Literal<'_> {
     }
 }
 
-fn flatten(
-    this: &ParsedValue,
-    tokens: &mut Vec<TokenStream>,
-    locale_field: &Key,
-    strings_count: usize,
-) {
+fn flatten(this: &ParsedValue, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
     match this {
         ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-        ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream(strings_count)),
-        ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges, strings_count)),
+        ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream()),
+        ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges)),
         ParsedValue::Variable { key, formatter } => {
             let ts = Formatter::from(*formatter).var_to_view(&key.ident, &locale_field.ident);
             tokens.push(quote! {{
@@ -98,7 +93,7 @@ fn flatten(
                     quote!(#(#keys)*)
                 });
 
-            let inner = to_token_stream(inner, strings_count);
+            let inner = to_token_stream(inner);
             let f = quote!({
                 #captured_keys
                 move || #inner
@@ -109,63 +104,54 @@ fn flatten(
         }
         ParsedValue::Bloc(values) => {
             for value in values {
-                flatten(value, tokens, locale_field, strings_count);
+                flatten(value, tokens, locale_field);
             }
         }
         ParsedValue::ForeignKey(foreign_key) => {
             let f_value = foreign_key.borrow();
             let value = f_value.as_inner("flatten");
-            flatten(value, tokens, locale_field, strings_count);
+            flatten(value, tokens, locale_field);
         }
-        ParsedValue::Plurals(plurals) => {
-            tokens.push(plurals::to_token_stream(plurals, strings_count))
-        }
+        ParsedValue::Plurals(plurals) => tokens.push(plurals::to_token_stream(plurals)),
     }
 }
 
-fn flatten_string(
-    this: &ParsedValue,
-    tokens: &mut Vec<TokenStream>,
-    locale_field: &Key,
-    strings_count: usize,
-) {
+fn flatten_string(this: &ParsedValue, tokens: &mut Vec<TokenStream>, locale_field: &Key) {
     match this {
         ParsedValue::Subkeys(_) | ParsedValue::Default => {}
         ParsedValue::Literal(lit) => {
-            let ts = Literal::from(lit).to_token_stream(strings_count);
+            let ts = Literal::from(lit).to_token_stream();
             tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))
         }
-        ParsedValue::Ranges(ranges) => tokens.push(ranges::as_string_impl(ranges, strings_count)),
+        ParsedValue::Ranges(ranges) => tokens.push(ranges::as_string_impl(ranges)),
         ParsedValue::Variable { key, formatter } => {
             let ts = Formatter::from(*formatter).var_fmt(key, locale_field);
             tokens.push(ts);
         }
         ParsedValue::Component { key, inner } => {
-            let inner = as_string_impl(inner, strings_count);
+            let inner = as_string_impl(inner);
             tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
         }
         ParsedValue::Bloc(values) => {
             for value in values {
-                flatten_string(value, tokens, locale_field, strings_count);
+                flatten_string(value, tokens, locale_field);
             }
         }
         ParsedValue::ForeignKey(foreign_key) => {
             let f_value = foreign_key.borrow();
             let value = f_value.as_inner("flatten_string");
-            flatten_string(value, tokens, locale_field, strings_count);
+            flatten_string(value, tokens, locale_field);
         }
-        ParsedValue::Plurals(plurals) => tokens.push(plurals::as_string_impl(
-            plurals,
-            &plurals.count_key,
-            strings_count,
-        )),
+        ParsedValue::Plurals(plurals) => {
+            tokens.push(plurals::as_string_impl(plurals, &plurals.count_key))
+        }
     }
 }
 
-pub fn to_token_stream(this: &ParsedValue, strings_count: usize) -> TokenStream {
+pub fn to_token_stream(this: &ParsedValue) -> TokenStream {
     let mut tokens = Vec::new();
     let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
-    flatten(this, &mut tokens, &locale_field, strings_count);
+    flatten(this, &mut tokens, &locale_field);
 
     match &mut tokens[..] {
         [] => quote!(""),
@@ -174,10 +160,10 @@ pub fn to_token_stream(this: &ParsedValue, strings_count: usize) -> TokenStream 
     }
 }
 
-pub fn as_string_impl(this: &ParsedValue, strings_count: usize) -> TokenStream {
+pub fn as_string_impl(this: &ParsedValue) -> TokenStream {
     let mut tokens = Vec::new();
     let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
-    flatten_string(this, &mut tokens, &locale_field, strings_count);
+    flatten_string(this, &mut tokens, &locale_field);
 
     match &mut tokens[..] {
         [] => quote!(Ok(())),

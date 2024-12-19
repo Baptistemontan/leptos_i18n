@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet},
     path::PathBuf,
 };
 
@@ -141,8 +141,7 @@ fn check_locales_inner(
 
     let mut string_indexer = StringIndexer::default();
     let mut default_keys = default_locale.make_builder_keys(&mut key_path, &mut string_indexer)?;
-    default_locale.strings = string_indexer.get_strings();
-    default_locale.top_locale_string_count = default_locale.strings.len();
+    default_locale.string = string_indexer.get_string();
 
     for locale in locales_iter {
         let top_locale = locale.name.clone();
@@ -155,34 +154,45 @@ fn check_locales_inner(
             &mut string_indexer,
             warnings,
         )?;
-        locale.strings = string_indexer.get_strings();
-        locale.top_locale_string_count = locale.strings.len()
+        locale.string = string_indexer.get_string();
     }
-
-    default_keys.propagate_string_count(locales);
 
     Ok(default_keys)
 }
 
 #[derive(Default)]
 pub struct StringIndexer {
-    current: HashSet<String>,
-    acc: Vec<String>,
+    acc: String,
+}
+
+// fn make_overlap<'a>(s1: &str, s2: &'a str) -> (&'a str, usize) {
+//     for i in (1..s1.len().min(s2.len())).rev() {
+//         let start = s1.len() - i;
+//         if let Some(prefix) = s1.get(start..) {
+//             if let Some(s) = s2.strip_prefix(prefix) {
+//                 return (s, start);
+//             }
+//         }
+//     }
+//     (s2, s1.len())
+// }
+
+fn make_overlap<'a>(s1: &str, s2: &'a str) -> (&'a str, usize) {
+    (s2, s1.len())
 }
 
 impl StringIndexer {
-    pub fn push_str(&mut self, s: String) -> usize {
-        if self.current.contains(&s) {
-            self.acc.iter().position(|i| i == &s).unwrap_or(usize::MAX)
+    pub fn push_str(&mut self, s: &str) -> (usize, usize) {
+        if let Some(start) = self.acc.find(s) {
+            (start, start + s.len())
         } else {
-            let i = self.acc.len();
-            self.acc.push(s.clone());
-            self.current.insert(s);
-            i
+            let (to_push, start) = make_overlap(&self.acc, s);
+            self.acc.push_str(to_push);
+            (start, self.acc.len())
         }
     }
 
-    pub fn get_strings(self) -> Vec<String> {
+    pub fn get_string(self) -> String {
         self.acc
     }
 }

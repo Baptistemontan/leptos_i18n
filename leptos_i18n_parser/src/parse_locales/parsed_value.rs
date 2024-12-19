@@ -34,7 +34,7 @@ pub enum ParsedValue {
 
 impl Default for ParsedValue {
     fn default() -> Self {
-        ParsedValue::Literal(Literal::String(String::new(), usize::MAX))
+        ParsedValue::Literal(Literal::String(String::new(), (usize::MAX, usize::MAX)))
     }
 }
 
@@ -46,7 +46,7 @@ pub enum ForeignKey {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
-    String(String, usize),
+    String(String, (usize, usize)),
     Signed(i64),
     Unsigned(u64),
     Float(f64),
@@ -63,9 +63,8 @@ macro_rules! nested_result_try {
 }
 
 impl Literal {
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
         if let Literal::String(s, index) = self {
-            let s = if CLONE { s.clone() } else { std::mem::take(s) };
             *index = strings.push_str(s);
         }
     }
@@ -82,19 +81,19 @@ impl Literal {
             Literal::String(s, _) => s.push_str(&other.to_string()),
             Literal::Signed(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, usize::MAX);
+                *self = Literal::String(s, (usize::MAX, usize::MAX));
             }
             Literal::Unsigned(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, usize::MAX);
+                *self = Literal::String(s, (usize::MAX, usize::MAX));
             }
             Literal::Float(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, usize::MAX);
+                *self = Literal::String(s, (usize::MAX, usize::MAX));
             }
             Literal::Bool(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, usize::MAX);
+                *self = Literal::String(s, (usize::MAX, usize::MAX));
             }
         }
     }
@@ -141,7 +140,7 @@ impl ParsedValue {
         } else {
             Ok(ParsedValue::Literal(Literal::String(
                 value.to_string(),
-                usize::MAX,
+                (usize::MAX, usize::MAX),
             )))
         }
     }
@@ -584,7 +583,7 @@ impl ParsedValue {
         match (&mut *self, &mut *keys) {
             (value @ ParsedValue::Default, _) => {
                 *value = def.clone();
-                value.index_strings::<false>(strings);
+                value.index_strings(strings);
                 Ok(())
             }
             // Both subkeys
@@ -605,7 +604,7 @@ impl ParsedValue {
                 Ok(())
             }
             (ParsedValue::Literal(lit), LocaleValue::Value(interpol_or_lit)) => {
-                lit.index_strings::<false>(strings);
+                lit.index_strings(strings);
                 let other_lit_type = match interpol_or_lit {
                     InterpolOrLit::Interpol(_) => return Ok(()),
                     InterpolOrLit::Lit(lit_type) => *lit_type,
@@ -627,7 +626,7 @@ impl ParsedValue {
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(interpol_or_lit),
             ) => {
-                self.index_strings::<false>(strings);
+                self.index_strings(strings);
                 self.get_keys_inner(key_path, interpol_or_lit, false)
             }
 
@@ -744,7 +743,7 @@ impl ParsedValue {
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
             this => {
-                this.index_strings::<true>(strings);
+                this.index_strings(strings);
                 this.get_keys(key_path).map(LocaleValue::Value)
             }
         }
@@ -816,19 +815,19 @@ impl ParsedValue {
         Ok(keys)
     }
 
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
         match self {
             ParsedValue::Literal(lit) => {
-                lit.index_strings::<CLONE>(strings);
+                lit.index_strings(strings);
             }
-            ParsedValue::Ranges(ranges) => ranges.index_strings::<CLONE>(strings),
+            ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
             ParsedValue::Component { inner, .. } => {
-                inner.index_strings::<CLONE>(strings);
+                inner.index_strings(strings);
             }
-            ParsedValue::Plurals(plurals) => plurals.index_strings::<CLONE>(strings),
+            ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
             ParsedValue::Bloc(vec) => {
                 for value in vec {
-                    value.index_strings::<CLONE>(strings);
+                    value.index_strings(strings);
                 }
             }
             ParsedValue::Default
@@ -1045,14 +1044,14 @@ impl Visitor<'_> for LiteralVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(Literal::String(v, usize::MAX))
+        Ok(Literal::String(v, (usize::MAX, usize::MAX)))
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(Literal::String(v.to_string(), usize::MAX))
+        Ok(Literal::String(v.to_string(), (usize::MAX, usize::MAX)))
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -1085,7 +1084,10 @@ mod tests {
 
         assert_eq!(
             value,
-            ParsedValue::Literal(Literal::String("test".to_string(), usize::MAX))
+            ParsedValue::Literal(Literal::String(
+                "test".to_string(),
+                (usize::MAX, usize::MAX)
+            ))
         );
     }
 
@@ -1096,12 +1098,18 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
+                ParsedValue::Literal(Literal::String(
+                    "before ".to_string(),
+                    (usize::MAX, usize::MAX)
+                )),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
                     formatter: Formatter::None
                 },
-                ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
+                ParsedValue::Literal(Literal::String(
+                    " after".to_string(),
+                    (usize::MAX, usize::MAX)
+                ))
             ])
         )
     }
@@ -1113,15 +1121,21 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
+                ParsedValue::Literal(Literal::String(
+                    "before ".to_string(),
+                    (usize::MAX, usize::MAX)
+                )),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Literal(Literal::String(
                         "inner".to_string(),
-                        usize::MAX
+                        (usize::MAX, usize::MAX)
                     )))
                 },
-                ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
+                ParsedValue::Literal(Literal::String(
+                    " after".to_string(),
+                    (usize::MAX, usize::MAX)
+                ))
             ])
         )
     }
@@ -1135,28 +1149,34 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
+                ParsedValue::Literal(Literal::String(
+                    "before ".to_string(),
+                    (usize::MAX, usize::MAX)
+                )),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Bloc(vec![
                         ParsedValue::Literal(Literal::String(
                             "inner before".to_string(),
-                            usize::MAX
+                            (usize::MAX, usize::MAX)
                         )),
                         ParsedValue::Component {
                             key: new_key("comp_comp"),
                             inner: Box::new(ParsedValue::Literal(Literal::String(
                                 "inner inner".to_string(),
-                                usize::MAX
+                                (usize::MAX, usize::MAX)
                             )))
                         },
                         ParsedValue::Literal(Literal::String(
                             "inner after".to_string(),
-                            usize::MAX
+                            (usize::MAX, usize::MAX)
                         )),
                     ]))
                 },
-                ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
+                ParsedValue::Literal(Literal::String(
+                    " after".to_string(),
+                    (usize::MAX, usize::MAX)
+                ))
             ])
         )
     }
@@ -1168,15 +1188,21 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("<p>test".to_string(), usize::MAX)),
+                ParsedValue::Literal(Literal::String(
+                    "<p>test".to_string(),
+                    (usize::MAX, usize::MAX)
+                )),
                 ParsedValue::Component {
                     key: new_key("comp_h3"),
                     inner: Box::new(ParsedValue::Literal(Literal::String(
                         "this is a h3".to_string(),
-                        usize::MAX
+                        (usize::MAX, usize::MAX)
                     )))
                 },
-                ParsedValue::Literal(Literal::String("not closing p".to_string(), usize::MAX))
+                ParsedValue::Literal(Literal::String(
+                    "not closing p".to_string(),
+                    (usize::MAX, usize::MAX)
+                ))
             ])
         )
     }

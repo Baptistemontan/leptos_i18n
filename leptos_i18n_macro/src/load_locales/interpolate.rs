@@ -577,9 +577,8 @@ impl Interpolation {
         {
             let translations_holder_enum_ident_variants = locales.iter().map(|locale| {
                 let top_locale = &locale.top_locale_name.ident;
-                let strings_count = locale.top_locale_string_count;
                 quote! {
-                    #top_locale(&'static [Box<str>; #strings_count])
+                    #top_locale(&'static str)
                 }
             });
 
@@ -603,10 +602,9 @@ impl Interpolation {
             let match_arms = locales.iter().map(|locale| {
                 let top_locale = &locale.top_locale_name.ident;
                 let string_accessor = strings_accessor_method_name(locale);
-                let strings_count = locale.top_locale_string_count;
                 quote! {
                     #enum_ident::#top_locale => {
-                        let translations: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                        let translations: &'static str = super::#locale_type_ident::#string_accessor().await;
                         #translations_holder_enum_ident::#top_locale(translations)
                     }
                 }
@@ -745,32 +743,31 @@ impl Interpolation {
                     .get(key)
                     .unwrap_at("create_locale_impl_1");
 
-                let value = parsed_value::to_token_stream(value, locale.top_locale_string_count);
+                let value = parsed_value::to_token_stream(value);
 
                 let wrapped_value = either_wrapper.wrap(i, value);
 
                 let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
                 let string_accessor = strings_accessor_method_name(locale);
-                let strings_count = locale.top_locale_string_count;
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
                         #enum_ident::#locale_key => {
-                            let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
+                            let #translations_key: &'static str = super::#locale_type_ident::#string_accessor().await;
                             #wrapped_value
                         }
                     }
                 } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                     quote!{
                         #enum_ident::#locale_key => {
-                            let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            let #translations_key: &'static str = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
                     }
                 } else {
                     quote!{
                         #enum_ident::#locale_key => {
-                            const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                            const #translations_key: &str = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
                     }
@@ -791,12 +788,11 @@ impl Interpolation {
                 .get(key)
                 .unwrap_at("create_locale_string_impl_1");
 
-            let value = parsed_value::as_string_impl(value, locale.top_locale_string_count);
+            let value = parsed_value::as_string_impl(value);
 
             let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
             let string_accessor = strings_accessor_method_name(locale);
-            let strings_count = locale.top_locale_string_count;
 
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 quote!{
@@ -807,14 +803,14 @@ impl Interpolation {
             } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                 quote!{
                     #enum_ident::#locale_key => {
-                        let #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        let #translations_key: &'static str = super::#locale_type_ident::#string_accessor();
                         #value
                     }
                 }
             }else {
                 quote!{
                     #enum_ident::#locale_key => {
-                        const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
+                        const #translations_key: &str = super::#locale_type_ident::#string_accessor();
                         #value
                     }
                 }
