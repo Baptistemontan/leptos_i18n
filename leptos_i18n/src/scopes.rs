@@ -190,16 +190,13 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
         self,
         translations_id: Self::TranslationUnitId,
     ) -> impl std::future::Future<
-        Output = Result<
-            crate::fetch_translations::LocaleServerFnOutput,
-            leptos::prelude::ServerFnError,
-        >,
+        Output = Result<std::borrow::Cow<'static, str>, leptos::prelude::ServerFnError>,
     > {
         L::request_translations(self.locale, translations_id)
     }
 
     #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>) {
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: String) {
         L::init_translations(self.locale, translations_id, values);
     }
 }

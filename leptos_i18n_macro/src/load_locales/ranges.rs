@@ -74,10 +74,9 @@ impl ToTokens for RangeType {
 fn to_tokens_integers_string<T: RangeNumber>(
     ranges: &[(Range<T>, ParsedValue)],
     count_key: &Key,
-    strings_count: usize,
 ) -> TokenStream {
     let match_arms = ranges.iter().map(|(range, value)| {
-        let value = parsed_value::as_string_impl(value, strings_count);
+        let value = parsed_value::as_string_impl(value);
         let range = range_to_token_stream(range);
         quote!(#range => #value)
     });
@@ -96,10 +95,9 @@ fn to_tokens_integers_string<T: RangeNumber>(
 fn to_tokens_floats_string<T: RangeNumber>(
     ranges: &[(Range<T>, ParsedValue)],
     count_key: &Key,
-    strings_count: usize,
 ) -> TokenStream {
     let mut ifs = ranges.iter().map(|(range, value)| {
-        let value = parsed_value::as_string_impl(value, strings_count);
+        let value = parsed_value::as_string_impl(value);
         match range_to_condition(range) {
             None => quote!({ #value }),
             Some(condition) => quote!(if #condition { #value }),
@@ -122,11 +120,10 @@ fn to_tokens_floats_string<T: RangeNumber>(
 fn to_tokens_integers<T: RangeNumber>(
     ranges: &[(Range<T>, ParsedValue)],
     count_key: &Key,
-    strings_count: usize,
 ) -> TokenStream {
     let either_of = EitherOfWrapper::new(ranges.len());
     let match_arms = ranges.iter().enumerate().map(|(i, (range, value))| {
-        let ts = parsed_value::to_token_stream(value, strings_count);
+        let ts = parsed_value::to_token_stream(value);
         let ts = either_of.wrap(i, ts);
         let range = range_to_token_stream(range);
         quote!(#range => { #ts })
@@ -169,11 +166,10 @@ fn to_tokens_integers<T: RangeNumber>(
 fn to_tokens_floats<T: RangeNumber>(
     ranges: &[(Range<T>, ParsedValue)],
     count_key: &Key,
-    strings_count: usize,
 ) -> TokenStream {
     let either_of = EitherOfWrapper::new(ranges.len());
     let mut ifs = ranges.iter().enumerate().map(|(i, (range, value))| {
-        let ts = parsed_value::to_token_stream(value, strings_count);
+        let ts = parsed_value::to_token_stream(value);
         let ts = either_of.wrap(i, ts);
         match range_to_condition(range) {
             None => quote!({ #ts }),
@@ -214,69 +210,33 @@ fn to_tokens_floats<T: RangeNumber>(
     }
 }
 
-pub fn to_token_stream(this: &Ranges, strings_count: usize) -> TokenStream {
+pub fn to_token_stream(this: &Ranges) -> TokenStream {
     match &this.inner {
-        UntypedRangesInner::I8(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::I16(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::I32(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::I64(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U8(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U16(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U32(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U64(ranges) => {
-            to_tokens_integers(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::F32(ranges) => to_tokens_floats(ranges, &this.count_key, strings_count),
-        UntypedRangesInner::F64(ranges) => to_tokens_floats(ranges, &this.count_key, strings_count),
+        UntypedRangesInner::I8(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::I16(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::I32(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::I64(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::U8(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::U16(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::U32(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::U64(ranges) => to_tokens_integers(ranges, &this.count_key),
+        UntypedRangesInner::F32(ranges) => to_tokens_floats(ranges, &this.count_key),
+        UntypedRangesInner::F64(ranges) => to_tokens_floats(ranges, &this.count_key),
     }
 }
 
-pub fn as_string_impl(this: &Ranges, strings_count: usize) -> TokenStream {
+pub fn as_string_impl(this: &Ranges) -> TokenStream {
     match &this.inner {
-        UntypedRangesInner::I8(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::I16(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::I32(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::I64(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U8(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U16(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U32(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::U64(ranges) => {
-            to_tokens_integers_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::F32(ranges) => {
-            to_tokens_floats_string(ranges, &this.count_key, strings_count)
-        }
-        UntypedRangesInner::F64(ranges) => {
-            to_tokens_floats_string(ranges, &this.count_key, strings_count)
-        }
+        UntypedRangesInner::I8(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::I16(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::I32(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::I64(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::U8(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::U16(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::U32(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::U64(ranges) => to_tokens_integers_string(ranges, &this.count_key),
+        UntypedRangesInner::F32(ranges) => to_tokens_floats_string(ranges, &this.count_key),
+        UntypedRangesInner::F64(ranges) => to_tokens_floats_string(ranges, &this.count_key),
     }
 }
 

@@ -264,19 +264,24 @@ pub fn intern(s: &str) -> &str {
 #[doc(hidden)]
 #[track_caller]
 #[cfg(any(not(feature = "dynamic_load"), feature = "ssr"))]
-pub const fn index_translations<const N: usize, const I: usize>(
-    translations: &'static [&'static str; N],
+pub const fn index_translations(
+    start: usize,
+    end: usize,
+    translations: &'static str,
 ) -> &'static str {
-    translations[I]
+    let (_, rest) = &translations.as_bytes().split_at(start);
+    let (bytes, _) = rest.split_at(end.checked_sub(start).unwrap());
+    match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => panic!(),
+    }
 }
 
 #[doc(hidden)]
 #[track_caller]
 #[cfg(not(any(not(feature = "dynamic_load"), feature = "ssr")))]
-pub fn index_translations<const N: usize, const I: usize>(
-    translations: &'static [Box<str>; N],
-) -> &'static str {
-    &translations[I]
+pub fn index_translations(start: usize, end: usize, translations: &'static str) -> &'static str {
+    &translations[start..end]
 }
 
 #[doc(hidden)]

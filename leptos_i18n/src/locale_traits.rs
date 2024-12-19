@@ -93,17 +93,14 @@ pub trait Locale<L: Locale = Self>:
         self,
         translations_id: Self::TranslationUnitId,
     ) -> impl std::future::Future<
-        Output = Result<
-            crate::fetch_translations::LocaleServerFnOutput,
-            leptos::prelude::ServerFnError,
-        >,
+        Output = Result<std::borrow::Cow<'static, str>, leptos::prelude::ServerFnError>,
     > + Send
            + Sync
            + 'static;
 
     /// Init the translation unit of the given ID with the given values
     #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-    fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>);
+    fn init_translations(self, translations_id: Self::TranslationUnitId, values: String);
 }
 
 /// Trait implemented the struct representing the translation keys

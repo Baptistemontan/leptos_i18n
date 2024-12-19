@@ -338,10 +338,9 @@ fn create_locales_enum(
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
                 #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
-                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
-                    let strings = #keys_ident::__i18n_request_translations__(locale, translations_id);
-                    let wrapped = l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput::new(strings);
-                    Ok(wrapped)
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<std::borrow::Cow<'static, str>, ServerFnError> {
+                    let string = #keys_ident::__i18n_request_translations__(locale, translations_id);
+                    Ok(std::borrow::Cow::Borrowed(string))
                 }
             }
         }
@@ -362,7 +361,7 @@ fn create_locales_enum(
             fn request_translations(
                 self,
                 translations_id: #translation_unit_enum_ident,
-            ) -> impl std::future::Future<Output = Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> + Send + Sync + 'static {
+            ) -> impl std::future::Future<Output = Result<std::borrow::Cow<'static, str>, l_i18n_crate::reexports::leptos::server_fn::ServerFnError>> + Send + Sync + 'static {
                 server_fn::i18n_request_translations(self, translations_id)
             }
         }
@@ -372,7 +371,7 @@ fn create_locales_enum(
 
     let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
         quote! {
-            fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>) {
+            fn init_translations(self, translations_id: Self::TranslationUnitId, values: String) {
                 #keys_ident::__init_translations__(self, translations_id, values);
             }
         }
@@ -614,27 +613,26 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         .keys
                         .get(key)
                         .unwrap_at("create_locale_type_inner_1");
-                    let lit = parsed_value::to_token_stream(lit, locale.top_locale_string_count);
+                    let lit = parsed_value::to_token_stream(lit);
                     if *literal_type == LiteralType::String {
-                        let strings_count = locale.top_locale_string_count;
                         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                             quote! {
                                 #enum_ident::#ident => {
-                                    let #translations_key: &'static [Box<str>; #strings_count] = #type_ident::#accessor().await;
+                                    let #translations_key: &'static str = #type_ident::#accessor().await;
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
                             }
                         } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                             quote! {
                                 #enum_ident::#ident => {
-                                    let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
+                                    let #translations_key: &'static str = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapperFut::new_not_fut(#lit)
                                 }
                             }
                         } else {
                             quote! {
                                 #enum_ident::#ident => {
-                                    const #translations_key: &[&str; #strings_count] = #type_ident::#accessor();
+                                    const #translations_key: &str = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
                             }
@@ -798,27 +796,26 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             .map(|locale| {
                 let locale_name = &*locale.top_locale_name.ident;
                 let struct_name = format_ident!("{}_{}", type_ident, locale_name);
-                let strings_count = locale.top_locale_string_count;
-                let strings = &*locale.strings;
+                let string = &*locale.string;
 
                 let get_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        pub async fn get_translations() -> &'static [Box<str>; #strings_count] {
+                        pub async fn get_translations() -> &'static str {
                             <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::request_strings().await
                         }
                     }
                 } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                     quote! {
-                        pub fn get_translations() -> &'static [&'static str; #strings_count] {
+                        pub fn get_translations() -> &'static str {
                             <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::register();
-                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRINGS
+                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRING
                         }
                     }
 
                 } else {
                     quote! {
-                        pub const fn get_translations() -> &'static [&'static str; #strings_count] {
-                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRINGS
+                        pub const fn get_translations() -> &'static str {
+                            <Self as l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRING
                         }
                     }
                 };
@@ -831,20 +828,14 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                 let get_string = if cfg!(not(all(feature = "dynamic_load", not(feature = "ssr")))) {
                     quote!{
-                        const STRINGS: &[&str; #strings_count] = &[#(#strings,)*];
+                        const STRING: &str = #string;
                     }
                 } else {
                     quote! {
-                        fn get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<Box<Self::Strings>> {
-                            Self::__get_strings_lock()
+                        fn get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<String> {
+                            Self::__get_string_lock()
                         }
                     }
-                };
-
-                let string_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-                    quote!([Box<str>; #strings_count])
-                } else {
-                    quote!([&'static str; #strings_count])
                 };
 
                 let translation_unit_impl = quote! {
@@ -852,16 +843,15 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         type Locale = #enum_ident;
                         const LOCALE: #enum_ident = #enum_ident::#locale_name;
                         #id;
-                        type Strings = #string_type;
                         #get_string
                     }
                 };
 
                 let get_strings_lock_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        fn __get_strings_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<Box<[Box<str>; #strings_count]>> {
-                            static STRINGS_LOCK: l_i18n_crate::__private::fetch_translations::OnceCell<Box<[Box<str>; #strings_count]>> = l_i18n_crate::__private::fetch_translations::OnceCell::new();
-                            &STRINGS_LOCK
+                        fn __get_string_lock() -> &'static l_i18n_crate::__private::fetch_translations::OnceCell<String> {
+                            static STRING_LOCK: l_i18n_crate::__private::fetch_translations::OnceCell<String> = l_i18n_crate::__private::fetch_translations::OnceCell::new();
+                            &STRING_LOCK
                         }
                     }
                 } else {
@@ -888,24 +878,23 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let string_accessors = locales.iter().map(|locale| {
         let accessor_ident = strings_accessor_method_name(locale);
-        let strings_count = locale.top_locale_string_count;
         match parent_ident {
             Some(parent) if !IS_TOP => {
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
+                        pub async fn #accessor_ident() -> &'static str {
                             super::super::#parent::#accessor_ident().await
                         }
                     }
                 } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                     quote! {
-                        pub fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        pub fn #accessor_ident() -> &'static str {
                             super::super::#parent::#accessor_ident()
                         }
                     }
                 } else {
                     quote! {
-                        pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        pub const fn #accessor_ident() -> &'static str {
                             super::super::#parent::#accessor_ident()
                         }
                     }
@@ -915,19 +904,19 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 let string_holder = format_ident!("{}_{}", type_ident, locale.top_locale_name);
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
-                        pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
+                        pub async fn #accessor_ident() -> &'static str {
                             #string_holder::get_translations().await
                         }
                     }
                 } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                     quote! {
-                        pub fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        pub fn #accessor_ident() -> &'static str {
                             #string_holder::get_translations()
                         }
                     }
                 } else {
                     quote! {
-                        pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
+                        pub const fn #accessor_ident() -> &'static str {
                             #string_holder::get_translations()
                         }
                     }
@@ -961,7 +950,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         };
         quote! {
             #[doc(hidden)]
-            pub fn __i18n_request_translations__(_locale: #enum_ident, _: ()) -> &'static [&'static str] {
+            pub fn __i18n_request_translations__(_locale: #enum_ident, _: ()) -> &'static str {
                 #match_stmt
             }
         }
@@ -973,7 +962,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         if cfg!(feature = "ssr") {
             quote! {
                 #[doc(hidden)]
-                pub fn __init_translations__(_locale: #enum_ident, _: (), _values: Vec<Box<str>>) {
+                pub fn __init_translations__(_locale: #enum_ident, _: (), _values: String) {
                     panic!("Tried to compile with both \"ssr\" and \"hydrate\" features enabled.")
                 }
             }
@@ -987,7 +976,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             });
             quote! {
                 #[doc(hidden)]
-                pub fn __init_translations__(locale: #enum_ident, _: (), values: Vec<Box<str>>) {
+                pub fn __init_translations__(locale: #enum_ident, _: (), values: String) {
                     match locale {
                         #(
                             #match_arms,
@@ -1162,7 +1151,7 @@ fn create_namespaces_types(
         });
         quote! {
             #[doc(hidden)]
-            pub fn __init_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident, values: Vec<Box<str>>) {
+            pub fn __init_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident, values: String) {
                 match translations_id {
                     #(
                         #match_arms,
@@ -1200,7 +1189,7 @@ fn create_namespaces_types(
             )*
 
             #[doc(hidden)]
-            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static [&'static str] {
+            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static str {
                 #get_strings_match_stmt
             }
 

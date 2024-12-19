@@ -39,7 +39,13 @@ default-struct-builder = "0.5"
 wasm-bindgen = "0.2.96"
 
 [features]
-default = ["cookie", "json_files", "icu_compiled_data"]
+default = [
+  "cookie",
+  "json_files",
+  "icu_compiled_data",
+  "dynamic_load",
+  "hydrate",
+]
 cookie = []
 icu_compiled_data = [
   "icu_plurals?/compiled_data",

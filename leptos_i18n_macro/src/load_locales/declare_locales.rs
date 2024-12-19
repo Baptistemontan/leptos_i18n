@@ -115,8 +115,7 @@ fn parse_map_values(
         top_locale_name: locale.clone(),
         name: name.clone(),
         keys,
-        strings: vec![],
-        top_locale_string_count: 0,
+        string: String::new(),
     }))))
 }
 
@@ -334,8 +333,7 @@ fn parse_locale(
         top_locale_name: locale_key.clone(),
         name: locale_key,
         keys,
-        strings: vec![],
-        top_locale_string_count: 0,
+        string: String::new(),
     })
 }
 

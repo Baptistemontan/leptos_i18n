@@ -1,7 +1,5 @@
 #![doc(hidden)]
 
-use std::fmt::Debug;
-
 use crate::Locale;
 
 #[cfg(feature = "dynamic_load")]
@@ -11,119 +9,35 @@ pub trait TranslationUnit: Sized {
     type Locale: Locale;
     const ID: <Self::Locale as Locale>::TranslationUnitId;
     const LOCALE: Self::Locale;
-    type Strings: StringArray;
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    const STRINGS: &'static Self::Strings;
+    const STRING: &'static str;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn get_strings_lock() -> &'static OnceCell<Box<Self::Strings>>;
+    fn get_strings_lock() -> &'static OnceCell<String>;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn request_strings(
-    ) -> impl std::future::Future<Output = &'static Self::Strings> + Send + Sync + 'static {
+    fn request_strings() -> impl std::future::Future<Output = &'static str> + Send + Sync + 'static
+    {
         let string_lock = Self::get_strings_lock();
         let fut = string_lock.get_or_init(async {
-            let translations = Locale::request_translations(Self::LOCALE, Self::ID)
+            Locale::request_translations(Self::LOCALE, Self::ID)
                 .await
-                .unwrap();
-            StringArray::cast(translations.0)
+                .unwrap()
+                .into_owned()
         });
         async move { core::ops::Deref::deref(fut.await) }
     }
 
     #[cfg(all(feature = "dynamic_load", feature = "hydrate", not(feature = "ssr")))]
-    fn init_translations(values: Vec<Box<str>>) {
+    fn init_translations(values: String) {
         let string_lock = Self::get_strings_lock();
-        let fut = string_lock.get_or_init(async { StringArray::cast(values) });
+        let fut = string_lock.get_or_init(async { values });
         futures::executor::block_on(fut);
     }
 
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     fn register() {
         RegisterCtx::register::<Self>();
-    }
-}
-
-pub trait StringArray: 'static + Send + Sync + Debug {
-    fn cast(strings: Vec<Box<str>>) -> Box<Self>;
-    fn as_slice(&self) -> &[&'static str];
-}
-
-impl<const SIZE: usize> StringArray for [Box<str>; SIZE] {
-    fn cast(strings: Vec<Box<str>>) -> Box<Self> {
-        strings.into_boxed_slice().try_into().unwrap()
-    }
-
-    fn as_slice(&self) -> &[&'static str] {
-        unreachable!("This function should not have been called on the client !")
-    }
-}
-
-impl<const SIZE: usize> StringArray for [&'static str; SIZE] {
-    fn cast(_: Vec<Box<str>>) -> Box<Self> {
-        unreachable!("This function should not have been called on the server !")
-    }
-
-    fn as_slice(&self) -> &[&'static str] {
-        self
-    }
-}
-
-#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
-pub type LocaleServerFnOutput = LocaleServerFnOutputServer;
-
-#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-pub type LocaleServerFnOutput = LocaleServerFnOutputClient;
-
-pub struct LocaleServerFnOutputServer(&'static [&'static str]);
-pub struct LocaleServerFnOutputClient(pub Vec<Box<str>>);
-
-impl LocaleServerFnOutputServer {
-    pub const fn new(strings: &'static [&'static str]) -> Self {
-        LocaleServerFnOutputServer(strings)
-    }
-}
-
-impl LocaleServerFnOutputClient {
-    pub fn new(_: &'static [&'static str]) -> Self {
-        unreachable!("This function should not have been called on the server !")
-    }
-}
-
-impl serde::Serialize for LocaleServerFnOutputServer {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serde::Serialize::serialize(self.0, serializer)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for LocaleServerFnOutputServer {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        unreachable!("This function should not have been called on the server !")
-    }
-}
-
-impl serde::Serialize for LocaleServerFnOutputClient {
-    fn serialize<S>(&self, _: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        unreachable!("This function should not have been called on the client !")
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for LocaleServerFnOutputClient {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let arr = serde::Deserialize::deserialize(deserializer)?;
-        Ok(LocaleServerFnOutputClient(arr))
     }
 }
 
@@ -137,7 +51,7 @@ mod register {
         sync::{Arc, Mutex},
     };
 
-    type RegisterCtxMap<L, Id> = HashMap<(L, Id), &'static [&'static str]>;
+    type RegisterCtxMap<L, Id> = HashMap<(L, Id), &'static str>;
 
     #[derive(Clone)]
     pub struct RegisterCtx<L: Locale>(Arc<Mutex<RegisterCtxMap<L, L::TranslationUnitId>>>);
@@ -152,7 +66,7 @@ mod register {
         pub fn register<T: TranslationUnit<Locale = L>>() {
             if let Some(this) = use_context::<Self>() {
                 let mut inner_guard = this.0.lock().unwrap();
-                inner_guard.insert((T::LOCALE, T::ID), T::STRINGS.as_slice());
+                inner_guard.insert((T::LOCALE, T::ID), T::STRING);
             }
         }
 
@@ -171,18 +85,10 @@ mod register {
                     buff.push_str(id_str);
                     buff.push_str("\",\"values\":[");
                 } else {
-                    buff.push_str("\",\"id\":null,\"values\":[");
+                    buff.push_str("\",\"id\":null,\"values\":\"");
                 }
-                let mut first = true;
-                for value in *values {
-                    if !std::mem::replace(&mut first, false) {
-                        buff.push(',');
-                    }
-                    buff.push('\"');
-                    buff.push_str(value);
-                    buff.push('\"');
-                }
-                buff.push_str("]}");
+                buff.push_str(values);
+                buff.push_str("\"}");
             }
             buff.push_str("];");
             buff
@@ -201,7 +107,7 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     struct Trans<L, Id> {
         locale: L,
         id: Id,
-        values: Vec<Box<str>>,
+        values: String,
     }
 
     let translations = js_sys::Reflect::get(
@@ -228,18 +134,10 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
             buff.push_str(id_str);
             buff.push_str("\",\"values\":[");
         } else {
-            buff.push_str("\",\"id\":null,\"values\":[");
+            buff.push_str("\",\"id\":null,\"values\":\"");
         }
-        let mut first = true;
-        for value in &values {
-            if !std::mem::replace(&mut first, false) {
-                buff.push(',');
-            }
-            buff.push('\"');
-            buff.push_str(value);
-            buff.push('\"');
-        }
-        buff.push_str("]}");
+        buff.push_str(&values);
+        buff.push_str("\"}");
         L::init_translations(locale, id, values);
     }
 
