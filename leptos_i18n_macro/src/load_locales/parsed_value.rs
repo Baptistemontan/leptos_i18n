@@ -19,7 +19,7 @@ impl<'a> From<&'a leptos_i18n_parser::parse_locales::parsed_value::Literal> for 
     fn from(value: &'a leptos_i18n_parser::parse_locales::parsed_value::Literal) -> Self {
         match value {
             leptos_i18n_parser::parse_locales::parsed_value::Literal::String(s, index) => {
-                Self::String(s, *index)
+                Self::String(s, index.get())
             }
             leptos_i18n_parser::parse_locales::parsed_value::Literal::Signed(lit) => {
                 Self::Signed(*lit)

@@ -1,7 +1,8 @@
 use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
+    cell::{Cell, RefCell},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     path::PathBuf,
+    rc::Rc,
 };
 
 use cfg_file::ConfigFile;
@@ -160,40 +161,53 @@ fn check_locales_inner(
     Ok(default_keys)
 }
 
-#[derive(Default)]
-pub struct StringIndexer {
-    acc: String,
+#[derive(Clone, PartialEq, Debug, Default)]
+pub struct StringIndex(Rc<Cell<Option<(usize, usize)>>>);
+
+impl StringIndex {
+    pub fn get(&self) -> (usize, usize) {
+        self.0.get().unwrap()
+    }
 }
 
-// fn make_overlap<'a>(s1: &str, s2: &'a str) -> (&'a str, usize) {
-//     for i in (1..s1.len().min(s2.len())).rev() {
-//         let start = s1.len() - i;
-//         if let Some(prefix) = s1.get(start..) {
-//             if let Some(s) = s2.strip_prefix(prefix) {
-//                 return (s, start);
-//             }
-//         }
-//     }
-//     (s2, s1.len())
-// }
+#[derive(Default)]
+pub struct StringIndexer(VecDeque<(String, StringIndex)>);
 
 fn make_overlap<'a>(s1: &str, s2: &'a str) -> (&'a str, usize) {
+    for i in (1..s1.len().min(s2.len())).rev() {
+        let start = s1.len() - i;
+        if let Some(prefix) = s1.get(start..) {
+            if let Some(s) = s2.strip_prefix(prefix) {
+                return (s, start);
+            }
+        }
+    }
     (s2, s1.len())
 }
 
 impl StringIndexer {
-    pub fn push_str(&mut self, s: &str) -> (usize, usize) {
-        if let Some(start) = self.acc.find(s) {
-            (start, start + s.len())
-        } else {
-            let (to_push, start) = make_overlap(&self.acc, s);
-            self.acc.push_str(to_push);
-            (start, self.acc.len())
-        }
+    pub fn push_str(&mut self, s: String, index: StringIndex) {
+        self.0.push_back((s, index));
     }
 
-    pub fn get_string(self) -> String {
-        self.acc
+    pub fn get_string(mut self) -> String {
+        let Some((mut buff, first_index)) = self.0.pop_front() else {
+            return String::new();
+        };
+        first_index.0.set(Some((0, buff.len())));
+        for (s, index) in self.0 {
+            let indices = if let Some(start) = buff.find(&s) {
+                (start, start + s.len())
+            } else {
+                let (to_push, start) = make_overlap(&buff, &s);
+                buff.push_str(to_push);
+                (start, buff.len())
+            };
+
+            index.0.set(Some(indices));
+        }
+
+        buff
     }
 }
 

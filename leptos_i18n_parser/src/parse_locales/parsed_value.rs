@@ -16,7 +16,7 @@ use super::{
     plurals::Plurals,
     ranges::Ranges,
     warning::Warnings,
-    ForeignKeysPaths, StringIndexer,
+    ForeignKeysPaths, StringIndex, StringIndexer,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,7 +34,7 @@ pub enum ParsedValue {
 
 impl Default for ParsedValue {
     fn default() -> Self {
-        ParsedValue::Literal(Literal::String(String::new(), (usize::MAX, usize::MAX)))
+        ParsedValue::Literal(Literal::String(Default::default(), Default::default()))
     }
 }
 
@@ -46,7 +46,7 @@ pub enum ForeignKey {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
-    String(String, (usize, usize)),
+    String(String, StringIndex),
     Signed(i64),
     Unsigned(u64),
     Float(f64),
@@ -63,9 +63,9 @@ macro_rules! nested_result_try {
 }
 
 impl Literal {
-    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
+    pub fn index_strings(&self, strings: &mut StringIndexer) {
         if let Literal::String(s, index) = self {
-            *index = strings.push_str(s);
+            strings.push_str(s.clone(), index.clone());
         }
     }
 
@@ -81,19 +81,19 @@ impl Literal {
             Literal::String(s, _) => s.push_str(&other.to_string()),
             Literal::Signed(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, (usize::MAX, usize::MAX));
+                *self = Literal::String(s, Default::default());
             }
             Literal::Unsigned(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, (usize::MAX, usize::MAX));
+                *self = Literal::String(s, Default::default());
             }
             Literal::Float(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, (usize::MAX, usize::MAX));
+                *self = Literal::String(s, Default::default());
             }
             Literal::Bool(v) => {
                 let s = format!("{}{}", v, other);
-                *self = Literal::String(s, (usize::MAX, usize::MAX));
+                *self = Literal::String(s, Default::default());
             }
         }
     }
@@ -140,7 +140,7 @@ impl ParsedValue {
         } else {
             Ok(ParsedValue::Literal(Literal::String(
                 value.to_string(),
-                (usize::MAX, usize::MAX),
+                Default::default(),
             )))
         }
     }
@@ -1044,14 +1044,14 @@ impl Visitor<'_> for LiteralVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(Literal::String(v, (usize::MAX, usize::MAX)))
+        Ok(Literal::String(v, Default::default()))
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(Literal::String(v.to_string(), (usize::MAX, usize::MAX)))
+        Ok(Literal::String(v.to_string(), Default::default()))
     }
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -1084,10 +1084,7 @@ mod tests {
 
         assert_eq!(
             value,
-            ParsedValue::Literal(Literal::String(
-                "test".to_string(),
-                (usize::MAX, usize::MAX)
-            ))
+            ParsedValue::Literal(Literal::String("test".to_string(), Default::default()))
         );
     }
 
@@ -1098,18 +1095,12 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String(
-                    "before ".to_string(),
-                    (usize::MAX, usize::MAX)
-                )),
+                ParsedValue::Literal(Literal::String("before ".to_string(), Default::default())),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
                     formatter: Formatter::None
                 },
-                ParsedValue::Literal(Literal::String(
-                    " after".to_string(),
-                    (usize::MAX, usize::MAX)
-                ))
+                ParsedValue::Literal(Literal::String(" after".to_string(), Default::default()))
             ])
         )
     }
@@ -1121,21 +1112,15 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String(
-                    "before ".to_string(),
-                    (usize::MAX, usize::MAX)
-                )),
+                ParsedValue::Literal(Literal::String("before ".to_string(), Default::default())),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Literal(Literal::String(
                         "inner".to_string(),
-                        (usize::MAX, usize::MAX)
+                        Default::default()
                     )))
                 },
-                ParsedValue::Literal(Literal::String(
-                    " after".to_string(),
-                    (usize::MAX, usize::MAX)
-                ))
+                ParsedValue::Literal(Literal::String(" after".to_string(), Default::default()))
             ])
         )
     }
@@ -1149,34 +1134,28 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String(
-                    "before ".to_string(),
-                    (usize::MAX, usize::MAX)
-                )),
+                ParsedValue::Literal(Literal::String("before ".to_string(), Default::default())),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
                     inner: Box::new(ParsedValue::Bloc(vec![
                         ParsedValue::Literal(Literal::String(
                             "inner before".to_string(),
-                            (usize::MAX, usize::MAX)
+                            Default::default()
                         )),
                         ParsedValue::Component {
                             key: new_key("comp_comp"),
                             inner: Box::new(ParsedValue::Literal(Literal::String(
                                 "inner inner".to_string(),
-                                (usize::MAX, usize::MAX)
+                                Default::default()
                             )))
                         },
                         ParsedValue::Literal(Literal::String(
                             "inner after".to_string(),
-                            (usize::MAX, usize::MAX)
+                            Default::default()
                         )),
                     ]))
                 },
-                ParsedValue::Literal(Literal::String(
-                    " after".to_string(),
-                    (usize::MAX, usize::MAX)
-                ))
+                ParsedValue::Literal(Literal::String(" after".to_string(), Default::default()))
             ])
         )
     }
@@ -1188,20 +1167,17 @@ mod tests {
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String(
-                    "<p>test".to_string(),
-                    (usize::MAX, usize::MAX)
-                )),
+                ParsedValue::Literal(Literal::String("<p>test".to_string(), Default::default())),
                 ParsedValue::Component {
                     key: new_key("comp_h3"),
                     inner: Box::new(ParsedValue::Literal(Literal::String(
                         "this is a h3".to_string(),
-                        (usize::MAX, usize::MAX)
+                        Default::default()
                     )))
                 },
                 ParsedValue::Literal(Literal::String(
                     "not closing p".to_string(),
-                    (usize::MAX, usize::MAX)
+                    Default::default()
                 ))
             ])
         )
