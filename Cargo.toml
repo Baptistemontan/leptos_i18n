@@ -19,18 +19,18 @@ version = "0.5.1"
 # pin macro and parser version, those don't follow semver internally so a version missmatch with the main crate can cause problems.
 leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.5.1" }
 leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.5.1" }
-leptos_i18n = { path = "./leptos_i18n", version = "0.5.1" }
+leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.5.1" }
 leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.1" }
 
 # leptos
-leptos = { version = "0.7.0" }
-leptos_router = { version = "0.7.0" }
-leptos_meta = { version = "0.7.0" }
+leptos = { version = "0.7.0", default-features = false }
+leptos_router = { version = "0.7.0", default-features = false }
+leptos_meta = { version = "0.7.0", default-features = false }
 
 # icu
-icu_locid = { version = "1.5" }
-icu_provider = { version = "1.5" }
-fixed_decimal = { version = "0.5" }
+icu_locid = { version = "1.5", default-features = false }
+icu_provider = { version = "1.5", default-features = false }
+fixed_decimal = { version = "0.5", default-features = false }
 icu_datagen = { version = "1.5" }
 icu_plurals = { version = "1.5", default-features = false }
 icu_datetime = { version = "1.5", default-features = false }
