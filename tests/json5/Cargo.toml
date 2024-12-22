@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 leptos = { version = "0.7.0", features = ["ssr"] }
 tests_common = { path = "../common" }
-leptos_i18n = { path = "../../leptos_i18n", features = [
+leptos_i18n = { path = "../../leptos_i18n", default-features = false, features = [
   "json5_files",
   "icu_compiled_data",
   "track_locale_files",
