@@ -100,7 +100,8 @@ fn construct_path_segments<'b, 'p: 'b>(
     optionals: &HashSet<usize>,
 ) {
     let mut segments_iter = new_segments.iter().enumerate();
-    'outer: for seg in segments {
+    let mut outer_seg_iter = segments.iter();
+    'outer: for seg in &mut outer_seg_iter {
         'inner: loop {
             let (index, next_seg) = segments_iter.next().unwrap();
 
@@ -121,10 +122,14 @@ fn construct_path_segments<'b, 'p: 'b>(
                     continue 'outer;
                 }
                 PathSegment::Splat(_) => {
-                    todo!()
+                    path_builder.push(seg);
+                    break 'outer;
                 }
             }
         }
+    }
+    for seg in outer_seg_iter {
+        path_builder.push(seg);
     }
 }
 
