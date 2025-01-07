@@ -18,7 +18,7 @@ First, generate the information; you can use [`icu_datagen`](https://docs.rs/icu
 
 Then you need to load those informations; this is as simple as
 
-```rust
+```rust,ignore
 include!(concat!(env!("OUT_DIR"), "/baked_data/mod.rs"));
 
 pub struct MyDataProvider;
@@ -31,7 +31,7 @@ This is explained in the `icu_datagen` doc.
 
 You now just need to tell `leptos_i18n` what provider to use. For that, you first need to implement `IcuDataProvider` for your provider. You can do it manually as it is straightforward, but the lib comes with a derive macro:
 
-```rust
+```rust,ignore
 include!(concat!(env!("OUT_DIR"), "/baked_data/mod.rs"));
 
 #[derive(leptos_i18n::custom_provider::IcuDataProvider)]
@@ -42,7 +42,7 @@ impl_data_provider!(MyDataProvider);
 And then pass it to the `set_icu_data_provider` function when the program starts,
 so for CSR apps in the main function:
 
-```rust
+```rust,ignore
 fn main() {
     leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
     console_error_panic_hook::set_once();
@@ -52,16 +52,14 @@ fn main() {
 
 and for SSR apps in both on hydrate and on server startup:
 
-```rust
+```rust,ignore
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn hydrate() {
     leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
     console_error_panic_hook::set_once();
     leptos::mount::hydrate_body(App);
 }
-```
-
-```rust
+rust,ignore
 // example for actix
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -74,7 +72,7 @@ async fn main() -> std::io::Result<()> {
 
 The doc for ICU4X datagen can be quite intimidating, but it is actually quite straightforward. Your build.rs can look like this:
 
-```rust
+```rust,ignore
 use icu_datagen::baked_exporter::*;
 use icu_datagen::prelude::*;
 use std::path::PathBuf;
@@ -111,9 +109,7 @@ when all information is already in the translations.
 # Cargo.toml
 [build-dependencies]
 leptos_i18n_build = "0.5.0-gamma2"
-```
-
-```rust
+rust,ignore
 use leptos_i18n_build::TranslationsInfos;
 use std::path::PathBuf;
 
@@ -137,7 +133,7 @@ If your code uses plurals, it will build with information for plurals. If it use
 
 If you use more data somehow, like for example using `t*_format!` with a formatter not used in the translations, there are functions to either supply additional options or keys:
 
-```rust
+```rust,ignore
 use leptos_i18n_build::Options;
 
 translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();
@@ -145,7 +141,7 @@ translations_infos.generate_data_with_options(mod_directory, [Options::FormatDat
 
 This will inject the ICU `DataKey`s needed for the `date`, `time`, and `datetime` formatters.
 
-```rust
+```rust,ignore
 use leptos_i18n_build::Options;
 
 translations_infos.generate_data_with_data_keys(
@@ -158,7 +154,7 @@ This will inject the keys for cardinal and ordinal plurals.
 
 If you need both, `Options` can be turned into the needed keys:
 
-```rust
+```rust,ignore
 use leptos_i18n_build::Options;
 
 let mut keys = icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"])

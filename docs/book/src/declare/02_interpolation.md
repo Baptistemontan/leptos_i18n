@@ -35,6 +35,6 @@ You can mix them both without a problem:
 }
 ```
 
-## Names
+## Values Names.
 
-Just like keys, names of variables/components can be anything as long as it is a valid Rust identifier, apart from `-` which will be converted to `_`.
+Values names must follow the same rules as [keys](./01_key_value.md#keys).

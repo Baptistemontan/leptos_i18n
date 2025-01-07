@@ -17,14 +17,14 @@ If you have
 
 You can do
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 const MY_VALUE: &str = Locale::en.get_keys_const().subkeys().key().inner();
 ```
 
 If you want a macro:
 
-```rust
+```rust,ignore
 macro_rules! td_const {
     ($locale:expr, $first_key:ident $(.$key:ident)*) => {
         ($locale).get_keys_const()
@@ -35,4 +35,6 @@ macro_rules! td_const {
 }
 
 const MY_VALUE: &str = td_const(Locale::en, subkeys.key);
+
+
 ```

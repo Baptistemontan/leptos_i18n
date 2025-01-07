@@ -2,7 +2,7 @@
 
 To access your translations, the `t!` macro is used. You can access a string with a simple `t!(i18n, $key)`:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -21,7 +21,7 @@ pub fn Foo() -> impl IntoView {
 
 If some variables are declared for this key, you can pass them like this:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -40,7 +40,7 @@ pub fn Foo() -> impl IntoView {
 
 If your variable has the same name as the value, you can pass it directly:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -61,7 +61,7 @@ pub fn Foo() -> impl IntoView {
 
 You can pass anything that implements `IntoView + Clone + 'static`, you can pass a view if you want:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -90,7 +90,7 @@ Any missing values will generate an error.
 
 If some components are declared for this key, you can pass them like this:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -110,7 +110,7 @@ pub fn Foo() -> impl IntoView {
 
 If your variable has the same name as the component, you can pass it directly:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -136,7 +136,7 @@ Any missing components will generate an error.
 
 `|children| view! { <b>{children}</b> }` can be verbose for simple components; you can use this syntax when the children are wrapped by a single component:
 
-```rust
+```rust,ignore
 // key = "<b>{{ count }}</b>"
 t!(i18n, key, <b> = <span />, count = 32);
 ```
@@ -145,7 +145,7 @@ This will render `<span>32</span>`.
 
 You can set attributes, event handlers, props, etc.:
 
-```rust
+```rust,ignore
 t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, count = 0);
 ```
 
@@ -155,7 +155,7 @@ Basically `<name .../>` expands to `move |children| view! { <name ...>{children}
 
 Ranges expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
 
-```rust
+```rust,ignore
 t!(i18n, key_to_range, count = count);
 ```
 
@@ -163,7 +163,7 @@ t!(i18n, key_to_range, count = count);
 
 Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralsOperands>` ([`PluralsOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `FixedDecimal`.
 
-```rust
+```rust,ignore
 t!(i18n, key_to_plurals, count = count);
 ```
 
@@ -171,7 +171,7 @@ t!(i18n, key_to_plurals, count = count);
 
 You can access subkeys by simply separating the path with `.`:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -194,7 +194,7 @@ pub fn Foo() -> impl IntoView {
 
 Namespaces are implemented as subkeys. You first access the namespace, then the keys in that namespace:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -210,7 +210,7 @@ pub fn Foo() -> impl IntoView {
 
 To avoid confusion with subkeys, you can use `::` to separate the namespace name from the rest of the path:
 
-```rust
+```rust,ignore
 t!(i18n, my_namespace::hello_world)
 ```
 

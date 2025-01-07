@@ -80,9 +80,7 @@ Expanded code:
         _key.build()
     }
 }
-```
-
-```rust
+rust
 t!(i18n, $key, <$component>)
 ```
 

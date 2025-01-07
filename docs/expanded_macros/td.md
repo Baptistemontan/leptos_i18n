@@ -80,9 +80,7 @@ Expanded code:
         _key.build()
     }
 }
-```
-
-```rust
+rust
 td!(locale, $key, <$component>)
 ```
 

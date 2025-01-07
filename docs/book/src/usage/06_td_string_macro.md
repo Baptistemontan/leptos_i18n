@@ -7,7 +7,7 @@ This requires the `interpolate_display` feature to be enabled to work with inter
 
 It enables you to do this:
 
-```rust
+```rust,ignore
 // click_count = "You clicked {{ count }} times"
 assert_eq!(
     td_string!(Locale::en, click_count, count = 10),
@@ -30,7 +30,7 @@ such as `DisplayComp`.
 
 `String` and `&str` implement this trait such that
 
-```rust
+```rust,ignore
 // hello_world = "Hello <b>World</b> !"
 
 let hw = td_string(Locale::en, hello_world, <b> = "span");
@@ -39,7 +39,7 @@ assert_eq!(hw, "Hello <span>World</span> !");
 
 The `DisplayComp` struct lets you pass leptos attributes:
 
-```rust
+```rust,ignore
 let attrs = [("id", leptos::Attribute::String("my_id".into()))];
 let b = DisplayComp::new("div", &attrs);
 let hw = td_string!(Locale::en, hello_world, <b>);
@@ -48,13 +48,13 @@ assert_eq!(hw, "Hello <div id=\"my_id\">World</div> !");
 
 If you want finer control over the formatting, you can create your own types implementing the `DisplayComponent` trait, or you can pass this abomination of a function:
 
-```rust
+```rust,ignore
 Fn(&mut core::fmt::Formatter, &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result) -> core::fmt::Result
 ```
 
 which basically lets you do this:
 
-```rust
+```rust,ignore
 use core::fmt::{Formatter, Result};
 
 fn render_b(f: &mut Formatter, child: &dyn Fn(&mut Formatter) -> Result) -> Result {
@@ -77,7 +77,7 @@ Just like the `td_string!` macro but returns either a struct implementing `Displ
 
 This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 
-```rust
+```rust,ignore
 use crate::i18n::Locale;
 use leptos_i18n::td_display;
 

@@ -47,9 +47,7 @@ Arguments can be anything that could be parsed as a normal key-value:
   "interpolated_arg": "$t(key, {\"arg\": \"value: {{ new_arg }}\"})",
   "foreign_key_arg": "$t(key, {\"arg\": \"value: $t(interpolated_arg)\"})"
 }
-```
-
-```rust
+rust,ignore
 t!(i18n, string_arg); // -> "str"
 t!(i18n, boolean_arg); // -> "true"
 t!(i18n, number_arg); // -> "56"
@@ -78,7 +76,7 @@ You can supply the count as a foreign key in 2 ways, as a variable:
 
 This will just rename the key.
 
-```rust
+```rust,ignore
 t!(i18n, new_key, new_count = move || 1); // -> "one item"
 t!(i18n, new_key, new_count = move || 2); // -> "2 items"
 ```
@@ -92,9 +90,7 @@ Or by an actual value:
   "singular_key": "$t(key, {\"count\": 1})",
   "multiple_key": "$t(key, {\"count\": 6})"
 }
-```
-
-```rust
+rust,ignore
 t!(i18n, singular_key); // -> "one item"
 t!(i18n, multiple_key); // -> "6 items"
 ```
@@ -121,9 +117,7 @@ You can use `Foreign keys` to construct a single key from multiple plurals/range
   "key_girls_one": "{{ count }} girl",
   "key_girls_other": "{{ count }} girls"
 }
-```
-
-```rust
+rust,ignore
 t!(i18n, key, boys_count = move || 0, girls_count = move || 0); // -> "0 boys and 0 girls"
 t!(i18n, key, boys_count = move || 0, girls_count = move || 1); // -> "0 boys and 1 girl"
 t!(i18n, key, boys_count = move || 1, girls_count = move || 0); // -> "1 boy and 0 girls"

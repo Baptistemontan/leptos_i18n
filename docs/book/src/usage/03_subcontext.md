@@ -13,7 +13,7 @@ this is because it should only be one "main" context, or they will battle for th
 
 `leptos_i18n::context::init_i18n_subcontext` takes an `initial_locale: Option<Signal<L>>` argument, this is so you can control the sub-context locale outside of it, you can for example make it so the locale of the sub-context is always the opposite of the "main" one:
 
-```rust
+```rust,ignore
 fn neg_locale(locale: Locale) -> Locale {
     match locale {
         Locale::en => Locale::fr,
@@ -42,7 +42,7 @@ There is no `provide_i18n_subcontext`. It does exist but is marked as deprecated
 
 Shadowing a context is not as easy as it sounds:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 use leptos_i18n::context::provide_i18n_subcontext;
@@ -78,7 +78,7 @@ This will actually make the sub-context provided in the `<Sub />` component repl
 
 `leptos::provide_context` has a section about shadowing in there docs. The best approach is to use a provider:
 
-```rust
+```rust,ignore
 #[component]
 fn Sub() -> impl IntoView {
     let i18n = init_i18n_subcontext();
@@ -92,7 +92,7 @@ fn Sub() -> impl IntoView {
 
 So this crate has a `I18nSubContextProvider` generated in the `i18n` module:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 

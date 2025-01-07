@@ -57,7 +57,7 @@ This makes the variable needed to be `impl leptos_i18n::formatting::NumberFormat
 - f32 \*
 - f64 \*
 
->* Is implemented for convenience, but uses [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision; you may want to use your own.
+> - Is implemented for convenience, but uses [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision; you may want to use your own.
 
 The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through `FixedDecimal` before being passed to the formatter.
 
@@ -69,7 +69,7 @@ There are no arguments for this formatter at the moment.
 
 ### Example
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 
 let i18n = use_i18n();
@@ -111,7 +111,7 @@ There is one argument at the moment for the date formatter: `date_length`, which
 
 ### Example
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos_i18n::reexports::icu::calendar::Date;
 
@@ -154,7 +154,7 @@ There is one argument at the moment for the time formatter: `time_length`, which
 
 ### Example
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos_i18n::reexports::icu::calendar::Date;
 
@@ -192,7 +192,7 @@ There are two arguments at the moment for the datetime formatter: `date_length` 
 
 ### Example
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos_i18n::reexports::icu::calendar::DateTime;
 
@@ -247,7 +247,7 @@ See [`Intl.ListFormat`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Ref
 
 ### Example
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 
 let i18n = use_i18n();
