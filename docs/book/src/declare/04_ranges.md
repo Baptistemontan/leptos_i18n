@@ -148,7 +148,9 @@ With ranges, `{{ count }}` is a special variable that refers to the count provid
     ["You clicked {{ count }} times"]
   ]
 }
-rust,ignore
+```
+
+```rust,ignore
 t!(i18n, click_count, count = || 0);
 ```
 

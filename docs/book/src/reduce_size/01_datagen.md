@@ -59,7 +59,9 @@ pub fn hydrate() {
     console_error_panic_hook::set_once();
     leptos::mount::hydrate_body(App);
 }
-rust,ignore
+```
+
+```rust,ignore
 // example for actix
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -109,7 +111,9 @@ when all information is already in the translations.
 # Cargo.toml
 [build-dependencies]
 leptos_i18n_build = "0.5.0-gamma2"
-rust,ignore
+```
+
+```rust,ignore
 use leptos_i18n_build::TranslationsInfos;
 use std::path::PathBuf;
 
