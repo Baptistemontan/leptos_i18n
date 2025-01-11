@@ -2,13 +2,13 @@ This document contain what the `td!` macro should expand to. The `td!` macro out
 
 Code:
 
-```rust
+```rust,ignore
 td!(locale, $key)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     move || {
         #[allow(unused)]
@@ -21,13 +21,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 td!(locale, $key, $variable = $value_expr)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     // this is for the possibility that $value_expr is doing some work, like `value.clone()`,
     // we don't want to move `value` in the closure but the computed value.
@@ -44,7 +44,7 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 td!(locale, $key, $variable)
 ```
 
@@ -64,7 +64,7 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 td!(locale, $key, <$component> = $component_expr)
 ```
 
@@ -82,13 +82,15 @@ Expanded code:
 }
 ```
 
-```rust
+Code:
+
+```rust,ignore
 td!(locale, $key, <$component>)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     let ($component,) = ($component,);
     move || {
@@ -102,13 +104,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 td!(locale, $key, $variable = $variable_expr, <$component> = $component_expr)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     // as you can see here, if multiple expr are passed they can all execute before the new variables goes into scope, avoiding name collisions.
     let ($variable, $component,) = ($variable_expr, $component_expr,);
@@ -124,13 +126,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 td!(locale, $key, <$component> = <$component_name $($attrs:tt)* />)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     let ($component,) = (move |__children: leptos::ChildrenFn| { leptos::view! { <$component_name $($attrs)* >{move || __children()}</$component_name> } },);
     move || {

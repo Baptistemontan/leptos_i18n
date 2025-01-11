@@ -25,13 +25,15 @@ This can be solved by defining 2 plural forms:
 
 Providing the count to the `t!` macro, this will result in:
 
-```rust
+```rust,ignore
 let i18n = use_i18n();
 
 t!(i18n, items, count = || 0) // -> "0 items"
 t!(i18n, items, count = || 1) // -> "1 item"
 t!(i18n, items, count = || 4) // -> "4 items"
 ```
+
+> All `items_*` are merged into the single key `items`.
 
 `{{ count }}` is a special variable when using plurals. Even if you don't interpolate it, you must supply it:
 
@@ -48,7 +50,7 @@ This will still need you to supply the `count` variable: `t!(i18n, items, count 
 
 Why bother and not just do
 
-```rust
+```rust,ignore
 if item_count == 1 {
     t!(i18n, items_one)
 } else {

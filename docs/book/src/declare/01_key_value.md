@@ -12,7 +12,7 @@ But there are additional rules you must follow in addition to those of the forma
 
 ## Keys
 
-Key names must be [valid Rust identifiers](https://doc.rust-lang.org/reference/identifiers.html), with the exception of `-` that would be converted to `_`.
+Key names must be [valid Rust identifiers](https://doc.rust-lang.org/reference/identifiers.html), with the exception of `-` that would be converted to `_`, and does not support [strict](https://doc.rust-lang.org/reference/keywords.html#strict-keywords) or [reserved](https://doc.rust-lang.org/reference/keywords.html#reserved-keywords) keywords.
 
 ## Same keys across files
 

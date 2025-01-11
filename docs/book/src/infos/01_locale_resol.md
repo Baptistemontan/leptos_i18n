@@ -11,3 +11,6 @@ Here is the list of detection methods, sorted in priorities:
 1. As a last resort, the default locale is used.
 
 In SSR, it is always the server that resolves what locale to use; the client does not try to compute a locale when loading; the only locale changes that can happen are by explicitly setting it in the context.
+
+_note_: URL pathname locale has a behavior that can be unexpected, it only resolve when the `I18nRoute` component start rendering, so if anything relied on the resolved locale before it,
+it may have used a different locale than what it should. You can learn more on the [caveat section of the router chapter](../usage/07_router.md#caveat).

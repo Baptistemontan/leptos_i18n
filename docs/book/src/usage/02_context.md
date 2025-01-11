@@ -9,7 +9,7 @@ The context is a wrapper around a `RwSignal` of the current locale. Every getter
 The `load_locales!` macro generates the `I18nContextProvider` component in the `i18n` module,
 you can use this component to make the context accessible to all child components.
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -28,7 +28,7 @@ pub fn App() -> impl IntoView {
 
 Once provided, you can access it with the `use_i18n` function, also generated in the `i18n` module.
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -47,7 +47,7 @@ pub fn Foo() -> impl IntoView {
 
 With the context, you can access the current locale with the `get_locale` method:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -81,7 +81,7 @@ A non-reactive counterpart to `get_locale` exists: `get_locale_untracked`.
 
 With the context, you can change the current locale with the `set_locale` method. For example, this component will switch between `en` and `fr` with a button:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -128,7 +128,7 @@ The `I18nContextProvider` component accepts multiple props, all optional (except
 
 If you use the `islands` feature from Leptos, the `I18nContextProvider` loses two props: `cookie_options` and `ssr_lang_header_getter`, because they are not serializable. If you need them, you can use the `init_context_with_options` function and provide the context yourself:
 
-```rust
+```rust,ignore
 use leptos_i18n::init_i18n_context_with_options;
 use leptos_i18n::context::{CookieOptions, UseLocalesOptions};
 use leptos_meta::Html;
@@ -174,7 +174,7 @@ You could do it yourself by tracking the locale and setting the attribute yourse
 
 The `I18nContext` implements `Directive` from Leptos to set the "lang" attribute, so you can just do
 
-```rust
+```rust,ignore
 let i18n = use_i18n();
 
 view! {

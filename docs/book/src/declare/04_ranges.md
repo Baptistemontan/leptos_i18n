@@ -150,13 +150,13 @@ With ranges, `{{ count }}` is a special variable that refers to the count provid
 }
 ```
 
-```rust
+```rust,ignore
 t!(i18n, click_count, count = || 0);
 ```
 
 Will result in `"You have not clicked yet"` and
 
-```rust
+```rust,ignore
 t!(i18n, click_count, count = || 5);
 ```
 
@@ -164,7 +164,7 @@ Will result in `"You clicked 5 times"`.
 
 Providing `count` will create an error:
 
-```rust
+```rust,ignore
 t!(i18n, click_count, count = 12, count = || 5); // compilation error
 ```
 

@@ -2,7 +2,7 @@
 
 Loading all those translations is the role of the `load_locales!` macro. Just call this macro anywhere in your codebase, and it will generate the code needed to use your translations.
 
-```rust
+```rust,ignore
 // lib.rs/main.rs
 
 leptos_i18n::load_locales!();
@@ -24,7 +24,7 @@ locales = ["en", "fr"]
 
 Generate this enum:
 
-```rust
+```rust,ignore
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Default)]
 #[allow(non_camel_case_types)]
 pub enum Locale {
@@ -58,7 +58,7 @@ It contains an associated constant for each locale, where every field is populat
 
 This will generate this struct:
 
-```rust
+```rust,ignore
 pub struct I18nKeys {
   pub hello_world: &'static str,
 }
@@ -76,6 +76,6 @@ assert_eq!(i18n::I18nKeys::fr.hello_world, "Bonjour le Monde!");
 
 This way of accessing the values is possible, but it's not practical and most importantly not reactive. We will cover the `t!` macro later, which lets you access the values based on the context:
 
-```rust
+```rust,ignore
 t!(i18n, hello_world)
 ```
