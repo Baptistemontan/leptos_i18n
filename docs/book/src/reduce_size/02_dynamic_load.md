@@ -57,9 +57,80 @@ use leptos_i18n::Locale as LocaleTrait;
 register_server_fn::<<Locale as LocaleTrait>::ServerFn>();
 ```
 
-## Final note
+### CSR
 
-Other than that, this is mostly a drop-in feature and does not require much from the user.
+With SSR the translations are served by a server functions, but they don't exist with CSR, so you will need to create a static JSON containing them, so a bit more work is needed.
+To do that you can use a build script and use the `leptos_i18n_build` crate:
+
+```toml
+# Cargo.toml
+[build-dependencies]
+leptos_i18n_build = "0.5.0"
+```
+
+```rust
+use leptos_i18n_build::TranslationsInfos;
+
+fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=Cargo.toml");
+
+    let translations_infos = TranslationsInfos::parse().unwrap();
+
+    translations_infos.rerun_if_locales_changed();
+
+    translations_infos
+        .get_translations()
+        .write_to_dir("path/to/dir")
+        .unwrap();
+}
+```
+
+This will generate the need JSON files in the given directory, for exemple you could generate them in `target/i18n`, giving this file structure:
+
+```bash
+./target
+└── i18n
+    ├── locale1.json
+    └── locale2.json
+```
+
+If you are using namespaces it would have this one:
+
+```bash
+./target
+└── i18n
+    └── namespace1
+        ├── locale1.json
+        └── locale2.json
+    └── namespace2
+        ├── locale1.json
+        └── locale2.json
+```
+
+Then if you are using Trunk you just have to add the directory to the build pipeline:
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <link data-trunk rel="copy-dir" href="./target/i18n" />
+  </head>
+  <body></body>
+</html>
+```
+
+Now the translations will be available at `i18n/{locale}.json`
+To inform `leptos_i18n` where to find those translations you need to supply the `translations-uri` field under `[package.metadata.leptos-i18n]`:
+
+```toml
+# Cargo.toml
+[package.metadata.leptos-i18n]
+translations-uri = "i18n/{locale}.json" # or "i18n/{namespace}/{locale}.json" when using namespaces
+```
+
+And this is it!
 
 ## Disclaimers
 
@@ -67,4 +138,4 @@ Other than that, this is mostly a drop-in feature and does not require much from
     as there is additional code being generated to request, parse, and load the translations. But this is mostly a fixed cost,
     so with enough translations, the trade will be beneficial. So do some testing.
 
-2.  Only the raw strings are removed from the binary; the code to display each key is still baked in it, whatever the locale or the namespace.
+2.  Only the raw strings are removed from the binary; the code to render each key is still baked in it, whatever the locale or the namespace.

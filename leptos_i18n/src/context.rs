@@ -132,9 +132,12 @@ fn init_context_inner<L: Locale>(
 ) -> I18nContext<L> {
     let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
-    Effect::new(move |_| {
-        locale_signal.set(initial_locale.get());
+    let re = RenderEffect::new(move |_| {
+        let l = initial_locale.get();
+        locale_signal.set(l);
     });
+
+    on_cleanup(move || drop(re));
 
     Effect::new_isomorphic(move |_| {
         let new_lang = locale_signal.get();

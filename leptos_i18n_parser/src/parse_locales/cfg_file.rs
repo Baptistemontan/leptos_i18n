@@ -9,6 +9,7 @@ pub struct ConfigFile {
     pub locales: Vec<Key>,
     pub name_spaces: Option<Vec<Key>>,
     pub locales_dir: Cow<'static, str>,
+    pub translations_uri: Option<String>,
 }
 
 impl ConfigFile {
@@ -91,16 +92,29 @@ impl<'de> serde::Deserialize<'de> for ConfigFile {
     }
 }
 
-enum Field {
+#[derive(Debug, Clone, Copy)]
+pub enum Field {
     Default,
     Locales,
     Namespaces,
     LocalesDir,
+    TranslationsUri,
     Unknown,
 }
 
 impl Field {
-    const FIELDS: &'static [&'static str] = &["default", "locales", "namespaces", "locales-dir"];
+    pub const DEFAULT: &'static str = "default";
+    pub const LOCALES: &'static str = "locales";
+    pub const NAMESPACES: &'static str = "namespaces";
+    pub const LOCALES_DIR: &'static str = "locales-dir";
+    pub const TRANSLATIONS_URI: &'static str = "translations-uri";
+    pub const FIELDS: &'static [&'static str] = &[
+        Self::DEFAULT,
+        Self::LOCALES,
+        Self::NAMESPACES,
+        Self::LOCALES_DIR,
+        Self::TRANSLATIONS_URI,
+    ];
 }
 
 struct FieldVisitor;
@@ -130,10 +144,11 @@ impl serde::de::Visitor<'_> for FieldVisitor {
         E: serde::de::Error,
     {
         match v {
-            "default" => Ok(Field::Default),
-            "locales" => Ok(Field::Locales),
-            "namespaces" => Ok(Field::Namespaces),
-            "locales-dir" => Ok(Field::LocalesDir),
+            Field::DEFAULT => Ok(Field::Default),
+            Field::LOCALES => Ok(Field::Locales),
+            Field::NAMESPACES => Ok(Field::Namespaces),
+            Field::LOCALES_DIR => Ok(Field::LocalesDir),
+            Field::TRANSLATIONS_URI => Ok(Field::TranslationsUri),
             _ => Ok(Field::Unknown), // skip unknown fields
         }
     }
@@ -165,12 +180,16 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
         let mut locales = None;
         let mut name_spaces = None;
         let mut locales_dir = None;
+        let mut translations_uri = None;
         while let Some(field) = map.next_key::<Field>()? {
             match field {
-                Field::Default => deser_field(&mut default, &mut map, "default")?,
-                Field::Locales => deser_field(&mut locales, &mut map, "locales")?,
-                Field::Namespaces => deser_field(&mut name_spaces, &mut map, "namespaces")?,
-                Field::LocalesDir => deser_field(&mut locales_dir, &mut map, "locales-dir")?,
+                Field::Default => deser_field(&mut default, &mut map, Field::DEFAULT)?,
+                Field::Locales => deser_field(&mut locales, &mut map, Field::LOCALES)?,
+                Field::Namespaces => deser_field(&mut name_spaces, &mut map, Field::NAMESPACES)?,
+                Field::LocalesDir => deser_field(&mut locales_dir, &mut map, Field::LOCALES_DIR)?,
+                Field::TranslationsUri => {
+                    deser_field(&mut translations_uri, &mut map, Field::TRANSLATIONS_URI)?
+                }
                 Field::Unknown => continue,
             }
         }
@@ -191,6 +210,7 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
             locales,
             name_spaces,
             locales_dir,
+            translations_uri,
         })
     }
 
