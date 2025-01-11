@@ -31,7 +31,7 @@ pub trait Locale<L: Locale = Self>:
     type Keys: LocaleKeys<Locale = L>;
 
     /// Associated `#[server]` function type to request the translations
-    #[cfg(feature = "dynamic_load")]
+    #[cfg(all(feature = "dynamic_load", not(feature = "csr")))]
     type ServerFn: leptos::server_fn::ServerFn;
 
     /// Enum where each variants is an ID of a translation unit
