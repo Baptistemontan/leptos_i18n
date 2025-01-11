@@ -8,7 +8,6 @@ on:
       - master
 env:
   CARGO_TERM_COLOR: always
-  CARGO_LEPTOS_VERSION: 0.2.22
 jobs:
   lib_test:
     name: Test leptos_i18n package
@@ -73,7 +72,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos@${{ env.CARGO_LEPTOS_VERSION }} --locked
+        run: cargo install cargo-leptos
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: cargo leptos build
@@ -116,7 +115,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos@${{ env.CARGO_LEPTOS_VERSION }} --locked
+        run: cargo install cargo-leptos
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: cargo leptos build
