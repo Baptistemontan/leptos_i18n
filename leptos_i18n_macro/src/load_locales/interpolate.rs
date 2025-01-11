@@ -135,7 +135,7 @@ impl Field {
             VarOrComp::Comp { into_view } => {
                 let ts = [
                     quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>),
-                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + Clone),
+                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + Clone + 'static),
                 ];
                 EitherIter::Iter2(ts.into_iter())
             }
@@ -680,7 +680,7 @@ impl Interpolation {
             return quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone + 'static {
                         let _ = self;
                         #key
                     }
@@ -697,7 +697,7 @@ impl Interpolation {
             quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                    pub async fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                    pub async fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone + 'static {
                         #destructure
                         match #locale_field {
                             #(
@@ -711,7 +711,7 @@ impl Interpolation {
             quote! {
                 #[allow(non_camel_case_types)]
                 impl<#(#left_generics,)*> #ident<#(#right_generics,)*> {
-                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone {
+                    pub fn into_view(self) -> impl l_i18n_crate::reexports::leptos::IntoView + Clone + 'static {
                         #destructure
                         match #locale_field {
                             #(

@@ -46,7 +46,7 @@ use warning::generate_warnings;
 /// 5: generate code (and warnings)
 pub fn load_locales() -> Result<TokenStream> {
     let (locales, cfg_file, foreign_keys, warnings, tracked_files) =
-        leptos_i18n_parser::parse_locales::parse_locales_raw(false)?;
+        leptos_i18n_parser::parse_locales::parse_locales_raw(false, None)?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
@@ -72,6 +72,10 @@ fn load_locales_inner(
     tracked_files: Option<Vec<String>>,
     interpolate_display: bool,
 ) -> Result<TokenStream> {
+    if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
+        return Err(Error::MissingTranslationsURI);
+    }
+
     let keys = leptos_i18n_parser::parse_locales::make_builder_keys(
         locales,
         cfg_file,
@@ -90,6 +94,7 @@ fn load_locales_inner(
         &enum_ident,
         &translation_unit_enum_ident,
         interpolate_display,
+        cfg_file.translations_uri.as_deref()
     );
     let locale_enum = create_locales_enum(
         &enum_ident,
@@ -332,11 +337,12 @@ fn create_locales_enum(
         .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
         .collect::<Vec<_>>();
 
-    let server_fn_mod = if cfg!(feature = "dynamic_load") {
+    let server_fn_mod = if cfg!(all(feature = "dynamic_load", not(feature = "csr"))) {
         quote! {
             mod server_fn {
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+
                 #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
                 pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<std::borrow::Cow<'static, str>, ServerFnError> {
                     let string = #keys_ident::__i18n_request_translations__(locale, translations_id);
@@ -344,11 +350,22 @@ fn create_locales_enum(
                 }
             }
         }
+    } else if cfg!(all(feature = "dynamic_load", feature = "csr")) {
+        quote! {
+            mod server_fn {
+                use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
+                use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
+                    #keys_ident::__i18n_request_translations__(locale, translations_id).await
+                }
+            }
+        }
     } else {
         quote!()
     };
 
-    let server_fn_type = if cfg!(feature = "dynamic_load") {
+    let server_fn_type = if cfg!(all(feature = "dynamic_load", not(feature = "csr"))) {
         quote!(
             type ServerFn = server_fn::I18nRequestTranslationsServerFn;
         )
@@ -567,6 +584,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     keys: &BTreeMap<Key, LocaleValue>,
     key_path: &mut KeyPath,
     interpolate_display: bool,
+    namespace_name: Option<&str>,
+    translations_uri: Option<&str>
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
@@ -711,6 +730,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             &sk.keys.0,
             key_path,
             interpolate_display,
+            namespace_name,
+            translations_uri
         );
         key_path.pop_key();
         quote! {
@@ -820,6 +841,25 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 };
 
+                
+                let request_translations = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
+                    let uri = translations_uri.expect("Missing URI"); // Already check before
+                    #[allow(clippy::literal_string_with_formatting_args)]
+                    let endpoint = uri.replace("{locale}", &locale.name.name).replace("{namespace}", namespace_name.unwrap_or(""));
+                    quote! {
+                        pub async fn __i18n_request_translations__() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
+                            use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+
+                            #[l_i18n_crate::reexports::leptos::server(endpoint = #endpoint, prefix = "", input = l_i18n_crate::reexports::leptos::server_fn::codec::GetUrl, output = l_i18n_crate::reexports::leptos::server_fn::codec::Json)]
+                            pub async fn i18n_request_translations_inner() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError>;
+                            
+                            i18n_request_translations_inner().await
+                        }
+                    }
+                } else {
+                    quote!()
+                };
+
                 let id = if parent_ident.is_some() {
                     quote!(const ID: super::super::#translation_unit_enum_ident = super::super::#translation_unit_enum_ident::#type_ident)
                 } else {
@@ -864,6 +904,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
                     impl #struct_name {
                         #get_fn
+
+                        #request_translations
 
                         #get_strings_lock_fn
                     }
@@ -929,11 +971,20 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         let match_arms = locales.iter().map(|locale| {
             let string_holder = format_ident!("{}_{}", type_ident, locale.top_locale_name);
             let locale_name = &locale.top_locale_name;
-            quote! {
-                #enum_ident::#locale_name => #string_holder::get_translations()
+            if cfg!(all(feature = "dynamic_load", feature = "csr")) {
+                quote! {
+                    #enum_ident::#locale_name => #string_holder::__i18n_request_translations__().await
+                }
+            } else {
+                quote! {
+                    #enum_ident::#locale_name => #string_holder::get_translations()
+                }
             }
         });
-        let match_stmt = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+        let match_stmt = if cfg!(all(
+            feature = "dynamic_load",
+            not(any(feature = "ssr", feature = "csr"))
+        )) {
             quote! {
                 unreachable!(
                     "This function should not have been called on the client!"
@@ -948,10 +999,20 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 }
             }
         };
-        quote! {
-            #[doc(hidden)]
-            pub fn __i18n_request_translations__(_locale: #enum_ident, _: ()) -> &'static str {
-                #match_stmt
+        
+        if cfg!(all(feature = "dynamic_load", feature = "csr")) {
+            quote! {
+                #[doc(hidden)]
+                pub async fn __i18n_request_translations__(_locale: #enum_ident, _: ()) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
+                    #match_stmt
+                }
+            }
+        } else {
+            quote! {
+                #[doc(hidden)]
+                pub fn __i18n_request_translations__(_locale: #enum_ident, _: ()) -> &'static str {
+                    #match_stmt
+                }
             }
         }
     } else {
@@ -1054,6 +1115,7 @@ fn create_namespaces_types(
     namespaces: &[Namespace],
     keys: &BTreeMap<Key, BuildersKeysInner>,
     interpolate_display: bool,
+    translations_uri: Option<&str>
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1079,6 +1141,8 @@ fn create_namespaces_types(
                 &keys.0,
                 &mut key_path,
                 interpolate_display,
+                Some(&namespace.key.name),
+                translations_uri
             );
 
             quote! {
@@ -1121,12 +1185,16 @@ fn create_namespaces_types(
 
     let get_strings_match_arms = namespaces.iter().map(|(ns, namespace_module_ident)| {
         let ns_ident = &ns.key.ident;
+        let maybe_await = cfg!(all(feature = "dynamic_load", feature = "csr")).then(|| quote!(.await));
         quote! {
-            #translation_unit_enum_ident::#ns_ident => namespaces::#namespace_module_ident::#ns_ident::__i18n_request_translations__(locale, ())
+            #translation_unit_enum_ident::#ns_ident => namespaces::#namespace_module_ident::#ns_ident::__i18n_request_translations__(locale, ()) #maybe_await
         }
     });
 
-    let get_strings_match_stmt = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+    let get_strings_match_stmt = if cfg!(all(
+        feature = "dynamic_load",
+        not(any(feature = "ssr", feature = "csr"))
+    )) {
         quote! {
             unreachable!(
                 "This function should not have been called on the client!"
@@ -1163,6 +1231,22 @@ fn create_namespaces_types(
         quote!()
     };
 
+    let translation_request_fn = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
+        quote! {
+            #[doc(hidden)]
+            pub async fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
+                #get_strings_match_stmt
+            }
+        }
+    } else {
+        quote! {
+            #[doc(hidden)]
+            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static str {
+                #get_strings_match_stmt
+            }
+        }
+    };
+
     quote! {
         #[doc(hidden)]
         pub mod namespaces {
@@ -1188,10 +1272,7 @@ fn create_namespaces_types(
                 #namespaces_accessors
             )*
 
-            #[doc(hidden)]
-            pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static str {
-                #get_strings_match_stmt
-            }
+            #translation_request_fn
 
             #init_translations
         }
@@ -1259,6 +1340,7 @@ fn create_locale_type(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     interpolate_display: bool,
+    translations_uri: Option<&str>
 ) -> TokenStream {
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
@@ -1268,6 +1350,7 @@ fn create_locale_type(
             namespaces,
             keys,
             interpolate_display,
+            translations_uri
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,
@@ -1278,6 +1361,8 @@ fn create_locale_type(
             &keys.0,
             &mut KeyPath::new(None),
             interpolate_display,
+            None,
+            translations_uri
         ),
     }
 }

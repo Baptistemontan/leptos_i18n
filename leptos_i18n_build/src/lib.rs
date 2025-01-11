@@ -4,6 +4,9 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 use std::collections::HashSet;
+use std::fmt::Display;
+use std::fs::{create_dir_all, File};
+use std::io::BufWriter;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -43,12 +46,21 @@ pub struct TranslationsInfos {
 }
 
 impl TranslationsInfos {
-    /// Parse the translations and obtain informations about them.
-    pub fn parse() -> Result<Self> {
+    fn parse_inner(dir_path: Option<PathBuf>) -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
-        let (locales, _, paths) = parse_locales::parse_locales(true)?;
+        let (locales, _, paths) = parse_locales::parse_locales(true, dir_path)?;
 
         Ok(TranslationsInfos { locales, paths })
+    }
+
+    /// Parse the translations and obtain informations about them.
+    pub fn parse() -> Result<Self> {
+        Self::parse_inner(None)
+    }
+
+    /// Parse the translations at the given directory and obtain informations about them.
+    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P) -> Result<Self> {
+        Self::parse_inner(Some(dir_path.into()))
     }
 
     /// Paths to all files containing translations.
@@ -72,11 +84,40 @@ impl TranslationsInfos {
             BuildersKeys::NameSpaces { namespaces, .. } => {
                 let iter = namespaces
                     .iter()
+                    .take(1)
                     .map(|ns| &ns.locales)
                     .flat_map(|locales| map_locales(locales));
                 EitherIter::Iter1(iter)
             }
             BuildersKeys::Locales { locales, .. } => EitherIter::Iter2(map_locales(locales)),
+        }
+    }
+
+    /// Return the parsed and sliced translations
+    pub fn get_translations(
+        &self,
+    ) -> TranslationsType<
+        impl Iterator<Item = NamespaceTranslations<'_, impl Iterator<Item = LocaleTranslations<'_>>>>,
+        impl Iterator<Item = LocaleTranslations<'_>>,
+    > {
+        fn map_locales(locales: &[Locale]) -> impl Iterator<Item = LocaleTranslations<'_>> + '_ {
+            locales.iter().map(|locale| LocaleTranslations {
+                name: &locale.name.name,
+                strings: &locale.string,
+            })
+        }
+        match &self.locales {
+            BuildersKeys::NameSpaces { namespaces, .. } => {
+                let iter = namespaces.iter().map(|ns| {
+                    let locales = map_locales(&ns.locales);
+                    NamespaceTranslations {
+                        name: &ns.key.name,
+                        locales,
+                    }
+                });
+                TranslationsType::Namespace(iter)
+            }
+            BuildersKeys::Locales { locales, .. } => TranslationsType::Locale(map_locales(locales)),
         }
     }
 
@@ -175,5 +216,135 @@ impl TranslationsInfos {
     /// Generate an ICU datagen at the given mod_directory using the infos from the translations.
     pub fn generate_data(&self, mod_directory: PathBuf) -> Result<(), DataError> {
         self.generate_data_with_options(mod_directory, std::iter::empty())
+    }
+}
+
+/// Describe if the translations have been declared in namespaces or as is.
+pub enum TranslationsType<N, L> {
+    /// Cases where the translations are declared in namespaces.
+    Namespace(N),
+    /// Cases where translations are declared as is.
+    Locale(L),
+}
+
+/// Translations of a namespace
+#[derive(Debug, Clone, Copy)]
+pub struct NamespaceTranslations<'a, L> {
+    name: &'a str,
+    locales: L,
+}
+
+/// Translations of a locale
+#[derive(Debug, Clone, Copy)]
+pub struct LocaleTranslations<'a> {
+    name: &'a str,
+    strings: &'a str,
+}
+
+/// Formatter for the translations parsed strings
+#[derive(Debug, Clone, Copy)]
+pub struct TranslationsFormatter<'a> {
+    strings: &'a str,
+}
+
+impl<N, L> TranslationsType<N, L> {
+    /// Return `Some` if the translations have been declared in namespaces.
+    pub fn into_namespaces(self) -> Option<N> {
+        match self {
+            TranslationsType::Namespace(namespaces) => Some(namespaces),
+            TranslationsType::Locale(_) => None,
+        }
+    }
+
+    /// Return `Some` if the translations have been declared without namespacing.
+    pub fn into_locales(self) -> Option<L> {
+        match self {
+            TranslationsType::Namespace(_) => None,
+            TranslationsType::Locale(locales) => Some(locales),
+        }
+    }
+}
+
+fn write_locales_to_dir<'a>(
+    locales: impl Iterator<Item = LocaleTranslations<'a>>,
+    path: &mut PathBuf,
+) -> std::io::Result<()> {
+    create_dir_all(&*path)?;
+    for locale in locales {
+        locale.write_to_dir(path)?;
+    }
+    Ok(())
+}
+
+impl<
+        'a,
+        N: Iterator<Item = NamespaceTranslations<'a, NL>>,
+        NL: Iterator<Item = LocaleTranslations<'a>>,
+        L: Iterator<Item = LocaleTranslations<'a>>,
+    > TranslationsType<N, L>
+{
+    /// Write the translations in the given directory
+    pub fn write_to_dir<P: Into<PathBuf>>(self, path: P) -> std::io::Result<()> {
+        let mut path: PathBuf = path.into();
+        match self {
+            TranslationsType::Namespace(namespaces) => {
+                for namespace in namespaces {
+                    namespace.write_to_dir(&mut path)?;
+                }
+                Ok(())
+            }
+            TranslationsType::Locale(locales) => write_locales_to_dir(locales, &mut path),
+        }
+    }
+}
+
+impl<'a, L> NamespaceTranslations<'a, L> {
+    /// Return the name of the namespace.
+    pub fn name(&self) -> &'a str {
+        self.name
+    }
+
+    /// Return the locales translations for that namespace.
+    pub fn into_locales(self) -> L {
+        self.locales
+    }
+}
+
+impl<'a, L: Iterator<Item = LocaleTranslations<'a>>> NamespaceTranslations<'a, L> {
+    fn write_to_dir(self, path: &mut PathBuf) -> std::io::Result<()> {
+        path.push(self.name);
+        write_locales_to_dir(self.locales, path)?;
+        path.pop();
+        Ok(())
+    }
+}
+
+impl<'a> LocaleTranslations<'a> {
+    /// Return the name of that locale.
+    pub fn name(&self) -> &'a str {
+        self.name
+    }
+
+    /// Return the formatter for the parsed string of the that locale.
+    pub fn translations_formatter(&self) -> TranslationsFormatter<'a> {
+        TranslationsFormatter {
+            strings: self.strings,
+        }
+    }
+
+    fn write_to_dir(self, path: &mut PathBuf) -> std::io::Result<()> {
+        use std::io::Write;
+        path.push(self.name);
+        path.set_extension("json");
+        let mut file = File::create(&*path)?;
+        path.pop();
+        let mut f = BufWriter::new(&mut file);
+        write!(f, "{}", self.translations_formatter())
+    }
+}
+
+impl Display for TranslationsFormatter<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.strings)
     }
 }

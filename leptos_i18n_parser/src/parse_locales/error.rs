@@ -3,7 +3,10 @@ use icu_plurals::Error as PluralsError;
 use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
 
 use super::{locale::SerdeError, ranges::RangeType};
-use crate::utils::key::{Key, KeyPath};
+use crate::{
+    parse_locales::cfg_file,
+    utils::key::{Key, KeyPath},
+};
 
 #[derive(Debug)]
 pub enum Error {
@@ -123,6 +126,7 @@ pub enum Error {
     },
     NoFileFormats,
     MultipleFilesFormats,
+    MissingTranslationsURI,
 }
 
 impl Display for Error {
@@ -220,6 +224,9 @@ impl Display for Error {
                 err
             } => write!(f, "Found invalid locale {:?}: {}", locale, err),
             Error::PluralRulesError(plurals_error) => write!(f, "Error while computing plurals categories: {}", plurals_error),
+            Error::MissingTranslationsURI => {
+                write!(f, "{:?} config option is missing. You are using dynamic loading in CSR, that value is required.", cfg_file::Field::TRANSLATIONS_URI)
+            },
         }
     }
 }

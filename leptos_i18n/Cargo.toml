@@ -34,7 +34,6 @@ async-once-cell = { version = "0.5.3", optional = true }
 js-sys = { version = "0.3.70", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
 futures = { version = "0.3.30", optional = true }
-noop-waker = { version = "0.1.0", optional = true }
 default-struct-builder = "0.5"
 wasm-bindgen = "0.2.96"
 
@@ -89,7 +88,6 @@ dynamic_load = [
   "leptos_i18n_macro/dynamic_load",
   "dep:async-once-cell",
   "dep:futures",
-  "dep:noop-waker",
 ]
 
 

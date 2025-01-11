@@ -155,7 +155,7 @@ impl<L: Locale, S: Scope<L>> FromStr for ScopedLocale<L, S> {
 impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     type Keys = S::Keys;
     type TranslationUnitId = L::TranslationUnitId;
-    #[cfg(feature = "dynamic_load")]
+    #[cfg(all(feature = "dynamic_load", not(feature = "csr")))]
     type ServerFn = L::ServerFn;
 
     fn as_str(self) -> &'static str {

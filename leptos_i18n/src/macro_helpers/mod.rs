@@ -288,21 +288,10 @@ pub fn index_translations(start: usize, end: usize, translations: &'static str) 
 #[cfg(feature = "dynamic_load")]
 pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
     fut: impl Fn() -> F + 'static,
-) -> impl Fn() -> Option<IV> {
+) -> impl IntoView {
     use leptos::prelude::{AsyncDerived, Get};
-    use std::task::Context;
-    fn poll_once<F: Future>(fut: F) -> Option<F::Output> {
-        let pinned = std::pin::pin!(fut);
-        let waker = noop_waker::noop_waker();
-        let mut cx = Context::from_waker(&waker);
-        match Future::poll(pinned, &mut cx) {
-            std::task::Poll::Ready(v) => Some(v),
-            std::task::Poll::Pending => None,
-        }
-    }
-    let maybe_ready = poll_once(fut());
     let fut = AsyncDerived::new_unsync(fut);
-    move || fut.get().or_else(|| maybe_ready.clone())
+    move || fut.get()
 }
 
 #[doc(hidden)]
