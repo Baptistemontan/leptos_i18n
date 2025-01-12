@@ -1,9 +1,10 @@
 # Access translations in a const context
 
-You can access the translations in a const context if you have those two things:
+You can access the translations in a const context if you have those things:
 
 - Constant Locale
 - No arguments
+- No using the "dynamic_load" feature
 
 If you have
 
