@@ -13,14 +13,14 @@ members = [
 exclude = ["examples", "tests"]
 
 [workspace.package]
-version = "0.5.4"
+version = "0.5.5"
 
 [workspace.dependencies]
 # pin macro and parser version, those don't follow semver internally so a version missmatch with the main crate can cause problems.
-leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.5.4" }
-leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.5.4" }
-leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.5.4" }
-leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.4" }
+leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.5.5" }
+leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.5.5" }
+leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.5.5" }
+leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.5" }
 
 # leptos
 leptos = { version = "0.7.0", default-features = false }
