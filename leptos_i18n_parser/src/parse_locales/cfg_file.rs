@@ -107,7 +107,7 @@ impl Field {
     pub const LOCALES: &'static str = "locales";
     pub const NAMESPACES: &'static str = "namespaces";
     pub const LOCALES_DIR: &'static str = "locales-dir";
-    pub const TRANSLATIONS_URI: &'static str = "translations-uri";
+    pub const TRANSLATIONS_URI: &'static str = "translations-path";
     pub const FIELDS: &'static [&'static str] = &[
         Self::DEFAULT,
         Self::LOCALES,
