@@ -25,14 +25,14 @@ For obvious reasons, with the `"dynamic_load"` accessing a value is now async, `
 
 You can turn them into some kind of `Signal<Option<String>>` using leptos `AsyncDerived`:
 
-```rust
+```rust,ignore
 let i18n = use_i18n();
 let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option<&'static str>`
 ```
 
 Feel free to make yourself a macro to wrap them:
 
-```rust
+```rust,ignore
 macro_rules! t_string_async {
     ($($tt:tt),*) => {
         leptos::prelude::AsyncDerived::new(move || leptos_i18n::t_string!($($tt),*))
@@ -50,7 +50,7 @@ but for the API to be the same on the client and the server they return the valu
 If you use a backend that needs to manually register server functions,
 you can use the `ServerFn` associated type on the `Locale` trait implemented by the generated `Locale` enum:
 
-```rust
+```rust,ignore
 use i18n::Locale;
 use leptos_i18n::Locale as LocaleTrait;
 

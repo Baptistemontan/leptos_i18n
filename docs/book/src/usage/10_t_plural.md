@@ -2,7 +2,7 @@
 
 You can use the `t_plural!` macro to match on the plural form of a given count:
 
-```rust
+```rust,ignore
 let i18n = use_i18n();
 
 let form = t_plural! {

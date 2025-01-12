@@ -2,13 +2,13 @@ This document contain what the `t!` macro should expand to. The `t!` macro outpu
 
 Code:
 
-```rust
+```rust,ignore
 t!(i18n, $key)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     move || {
         #[allow(unused)]
@@ -21,13 +21,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 t!(i18n, $key, $variable = $value_expr)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     // this is for the possibility that $value_expr is doing some work, like `value.clone()`,
     // we don't want to move `value` in the closure but the computed value.
@@ -44,13 +44,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 t!(i18n, $key, $variable)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     let ($variable,) = ($variable,);
     move || {
@@ -64,13 +64,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 t!(i18n, $key, <$component> = $component_expr)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     let ($component,) = ($component_expr,);
     move || {
@@ -82,13 +82,15 @@ Expanded code:
 }
 ```
 
-```rust
+Code:
+
+```rust,ignore
 t!(i18n, $key, <$component>)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     let ($component,) = ($component,);
     move || {
@@ -102,13 +104,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 t!(i18n, $key, $variable = $variable_expr, <$component> = $component_expr)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     // as you can see here, if multiple expr are passed they can all execute before the new variables goes into scope, avoiding name collisions.
     let ($variable, $component,) = ($variable_expr, $component_expr,);
@@ -124,13 +126,13 @@ Expanded code:
 
 Code:
 
-```rust
+```rust,ignore
 t!(i18n, $key, <$component> = <$component_name $($attrs:tt)* />)
 ```
 
 Expanded code:
 
-```rust
+```rust,ignore
 {
     let ($component,) = (move |__children: leptos::ChildrenFn| { leptos::view! { <$component_name $($attrs)* >{move || __children()}</$component_name> } },);
     move || {

@@ -14,7 +14,7 @@ You can declare subkeys by just giving a map to the key:
 }
 ```
 
-```rust
+```rust,ignore
 t!(i18n, subkeys.subkey_1); // -> "This is subkey_1"
 t!(i18n, subkeys.nested_subkeys.nested_subkey_1) // -> "you can nest subkeys"
 ```

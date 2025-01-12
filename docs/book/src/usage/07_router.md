@@ -5,7 +5,7 @@ This component acts exactly like a `leptos_router::Route` and takes the same arg
 
 What it does is manage a prefix on the URL such that
 
-```rust
+```rust,ignore
 use crate::i18n::Locale;
 use leptos_i18n_router::I118nRoute;
 use leptos::prelude::*;
@@ -68,7 +68,7 @@ and the history will look like you directly navigated from `"/fr/counter"` to `"
 
 You can use inside the `i18nRoute` the `i18n_path!` to create localized path segments:
 
-```rust
+```rust,ignore
 use leptos_i18n_router::i18n_path;
 
 <I18nRoute<Locale, _, _> view=Outlet>
@@ -88,7 +88,7 @@ It can be used at any depth, and if not used inside a `i18nRoute` it will defaul
 
 If you have a layout like this:
 
-```rust
+```rust,ignore
 view! {
     <I18nContextProvider>
         <Menu />
@@ -108,7 +108,7 @@ This is due to the locale being read from the URL only when the `i18nRoute` is r
 
 One solution would be to use the `Menu` component inside the `i18nRoute`:
 
-```rust
+```rust,ignore
 view! {
     <I18nContextProvider>
         <Router>
@@ -123,4 +123,6 @@ view! {
         </Router>
     </I18nContextProvider>
 }
+
+
 ```

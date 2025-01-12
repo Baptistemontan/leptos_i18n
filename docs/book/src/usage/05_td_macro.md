@@ -2,13 +2,13 @@
 
 The `td!` macro works just like the `t!` macro but instead of taking the context as its first argument, it takes the desired locale:
 
-```rust
+```rust,ignore
 td!(Locale::fr, hello_world)
 ```
 
 This is useful if, for example, you want the buttons to switch locale to always be in the language they switch to:
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
@@ -32,7 +32,7 @@ pub fn Foo() -> impl IntoView {
 
 This could just be written as
 
-```rust
+```rust,ignore
 use crate::i18n::*;
 use leptos::prelude::*;
 
