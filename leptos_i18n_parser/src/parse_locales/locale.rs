@@ -87,8 +87,7 @@ pub struct Locale {
     pub top_locale_name: Key,
     pub name: Key,
     pub keys: BTreeMap<Key, ParsedValue>,
-    pub strings: Vec<String>,
-    pub top_locale_string_count: usize,
+    pub string: String,
 }
 
 #[derive(Debug)]
@@ -263,19 +262,6 @@ impl InterpolationKeys {
 
     pub fn iter_comps(&self) -> impl Iterator<Item = Key> + '_ {
         self.components.iter().cloned()
-    }
-}
-
-impl BuildersKeysInner {
-    pub fn propagate_string_count(&mut self, top_locales: &[Locale]) {
-        for value in self.0.values_mut() {
-            if let LocaleValue::Subkeys { locales, keys } = value {
-                for (locale, top_locale) in locales.iter_mut().zip(top_locales) {
-                    locale.top_locale_string_count = top_locale.top_locale_string_count;
-                }
-                keys.propagate_string_count(top_locales);
-            }
-        }
     }
 }
 
@@ -635,8 +621,7 @@ impl<'de> serde::de::DeserializeSeed<'de> for LocaleSeed<'_> {
             name,
             keys,
             top_locale_name,
-            strings: vec![],
-            top_locale_string_count: 0,
+            string: String::new(),
         })
     }
 }
