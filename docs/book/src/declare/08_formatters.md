@@ -65,7 +65,12 @@ Enable the "format_nums" feature to use the number formatter.
 
 ### Arguments
 
-There are no arguments for this formatter at the moment.
+There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu_decimal/latest/icu_decimal/options/enum.GroupingStrategy.html), that can take 4 values:
+
+- Auto (default)
+- Never
+- Always
+- Min2
 
 ### Example
 
