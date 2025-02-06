@@ -1,6 +1,9 @@
 use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
-use std::str::FromStr;
-use std::{fmt::Debug, hash::Hash};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    str::FromStr,
+};
 
 use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
 
@@ -141,6 +144,12 @@ pub enum Direction {
     RightToLeft,
     /// `icu_locid_transform::LocaleDirectionality::get` return an Option, this variant represent the None case, it is unknown.
     Auto,
+}
+
+impl Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 impl Direction {
