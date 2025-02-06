@@ -1,6 +1,7 @@
 use core::fmt::{self, Display};
 
 use fixed_decimal::{FixedDecimal, FloatPrecision};
+use icu_decimal::options::GroupingStrategy;
 use leptos::IntoView;
 
 use crate::Locale;
@@ -75,8 +76,9 @@ impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + Send + Sync + 'static> NumberFo
 pub fn format_number_to_view<L: Locale>(
     locale: L,
     number: impl NumberFormatterInputFn,
+    grouping_strategy: GroupingStrategy,
 ) -> impl IntoView + Clone {
-    let num_formatter = super::get_num_formatter(locale);
+    let num_formatter = super::get_num_formatter(locale, grouping_strategy);
 
     move || {
         let value = number.to_fixed_decimal();
@@ -89,8 +91,9 @@ pub fn format_number_to_formatter<L: Locale>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
     number: impl IntoFixedDecimal,
+    grouping_strategy: GroupingStrategy,
 ) -> fmt::Result {
-    let num_formatter = super::get_num_formatter(locale);
+    let num_formatter = super::get_num_formatter(locale, grouping_strategy);
     let fixed_dec = number.to_fixed_decimal();
     let formatted_num = num_formatter.format(&fixed_dec);
     Display::fmt(&formatted_num, f)
@@ -104,8 +107,9 @@ pub fn format_number_to_formatter<L: Locale>(
 pub fn format_number_to_display<L: Locale>(
     locale: L,
     number: impl IntoFixedDecimal,
+    grouping_strategy: GroupingStrategy,
 ) -> impl Display {
-    let num_formatter = super::get_num_formatter(locale);
+    let num_formatter = super::get_num_formatter(locale, grouping_strategy);
     let fixed_dec = number.to_fixed_decimal();
     num_formatter.format_to_string(&fixed_dec)
 }

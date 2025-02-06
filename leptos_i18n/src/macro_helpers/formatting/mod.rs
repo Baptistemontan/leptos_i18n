@@ -37,6 +37,10 @@ pub use time::*;
 ))]
 use crate::Locale;
 #[cfg(feature = "format_nums")]
+use icu_decimal::options::FixedDecimalFormatterOptions;
+#[cfg(feature = "format_nums")]
+use icu_decimal::options::GroupingStrategy;
+#[cfg(feature = "format_nums")]
 use icu_decimal::FixedDecimalFormatter;
 pub use leptos_i18n_macro::{
     t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
@@ -44,7 +48,10 @@ pub use leptos_i18n_macro::{
 };
 
 #[cfg(feature = "format_nums")]
-fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
+fn get_num_formatter<L: Locale>(
+    locale: L,
+    grouping_strategy: GroupingStrategy,
+) -> &'static FixedDecimalFormatter {
     use data_provider::IcuDataProvider;
 
     let locale = locale.as_icu_locale();
@@ -52,7 +59,10 @@ fn get_num_formatter<L: Locale>(locale: L) -> &'static FixedDecimalFormatter {
         let num_formatter = formatters.num.entry(locale).or_insert_with(|| {
             let formatter = formatters
                 .provider
-                .try_new_num_formatter(&locale.into(), Default::default())
+                .try_new_num_formatter(
+                    &locale.into(),
+                    FixedDecimalFormatterOptions::from(grouping_strategy),
+                )
                 .expect("A FixedDecimalFormatter");
             Box::leak(Box::new(formatter))
         });
@@ -171,8 +181,10 @@ pub fn get_plural_rules<L: Locale>(
 pub(crate) mod inner {
     use super::*;
     use icu_locid::Locale as IcuLocale;
-    use std::collections::HashMap;
-    use std::sync::{OnceLock, RwLock};
+    use std::{
+        collections::HashMap,
+        sync::{OnceLock, RwLock},
+    };
 
     // Formatters cache
     //

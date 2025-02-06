@@ -33,7 +33,7 @@ pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<O
                     for formatter in &var_infos.formatters {
                         let dk = match formatter {
                             Formatter::None => continue,
-                            Formatter::Number => Options::FormatNums,
+                            Formatter::Number(_) => Options::FormatNums,
                             Formatter::Date(_) | Formatter::Time(_) | Formatter::DateTime(_, _) => {
                                 Options::FormatDateTime
                             }
