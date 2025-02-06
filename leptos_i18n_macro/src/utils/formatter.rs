@@ -27,10 +27,18 @@ pub enum GroupingStrategy {
 impl ToTokens for GroupingStrategy {
     fn to_token_stream(&self) -> TokenStream {
         match self {
-            GroupingStrategy::Auto => quote!(l_i18n_crate::__private::GroupingStrategy::Auto),
-            GroupingStrategy::Never => quote!(l_i18n_crate::__private::GroupingStrategy::Never),
-            GroupingStrategy::Always => quote!(l_i18n_crate::__private::GroupingStrategy::Always),
-            GroupingStrategy::Min2 => quote!(l_i18n_crate::__private::GroupingStrategy::Min2),
+            GroupingStrategy::Auto => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Auto)
+            }
+            GroupingStrategy::Never => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Never)
+            }
+            GroupingStrategy::Always => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Always)
+            }
+            GroupingStrategy::Min2 => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Min2)
+            }
         }
     }
 

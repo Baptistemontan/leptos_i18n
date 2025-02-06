@@ -1,6 +1,8 @@
 use crate::i18n::*;
-use leptos_i18n::reexports::fixed_decimal::FixedDecimal;
-use leptos_i18n::reexports::icu::calendar::{Date, DateTime, Time};
+use leptos_i18n::reexports::{
+    fixed_decimal::FixedDecimal,
+    icu::calendar::{Date, DateTime, Time},
+};
 use tests_common::*;
 
 #[test]
@@ -62,4 +64,9 @@ fn number_formatting() {
     assert_eq_rendered!(en, "2,000.5");
     let fr = td!(Locale::fr, number_formatting, num);
     assert_eq_rendered!(fr, "2\u{202f}000,5");
+
+    let en = td!(Locale::en, number_formatting_grouping, num);
+    assert_eq_rendered!(en, "2000.5");
+    let fr = td!(Locale::fr, number_formatting_grouping, num);
+    assert_eq_rendered!(fr, "2000,5");
 }
