@@ -54,9 +54,10 @@ fn get_num_formatter<L: Locale>(
 ) -> &'static FixedDecimalFormatter {
     use data_provider::IcuDataProvider;
 
-    let locale = locale.as_icu_locale();
     inner::FORMATTERS.with_mut(|formatters| {
-        let num_formatter = formatters.num.entry(locale).or_insert_with(|| {
+        let locale = locale.as_icu_locale();
+        let num_formatters = formatters.num.entry(locale).or_default();
+        let num_formatter = num_formatters.entry(grouping_strategy).or_insert_with(|| {
             let formatter = formatters
                 .provider
                 .try_new_num_formatter(
@@ -214,7 +215,8 @@ pub(crate) mod inner {
     #[derive(Default)]
     pub struct Formatters {
         #[cfg(feature = "format_nums")]
-        pub num: HashMap<&'static IcuLocale, &'static FixedDecimalFormatter>,
+        pub num:
+            HashMap<&'static IcuLocale, HashMap<GroupingStrategy, &'static FixedDecimalFormatter>>,
         #[cfg(feature = "format_datetime")]
         pub date: HashMap<&'static IcuLocale, HashMap<length::Date, &'static DateFormatter>>,
         #[cfg(feature = "format_datetime")]
