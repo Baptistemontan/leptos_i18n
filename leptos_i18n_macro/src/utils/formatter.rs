@@ -237,7 +237,7 @@ impl Formatter {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Formatter::Number(grouping_strategy) => {
-                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key)), #grouping_strategy)
+                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #grouping_strategy))
             }
             Formatter::Date(length) => {
                 quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length))
