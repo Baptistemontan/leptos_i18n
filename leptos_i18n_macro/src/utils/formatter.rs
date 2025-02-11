@@ -2,6 +2,54 @@ use leptos_i18n_parser::utils::Key;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
+macro_rules! impl_from {
+    ($t: ident, $($variant:ident),*) => {
+        impl From<leptos_i18n_parser::utils::formatter::$t> for $t {
+            fn from(value: leptos_i18n_parser::utils::formatter::$t) -> Self {
+                match value {
+                    $(
+                        leptos_i18n_parser::utils::formatter::$t::$variant => Self::$variant,
+                    )*
+                }
+            }
+        }
+    };
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GroupingStrategy {
+    Auto,
+    Never,
+    Always,
+    Min2,
+}
+
+impl ToTokens for GroupingStrategy {
+    fn to_token_stream(&self) -> TokenStream {
+        match self {
+            GroupingStrategy::Auto => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Auto)
+            }
+            GroupingStrategy::Never => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Never)
+            }
+            GroupingStrategy::Always => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Always)
+            }
+            GroupingStrategy::Min2 => {
+                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Min2)
+            }
+        }
+    }
+
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
+    }
+}
+
+impl_from!(GroupingStrategy, Auto, Never, Always, Min2);
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DateLength {
     Full,
@@ -16,20 +64,6 @@ pub enum TimeLength {
     Long,
     Medium,
     Short,
-}
-
-macro_rules! impl_from {
-    ($t: ident, $($variant:ident),*) => {
-        impl From<leptos_i18n_parser::utils::formatter::$t> for $t {
-            fn from(value: leptos_i18n_parser::utils::formatter::$t) -> Self {
-                match value {
-                    $(
-                        leptos_i18n_parser::utils::formatter::$t::$variant => Self::$variant,
-                    )*
-                }
-            }
-        }
-    };
 }
 
 macro_rules! impl_length {
@@ -120,7 +154,7 @@ impl_from!(ListStyle, Wide, Short, Narrow);
 pub enum Formatter {
     #[default]
     None,
-    Number,
+    Number(GroupingStrategy),
     Date(DateLength),
     Time(TimeLength),
     DateTime(DateLength, TimeLength),
@@ -131,7 +165,9 @@ impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
     fn from(value: leptos_i18n_parser::utils::formatter::Formatter) -> Self {
         match value {
             leptos_i18n_parser::utils::formatter::Formatter::None => Self::None,
-            leptos_i18n_parser::utils::formatter::Formatter::Number => Self::Number,
+            leptos_i18n_parser::utils::formatter::Formatter::Number(grouping_strategy) => {
+                Self::Number(grouping_strategy.into())
+            }
             leptos_i18n_parser::utils::formatter::Formatter::Date(date_length) => {
                 Self::Date(date_length.into())
             }
@@ -154,8 +190,8 @@ impl Formatter {
             Formatter::None => {
                 quote!(#key)
             }
-            Formatter::Number => {
-                quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key))
+            Formatter::Number(grouping_strategy) => {
+                quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key, #grouping_strategy))
             }
             Formatter::Date(length) => {
                 quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length))
@@ -177,8 +213,8 @@ impl Formatter {
             Formatter::None => unreachable!(
                 "This function should not have been called on a variable with no formatter."
             ),
-            Formatter::Number => {
-                quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key))
+            Formatter::Number(grouping_strategy) => {
+                quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key, #grouping_strategy))
             }
             Formatter::Date(length) => {
                 quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length))
@@ -200,8 +236,8 @@ impl Formatter {
             Formatter::None => {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
-            Formatter::Number => {
-                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key)))
+            Formatter::Number(grouping_strategy) => {
+                quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #grouping_strategy))
             }
             Formatter::Date(length) => {
                 quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length))
@@ -221,7 +257,7 @@ impl Formatter {
     pub fn to_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
-            Formatter::Number => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
+            Formatter::Number(_) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Date(_) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
             Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::DateTimeFormatterInputFn),
@@ -232,7 +268,7 @@ impl Formatter {
     pub fn to_string_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(::std::fmt::Display),
-            Formatter::Number => quote!(l_i18n_crate::__private::IntoFixedDecimal),
+            Formatter::Number(_) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Date(_) => quote!(l_i18n_crate::__private::AsIcuDate),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::AsIcuTime),
             Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),

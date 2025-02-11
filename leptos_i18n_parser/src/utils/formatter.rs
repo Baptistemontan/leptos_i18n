@@ -23,11 +23,20 @@ impl Drop for SkipIcuCfgGuard {
 pub enum Formatter {
     #[default]
     None,
-    Number,
+    Number(GroupingStrategy),
     Date(DateLength),
     Time(TimeLength),
     DateTime(DateLength, TimeLength),
     List(ListType, ListStyle),
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum GroupingStrategy {
+    #[default]
+    Auto,
+    Never,
+    Always,
+    Min2,
 }
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -71,9 +80,9 @@ impl Formatter {
     ) -> Result<Option<Formatter>, Formatter> {
         if name == "number" {
             if cfg!(feature = "format_nums") || SKIP_ICU_CFG.get() {
-                Ok(Some(Formatter::Number))
+                Ok(Some(Formatter::Number(GroupingStrategy::from_args(args))))
             } else {
-                Err(Formatter::Number)
+                Err(Formatter::Number(GroupingStrategy::from_args(args)))
             }
         } else if name == "datetime" {
             let formatter =
@@ -112,7 +121,7 @@ impl Formatter {
     pub fn err_message(&self) -> &'static str {
         match self {
             Formatter::None => "",
-            Formatter::Number => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
+            Formatter::Number(_) => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
             Formatter::Date(_) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
             Formatter::Time(_) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
             Formatter::DateTime(_, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
@@ -173,6 +182,16 @@ macro_rules! impl_length {
 
 impl_length!(DateLength, "date_length", Date);
 impl_length!(TimeLength, "time_length", Time);
+
+impl GroupingStrategy {
+    impl_from_args! {
+        "grouping_strategy",
+        "auto" => Self::Auto,
+        "never" => Self::Never,
+        "always" => Self::Always,
+        "min2" => Self::Min2,
+    }
+}
 
 impl ListType {
     impl_from_args! {
