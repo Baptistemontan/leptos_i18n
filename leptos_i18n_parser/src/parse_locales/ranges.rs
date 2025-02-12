@@ -766,24 +766,24 @@ impl Ranges {
         }
     }
 
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
-        fn inner<const CLONE: bool, T>(range: &mut RangesInner<T>, strings: &mut StringIndexer) {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
+        fn inner<T>(range: &mut RangesInner<T>, strings: &mut StringIndexer) {
             for (_, value) in range {
-                value.index_strings::<CLONE>(strings);
+                value.index_strings(strings);
             }
         }
 
         match &mut self.inner {
-            UntypedRangesInner::I8(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::I16(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::I32(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::I64(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::U8(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::U16(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::U32(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::U64(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::F32(vec) => inner::<CLONE, _>(vec, strings),
-            UntypedRangesInner::F64(vec) => inner::<CLONE, _>(vec, strings),
+            UntypedRangesInner::I8(vec) => inner(vec, strings),
+            UntypedRangesInner::I16(vec) => inner(vec, strings),
+            UntypedRangesInner::I32(vec) => inner(vec, strings),
+            UntypedRangesInner::I64(vec) => inner(vec, strings),
+            UntypedRangesInner::U8(vec) => inner(vec, strings),
+            UntypedRangesInner::U16(vec) => inner(vec, strings),
+            UntypedRangesInner::U32(vec) => inner(vec, strings),
+            UntypedRangesInner::U64(vec) => inner(vec, strings),
+            UntypedRangesInner::F32(vec) => inner(vec, strings),
+            UntypedRangesInner::F64(vec) => inner(vec, strings),
         }
     }
 }
