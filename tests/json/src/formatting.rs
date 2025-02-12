@@ -76,19 +76,19 @@ fn currency_formatting() {
     let num = move || FixedDecimal::from(200050).multiplied_pow10(-2);
 
     let en = td!(Locale::en, currency_formatting, num);
-    assert_eq_rendered!(en, "$2,000.50");
-    let fr = td!(Locale::fr, number_formatting, num);
-    assert_eq_rendered!(fr, "€2\u{202f}000,50");
+    assert_eq_rendered!(en, "FRA\u{a0}2000.50");
+    let fr = td!(Locale::fr, currency_formatting, num);
+    assert_eq_rendered!(fr, "2000.50\u{a0}$US");
 
     let num = move || 2000.50f64;
 
-    let en = td!(Locale::en, number_formatting, num);
-    assert_eq_rendered!(en, "$2,000.5");
-    let fr = td!(Locale::fr, number_formatting, num);
-    assert_eq_rendered!(fr, "€2\u{202f}000,5");
+    let en = td!(Locale::en, currency_formatting, num);
+    assert_eq_rendered!(en, "FRA\u{a0}2000.5");
+    let fr = td!(Locale::fr, currency_formatting, num);
+    assert_eq_rendered!(fr, "2000.5\u{a0}$US");
 
-    let en = td!(Locale::en, number_formatting_grouping, num);
+    let en = td!(Locale::en, currency_formatting_width, num);
     assert_eq_rendered!(en, "$2000.5");
-    let fr = td!(Locale::fr, number_formatting_grouping, num);
-    assert_eq_rendered!(fr, "€2000,5");
+    let fr = td!(Locale::fr, currency_formatting_width, num);
+    assert_eq_rendered!(fr, "2000.5\u{a0}$");
 }
