@@ -1,6 +1,8 @@
 //! This module contain traits and helper functions for formatting
 //! different kind of value based on a locale.
 
+#[cfg(feature = "format_currency")]
+mod currency;
 #[cfg(feature = "format_datetime")]
 mod date;
 #[cfg(feature = "format_datetime")]
@@ -12,6 +14,8 @@ mod nums;
 #[cfg(feature = "format_datetime")]
 mod time;
 
+#[cfg(feature = "format_currency")]
+pub use currency::*;
 #[cfg(feature = "format_datetime")]
 pub use date::*;
 #[cfg(feature = "format_datetime")]
@@ -33,7 +37,8 @@ pub use time::*;
     feature = "format_nums",
     feature = "format_datetime",
     feature = "format_list",
-    feature = "plurals"
+    feature = "plurals",
+    feature = "format_currency",
 ))]
 use crate::Locale;
 #[cfg(feature = "format_nums")]
@@ -42,10 +47,38 @@ use icu_decimal::options::FixedDecimalFormatterOptions;
 use icu_decimal::options::GroupingStrategy;
 #[cfg(feature = "format_nums")]
 use icu_decimal::FixedDecimalFormatter;
+#[cfg(feature = "format_currency")]
+use icu_experimental::dimension::currency::formatter::CurrencyFormatter;
+#[cfg(feature = "format_currency")]
+use icu_experimental::dimension::currency::options::CurrencyFormatterOptions;
+#[cfg(feature = "format_currency")]
+use icu_experimental::dimension::currency::options::Width as CurrencyWidth;
+
 pub use leptos_i18n_macro::{
     t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
     tu_format, tu_format_display, tu_format_string,
 };
+
+#[cfg(feature = "format_currency")]
+fn get_currency_formatter<L: Locale>(
+    locale: L,
+    width: CurrencyWidth,
+) -> &'static CurrencyFormatter {
+    use data_provider::IcuDataProvider;
+
+    inner::FORMATTERS.with_mut(|formatters| {
+        let locale = locale.as_icu_locale();
+        let currency_formatters = formatters.currency.entry(locale).or_default();
+        let currency_formatter = currency_formatters.entry(width.into()).or_insert_with(|| {
+            let formatter = formatters
+                .provider
+                .try_new_currency_formatter(&locale.into(), CurrencyFormatterOptions::from(width))
+                .expect("A CurrencyFormatter");
+            Box::leak(Box::new(formatter))
+        });
+        *currency_formatter
+    })
+}
 
 #[cfg(feature = "format_nums")]
 fn get_num_formatter<L: Locale>(
@@ -177,7 +210,8 @@ pub fn get_plural_rules<L: Locale>(
     feature = "format_nums",
     feature = "format_datetime",
     feature = "format_list",
-    feature = "plurals"
+    feature = "plurals",
+    feature = "format_currency",
 ))]
 pub(crate) mod inner {
     use super::*;
@@ -214,6 +248,11 @@ pub(crate) mod inner {
     }
     #[derive(Default)]
     pub struct Formatters {
+        #[cfg(feature = "format_currency")]
+        pub currency: HashMap<
+            &'static IcuLocale,
+            HashMap<super::currency::Width, &'static CurrencyFormatter>,
+        >,
         #[cfg(feature = "format_nums")]
         pub num:
             HashMap<&'static IcuLocale, HashMap<GroupingStrategy, &'static FixedDecimalFormatter>>,
@@ -253,7 +292,8 @@ pub(crate) mod inner {
     feature = "format_nums",
     feature = "format_datetime",
     feature = "format_list",
-    feature = "plurals"
+    feature = "plurals",
+    feature = "format_currency",
 )))]
 pub(crate) mod inner {
     /// Supply a custom ICU data provider
@@ -268,7 +308,8 @@ pub(crate) mod data_provider {
         feature = "format_nums",
         feature = "format_datetime",
         feature = "format_list",
-        feature = "plurals"
+        feature = "plurals",
+        feature = "format_currency",
     ))]
     use super::*;
 
@@ -276,7 +317,8 @@ pub(crate) mod data_provider {
         feature = "format_nums",
         feature = "format_datetime",
         feature = "format_list",
-        feature = "plurals"
+        feature = "plurals",
+        feature = "format_currency",
     ))]
     use icu_provider::DataLocale;
 
@@ -345,6 +387,14 @@ pub(crate) mod data_provider {
             locale: &DataLocale,
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, icu_plurals::PluralsError>;
+        ///
+        /// Tries to create a new `CurrencyFormatter` with the given options
+        #[cfg(feature = "format_currency")]
+        fn try_new_currency_formatter(
+            &self,
+            locale: &DataLocale,
+            options: CurrencyFormatterOptions,
+        ) -> Result<CurrencyFormatter, icu_provider::DataError>;
     }
 
     #[cfg(feature = "icu_compiled_data")]
@@ -423,6 +473,15 @@ pub(crate) mod data_provider {
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, icu_plurals::PluralsError> {
             PluralRules::try_new(locale, rule_type)
+        }
+
+        #[cfg(feature = "format_currency")]
+        fn try_new_currency_formatter(
+            &self,
+            locale: &DataLocale,
+            options: CurrencyFormatterOptions,
+        ) -> Result<CurrencyFormatter, icu_provider::DataError> {
+            CurrencyFormatter::try_new(locale, options)
         }
     }
 
@@ -513,6 +572,16 @@ pub(crate) mod data_provider {
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, icu_plurals::PluralsError> {
             self.get_provider().try_new_plural_rules(locale, rule_type)
+        }
+
+        #[cfg(feature = "format_currency")]
+        fn try_new_currency_formatter(
+            &self,
+            locale: &DataLocale,
+            options: CurrencyFormatterOptions,
+        ) -> Result<CurrencyFormatter, icu_provider::DataError> {
+            self.get_provider()
+                .try_new_currency_formatter(locale, options)
         }
     }
 }

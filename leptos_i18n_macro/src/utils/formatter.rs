@@ -1,6 +1,7 @@
 use leptos_i18n_parser::utils::Key;
-use proc_macro2::TokenStream;
+use proc_macro2::{Literal, TokenStream};
 use quote::{quote, ToTokens};
+use tinystr::TinyAsciiStr;
 
 macro_rules! impl_from {
     ($t: ident, $($variant:ident),*) => {
@@ -49,6 +50,63 @@ impl ToTokens for GroupingStrategy {
 }
 
 impl_from!(GroupingStrategy, Auto, Never, Always, Min2);
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CurrencyWidth {
+    Short,
+    Narrow,
+}
+
+impl ToTokens for CurrencyWidth {
+    fn to_token_stream(&self) -> TokenStream {
+        match self {
+            CurrencyWidth::Short => {
+                quote!(l_i18n_crate::reexports::icu::currency::options::Width::Short)
+            }
+            CurrencyWidth::Narrow => {
+                quote!(l_i18n_crate::reexports::icu::currency::options::Width::Narrow)
+            }
+        }
+    }
+
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
+    }
+}
+
+impl_from!(CurrencyWidth, Short, Narrow);
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CurrencyCode(pub TinyAsciiStr<3>);
+
+impl ToTokens for CurrencyCode {
+    fn to_token_stream(&self) -> TokenStream {
+        let code = Literal::string(self.0.as_str());
+        quote!(
+            l_i18n_crate::reexports::icu::currency::formatter::CurrencyCode(
+                l_i18n_crate::reexports::tinystr!(3, #code)
+            )
+        )
+    }
+
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
+    }
+}
+
+impl From<leptos_i18n_parser::utils::formatter::CurrencyCode> for CurrencyCode {
+    fn from(value: leptos_i18n_parser::utils::formatter::CurrencyCode) -> Self {
+        Self(value.0)
+    }
+}
+
+// impl From<CurrencyCode> for leptos_i18n_parser::utils::formatter::CurrencyCode {
+//     fn from(value: CurrencyCode) -> Self {
+//         Self(value.0)
+//     }
+// }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DateLength {
@@ -154,6 +212,7 @@ impl_from!(ListStyle, Wide, Short, Narrow);
 pub enum Formatter {
     #[default]
     None,
+    Currency(CurrencyWidth, CurrencyCode),
     Number(GroupingStrategy),
     Date(DateLength),
     Time(TimeLength),
@@ -165,6 +224,9 @@ impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
     fn from(value: leptos_i18n_parser::utils::formatter::Formatter) -> Self {
         match value {
             leptos_i18n_parser::utils::formatter::Formatter::None => Self::None,
+            leptos_i18n_parser::utils::formatter::Formatter::Currency(width, code) => {
+                Self::Currency(width.into(), code.into())
+            }
             leptos_i18n_parser::utils::formatter::Formatter::Number(grouping_strategy) => {
                 Self::Number(grouping_strategy.into())
             }
@@ -190,6 +252,9 @@ impl Formatter {
             Formatter::None => {
                 quote!(#key)
             }
+            Formatter::Currency(width, code) => {
+                quote!(l_i18n_crate::__private::format_currency_to_view(#locale_field, #key, #width, #code))
+            }
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key, #grouping_strategy))
             }
@@ -213,6 +278,9 @@ impl Formatter {
             Formatter::None => unreachable!(
                 "This function should not have been called on a variable with no formatter."
             ),
+            Formatter::Currency(width, code) => {
+                quote!(l_i18n_crate::__private::format_currency_to_display(#locale_field, #key, #width, #code))
+            }
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key, #grouping_strategy))
             }
@@ -236,6 +304,9 @@ impl Formatter {
             Formatter::None => {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
+            Formatter::Currency(width, code) => {
+                quote!(l_i18n_crate::__private::format_currency_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #width, #code))
+            }
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #grouping_strategy))
             }
@@ -257,6 +328,7 @@ impl Formatter {
     pub fn to_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
+            Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Date(_) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
@@ -268,6 +340,7 @@ impl Formatter {
     pub fn to_string_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(::std::fmt::Display),
+            Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Date(_) => quote!(l_i18n_crate::__private::AsIcuDate),
             Formatter::Time(_) => quote!(l_i18n_crate::__private::AsIcuTime),

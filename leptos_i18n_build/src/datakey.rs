@@ -17,6 +17,8 @@ pub enum Options {
     FormatList,
     /// Use of the `number` formatter.
     FormatNums,
+    /// Use of the `currency` formatter.
+    FormatCurrency,
 }
 
 pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<Options>) {
@@ -38,6 +40,7 @@ pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<O
                                 Options::FormatDateTime
                             }
                             Formatter::List(_, _) => Options::FormatList,
+                            Formatter::Currency(_, _) => Options::FormatCurrency,
                         };
                         used_icu_keys.insert(dk);
                     }
@@ -98,6 +101,9 @@ impl Options {
             ]),
             Options::FormatList => icu_datagen::keys(&["list/and@1", "list/or@1", "list/unit@1"]),
             Options::FormatNums => icu_datagen::keys(&["decimal/symbols@1"]),
+            Options::FormatCurrency => {
+                icu_datagen::keys(&["decimal/symbols@1", "currency/essentials@1"])
+            }
         }
     }
 }
