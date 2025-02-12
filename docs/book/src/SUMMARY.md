@@ -27,6 +27,7 @@
   - [`t_format!`](./usage/09_t_format.md)
   - [`t_plural!`](./usage/10_t_plural.md)
   - [Constant Access](./usage/11_const_access.md)
+  - [Server functions](./usage/12_serverfn.md)
 - [More Informations](./infos/README.md)
   - [Locale Resolution](./infos/01_locale_resol.md)
 - [Reduce Binary Size](./reduce_size/README.md)
