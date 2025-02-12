@@ -185,7 +185,7 @@ fn load_locales_inner(
             /// Create and provide a i18n context for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
-            pub fn I18nContextProvider<Chil: IntoView>(
+            pub fn I18nContextProvider<Chil: IntoView + 'static>(
                 /// If the "lang" attribute should be set on the root `<html>` element. (default to true)
                 #[prop(optional)]
                 set_lang_attr_on_html: Option<bool>,
@@ -221,7 +221,7 @@ fn load_locales_inner(
             /// Create and provide a subcontext for all children components, directly accessible with `use_i18n`.
             #[l_i18n_crate::reexports::leptos::component]
             #[allow(non_snake_case)]
-            pub fn I18nSubContextProvider<Chil: IntoView>(
+            pub fn I18nSubContextProvider<Chil: IntoView + 'static>(
                 children: TypedChildren<Chil>,
                 /// The initial locale for this subcontext.
                 /// Default to the locale set in the cookie if set and some,
