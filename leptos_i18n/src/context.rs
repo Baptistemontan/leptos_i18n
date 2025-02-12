@@ -121,7 +121,7 @@ pub type CookieOptions<L> = UseCookieOptions<
     <FromToStringCodec as codee::Decoder<L>>::Error,
 >;
 
-const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
+pub(crate) const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
@@ -167,14 +167,14 @@ where
     L: Locale,
 {
     /// Should set a cookie to keep track of the locale when page reload (default to true) (do nothing without the "cookie" feature)
-    enable_cookie: bool,
+    pub enable_cookie: bool,
     /// Give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
     #[builder(into)]
-    cookie_name: Cow<'a, str>,
+    pub cookie_name: Cow<'a, str>,
     /// Options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
-    cookie_options: CookieOptions<L>,
+    pub cookie_options: CookieOptions<L>,
     /// Options to pass to `leptos_use::use_locales`.
-    ssr_lang_header_getter: UseLocalesOptions,
+    pub ssr_lang_header_getter: UseLocalesOptions,
 }
 
 impl<L: Locale> Default for I18nContextOptions<'_, L> {
@@ -209,6 +209,7 @@ pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>)
 
     init_context_inner::<L>(set_lang_cookie, initial_locale)
 }
+
 /// Initialize a `I18nContext` without providing it.
 #[track_caller]
 pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {

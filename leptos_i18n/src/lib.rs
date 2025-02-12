@@ -125,16 +125,15 @@
 //! ```
 
 pub mod context;
+pub mod display;
 mod fetch_locale;
 mod fetch_translations;
 mod langid;
+pub mod locale;
 mod locale_traits;
 mod macro_helpers;
 mod macros;
-// mod routing;
 mod scopes;
-
-pub mod display;
 
 pub use macro_helpers::formatting;
 
@@ -162,7 +161,6 @@ pub mod __private {
     pub mod fetch_translations {
         pub use crate::fetch_translations::*;
     }
-    // pub use crate::fetch_locale::get_locale_from_path_inner;
     #[cfg(feature = "plurals")]
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
