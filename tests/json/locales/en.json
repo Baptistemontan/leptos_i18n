@@ -49,7 +49,7 @@
 	"datetime_formatting": "{{ date, datetime }}",
 	"number_formatting": "{{ num, number }}",
 	"number_formatting_grouping": "{{ num, number(grouping_strategy: never) }}",
-	"currency_formatting": "{{ num, currency(currency_code: FRA) }}",
+	"currency_formatting": "{{ num, currency(currency_code: EUR) }}",
 	"currency_formatting_width": "{{ num, currency(width: narrow; currency_code: USD) }}",
 	"cardinal_plural_one": "one item",
 	"cardinal_plural_other": "{{ count }} items",

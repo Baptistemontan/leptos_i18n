@@ -47,7 +47,7 @@
 	"number_formatting": "{{ num, number }}",
 	"number_formatting_grouping": "{{ num, number(grouping_strategy: never) }}",
 	"currency_formatting": "{{ num, currency(currency_code: USD) }}",
-	"currency_formatting_width": "{{ num, currency(width: narrow; country_code: FRA) }}",
+	"currency_formatting_width": "{{ num, currency(width: narrow; country_code: EUR) }}",
 	"cardinal_plural": "{{ count }}",
 	"ordinal_plural_ordinal_one": "{{ count }}re place",
 	"ordinal_plural_ordinal_other": "{{ count }}e place",
