@@ -171,8 +171,9 @@ pub mod __private {
 
 /// This module contain utilities to create custom ICU providers.
 pub mod custom_provider {
-    pub use crate::macro_helpers::formatting::data_provider::IcuDataProvider;
-    pub use crate::macro_helpers::formatting::inner::set_icu_data_provider;
+    pub use crate::macro_helpers::formatting::{
+        data_provider::IcuDataProvider, inner::set_icu_data_provider,
+    };
     pub use leptos_i18n_macro::IcuDataProvider;
 }
 
@@ -189,6 +190,8 @@ pub mod reexports {
         pub use icu_datetime as datetime;
         #[cfg(feature = "format_nums")]
         pub use icu_decimal as decimal;
+        #[cfg(feature = "format_currency")]
+        pub use icu_experimental::dimension::currency;
         #[cfg(feature = "format_list")]
         pub use icu_list as list;
         #[cfg(feature = "plurals")]

@@ -89,3 +89,7 @@ Allow the use of the `list` formatter.
 #### `format_nums`
 
 Allow the use of the `number` formatter.
+
+#### `format_currency`
+
+Allow the use of the `currency` formatter.

@@ -84,6 +84,42 @@ let num = move || 100_000;
 t!(i18n, number_formatter, num);
 ```
 
+## Currency (experimental)
+
+```json
+{
+  "currency_formatter": "{{ num, currency }}"
+}
+```
+
+Will format the currency based on the locale.
+The variable should be the same as [number](#number).
+
+Enable the "format_currency" feature to use the number formatter.
+
+### Arguments
+
+There are two arguments at the moment for the currency formatter: `width` and `country_code`, which are based on [`icu_experimental::dimension::currency::options::Width`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html) and [`icu_experimental::dimension::currency::formatter::CountryCode`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/formatter/struct.CurrencyCode.html).
+
+`width` values:
+
+- short (default)
+- narrow
+
+`country_code` value should be a [currency code](https://www.iban.com/currency-codes), such as USD or EUR. The USD is the default value.
+
+### Example
+
+```rust,ignore
+use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let num = move || 100_000;
+
+t!(i18n, currency_formatter, num);
+```
+
 ## Date
 
 ```json

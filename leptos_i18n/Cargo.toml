@@ -28,6 +28,7 @@ icu_list = { workspace = true, optional = true }
 icu_decimal = { workspace = true, optional = true }
 typed-builder = "0.20"
 fixed_decimal = { workspace = true, optional = true, features = ["ryu"] }
+icu_experimental = { workspace = true, optional = true, features = ["ryu"] }
 writeable = "0.5"
 serde = "1.0"
 async-once-cell = { version = "0.5.3", optional = true }
@@ -46,6 +47,7 @@ icu_compiled_data = [
   "icu_calendar?/compiled_data",
   "icu_list?/compiled_data",
   "icu_decimal?/compiled_data",
+  "icu_experimental?/compiled_data",
   "leptos_i18n_macro/icu_compiled_data",
 ]
 plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
@@ -65,6 +67,12 @@ format_nums = [
   "dep:fixed_decimal",
   "dep:icu_provider",
   "leptos_i18n_macro/format_nums",
+]
+format_currency = [
+  "format_nums",
+  "dep:icu_experimental",
+  "dep:icu_provider",
+  "leptos_i18n_macro/format_currency",
 ]
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
@@ -102,7 +110,13 @@ track_locale_files = ["leptos_i18n_macro/track_locale_files"]
 
 [package.metadata."docs.rs"]
 # Features needed for the doctests
-features = ["plurals", "format_datetime", "format_list", "format_nums"]
+features = [
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
+  "format_currency",
+]
 
 
 [package.metadata.cargo-all-features]
@@ -163,4 +177,5 @@ always_include_features = [
   "format_datetime",
   "format_list",
   "format_nums",
+  "format_currency",
 ]
