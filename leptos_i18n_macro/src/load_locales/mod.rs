@@ -847,7 +847,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                 
                 let request_translations = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
                     let uri = translations_uri.expect("Missing URI"); // Already check before
-                    #[allow(clippy::literal_string_with_formatting_args)]
+                    // trigger with rustc 1.85, still in nightly tho
+                    // #[allow(clippy::literal_string_with_formatting_args)]
                     let endpoint = uri.replace("{locale}", &locale.name.name).replace("{namespace}", namespace_name.unwrap_or(""));
                     quote! {
                         pub async fn __i18n_request_translations__() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
