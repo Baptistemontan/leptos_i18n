@@ -1,5 +1,5 @@
 use leptos_i18n_parser::utils::Key;
-use proc_macro2::TokenStream;
+use proc_macro2::{Literal, TokenStream};
 use quote::{quote, ToTokens};
 use tinystr::TinyAsciiStr;
 
@@ -82,7 +82,12 @@ pub struct CurrencyCode(pub TinyAsciiStr<3>);
 
 impl ToTokens for CurrencyCode {
     fn to_token_stream(&self) -> TokenStream {
-        quote!(l_i18n_crate::reexports::icu::currency::formatter::CurrencyCode(#self.into()))
+        let code = Literal::string(self.0.as_str());
+        quote!(
+            l_i18n_crate::reexports::icu::currency::formatter::CurrencyCode(
+                l_i18n_crate::reexports::tinystr!(3, #code)
+            )
+        )
     }
 
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -97,11 +102,11 @@ impl From<leptos_i18n_parser::utils::formatter::CurrencyCode> for CurrencyCode {
     }
 }
 
-impl From<CurrencyCode> for leptos_i18n_parser::utils::formatter::CurrencyCode {
-    fn from(value: CurrencyCode) -> Self {
-        Self(value.0)
-    }
-}
+// impl From<CurrencyCode> for leptos_i18n_parser::utils::formatter::CurrencyCode {
+//     fn from(value: CurrencyCode) -> Self {
+//         Self(value.0)
+//     }
+// }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DateLength {

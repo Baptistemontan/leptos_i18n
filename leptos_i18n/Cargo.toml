@@ -37,6 +37,7 @@ serde-wasm-bindgen = { version = "0.6.5", optional = true }
 futures = { version = "0.3.30", optional = true }
 default-struct-builder = "0.5"
 wasm-bindgen = "0.2.96"
+tinystr = { workspace = true }
 
 [features]
 default = ["cookie", "json_files", "icu_compiled_data"]

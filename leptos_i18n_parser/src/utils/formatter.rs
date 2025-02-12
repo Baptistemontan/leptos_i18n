@@ -217,14 +217,12 @@ impl CurrencyCode {
     pub fn from_args<'a, S: PartialEq + PartialEq<&'a str> + ToString>(
         args: Option<&[(S, S)]>,
     ) -> Self {
-        from_args_helper(
-            args,
-            "currency_code",
-            |arg| match TinyAsciiStr::try_from_str(arg.to_string().as_str()) {
+        from_args_helper(args, "currency_code", |arg| {
+            match TinyAsciiStr::from_str(arg.to_string().as_str()) {
                 Err(_) => None,
                 Ok(code) => Some(Self(code)),
-            },
-        )
+            }
+        })
     }
 }
 

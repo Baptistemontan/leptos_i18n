@@ -181,6 +181,8 @@ pub mod custom_provider {
 pub mod reexports {
     #[cfg(feature = "format_nums")]
     pub use fixed_decimal;
+    #[cfg(feature = "format_currency")]
+    pub use tinystr::tinystr;
 
     /// module containing reexports of crates from the icu project
     pub mod icu {
