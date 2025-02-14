@@ -2,5 +2,9 @@
   "click_to_change_lang": "Cliquez pour changez de langue",
   "click_count_one": "Vous avez fait {{ count }} clique",
   "click_count_other": "Vous avez fait {{ count }} cliques",
-  "click_to_inc": "Cliquez pour incrémenter le compteur"
+  "click_to_inc": "Cliquez pour incrémenter le compteur",
+  "num_formatter": "{{ num, number }}",
+  "currency_formatter": "{{ num, currency }}",
+  "date_formatter": "{{ date_var, date }}",
+  "list_formatter": "{{ list_var, list }}"
 }

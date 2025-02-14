@@ -5,6 +5,9 @@ leptos_i18n::load_locales!();
 
 include!(concat!(env!("OUT_DIR"), "/baked_data/mod.rs"));
 
+// only needed for experimental features (e.g "format_currency")
+extern crate alloc;
+
 #[derive(leptos_i18n::custom_provider::IcuDataProvider)]
 pub struct BakedProvider;
 impl_data_provider!(BakedProvider);
