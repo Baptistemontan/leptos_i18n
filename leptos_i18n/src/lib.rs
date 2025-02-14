@@ -201,6 +201,7 @@ pub mod reexports {
             feature = "format_nums",
             feature = "format_datetime",
             feature = "format_list",
+            feature = "format_currency",
             feature = "plurals"
         ))]
         pub use icu_provider as provider;

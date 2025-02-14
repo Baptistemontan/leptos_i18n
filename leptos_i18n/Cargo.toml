@@ -20,7 +20,10 @@ leptos = { workspace = true }
 leptos_meta = { workspace = true }
 codee = "0.2"
 icu_locid = { workspace = true }
-icu_provider = { workspace = true, optional = true, features = ["sync"] }
+icu_provider = { workspace = true, optional = true, features = [
+  "sync",
+  "experimental",
+] }
 icu_plurals = { workspace = true, optional = true }
 icu_datetime = { workspace = true, optional = true }
 icu_calendar = { workspace = true, optional = true }

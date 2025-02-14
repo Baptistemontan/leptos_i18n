@@ -103,6 +103,20 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
         quote!()
     };
 
+    let new_currency_formatter = if cfg!(feature = "format_currency") {
+        quote! {
+                fn try_new_currency_formatter(
+                &self,
+                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
+                options: leptos_i18n::reexports::icu::currency::options::CurrencyFormatterOptions
+            ) -> Result<leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter, leptos_i18n::reexports::icu::provider::DataError> {
+                leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter::try_new_unstable(self, locale, options)
+            }
+        }
+    } else {
+        quote!()
+    };
+
     let expanded = quote! {
         impl #impl_generics leptos_i18n::custom_provider::IcuDataProvider for #name #ty_generics #where_clause {
 
@@ -113,6 +127,8 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
             #new_list_formatter
 
             #new_plural_rules
+
+            #new_currency_formatter
         }
     };
 

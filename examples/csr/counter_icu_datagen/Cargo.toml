@@ -10,14 +10,26 @@ leptos_i18n = { path = "../../../leptos_i18n", default-features = false, feature
   "json_files",
   "csr",
   "plurals",
+  "format_nums",
+  "format_list",
+  "format_datetime",
+  # experimental feature
+  "format_currency",
 ] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1" }
 wasm-bindgen = { version = "0.2" }
 
-icu = { version = "1.5", default-features = false } # turn off compiled_data
-icu_provider = "1.5"                                # for databake
-zerovec = "0.10"                                    # for databake
+# "default-features = false" to turn off compiled_data
+icu = { version = "1.5", default-features = false, features = [
+  # feature only needed for experimental features (e.g "format_currency")
+  "experimental",
+] }
+icu_provider = "1.5" # for databake
+zerovec = "0.10" # for databake
+
+# only needed for experimental features (e.g "format_currency")
+icu_pattern = "0.2.0" # for databake
 
 [package.metadata.leptos-i18n]
 default = "en"

@@ -101,9 +101,11 @@ impl Options {
             ]),
             Options::FormatList => icu_datagen::keys(&["list/and@1", "list/or@1", "list/unit@1"]),
             Options::FormatNums => icu_datagen::keys(&["decimal/symbols@1"]),
-            Options::FormatCurrency => {
-                icu_datagen::keys(&["decimal/symbols@1", "currency/essentials@1"])
-            }
+            Options::FormatCurrency => icu_datagen::keys(&[
+                "decimal/digits@1",
+                "decimal/symbols@2",
+                "currency/essentials@1",
+            ]),
         }
     }
 }
