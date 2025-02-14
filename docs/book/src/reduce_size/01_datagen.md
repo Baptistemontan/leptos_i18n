@@ -25,7 +25,17 @@ pub struct MyDataProvider;
 impl_data_provider!(MyDataProvider);
 ```
 
-This is explained in the `icu_datagen` doc.
+you will also need some depedencies:
+
+```toml
+[dependencies]
+# "default-features = false" to turn off compiled_data
+icu = { version = "1.5", default-features = false }
+icu_provider = "1.5" # for databake
+zerovec = "0.10" # for databake
+```
+
+This is explained more in depth in the `icu_datagen` doc.
 
 ## 3. Supply to leptos_i18n the provider.
 
@@ -173,6 +183,46 @@ translations_infos.generate_data_with_data_keys(mod_directory, keys).unwrap();
 
 YES. With `opt-level = "z"` and `lto = true`, the plurals example is at 394 kB (at the time of writing). Now, by just providing a custom provider tailored to the used locales ("en" and "fr"), it shrinks down to 248 kB! It almost cut in half the binary size!
 I highly suggest taking the time to implement this.
+
+# Experimental features
+
+When using experimental features, such as "format_currency", if you follow the step above you will probably have some compilation error in the `impl_data_provider!` macro.
+To solve them you will need those few things:
+
+### Enable experimental feature
+
+Enable the "experimental" feature for `icu`:
+
+```toml
+# Cargo.toml
+[depedencies]
+icu = {
+    version = "1.5.0",
+    default-features = false,
+    features = [ "experimental"]
+}
+```
+
+### Import `icu_pattern`
+
+```toml
+# Cargo.toml
+[depedencies]
+icu_pattern = "0.2.0" # for databake
+```
+
+### Import the `alloc` crate
+
+The macro directly use the `alloc` crate instead of the std, so you must bring it into scope:
+
+```rust,ignore
+extern crate alloc;
+
+include!(concat!(env!("OUT_DIR"), "/baked_data/mod.rs"));
+
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);
+```
 
 ## Example
 
