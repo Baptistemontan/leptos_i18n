@@ -449,7 +449,7 @@ fn create_locales_enum(
 
         impl #enum_ident {
             pub const fn get_keys_const(self) -> #keys_ident {
-                #keys_ident::new(self)
+                #keys_ident::__new_internal(self)
             }
         }
 
@@ -751,7 +751,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         let mod_ident = &sk.mod_key;
         quote! {
             pub const fn #original_key(self) -> subkeys::#mod_ident::#key {
-                subkeys::#mod_ident::#key::new(self.0)
+                subkeys::#mod_ident::#key::__new_internal(self.0)
             }
 
         }
@@ -1070,7 +1070,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
         impl #type_ident {
 
-            pub const fn new(locale: #enum_ident) -> Self {
+            pub const fn __new_internal(locale: #enum_ident) -> Self {
                 #type_ident(locale)
             }
 
@@ -1102,7 +1102,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         impl l_i18n_crate::LocaleKeys for #type_ident {
             type Locale = #enum_ident;
             fn from_locale(locale: #enum_ident) -> Self {
-                Self::new(locale)
+                Self::__new_internal(locale)
             }
         }
 
@@ -1171,7 +1171,7 @@ fn create_namespaces_types(
             let key = &namespace.key;
             quote! {
                 pub fn #key(self) -> namespaces::#namespace_module_ident::#key {
-                    namespaces::#namespace_module_ident::#key::new(self.0)
+                    namespaces::#namespace_module_ident::#key::__new_internal(self.0)
                 }
             }
         });
@@ -1274,7 +1274,7 @@ fn create_namespaces_types(
         pub struct #keys_ident(#enum_ident);
 
         impl #keys_ident {
-            pub const fn new(locale: #enum_ident) -> Self {
+            pub const fn __new_internal(locale: #enum_ident) -> Self {
                 Self(locale)
             }
 
@@ -1291,7 +1291,7 @@ fn create_namespaces_types(
         impl l_i18n_crate::LocaleKeys for #keys_ident {
             type Locale = #enum_ident;
             fn from_locale(locale: #enum_ident) -> Self {
-                Self::new(locale)
+                Self::__new_internal(locale)
             }
         }
 
