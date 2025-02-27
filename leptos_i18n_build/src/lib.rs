@@ -4,7 +4,7 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 use std::collections::HashSet;
-use std::fmt::{Display, Write};
+use std::fmt::Display;
 use std::fs::{create_dir_all, File};
 use std::io::BufWriter;
 use std::path::PathBuf;
@@ -103,7 +103,7 @@ impl TranslationsInfos {
         fn map_locales(locales: &[Locale]) -> impl Iterator<Item = LocaleTranslations<'_>> + '_ {
             locales.iter().map(|locale| LocaleTranslations {
                 name: &locale.name.name,
-                strings: &locale.strings,
+                strings: &locale.string,
             })
         }
         match &self.locales {
@@ -238,14 +238,13 @@ pub struct NamespaceTranslations<'a, L> {
 #[derive(Debug, Clone, Copy)]
 pub struct LocaleTranslations<'a> {
     name: &'a str,
-    strings: &'a [String],
+    strings: &'a str,
 }
 
 /// Formatter for the translations parsed strings
 #[derive(Debug, Clone, Copy)]
 pub struct TranslationsFormatter<'a> {
-    #[allow(unused)]
-    strings: &'a [String],
+    strings: &'a str,
 }
 
 impl<N, L> TranslationsType<N, L> {
@@ -346,14 +345,6 @@ impl<'a> LocaleTranslations<'a> {
 
 impl Display for TranslationsFormatter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_char('[')?;
-        let mut iter = self.strings.iter();
-        if let Some(first) = iter.next() {
-            write!(f, "{:?}", first)?;
-        }
-        for s in iter {
-            write!(f, ",{:?}", s)?;
-        }
-        f.write_char(']')
+        write!(f, "{:?}", self.strings)
     }
 }

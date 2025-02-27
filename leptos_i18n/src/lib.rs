@@ -1,7 +1,7 @@
 #![cfg_attr(feature = "nightly", feature(fn_traits))]
 #![cfg_attr(feature = "nightly", feature(unboxed_closures))]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 #![deny(warnings)]
 //! # About Leptos i18n
 //!
