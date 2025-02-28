@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashSet},
     path::PathBuf,
+    rc::Rc,
 };
 
 use cfg_file::ConfigFile;
@@ -171,7 +172,7 @@ fn check_locales_inner(
             warnings,
         )?;
         locale.strings = string_indexer.get_strings();
-        locale.top_locale_string_count = locale.strings.len()
+        locale.top_locale_string_count = locale.strings.len();
     }
 
     default_keys.propagate_string_count(locales);
@@ -181,23 +182,27 @@ fn check_locales_inner(
 
 #[derive(Default)]
 pub struct StringIndexer {
-    current: HashSet<String>,
-    acc: Vec<String>,
+    current: HashSet<Rc<str>>,
+    acc: Vec<Rc<str>>,
 }
 
 impl StringIndexer {
-    pub fn push_str(&mut self, s: String) -> usize {
-        if self.current.contains(&s) {
-            self.acc.iter().position(|i| i == &s).unwrap_or(usize::MAX)
+    pub fn push_str(&mut self, s: &str) -> usize {
+        if self.current.contains(s) {
+            self.acc
+                .iter()
+                .position(|i| &**i == s)
+                .unwrap_or(usize::MAX)
         } else {
             let i = self.acc.len();
+            let s: Rc<str> = Rc::from(s);
             self.acc.push(s.clone());
             self.current.insert(s);
             i
         }
     }
 
-    pub fn get_strings(self) -> Vec<String> {
+    pub fn get_strings(self) -> Vec<Rc<str>> {
         self.acc
     }
 }
