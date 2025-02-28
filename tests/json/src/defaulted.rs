@@ -41,3 +41,11 @@ fn defaulted_foreign_key() {
     let fr = td!(Locale::fr, defaulted_foreign_key);
     assert_eq_rendered!(fr, "before Click to increment the counter after");
 }
+
+#[test]
+fn defaulted_subkeys() {
+    let en = td!(Locale::en, defaulted_subkeys.subkey);
+    assert_eq_rendered!(en, "some string");
+    let fr = td!(Locale::fr, defaulted_subkeys.subkey);
+    assert_eq_rendered!(fr, "some string");
+}
