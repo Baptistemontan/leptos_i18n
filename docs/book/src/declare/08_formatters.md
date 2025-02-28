@@ -99,14 +99,14 @@ Enable the "format_currency" feature to use the number formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the currency formatter: `width` and `country_code`, which are based on [`icu_experimental::dimension::currency::options::Width`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html) and [`icu_experimental::dimension::currency::formatter::CountryCode`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/formatter/struct.CurrencyCode.html).
+There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu_experimental::dimension::currency::options::Width`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html) and [`icu_experimental::dimension::currency::formatter::CurrencyCode`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/formatter/struct.CurrencyCode.html).
 
 `width` values:
 
 - short (default)
 - narrow
 
-`country_code` value should be a [currency code](https://www.iban.com/currency-codes), such as USD or EUR. The USD is the default value.
+`currency_code` value should be a [currency code](https://www.iban.com/currency-codes), such as USD or EUR. The USD is the default value.
 
 ### Example
 
