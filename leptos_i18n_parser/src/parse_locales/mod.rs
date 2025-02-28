@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     path::PathBuf,
     rc::Rc,
 };
@@ -182,22 +182,19 @@ fn check_locales_inner(
 
 #[derive(Default)]
 pub struct StringIndexer {
-    current: HashSet<Rc<str>>,
+    current: HashMap<Rc<str>, usize>,
     acc: Vec<Rc<str>>,
 }
 
 impl StringIndexer {
     pub fn push_str(&mut self, s: &str) -> usize {
-        if self.current.contains(s) {
-            self.acc
-                .iter()
-                .position(|i| &**i == s)
-                .unwrap_or(usize::MAX)
+        if let Some(index) = self.current.get(s) {
+            *index
         } else {
             let i = self.acc.len();
             let s: Rc<str> = Rc::from(s);
             self.acc.push(s.clone());
-            self.current.insert(s);
+            self.current.insert(s, i);
             i
         }
     }
