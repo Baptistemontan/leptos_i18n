@@ -90,5 +90,5 @@ fn currency_formatting() {
     let en = td!(Locale::en, currency_formatting_width, num);
     assert_eq_rendered!(en, "$2000.5");
     let fr = td!(Locale::fr, currency_formatting_width, num);
-    assert_eq_rendered!(fr, "2000.5\u{a0}$");
+    assert_eq_rendered!(fr, "2000.5\u{a0}€");
 }

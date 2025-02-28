@@ -4,7 +4,7 @@ use leptos::component;
 use leptos_i18n::Locale;
 use leptos_router::{components::RouteChildren, ChooseView, MatchNestedRoutes, SsrMode};
 
-#[component]
+#[component(transparent)]
 pub fn I18nRoute<L, View, Chil>(
     /// The base path of this application.
     /// If you setup your i18n route such that the path is `/foo/:locale/bar`,
