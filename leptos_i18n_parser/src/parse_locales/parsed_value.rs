@@ -63,9 +63,8 @@ macro_rules! nested_result_try {
 }
 
 impl Literal {
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
         if let Literal::String(s, index) = self {
-            let s = if CLONE { s.clone() } else { std::mem::take(s) };
             *index = strings.push_str(s);
         }
     }
@@ -582,9 +581,16 @@ impl ParsedValue {
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
-            (value @ ParsedValue::Default, _) => {
+            (value @ ParsedValue::Default, LocaleValue::Subkeys { locales, .. }) => {
+                let default_locale = locales.first().unwrap_at("merge_1");
+                *value = ParsedValue::Subkeys(Some(
+                    default_locale.clone_with_top_locale_name(&top_locale),
+                ));
+                self.merge(def, keys, top_locale, key_path, strings, warnings)
+            }
+            (value @ ParsedValue::Default, LocaleValue::Value(_)) => {
                 *value = def.clone();
-                value.index_strings::<false>(strings);
+                value.index_strings(strings);
                 Ok(())
             }
             // Both subkeys
@@ -592,7 +598,7 @@ impl ParsedValue {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
-                let default_locale = locales.first().unwrap_at("merge_1");
+                let default_locale = locales.first().unwrap_at("merge_2");
                 loc.merge(
                     keys,
                     default_locale,
@@ -605,7 +611,7 @@ impl ParsedValue {
                 Ok(())
             }
             (ParsedValue::Literal(lit), LocaleValue::Value(interpol_or_lit)) => {
-                lit.index_strings::<false>(strings);
+                lit.index_strings(strings);
                 let other_lit_type = match interpol_or_lit {
                     InterpolOrLit::Interpol(_) => return Ok(()),
                     InterpolOrLit::Lit(lit_type) => *lit_type,
@@ -627,7 +633,7 @@ impl ParsedValue {
                 | ParsedValue::ForeignKey(_),
                 LocaleValue::Value(interpol_or_lit),
             ) => {
-                self.index_strings::<false>(strings);
+                self.index_strings(strings);
                 self.get_keys_inner(key_path, interpol_or_lit, false)
             }
 
@@ -744,7 +750,7 @@ impl ParsedValue {
             }
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
             this => {
-                this.index_strings::<true>(strings);
+                this.index_strings(strings);
                 this.get_keys(key_path).map(LocaleValue::Value)
             }
         }
@@ -816,25 +822,31 @@ impl ParsedValue {
         Ok(keys)
     }
 
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
         match self {
             ParsedValue::Literal(lit) => {
-                lit.index_strings::<CLONE>(strings);
+                lit.index_strings(strings);
             }
-            ParsedValue::Ranges(ranges) => ranges.index_strings::<CLONE>(strings),
+            ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
             ParsedValue::Component { inner, .. } => {
-                inner.index_strings::<CLONE>(strings);
+                inner.index_strings(strings);
             }
-            ParsedValue::Plurals(plurals) => plurals.index_strings::<CLONE>(strings),
+            ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
             ParsedValue::Bloc(vec) => {
                 for value in vec {
-                    value.index_strings::<CLONE>(strings);
+                    value.index_strings(strings);
                 }
             }
             ParsedValue::Default
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
             | ParsedValue::Subkeys(_) => {}
+        }
+    }
+
+    pub fn update_top_locale_name(&mut self, top_locale_name: &Key) {
+        if let ParsedValue::Subkeys(Some(locale)) = self {
+            locale.update_top_locale_name(top_locale_name);
         }
     }
 }

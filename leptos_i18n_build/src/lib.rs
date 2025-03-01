@@ -238,14 +238,14 @@ pub struct NamespaceTranslations<'a, L> {
 #[derive(Debug, Clone, Copy)]
 pub struct LocaleTranslations<'a> {
     name: &'a str,
-    strings: &'a [String],
+    strings: &'a [Rc<str>],
 }
 
 /// Formatter for the translations parsed strings
 #[derive(Debug, Clone, Copy)]
 pub struct TranslationsFormatter<'a> {
     #[allow(unused)]
-    strings: &'a [String],
+    strings: &'a [Rc<str>],
 }
 
 impl<N, L> TranslationsType<N, L> {

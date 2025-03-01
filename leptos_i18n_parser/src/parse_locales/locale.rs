@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use super::cfg_file::ConfigFile;
 use super::error::{Error, Result};
@@ -87,7 +88,7 @@ pub struct Locale {
     pub top_locale_name: Key,
     pub name: Key,
     pub keys: BTreeMap<Key, ParsedValue>,
-    pub strings: Vec<String>,
+    pub strings: Vec<Rc<str>>,
     pub top_locale_string_count: usize,
 }
 
@@ -148,6 +149,7 @@ pub enum LocaleValue {
 #[derive(Default, Debug)]
 pub struct BuildersKeysInner(pub BTreeMap<Key, LocaleValue>);
 
+#[derive(Debug)]
 pub enum BuildersKeys {
     NameSpaces {
         namespaces: Vec<Namespace>,
@@ -582,7 +584,7 @@ impl Locale {
                 }
                 Entry::Occupied(entry) => entry.into_mut(),
             };
-            value.merge(def, keys, self.name.clone(), key_path, strings, warnings)?;
+            value.merge(def, keys, top_locale.clone(), key_path, strings, warnings)?;
             key_path.pop_key();
         }
 
@@ -615,6 +617,19 @@ impl Locale {
             keys.0.insert(key, locale_value);
         }
         Ok(keys)
+    }
+
+    pub fn update_top_locale_name(&mut self, top_locale_name: &Key) {
+        self.top_locale_name = top_locale_name.clone();
+        for value in self.keys.values_mut() {
+            value.update_top_locale_name(top_locale_name);
+        }
+    }
+
+    pub fn clone_with_top_locale_name(&self, top_locale_name: &Key) -> Self {
+        let mut this = self.clone();
+        this.update_top_locale_name(top_locale_name);
+        this
     }
 }
 

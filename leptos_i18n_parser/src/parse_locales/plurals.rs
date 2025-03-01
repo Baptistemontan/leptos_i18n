@@ -246,11 +246,11 @@ impl Plurals {
         self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
     }
 
-    pub fn index_strings<const CLONE: bool>(&mut self, strings: &mut StringIndexer) {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
         for form in self.forms.values_mut() {
-            form.index_strings::<CLONE>(strings);
+            form.index_strings(strings);
         }
-        self.other.index_strings::<CLONE>(strings);
+        self.other.index_strings(strings);
     }
 }
 
