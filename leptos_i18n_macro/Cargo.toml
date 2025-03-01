@@ -31,7 +31,7 @@ tinystr = { workspace = true }
 [features]
 default = ["json_files"]
 nightly = []
-suppress_key_warnings = []
+suppress_key_warnings = ["leptos_i18n_parser/suppress_key_warnings"]
 json_files = ["leptos_i18n_parser/json_files"]
 yaml_files = ["dep:serde_yaml", "leptos_i18n_parser/yaml_files"]
 json5_files = ["dep:json5", "leptos_i18n_parser/json5_files"]
