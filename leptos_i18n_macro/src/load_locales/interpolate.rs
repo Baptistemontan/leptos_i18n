@@ -135,7 +135,7 @@ impl Field {
             VarOrComp::Comp { into_view } => {
                 let ts = [
                     quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>),
-                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + Clone + 'static),
+                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + 'static),
                 ];
                 EitherIter::Iter2(ts.into_iter())
             }

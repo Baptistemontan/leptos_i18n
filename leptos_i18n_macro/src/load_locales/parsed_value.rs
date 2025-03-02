@@ -103,9 +103,11 @@ fn flatten(
                 #captured_keys
                 move || #inner
             });
-            let boxed_fn =
-                quote!(l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f));
-            tokens.push(quote!(core::clone::Clone::clone(&#key)(#boxed_fn)));
+            tokens.push(quote!({
+                let __boxed_children_fn = l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f);
+                let #key = core::clone::Clone::clone(&#key);
+                move || #key(core::clone::Clone::clone(&__boxed_children_fn))
+            }));
         }
         ParsedValue::Bloc(values) => {
             for value in values {
