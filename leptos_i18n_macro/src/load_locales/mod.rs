@@ -13,14 +13,10 @@ use icu_locid::LanguageIdentifier;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
-        cfg_file::ConfigFile,
-        error::{Error, Result},
-        locale::{
+        cfg_file::ConfigFile, error::{Error, Result}, locale::{
             BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
             LocalesOrNamespaces, Namespace,
-        },
-        warning::Warnings,
-        ForeignKeysPaths,
+        }, parsed_value::ParsedValue, warning::Warnings, ForeignKeysPaths
     },
     utils::{
         key::{Key, KeyPath},
@@ -593,14 +589,17 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     let literal_keys = keys
         .iter()
         .filter_map(|(key, value)| match value {
-            LocaleValue::Value(InterpolOrLit::Lit(t)) => Some((key.clone(), LiteralType::from(*t))),
+            LocaleValue::Value{
+                value: InterpolOrLit::Lit(t),
+                defaults,
+            } => Some((key, LiteralType::from(*t), defaults)),
             _ => None,
         })
         .collect::<Vec<_>>();
 
     let literal_accessors = literal_keys
         .iter()
-        .map(|(key, literal_type)| {
+        .map(|(key, literal_type, defaults)| {
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
@@ -626,33 +625,41 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 }
             } else {
-                let match_arms = locales.iter().map(|locale| {
-                    let ident = &locale.top_locale_name;
-                    let accessor = strings_accessor_method_name(locale);
+                let match_arms = locales.iter().filter_map(|locale| {
                     let lit = locale
                         .keys
                         .get(key)
                         .unwrap_at("create_locale_type_inner_1");
+                    if matches!(lit, ParsedValue::Default) {
+                        return None;
+                    }
+                    let ident = &locale.top_locale_name;
+                    let accessor = strings_accessor_method_name(locale);
+                    let defaulted = defaults.get(&locale.top_locale_name).map(|defaulted_locales| {
+                        defaulted_locales.iter().map(|key| {
+                            quote!(| #enum_ident::#key)
+                        }).collect::<TokenStream>()
+                    });
                     let lit = parsed_value::to_token_stream(lit, locale.top_locale_string_count);
-                    if *literal_type == LiteralType::String {
+                    let ts = if *literal_type == LiteralType::String {
                         let strings_count = locale.top_locale_string_count;
                         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                             quote! {
-                                #enum_ident::#ident => {
+                                #enum_ident::#ident #defaulted => {
                                     let #translations_key: &'static [Box<str>; #strings_count] = #type_ident::#accessor().await;
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
                             }
                         } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                             quote! {
-                                #enum_ident::#ident => {
+                                #enum_ident::#ident #defaulted => {
                                     let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapperFut::new_not_fut(#lit)
                                 }
                             }
                         } else {
                             quote! {
-                                #enum_ident::#ident => {
+                                #enum_ident::#ident #defaulted => {
                                     const #translations_key: &[&str; #strings_count] = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
@@ -660,17 +667,18 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         }
                     } else if cfg!(feature = "dynamic_load") {
                         quote! {
-                            #enum_ident::#ident => {
+                            #enum_ident::#ident #defaulted => {
                                 l_i18n_crate::__private::LitWrapperFut::new_not_fut(#lit)
                             }
                         }
                     } else {
                         quote! {
-                            #enum_ident::#ident => {
+                            #enum_ident::#ident #defaulted => {
                                 l_i18n_crate::__private::LitWrapper::new(#lit)
                             }
                         }
-                    }
+                    };
+                    Some(ts)
                 });
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
@@ -773,7 +781,10 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     let builders = keys
         .iter()
         .filter_map(|(key, value)| match value {
-            LocaleValue::Value(InterpolOrLit::Interpol(keys)) => Some((
+            LocaleValue::Value {
+                value: InterpolOrLit::Interpol(keys),
+                defaults
+             } => Some((
                 key,
                 Interpolation::new(
                     key,
@@ -783,6 +794,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     key_path,
                     type_ident,
                     interpolate_display,
+                    defaults
                 ),
             )),
             _ => None,

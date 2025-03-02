@@ -10,7 +10,7 @@ use crate::utils::{formatter::Formatter, Key, KeyPath, UnwrapAt};
 use super::{
     error::{Error, Result},
     locale::{
-        InterpolOrLit, InterpolationKeys, LiteralType, Locale, LocaleSeed, LocaleValue,
+        DefaultTo, InterpolOrLit, InterpolationKeys, LiteralType, Locale, LocaleSeed, LocaleValue,
         LocalesOrNamespaces, RangeOrPlural,
     },
     plurals::Plurals,
@@ -570,27 +570,44 @@ impl ParsedValue {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn merge(
         &mut self,
-        def: &Self,
         keys: &mut LocaleValue,
         top_locale: Key,
+        default_to: DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
-            (value @ ParsedValue::Default, LocaleValue::Subkeys { locales, .. }) => {
+            (this @ ParsedValue::Default, LocaleValue::Subkeys { locales, keys }) => {
                 let default_locale = locales.first().unwrap_at("merge_1");
-                *value = ParsedValue::Subkeys(Some(
-                    default_locale.clone_with_top_locale_name(&top_locale),
-                ));
-                self.merge(def, keys, top_locale, key_path, strings, warnings)
+                let dummy_keys = default_locale
+                    .keys
+                    .keys()
+                    .cloned()
+                    .map(|k| (k, ParsedValue::Default))
+                    .collect();
+                let mut dummy_local = Locale {
+                    top_locale_name: top_locale.clone(),
+                    name: default_locale.name.clone(),
+                    keys: dummy_keys,
+                    strings: vec![],
+                    top_locale_string_count: 0,
+                };
+                *this = ParsedValue::Subkeys(None);
+
+                dummy_local.merge(keys, top_locale, default_to, key_path, strings, warnings)?;
+                locales.push(dummy_local);
+                Ok(())
             }
-            (value @ ParsedValue::Default, LocaleValue::Value(_)) => {
-                *value = def.clone();
-                value.index_strings(strings);
+            (ParsedValue::Default, LocaleValue::Value { defaults, .. }) => {
+                defaults
+                    .entry(default_to.get_key())
+                    .or_default()
+                    .insert(top_locale);
                 Ok(())
             }
             // Both subkeys
@@ -598,19 +615,17 @@ impl ParsedValue {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
-                let default_locale = locales.first().unwrap_at("merge_2");
-                loc.merge(
-                    keys,
-                    default_locale,
-                    top_locale,
-                    key_path,
-                    strings,
-                    warnings,
-                )?;
+                loc.merge(keys, top_locale, default_to, key_path, strings, warnings)?;
                 locales.push(loc);
                 Ok(())
             }
-            (ParsedValue::Literal(lit), LocaleValue::Value(interpol_or_lit)) => {
+            (
+                ParsedValue::Literal(lit),
+                LocaleValue::Value {
+                    value: interpol_or_lit,
+                    ..
+                },
+            ) => {
                 lit.index_strings(strings);
                 let other_lit_type = match interpol_or_lit {
                     InterpolOrLit::Interpol(_) => return Ok(()),
@@ -631,7 +646,10 @@ impl ParsedValue {
                 | ParsedValue::Variable { .. }
                 | ParsedValue::Plurals(_)
                 | ParsedValue::ForeignKey(_),
-                LocaleValue::Value(interpol_or_lit),
+                LocaleValue::Value {
+                    value: interpol_or_lit,
+                    ..
+                },
             ) => {
                 self.index_strings(strings);
                 self.get_keys_inner(key_path, interpol_or_lit, false)
@@ -751,7 +769,10 @@ impl ParsedValue {
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
             this => {
                 this.index_strings(strings);
-                this.get_keys(key_path).map(LocaleValue::Value)
+                this.get_keys(key_path).map(|value| LocaleValue::Value {
+                    value,
+                    defaults: Default::default(),
+                })
             }
         }
     }
