@@ -6,7 +6,7 @@ use std::{
 };
 
 use cfg_file::ConfigFile;
-use locale::{BuildersKeys, BuildersKeysInner, Locale, LocalesOrNamespaces};
+use locale::{BuildersKeys, BuildersKeysInner, DefaultTo, Locale, LocalesOrNamespaces};
 
 pub mod cfg_file;
 pub mod error;
@@ -165,8 +165,8 @@ fn check_locales_inner(
         let mut string_indexer = StringIndexer::default();
         locale.merge(
             &mut default_keys,
-            default_locale,
             top_locale,
+            DefaultTo::Implicit(&default_locale.top_locale_name),
             &mut key_path,
             &mut string_indexer,
             warnings,

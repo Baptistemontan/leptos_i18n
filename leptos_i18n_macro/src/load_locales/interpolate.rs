@@ -1,5 +1,9 @@
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+
 use leptos_i18n_parser::parse_locales::locale::InterpolationKeys;
 use leptos_i18n_parser::parse_locales::locale::Locale;
+use leptos_i18n_parser::parse_locales::parsed_value::ParsedValue;
 use leptos_i18n_parser::utils::Key;
 use leptos_i18n_parser::utils::KeyPath;
 use leptos_i18n_parser::utils::UnwrapAt;
@@ -238,6 +242,7 @@ impl Interpolation {
         fields
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         key: &Key,
         enum_ident: &syn::Ident,
@@ -246,7 +251,19 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         interpolate_display: bool,
+        defaults: &BTreeMap<Key, BTreeSet<Key>>,
     ) -> Self {
+        // filter defaulted locales
+        let locales = locales
+            .iter()
+            .filter(|locale| {
+                locale
+                    .keys
+                    .get(key)
+                    .is_some_and(|v| !matches!(v, ParsedValue::Default))
+            })
+            .collect::<Vec<_>>();
+
         let builder_name = format!("{}_builder", key);
 
         let ident = syn::Ident::new(&builder_name, Span::call_site());
@@ -287,9 +304,10 @@ impl Interpolation {
             enum_ident,
             &locale_field,
             &fields,
-            locales,
+            &locales,
             key_path,
             locale_type_ident,
+            defaults,
         );
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
@@ -302,8 +320,9 @@ impl Interpolation {
                 enum_ident,
                 &locale_field,
                 &fields,
-                locales,
+                &locales,
                 locale_type_ident,
+                defaults,
             );
             let builder_display = Self::builder_string_build_fns(
                 enum_ident,
@@ -547,8 +566,9 @@ impl Interpolation {
         enum_ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-        locales: &[Locale],
+        locales: &[&Locale],
         locale_type_ident: &syn::Ident,
+        defaults: &BTreeMap<Key, BTreeSet<Key>>,
     ) -> TokenStream {
         let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
 
@@ -569,6 +589,7 @@ impl Interpolation {
             &translations_holder_enum_ident,
             locales,
             locale_type_ident,
+            defaults,
         );
 
         let str_name = display_struct_ident.to_string();
@@ -601,11 +622,16 @@ impl Interpolation {
 
         let new_fn = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             let match_arms = locales.iter().map(|locale| {
+                let defaulted = defaults.get(&locale.top_locale_name).map(|defaulted_locales| {
+                    defaulted_locales.iter().map(|key| {
+                        quote!(| #enum_ident::#key)
+                    }).collect::<TokenStream>()
+                });
                 let top_locale = &locale.top_locale_name.ident;
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
                 quote! {
-                    #enum_ident::#top_locale => {
+                    #enum_ident::#top_locale #defaulted => {
                         let translations: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
                         #translations_holder_enum_ident::#top_locale(translations)
                     }
@@ -669,9 +695,10 @@ impl Interpolation {
         enum_ident: &syn::Ident,
         locale_field: &Key,
         fields: &[Field],
-        locales: &[Locale],
+        locales: &[&Locale],
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
+        defaults: &BTreeMap<Key, BTreeSet<Key>>,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -694,7 +721,8 @@ impl Interpolation {
 
         let destructure = quote!(let Self { #(#fields_key,)* #locale_field, .. } = self;);
 
-        let locales_impls = Self::create_locale_impl(key, enum_ident, locales, locale_type_ident);
+        let locales_impls =
+            Self::create_locale_impl(key, enum_ident, locales, locale_type_ident, defaults);
         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
                 #[allow(non_camel_case_types)]
@@ -729,8 +757,9 @@ impl Interpolation {
     fn create_locale_impl<'a>(
         key: &'a Key,
         enum_ident: &'a syn::Ident,
-        locales: &'a [Locale],
+        locales: &'a [&Locale],
         locale_type_ident: &'a syn::Ident,
+        defaults: &'a BTreeMap<Key, BTreeSet<Key>>,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         let either_wrapper = EitherOfWrapper::new(locales.len());
         locales
@@ -753,23 +782,30 @@ impl Interpolation {
 
                 let string_accessor = strings_accessor_method_name(locale);
                 let strings_count = locale.top_locale_string_count;
+
+                let defaulted = defaults.get(&locale.top_locale_name).map(|defaulted_locales| {
+                    defaulted_locales.iter().map(|key| {
+                        quote!(| #enum_ident::#key)
+                    }).collect::<TokenStream>()
+                });
+
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
-                        #enum_ident::#locale_key => {
+                        #enum_ident::#locale_key #defaulted => {
                             let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
                             #wrapped_value
                         }
                     }
                 } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                     quote!{
-                        #enum_ident::#locale_key => {
+                        #enum_ident::#locale_key #defaulted => {
                             let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
                     }
                 } else {
                     quote!{
-                        #enum_ident::#locale_key => {
+                        #enum_ident::#locale_key #defaulted => {
                             const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
@@ -781,8 +817,9 @@ impl Interpolation {
     fn create_locale_string_impl<'a>(
         key: &'a Key,
         enum_ident: &'a syn::Ident,
-        locales: &'a [Locale],
+        locales: &'a [&Locale],
         locale_type_ident: &'a syn::Ident,
+        defaults: &'a BTreeMap<Key, BTreeSet<Key>>,
     ) -> impl Iterator<Item = TokenStream> + 'a {
         locales.iter().rev().map(move |locale| {
             let locale_key = &locale.top_locale_name;
@@ -798,6 +835,12 @@ impl Interpolation {
             let string_accessor = strings_accessor_method_name(locale);
             let strings_count = locale.top_locale_string_count;
 
+            let defaulted = defaults.get(&locale.top_locale_name).map(|defaulted_locales| {
+                defaulted_locales.iter().map(|key| {
+                    quote!(| #enum_ident::#key)
+                }).collect::<TokenStream>()
+            });
+
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 quote!{
                     #enum_ident::#locale_key(#translations_key) => {
@@ -806,14 +849,14 @@ impl Interpolation {
                 }
             } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                 quote!{
-                    #enum_ident::#locale_key => {
+                    #enum_ident::#locale_key #defaulted => {
                         let #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }
                 }
             }else {
                 quote!{
-                    #enum_ident::#locale_key => {
+                    #enum_ident::#locale_key #defaulted => {
                         const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }

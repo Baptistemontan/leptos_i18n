@@ -139,7 +139,10 @@ pub enum InterpolOrLit {
 
 #[derive(Debug)]
 pub enum LocaleValue {
-    Value(InterpolOrLit),
+    Value {
+        value: InterpolOrLit,
+        defaults: BTreeMap<Key, BTreeSet<Key>>,
+    },
     Subkeys {
         locales: Vec<Locale>,
         keys: BuildersKeysInner,
@@ -167,6 +170,20 @@ pub struct LocaleSeed<'a> {
     pub top_locale_name: Key,
     pub key_path: KeyPath,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum DefaultTo<'a> {
+    Explicit(&'a Key),
+    Implicit(&'a Key),
+}
+
+impl DefaultTo<'_> {
+    pub fn get_key(self) -> Key {
+        match self {
+            DefaultTo::Explicit(key) | DefaultTo::Implicit(key) => key.clone(),
+        }
+    }
 }
 
 fn find_file(path: &mut PathBuf) -> Result<File> {
@@ -271,7 +288,7 @@ impl InterpolationKeys {
 impl BuildersKeysInner {
     pub fn propagate_string_count(&mut self, top_locales: &[Locale]) {
         for value in self.0.values_mut() {
-            if let LocaleValue::Subkeys { locales, keys } = value {
+            if let LocaleValue::Subkeys { locales, keys, .. } = value {
                 for (locale, top_locale) in locales.iter_mut().zip(top_locales) {
                     locale.top_locale_string_count = top_locale.top_locale_string_count;
                 }
@@ -561,30 +578,39 @@ impl Locale {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn merge(
         &mut self,
         keys: &mut BuildersKeysInner,
-        default_locale: &Self,
         top_locale: Key,
+        default_to: DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             key_path.push_key(key.clone());
-            let def = default_locale.keys.get(key).unwrap_at("merge_1");
             let entry = self.keys.entry(key.clone());
             let value = match entry {
                 Entry::Vacant(entry) => {
-                    warnings.emit_warning(Warning::MissingKey {
-                        locale: top_locale.clone(),
-                        key_path: key_path.clone(),
-                    });
+                    if matches!(default_to, DefaultTo::Implicit(_)) {
+                        warnings.emit_warning(Warning::MissingKey {
+                            locale: top_locale.clone(),
+                            key_path: key_path.clone(),
+                        });
+                    }
                     entry.insert(ParsedValue::Default)
                 }
                 Entry::Occupied(entry) => entry.into_mut(),
             };
-            value.merge(def, keys, top_locale.clone(), key_path, strings, warnings)?;
+            value.merge(
+                keys,
+                top_locale.clone(),
+                default_to,
+                key_path,
+                strings,
+                warnings,
+            )?;
             key_path.pop_key();
         }
 
