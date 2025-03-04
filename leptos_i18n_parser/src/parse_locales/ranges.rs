@@ -211,10 +211,10 @@ impl<T: RangeNumber> Range<T> {
             if let Some(start) = start {
                 match end {
                     Bound::Excluded(end) if end <= start => {
-                        return Err(Error::ImpossibleRange(s.to_string()))
+                        return Err(Error::ImpossibleRange(s.to_string()).into())
                     }
                     Bound::Included(end) if end < start => {
-                        return Err(Error::ImpossibleRange(s.to_string()))
+                        return Err(Error::ImpossibleRange(s.to_string()).into())
                     }
                     _ => {}
                 }
@@ -222,7 +222,7 @@ impl<T: RangeNumber> Range<T> {
 
             Ok(Self::Bounds { start, end })
         } else {
-            parse(s).map(Self::Exact)
+            parse(s).map(Self::Exact).map_err(Box::new)
         }
     }
 }
@@ -481,12 +481,14 @@ impl Ranges {
             key_path: &KeyPath,
             foreign_key: &KeyPath,
         ) -> Result<U> {
-            TryFrom::try_from(count).map_err(|err| Error::CountArgOutsideRange {
-                locale: locale.clone(),
-                key_path: key_path.to_owned(),
-                foreign_key: foreign_key.to_owned(),
-                err,
-            })
+            TryFrom::try_from(count)
+                .map_err(|err| Error::CountArgOutsideRange {
+                    locale: locale.clone(),
+                    key_path: key_path.to_owned(),
+                    foreign_key: foreign_key.to_owned(),
+                    err,
+                })
+                .map_err(Box::new)
         }
         match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
@@ -504,7 +506,8 @@ impl Ranges {
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::F64,
                         range_type: self.get_type(),
-                    }),
+                    }
+                    .into()),
                 }
             }
             ParsedValue::Literal(Literal::Unsigned(count)) => {
@@ -575,7 +578,8 @@ impl Ranges {
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::U64,
                         range_type: self.get_type(),
-                    }),
+                    }
+                    .into()),
                 }
             }
             ParsedValue::Literal(Literal::Signed(count)) => {
@@ -646,7 +650,8 @@ impl Ranges {
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::I64,
                         range_type: self.get_type(),
-                    }),
+                    }
+                    .into()),
                 }
             }
             ParsedValue::Bloc(values) => {
@@ -660,7 +665,8 @@ impl Ranges {
                 locale: locale.clone(),
                 key_path: key_path.to_owned(),
                 foreign_key: foreign_key.to_owned(),
-            }),
+            }
+            .into()),
         }
     }
 

@@ -33,7 +33,7 @@ impl Key {
     }
 
     pub fn try_new(name: &str) -> Result<Self> {
-        Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()))
+        Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()).into())
     }
 
     #[cfg(feature = "quote")]

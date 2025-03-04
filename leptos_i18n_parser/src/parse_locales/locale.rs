@@ -203,15 +203,15 @@ fn find_file(path: &mut PathBuf) -> Result<File> {
 
     #[allow(clippy::const_is_empty)]
     if !FILE_EXTS.is_empty() {
-        Err(Error::LocaleFileNotFound(errs))
+        Err(Error::LocaleFileNotFound(errs).into())
     } else if cfg!(any(
         feature = "json_files",
         feature = "yaml_files",
         feature = "json5_files"
     )) {
-        Err(Error::MultipleFilesFormats)
+        Err(Error::MultipleFilesFormats.into())
     } else {
-        Err(Error::NoFileFormats)
+        Err(Error::NoFileFormats.into())
     }
 }
 
@@ -258,14 +258,16 @@ impl InterpolationKeys {
             | (Some(RangeOrPlural::Range(_)), RangeOrPlural::Plural) => {
                 Err(Error::RangeAndPluralsMix {
                     key_path: std::mem::take(key_path),
-                })
+                }
+                .into())
             }
             (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) => {
                 Err(Error::RangeTypeMissmatch {
                     key_path: std::mem::take(key_path),
                     type1: old,
                     type2: new,
-                })
+                }
+                .into())
             }
         }
     }
@@ -457,10 +459,12 @@ impl Locale {
 
     fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
         let reader = BufReader::new(locale_file);
-        de_inner(reader, seed).map_err(|err| Error::LocaleFileDeser {
-            path: std::mem::take(path),
-            err,
-        })
+        de_inner(reader, seed)
+            .map_err(|err| Error::LocaleFileDeser {
+                path: std::mem::take(path),
+                err,
+            })
+            .map_err(Box::new)
     }
 
     pub fn get_value_at(&self, path: &[Key]) -> Option<&'_ ParsedValue> {
@@ -541,7 +545,8 @@ impl Locale {
                 return Err(Error::DisabledPlurals {
                     locale: locale.clone(),
                     key_path: std::mem::take(key_path),
-                });
+                }
+                .into());
             }
 
             let forms = plurals
@@ -553,7 +558,8 @@ impl Locale {
                         Err(Error::ConflictingPluralRuleType {
                             locale: locale.clone(),
                             key_path: std::mem::take(key_path),
-                        })
+                        }
+                        .into())
                     }
                 })
                 .collect::<Result<BTreeMap<_, _>>>()?;
@@ -571,7 +577,8 @@ impl Locale {
                 return Err(Error::PluralsAtNormalKey {
                     locale,
                     key_path: std::mem::take(key_path),
-                });
+                }
+                .into());
             }
         }
 

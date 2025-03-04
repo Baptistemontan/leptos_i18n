@@ -23,7 +23,7 @@ impl ConfigFile {
 
         let Some((before, i18n_cfg)) = cfg_file_str.split_once("[package.metadata.leptos-i18n]")
         else {
-            return Err(Error::ConfigNotPresent);
+            return Err(Error::ConfigNotPresent.into());
         };
 
         // this is to have the correct line number in the reported error.
@@ -46,13 +46,13 @@ impl ConfigFile {
         }
 
         if let Some(duplicates) = Self::contain_duplicates(&cfg.locales) {
-            Err(Error::DuplicateLocalesInConfig(duplicates))
+            Err(Error::DuplicateLocalesInConfig(duplicates).into())
         } else if let Some(duplicates) = cfg
             .name_spaces
             .as_deref()
             .and_then(Self::contain_duplicates)
         {
-            Err(Error::DuplicateNamespacesInConfig(duplicates))
+            Err(Error::DuplicateNamespacesInConfig(duplicates).into())
         } else {
             Ok(cfg)
         }

@@ -172,12 +172,14 @@ impl ParsedValue {
                 name: name.to_string(),
                 locale: locale.clone(),
                 key_path: key_path.clone(),
-            }),
+            }
+            .into()),
             Err(formatter) => Err(Error::DisabledFormatter {
                 formatter,
                 locale: locale.clone(),
                 key_path: key_path.clone(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -211,7 +213,8 @@ impl ParsedValue {
                     locale: locale.clone(),
                     key_path: key_path.clone(),
                     err,
-                })
+                }
+                .into())
             }
         };
         let mut parsed_args = BTreeMap::new();
@@ -248,7 +251,8 @@ impl ParsedValue {
                                 locale: locale.clone(),
                                 key_path: key_path.clone(),
                                 message: "malformed foreign key".to_string(),
-                            })
+                            }
+                            .into())
                         }
                     };
                     if depth == 0 {
@@ -267,7 +271,8 @@ impl ParsedValue {
                 locale: locale.clone(),
                 key_path: key_path.clone(),
                 message: "malformed foreign key".to_string(),
-            });
+            }
+            .into());
         };
 
         let args =
@@ -450,7 +455,8 @@ impl ParsedValue {
                 foreign_key: foreign_key_path.to_owned(),
                 locale: top_locale.clone(),
                 key_path: key_path.to_owned(),
-            });
+            }
+            .into());
         };
 
         if matches!(value, ParsedValue::Default) {
@@ -459,7 +465,7 @@ impl ParsedValue {
             // this case happen if a foreign key point to an explicit default in the default locale
             // pretty niche, but would cause a rustc stack overflow if not done.
             if top_locale == default_locale {
-                return Err(Error::ExplicitDefaultInDefault(key_path.to_owned()));
+                return Err(Error::ExplicitDefaultInDefault(key_path.to_owned()).into());
             } else {
                 return Self::resolve_foreign_key_inner(
                     foreign_key,
@@ -513,7 +519,8 @@ impl ParsedValue {
                     return Err(Error::RecursiveForeignKey {
                         locale: top_locale.clone(),
                         key_path: path.to_owned(),
-                    });
+                    }
+                    .into());
                 };
 
                 Self::resolve_foreign_key_inner(
@@ -566,7 +573,8 @@ impl ParsedValue {
                 foreign_key: foreign_key.to_owned(),
                 locale: locale.clone(),
                 key_path: key_path.to_owned(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -659,7 +667,8 @@ impl ParsedValue {
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
                 key_path: std::mem::take(key_path),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -766,7 +775,9 @@ impl ParsedValue {
                     locales: vec![locale],
                 })
             }
-            ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path))),
+            ParsedValue::Default => {
+                Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path)).into())
+            }
             this => {
                 this.index_strings(strings);
                 this.get_keys(key_path).map(|value| LocaleValue::Value {
