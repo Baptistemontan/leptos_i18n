@@ -173,7 +173,13 @@ fn check_locales_inner(
 
         let default_to = match extensions.get(&top_locale) {
             Some(default_to) => DefaultTo::Explicit(default_to),
-            None => DefaultTo::Implicit(&default_locale.top_locale_name),
+            None => {
+                if cfg!(feature = "suppress_key_warnings") {
+                    DefaultTo::Explicit(&default_locale.top_locale_name)
+                } else {
+                    DefaultTo::Implicit(&default_locale.top_locale_name)
+                }
+            }
         };
 
         locale.merge(
