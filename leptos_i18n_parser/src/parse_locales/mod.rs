@@ -27,6 +27,7 @@ fn get_manifest_dir() -> Result<PathBuf> {
     std::env::var("CARGO_MANIFEST_DIR")
         .map(Into::into)
         .map_err(Error::CargoDirEnvNotPresent)
+        .map_err(Box::new)
 }
 
 fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {

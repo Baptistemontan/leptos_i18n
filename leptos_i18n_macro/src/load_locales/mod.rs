@@ -69,7 +69,7 @@ fn load_locales_inner(
     interpolate_display: bool,
 ) -> Result<TokenStream> {
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
-        return Err(Error::MissingTranslationsURI);
+        return Err(Error::MissingTranslationsURI.into());
     }
 
     let keys = leptos_i18n_parser::parse_locales::make_builder_keys(
@@ -401,7 +401,7 @@ fn create_locales_enum(
             Err(err) => Err(Error::InvalidLocale {
                 locale: locale.name.clone(),
                 err,
-            }),
+            }.into()),
         })
         .collect::<Result<Vec<_>>>()?;
 
