@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+use leptos_i18n_parser::parse_locales::locale::DefaultedLocales;
 use leptos_i18n_parser::parse_locales::locale::InterpolationKeys;
 use leptos_i18n_parser::parse_locales::locale::Locale;
 use leptos_i18n_parser::parse_locales::parsed_value::ParsedValue;
@@ -251,7 +252,7 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         interpolate_display: bool,
-        defaults: &BTreeMap<Key, BTreeSet<Key>>,
+        defaults: &DefaultedLocales,
     ) -> Self {
         // filter defaulted locales
         let locales = locales
@@ -275,6 +276,8 @@ impl Interpolation {
 
         let typed_builder_name = format_ident!("{}Builder", ident);
         let display_struct_ident = format_ident!("{}Display", ident);
+
+        let computed_defaults = defaults.compute();
 
         let fields = Self::make_fields(keys);
 
@@ -307,7 +310,7 @@ impl Interpolation {
             &locales,
             key_path,
             locale_type_ident,
-            defaults,
+            &computed_defaults,
         );
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
@@ -322,7 +325,7 @@ impl Interpolation {
                 &fields,
                 &locales,
                 locale_type_ident,
-                defaults,
+                &computed_defaults,
             );
             let builder_display = Self::builder_string_build_fns(
                 enum_ident,

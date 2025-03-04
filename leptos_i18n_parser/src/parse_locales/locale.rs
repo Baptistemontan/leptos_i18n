@@ -3,7 +3,7 @@ use serde::de::MapAccess;
 use crate::utils::formatter::{Formatter, SKIP_ICU_CFG};
 use crate::utils::{Key, KeyPath, UnwrapAt};
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -138,10 +138,60 @@ pub enum InterpolOrLit {
 }
 
 #[derive(Debug)]
+pub struct DefaultedLocales {
+    default_locale: Key,
+    mapping: BTreeMap<Key, Key>,
+}
+
+impl DefaultedLocales {
+    pub fn new(default_locale: Key) -> Self {
+        DefaultedLocales {
+            default_locale,
+            mapping: Default::default(),
+        }
+    }
+
+    pub fn push(&mut self, key: Key, default_to: Key) {
+        self.mapping.insert(key, default_to);
+    }
+
+    pub fn default_of<'a>(&'a self, key: &'a Key) -> &'a Key {
+        let mut visited = HashSet::new();
+        self.default_of_inner(key, &mut visited)
+    }
+
+    fn default_of_inner<'a>(&'a self, key: &'a Key, visited: &mut HashSet<&'a Key>) -> &'a Key {
+        let mut current_key = key;
+        while let Some(key) = self.mapping.get(current_key) {
+            visited.insert(current_key);
+            if visited.contains(key) {
+                return &self.default_locale;
+            }
+            current_key = key;
+        }
+        current_key
+    }
+
+    pub fn compute(&self) -> BTreeMap<Key, BTreeSet<Key>> {
+        let mut defaults: BTreeMap<Key, BTreeSet<Key>> = BTreeMap::new();
+        let mut visited = HashSet::new();
+        for key in self.mapping.keys() {
+            visited.clear();
+            let default_to = self.default_of_inner(key, &mut visited);
+            defaults
+                .entry(default_to.clone())
+                .or_default()
+                .insert(key.clone());
+        }
+        defaults
+    }
+}
+
+#[derive(Debug)]
 pub enum LocaleValue {
     Value {
         value: InterpolOrLit,
-        defaults: BTreeMap<Key, BTreeSet<Key>>,
+        defaults: DefaultedLocales,
     },
     Subkeys {
         locales: Vec<Locale>,
@@ -638,7 +688,7 @@ impl Locale {
         for (key, value) in &mut self.keys {
             value.reduce();
             key_path.push_key(key.clone());
-            let locale_value = value.make_locale_value(key_path, strings)?;
+            let locale_value = value.make_locale_value(&self.top_locale_name, key_path, strings)?;
             let key = key_path.pop_key().unwrap_at("make_builder_keys_1");
             keys.0.insert(key, locale_value);
         }

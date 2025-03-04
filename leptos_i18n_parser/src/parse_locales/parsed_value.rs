@@ -10,8 +10,8 @@ use crate::utils::{formatter::Formatter, Key, KeyPath, UnwrapAt};
 use super::{
     error::{Error, Result},
     locale::{
-        DefaultTo, InterpolOrLit, InterpolationKeys, LiteralType, Locale, LocaleSeed, LocaleValue,
-        LocalesOrNamespaces, RangeOrPlural,
+        DefaultTo, DefaultedLocales, InterpolOrLit, InterpolationKeys, LiteralType, Locale,
+        LocaleSeed, LocaleValue, LocalesOrNamespaces, RangeOrPlural,
     },
     plurals::Plurals,
     ranges::Ranges,
@@ -604,10 +604,7 @@ impl ParsedValue {
                 Ok(())
             }
             (ParsedValue::Default, LocaleValue::Value { defaults, .. }) => {
-                defaults
-                    .entry(default_to.get_key())
-                    .or_default()
-                    .insert(top_locale);
+                defaults.push(top_locale, default_to.get_key());
                 Ok(())
             }
             // Both subkeys
@@ -752,6 +749,7 @@ impl ParsedValue {
 
     pub fn make_locale_value(
         &mut self,
+        default_locale: &Key,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
     ) -> Result<LocaleValue> {
@@ -771,7 +769,7 @@ impl ParsedValue {
                 this.index_strings(strings);
                 this.get_keys(key_path).map(|value| LocaleValue::Value {
                     value,
-                    defaults: Default::default(),
+                    defaults: DefaultedLocales::new(default_locale.clone()),
                 })
             }
         }
