@@ -600,6 +600,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     let literal_accessors = literal_keys
         .iter()
         .map(|(key, literal_type, defaults)| {
+            let computed_defaults= defaults.compute();
             if cfg!(feature = "show_keys_only") {
                 let key_str = key_path.to_string_with_key(key);
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
@@ -635,7 +636,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                     let ident = &locale.top_locale_name;
                     let accessor = strings_accessor_method_name(locale);
-                    let defaulted = defaults.get(&locale.top_locale_name).map(|defaulted_locales| {
+                    let defaulted = computed_defaults.get(&locale.top_locale_name).map(|defaulted_locales| {
                         defaulted_locales.iter().map(|key| {
                             quote!(| #enum_ident::#key)
                         }).collect::<TokenStream>()
