@@ -231,6 +231,6 @@ impl Display for Error {
     }
 }
 
-pub type Result<T, E = Error> = core::result::Result<T, E>;
+pub type Result<T, E = Box<Error>> = core::result::Result<T, E>;
 
 impl std::error::Error for Error {}
