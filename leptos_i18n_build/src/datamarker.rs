@@ -20,10 +20,10 @@ pub enum Options {
     FormatCurrency,
 }
 
-pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<Options>) {
+pub fn find_used_datamarker(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<Options>) {
     for locale_value in keys.0.values() {
         match locale_value {
-            LocaleValue::Subkeys { keys, .. } => find_used_datakey(keys, used_icu_keys),
+            LocaleValue::Subkeys { keys, .. } => find_used_datamarker(keys, used_icu_keys),
             LocaleValue::Value {
                 // skip literals
                 value: InterpolOrLit::Lit(_),

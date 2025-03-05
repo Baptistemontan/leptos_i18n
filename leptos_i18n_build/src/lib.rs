@@ -150,11 +150,11 @@ impl TranslationsInfos {
         match &self.locales {
             BuildersKeys::NameSpaces { keys, .. } => {
                 for builder_keys in keys.values() {
-                    datamarker::find_used_datakey(builder_keys, used_icu_keys);
+                    datamarker::find_used_datamarker(builder_keys, used_icu_keys);
                 }
             }
             BuildersKeys::Locales { keys, .. } => {
-                datamarker::find_used_datakey(keys, used_icu_keys);
+                datamarker::find_used_datamarker(keys, used_icu_keys);
             }
         }
     }
