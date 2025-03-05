@@ -24,8 +24,15 @@ pub fn find_used_datakey(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<O
     for locale_value in keys.0.values() {
         match locale_value {
             LocaleValue::Subkeys { keys, .. } => find_used_datakey(keys, used_icu_keys),
-            LocaleValue::Value(InterpolOrLit::Lit(_)) => {} // skip literals
-            LocaleValue::Value(InterpolOrLit::Interpol(interpolation_keys)) => {
+            LocaleValue::Value {
+                // skip literals
+                value: InterpolOrLit::Lit(_),
+                ..
+            } => {}
+            LocaleValue::Value {
+                value: InterpolOrLit::Interpol(interpolation_keys),
+                ..
+            } => {
                 for (_, var_infos) in interpolation_keys.iter_vars() {
                     if matches!(var_infos.range_count, Some(RangeOrPlural::Plural)) {
                         used_icu_keys.insert(Options::Plurals);
