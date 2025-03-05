@@ -336,7 +336,6 @@ pub(crate) mod data_provider {
     ))]
     use super::*;
 
-    use icu_provider::DataError;
     #[cfg(any(
         feature = "format_nums",
         feature = "format_datetime",
@@ -344,7 +343,7 @@ pub(crate) mod data_provider {
         feature = "plurals",
         feature = "format_currency",
     ))]
-    use icu_provider::DataLocale;
+    use icu_provider::{DataError, DataLocale};
 
     /// Trait for custom ICU data providers.
     pub trait IcuDataProvider: Send + Sync + 'static {
