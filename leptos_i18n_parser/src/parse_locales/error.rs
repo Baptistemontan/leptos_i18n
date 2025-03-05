@@ -1,5 +1,5 @@
-use icu_locid::Error as LocidError;
-use icu_plurals::Error as PluralsError;
+use icu_locale::ParseError as LocidError;
+use icu_provider::DataError as IcuDataError;
 use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
 
 use super::{locale::SerdeError, ranges::RangeType};
@@ -14,7 +14,7 @@ pub enum Error {
         locale: Rc<str>,
         err: LocidError,
     },
-    PluralRulesError(PluralsError),
+    PluralRulesError(IcuDataError),
     CargoDirEnvNotPresent(std::env::VarError),
     ManifestNotFound(std::io::Error),
     ConfigNotPresent,

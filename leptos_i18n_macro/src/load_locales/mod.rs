@@ -9,7 +9,7 @@ pub mod ranges;
 pub mod tracking;
 pub mod warning;
 
-use icu_locid::LanguageIdentifier;
+use icu_locale::LanguageIdentifier;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
@@ -392,7 +392,7 @@ fn create_locales_enum(
     } else {
         quote!()
     };
-    let ld = icu_locid_transform::LocaleDirectionality::new();
+    let ld = icu_locale::LocaleDirectionality::new_common();
 
     let locids = locales
         .iter()
@@ -407,8 +407,8 @@ fn create_locales_enum(
 
     let direction_match_arms = locids.iter().map(|(locale, locid)| {
         let dir = match ld.get(locid) {
-            Some(icu_locid_transform::Direction::LeftToRight) => quote!(LeftToRight),
-            Some(icu_locid_transform::Direction::RightToLeft) => quote!(RightToLeft),
+            Some(icu_locale::Direction::LeftToRight) => quote!(LeftToRight),
+            Some(icu_locale::Direction::RightToLeft) => quote!(RightToLeft),
             _ => quote!(Auto),
         };
 

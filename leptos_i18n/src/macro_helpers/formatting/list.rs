@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use super::data_provider::IcuDataProvider;
-use icu_list::{ListFormatter, ListLength};
+use icu_list::{options::ListLength, ListFormatter};
 use leptos::IntoView;
 use writeable::Writeable;
 
@@ -57,7 +57,7 @@ impl ListType {
     pub fn new_formatter(
         self,
         provider: &impl IcuDataProvider,
-        locale: &icu_locid::Locale,
+        locale: &icu_locale::Locale,
         length: ListLength,
     ) -> ListFormatter {
         match self {
@@ -85,7 +85,7 @@ pub fn format_list_to_view<L: Locale>(
 
     move || {
         let list = list.to_list().into_iter();
-        list_formatter.format_to_string(list)
+        list_formatter.format(list).to_string()
     }
 }
 
@@ -113,5 +113,5 @@ where
     WL::WIterator: 'a,
 {
     let list_formatter = super::get_list_formatter(locale, list_type, length);
-    list_formatter.format(list.into_iter())
+    list_formatter.format(list.into_iter()).to_string()
 }

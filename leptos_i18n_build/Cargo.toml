@@ -10,9 +10,18 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_parser = { workspace = true }
-icu_datagen = { workspace = true, features = ["experimental_components"] }
+icu_provider_export = { workspace = true, features = [
+  "baked_exporter",
+  "rayon",
+] }
+icu_provider_source = { workspace = true, features = [
+  "networking",
+  "use_wasm",
+  "experimental",
+] }
+icu = { workspace = true, features = ["experimental"] }
 icu_provider = { workspace = true }
-icu_locid = { workspace = true }
+icu_locale = { workspace = true }
 
 [features]
 default = ["json_files"]

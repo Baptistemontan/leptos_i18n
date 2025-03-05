@@ -3,24 +3,32 @@
 #![deny(warnings)]
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
-use std::collections::HashSet;
-use std::fmt::{Display, Write};
-use std::fs::{create_dir_all, File};
-use std::io::BufWriter;
-use std::path::PathBuf;
-use std::rc::Rc;
+use std::{
+    collections::HashSet,
+    fmt::{Display, Write},
+    fs::{create_dir_all, File},
+    io::BufWriter,
+    path::PathBuf,
+    rc::Rc,
+};
 
-pub use datakey::Options;
-use icu_datagen::baked_exporter::BakedExporter;
-use icu_datagen::prelude::DataKey;
-use icu_datagen::{DatagenDriver, DatagenProvider};
-use icu_locid::LanguageIdentifier;
-use icu_provider::DataError;
-use leptos_i18n_parser::parse_locales;
-use leptos_i18n_parser::parse_locales::error::Result;
-use leptos_i18n_parser::parse_locales::locale::{BuildersKeys, Locale};
+pub use datamarker::Options;
+use icu_locale::LocaleFallbacker;
+use icu_provider::{DataError, DataMarkerInfo};
+use icu_provider_export::{
+    baked_exporter::BakedExporter, DataLocaleFamily, DeduplicationStrategy, ExportDriver,
+    ExportMetadata,
+};
+use icu_provider_source::SourceDataProvider;
+use leptos_i18n_parser::{
+    parse_locales,
+    parse_locales::{
+        error::Result,
+        locale::{BuildersKeys, Locale},
+    },
+};
 
-mod datakey;
+mod datamarker;
 
 #[derive(Clone)]
 enum EitherIter<A, B> {
@@ -133,43 +141,47 @@ impl TranslationsInfos {
     }
 
     /// Return an iterator containing each locales in the form of `LanguageIdentifier`.
-    pub fn get_locales_langids(&self) -> impl Iterator<Item = LanguageIdentifier> + '_ {
+    pub fn get_locales_langids(&self) -> impl Iterator<Item = DataLocaleFamily> + '_ {
         self.get_locales()
-            .map(|locale| locale.parse::<LanguageIdentifier>().unwrap())
+            .map(|locale| locale.parse::<DataLocaleFamily>().unwrap())
     }
 
     fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<Options>) {
         match &self.locales {
             BuildersKeys::NameSpaces { keys, .. } => {
                 for builder_keys in keys.values() {
-                    datakey::find_used_datakey(builder_keys, used_icu_keys);
+                    datamarker::find_used_datakey(builder_keys, used_icu_keys);
                 }
             }
             BuildersKeys::Locales { keys, .. } => {
-                datakey::find_used_datakey(keys, used_icu_keys);
+                datamarker::find_used_datakey(keys, used_icu_keys);
             }
         }
     }
 
-    /// Return the ICU `DataKey` needed by the translations.
-    pub fn get_icu_keys(&self) -> impl Iterator<Item = DataKey> {
+    /// Return the ICU `DataMarker` needed by the translations.
+    pub fn get_icu_keys(&self) -> impl Iterator<Item = DataMarkerInfo> {
         let mut used_icu_keys = HashSet::new();
         self.get_icu_keys_inner(&mut used_icu_keys);
-        datakey::get_keys(used_icu_keys)
+        datamarker::get_keys(used_icu_keys)
     }
 
-    /// Same as `build_datagen_driver` but can be supplied with additional ICU `DataKey`.
+    /// Same as `build_datagen_driver` but can be supplied with additional ICU `DataMarker`.
     pub fn build_datagen_driver_with_data_keys(
         &self,
-        keys: impl IntoIterator<Item = DataKey>,
-    ) -> DatagenDriver {
-        let mut icu_keys: HashSet<DataKey> = self.get_icu_keys().collect();
+        keys: impl IntoIterator<Item = DataMarkerInfo>,
+    ) -> ExportDriver {
+        let mut icu_keys: HashSet<DataMarkerInfo> = self.get_icu_keys().collect();
         icu_keys.extend(keys);
 
         let locales = self.get_locales_langids();
-        DatagenDriver::new()
-            .with_keys(icu_keys)
-            .with_locales_no_fallback(locales, Default::default())
+
+        ExportDriver::new(
+            locales,
+            DeduplicationStrategy::None.into(),
+            LocaleFallbacker::new_without_data(),
+        )
+        .with_markers(icu_keys)
     }
 
     /// Same as `build_datagen_driver` but can be supplied with additional options.
@@ -177,21 +189,21 @@ impl TranslationsInfos {
     pub fn build_datagen_driver_with_options(
         &self,
         keys: impl IntoIterator<Item = Options>,
-    ) -> DatagenDriver {
-        self.build_datagen_driver_with_data_keys(datakey::get_keys(keys))
+    ) -> ExportDriver {
+        self.build_datagen_driver_with_data_keys(datamarker::get_keys(keys))
     }
 
-    /// Build a `DatagenDriver` using the locales and keys needed for the translations.
-    pub fn build_datagen_driver(&self) -> DatagenDriver {
+    /// Build a `ExportDriver` using the locales and keys needed for the translations.
+    pub fn build_datagen_driver(&self) -> ExportDriver {
         self.build_datagen_driver_with_options(std::iter::empty())
     }
 
-    /// Same as `generate_data` but can be supplied additionnal ICU `DataKey`.
+    /// Same as `generate_data` but can be supplied additionnal ICU `DataMarker`.
     pub fn generate_data_with_data_keys(
         &self,
         mod_directory: PathBuf,
-        keys: impl IntoIterator<Item = DataKey>,
-    ) -> Result<(), DataError> {
+        keys: impl IntoIterator<Item = DataMarkerInfo>,
+    ) -> Result<ExportMetadata, DataError> {
         // This is'nt really needed, but ICU4X wants the directory to be empty
         // and Rust Analyzer can trigger the build.rs without cleaning the out directory.
         if mod_directory.exists() {
@@ -201,7 +213,7 @@ impl TranslationsInfos {
         let exporter = BakedExporter::new(mod_directory, Default::default()).unwrap();
 
         self.build_datagen_driver_with_data_keys(keys)
-            .export(&DatagenProvider::new_latest_tested(), exporter)
+            .export(&SourceDataProvider::new_latest_tested(), exporter)
     }
 
     /// Same as `generate_data` but can be supplied additionnal options.
@@ -209,12 +221,12 @@ impl TranslationsInfos {
         &self,
         mod_directory: PathBuf,
         keys: impl IntoIterator<Item = Options>,
-    ) -> Result<(), DataError> {
-        self.generate_data_with_data_keys(mod_directory, datakey::get_keys(keys))
+    ) -> Result<ExportMetadata, DataError> {
+        self.generate_data_with_data_keys(mod_directory, datamarker::get_keys(keys))
     }
 
     /// Generate an ICU datagen at the given mod_directory using the infos from the translations.
-    pub fn generate_data(&self, mod_directory: PathBuf) -> Result<(), DataError> {
+    pub fn generate_data(&self, mod_directory: PathBuf) -> Result<ExportMetadata, DataError> {
         self.generate_data_with_options(mod_directory, std::iter::empty())
     }
 }

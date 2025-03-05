@@ -9,7 +9,8 @@ description = "parser for the leptos_i18n crate"
 readme = "../README.md"
 
 [dependencies]
-icu_locid = { workspace = true }
+icu_provider = { workspace = true }
+icu_locale = { workspace = true }
 icu_plurals = { workspace = true, features = ["compiled_data"] }
 serde = { version = "1", features = ["rc"] }
 serde_json = { version = "1" }
