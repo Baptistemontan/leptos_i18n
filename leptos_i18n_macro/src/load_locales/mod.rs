@@ -9,7 +9,6 @@ pub mod ranges;
 pub mod tracking;
 pub mod warning;
 
-use icu_locale::LanguageIdentifier;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
@@ -320,17 +319,17 @@ fn create_locales_enum(
         })
         .collect::<Vec<_>>();
 
-    let const_icu_locales = constant_names_ident
+    let static_icu_locales = constant_names_ident
         .iter()
         .map(|(key, ident)| {
             let locale = &key.name;
-            quote!(const #ident: &l_i18n_crate::reexports::icu::locid::Locale = &l_i18n_crate::reexports::icu::locid::locale!(#locale);)
+            quote!(static #ident: std::sync::LazyLock<l_i18n_crate::reexports::icu::locid::Locale> = std::sync::LazyLock::new(|| #locale.parse().expect("Valid locale"));)
         })
         .collect::<Vec<_>>();
 
     let as_icu_locale_match_arms = constant_names_ident
         .iter()
-        .map(|(variant, constant)| quote!(#enum_ident::#variant => #constant))
+        .map(|(variant, constant)| quote!(#enum_ident::#variant => &*#constant))
         .collect::<Vec<_>>();
 
     let server_fn_mod = if cfg!(all(feature = "dynamic_load", not(feature = "csr"))) {
@@ -396,8 +395,8 @@ fn create_locales_enum(
 
     let locids = locales
         .iter()
-        .map(|locale| match locale.name.parse::<LanguageIdentifier>() {
-            Ok(locid) => Ok((locale, locid)),
+        .map(|locale| match locale.name.parse::<icu_locale::Locale>() {
+            Ok(loc) => Ok((locale, loc.id)),
             Err(err) => Err(Error::InvalidLocale {
                 locale: locale.name.clone(),
                 err,
@@ -465,7 +464,7 @@ fn create_locales_enum(
 
             fn as_icu_locale(self) -> &'static l_i18n_crate::reexports::icu::locid::Locale {
                 #(
-                    #const_icu_locales
+                    #static_icu_locales
                 )*
                 match self {
                     #(

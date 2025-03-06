@@ -76,7 +76,7 @@ fn get_currency_formatter<L: Locale>(
         let currency_formatter = currency_formatters.entry(width.into()).or_insert_with(|| {
             let formatter = formatters
                 .provider
-                .try_new_currency_formatter(&locale.into(), CurrencyFormatterOptions::from(width))
+                .try_new_currency_formatter(locale, CurrencyFormatterOptions::from(width))
                 .expect("A CurrencyFormatter");
             Box::leak(Box::new(formatter))
         });
@@ -97,10 +97,7 @@ fn get_num_formatter<L: Locale>(
         let num_formatter = num_formatters.entry(grouping_strategy).or_insert_with(|| {
             let formatter = formatters
                 .provider
-                .try_new_num_formatter(
-                    &locale.into(),
-                    DecimalFormatterOptions::from(grouping_strategy),
-                )
+                .try_new_num_formatter(locale, DecimalFormatterOptions::from(grouping_strategy))
                 .expect("A DecimalFormatter");
             Box::leak(Box::new(formatter))
         });
@@ -124,7 +121,7 @@ fn get_date_formatter<L: Locale>(
             .or_insert_with(|| {
                 let formatter = formatters
                     .provider
-                    .try_new_date_formatter(&locale.into(), length, alignment)
+                    .try_new_date_formatter(locale, length, alignment)
                     .expect("A DateFormatter");
                 Box::leak(Box::new(formatter))
             });
@@ -149,7 +146,7 @@ fn get_time_formatter<L: Locale>(
             .or_insert_with(|| {
                 let formatter = formatters
                     .provider
-                    .try_new_time_formatter(&locale.into(), length, alignment, time_precision)
+                    .try_new_time_formatter(locale, length, alignment, time_precision)
                     .expect("A TimeFormatter");
                 Box::leak(Box::new(formatter))
             });
@@ -174,7 +171,7 @@ fn get_datetime_formatter<L: Locale>(
             .or_insert_with(|| {
                 let formatter = formatters
                     .provider
-                    .try_new_datetime_formatter(&locale.into(), length, alignment, time_precision)
+                    .try_new_datetime_formatter(locale, length, alignment, time_precision)
                     .expect("A DateTimeFormatter");
                 Box::leak(Box::new(formatter))
             });
@@ -215,7 +212,7 @@ pub fn get_plural_rules<L: Locale>(
         let plural_rules = plural_rules.entry(plural_rule_type).or_insert_with(|| {
             let plural_rules = formatters
                 .provider
-                .try_new_plural_rules(&locale.into(), plural_rule_type)
+                .try_new_plural_rules(locale, plural_rule_type)
                 .expect("A PluralRules");
             Box::leak(Box::new(plural_rules))
         });
@@ -344,7 +341,16 @@ pub(crate) mod data_provider {
         feature = "plurals",
         feature = "format_currency",
     ))]
-    use icu_provider::{DataError, DataLocale};
+    use icu_provider::DataError;
+
+    #[cfg(any(
+        feature = "format_nums",
+        feature = "format_datetime",
+        feature = "format_list",
+        feature = "plurals",
+        feature = "format_currency",
+    ))]
+    use icu_locale::Locale;
 
     /// Trait for custom ICU data providers.
     pub trait IcuDataProvider: Send + Sync + 'static {
@@ -352,7 +358,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_nums")]
         fn try_new_num_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             options: icu_decimal::options::DecimalFormatterOptions,
         ) -> Result<DecimalFormatter, DataError>;
 
@@ -360,7 +366,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_datetime")]
         fn try_new_date_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError>;
@@ -369,7 +375,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_datetime")]
         fn try_new_time_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
@@ -379,7 +385,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_datetime")]
         fn try_new_datetime_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
@@ -389,7 +395,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_list")]
         fn try_new_and_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError>;
 
@@ -397,7 +403,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_list")]
         fn try_new_or_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError>;
 
@@ -405,7 +411,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_list")]
         fn try_new_unit_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError>;
 
@@ -413,7 +419,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "plurals")]
         fn try_new_plural_rules(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, DataError>;
         ///
@@ -421,7 +427,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_currency")]
         fn try_new_currency_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             options: CurrencyFormatterOptions,
         ) -> Result<CurrencyFormatter, icu_provider::DataError>;
     }
@@ -435,27 +441,27 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_nums")]
         fn try_new_num_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             options: icu_decimal::options::DecimalFormatterOptions,
         ) -> Result<DecimalFormatter, DataError> {
-            DecimalFormatter::try_new(locale.into_locale().into(), options)
+            DecimalFormatter::try_new(locale.into(), options)
         }
 
         #[cfg(feature = "format_datetime")]
         fn try_new_date_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError> {
             let fset = fieldsets::YMD::with_length(length).with_alignment(alignment);
-            DateTimeFormatter::try_new(locale.into_locale().into(), fset)
+            DateTimeFormatter::try_new(locale.into(), fset)
         }
 
         #[cfg(feature = "format_datetime")]
         fn try_new_time_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
@@ -463,13 +469,13 @@ pub(crate) mod data_provider {
             let fset = fieldsets::T::with_length(length)
                 .with_alignment(alignment)
                 .with_time_precision(time_precision);
-            NoCalendarFormatter::try_new(locale.into_locale().into(), fset)
+            NoCalendarFormatter::try_new(locale.into(), fset)
         }
 
         #[cfg(feature = "format_datetime")]
         fn try_new_datetime_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
@@ -477,60 +483,60 @@ pub(crate) mod data_provider {
             let fset = fieldsets::YMDT::with_length(length)
                 .with_alignment(alignment)
                 .with_time_precision(time_precision);
-            DateTimeFormatter::try_new(locale.into_locale().into(), fset)
+            DateTimeFormatter::try_new(locale.into(), fset)
         }
 
         #[cfg(feature = "format_list")]
         fn try_new_and_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError> {
             use icu_list::options::ListFormatterOptions;
             let options = ListFormatterOptions::default().with_length(length);
-            ListFormatter::try_new_and(locale.into_locale().into(), options)
+            ListFormatter::try_new_and(locale.into(), options)
         }
 
         #[cfg(feature = "format_list")]
         fn try_new_or_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError> {
             use icu_list::options::ListFormatterOptions;
             let options = ListFormatterOptions::default().with_length(length);
-            ListFormatter::try_new_or(locale.into_locale().into(), options)
+            ListFormatter::try_new_or(locale.into(), options)
         }
 
         #[cfg(feature = "format_list")]
         fn try_new_unit_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError> {
             use icu_list::options::ListFormatterOptions;
             let options = ListFormatterOptions::default().with_length(length);
-            ListFormatter::try_new_unit(locale.into_locale().into(), options)
+            ListFormatter::try_new_unit(locale.into(), options)
         }
 
         #[cfg(feature = "plurals")]
         fn try_new_plural_rules(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, DataError> {
             use icu_plurals::PluralRulesOptions;
             let options = PluralRulesOptions::default().with_type(rule_type);
-            PluralRules::try_new(locale.into_locale().into(), options)
+            PluralRules::try_new(locale.into(), options)
         }
 
         #[cfg(feature = "format_currency")]
         fn try_new_currency_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             options: CurrencyFormatterOptions,
         ) -> Result<CurrencyFormatter, DataError> {
-            CurrencyFormatter::try_new(locale.into_locale().into(), options)
+            CurrencyFormatter::try_new(locale.into(), options)
         }
     }
 
@@ -551,7 +557,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_nums")]
         fn try_new_num_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             options: icu_decimal::options::DecimalFormatterOptions,
         ) -> Result<DecimalFormatter, DataError> {
             self.get_provider().try_new_num_formatter(locale, options)
@@ -560,7 +566,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_datetime")]
         fn try_new_date_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError> {
@@ -571,7 +577,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_datetime")]
         fn try_new_time_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
@@ -583,7 +589,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_datetime")]
         fn try_new_datetime_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
@@ -599,7 +605,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_list")]
         fn try_new_and_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError> {
             self.get_provider()
@@ -609,7 +615,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_list")]
         fn try_new_or_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError> {
             self.get_provider()
@@ -619,7 +625,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_list")]
         fn try_new_unit_list_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             length: ListLength,
         ) -> Result<ListFormatter, DataError> {
             self.get_provider()
@@ -629,7 +635,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "plurals")]
         fn try_new_plural_rules(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, DataError> {
             self.get_provider().try_new_plural_rules(locale, rule_type)
@@ -638,7 +644,7 @@ pub(crate) mod data_provider {
         #[cfg(feature = "format_currency")]
         fn try_new_currency_formatter(
             &self,
-            locale: &DataLocale,
+            locale: &Locale,
             options: CurrencyFormatterOptions,
         ) -> Result<CurrencyFormatter, DataError> {
             self.get_provider()

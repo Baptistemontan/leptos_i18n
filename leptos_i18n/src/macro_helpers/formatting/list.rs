@@ -62,13 +62,13 @@ impl ListType {
     ) -> ListFormatter {
         match self {
             ListType::And => provider
-                .try_new_and_list_formatter(&locale.into(), length)
+                .try_new_and_list_formatter(locale, length)
                 .expect("A list formatter"),
             ListType::Or => provider
-                .try_new_or_list_formatter(&locale.into(), length)
+                .try_new_or_list_formatter(locale, length)
                 .expect("A list formatter"),
             ListType::Unit => provider
-                .try_new_unit_list_formatter(&locale.into(), length)
+                .try_new_unit_list_formatter(locale, length)
                 .expect("A list formatter"),
         }
     }
