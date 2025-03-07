@@ -1,7 +1,7 @@
 use crate::i18n::*;
 use leptos_i18n::reexports::{
-    fixed_decimal::FixedDecimal,
-    icu::calendar::{Date, DateTime, Time},
+    fixed_decimal::Decimal,
+    icu::datetime::input::{Date, DateTime, Time},
 };
 use tests_common::*;
 
@@ -17,7 +17,7 @@ fn list_formatting() {
 
 #[test]
 fn date_formatting() {
-    let date = move || Date::try_new_iso_date(1970, 1, 2).unwrap().to_any();
+    let date = move || Date::try_new_iso(1970, 1, 2).unwrap().to_any();
 
     let en = td!(Locale::en, date_formatting, date);
     assert_eq_rendered!(en, "Jan 2, 1970");
@@ -38,9 +38,9 @@ fn time_formatting() {
 #[test]
 fn datetime_formatting() {
     let date = move || {
-        let date = Date::try_new_iso_date(1970, 1, 2).unwrap().to_any();
+        let date = Date::try_new_iso(1970, 1, 2).unwrap().to_any();
         let time = Time::try_new(14, 34, 28, 0).unwrap();
-        DateTime::new(date, time)
+        DateTime { date, time }
     };
 
     let en = td!(Locale::en, datetime_formatting, date);
@@ -51,7 +51,11 @@ fn datetime_formatting() {
 
 #[test]
 fn number_formatting() {
-    let num = move || FixedDecimal::from(200050).multiplied_pow10(-2);
+    let num = move || {
+        let mut dec = Decimal::from(200050);
+        dec.multiply_pow10(-2);
+        dec
+    };
 
     let en = td!(Locale::en, number_formatting, num);
     assert_eq_rendered!(en, "2,000.50");
@@ -73,22 +77,26 @@ fn number_formatting() {
 
 #[test]
 fn currency_formatting() {
-    let num = move || FixedDecimal::from(200050).multiplied_pow10(-2);
+    let num = move || {
+        let mut dec = Decimal::from(200050);
+        dec.multiply_pow10(-2);
+        dec
+    };
 
     let en = td!(Locale::en, currency_formatting, num);
-    assert_eq_rendered!(en, "€2000.50");
+    assert_eq_rendered!(en, "€2,000.50");
     let fr = td!(Locale::fr, currency_formatting, num);
-    assert_eq_rendered!(fr, "2000.50\u{a0}$US");
+    assert_eq_rendered!(fr, "2\u{202f}000,50\u{a0}$US");
 
     let num = move || 2000.50f64;
 
     let en = td!(Locale::en, currency_formatting, num);
-    assert_eq_rendered!(en, "€2000.5");
+    assert_eq_rendered!(en, "€2,000.5");
     let fr = td!(Locale::fr, currency_formatting, num);
-    assert_eq_rendered!(fr, "2000.5\u{a0}$US");
+    assert_eq_rendered!(fr, "2\u{202f}000,5\u{a0}$US");
 
     let en = td!(Locale::en, currency_formatting_width, num);
-    assert_eq_rendered!(en, "$2000.5");
+    assert_eq_rendered!(en, "$2,000.5");
     let fr = td!(Locale::fr, currency_formatting_width, num);
-    assert_eq_rendered!(fr, "2000.5\u{a0}€");
+    assert_eq_rendered!(fr, "2\u{202f}000,5\u{a0}€");
 }
