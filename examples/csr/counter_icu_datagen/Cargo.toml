@@ -25,6 +25,7 @@ icu = { version = "2.0.0-beta2", default-features = false, features = [
   # feature only needed for experimental features (e.g "format_currency")
   "experimental",
 ] }
+icu_provider_baked = "2.0.0-beta2" # for databake
 icu_provider = "2.0.0-beta2" # for databake
 zerovec = "0.11" # for databake
 

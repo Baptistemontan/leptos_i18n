@@ -16,8 +16,8 @@ pub use datamarker::Options;
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
 use icu_provider_export::{
-    baked_exporter::BakedExporter, DataLocaleFamily, DeduplicationStrategy, ExportDriver,
-    ExportMetadata,
+    baked_exporter::{self, BakedExporter},
+    DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
 };
 use icu_provider_source::SourceDataProvider;
 use leptos_i18n_parser::{
@@ -210,7 +210,13 @@ impl TranslationsInfos {
             std::fs::remove_dir_all(&mod_directory).unwrap();
         }
 
-        let exporter = BakedExporter::new(mod_directory, Default::default()).unwrap();
+        let exporter = BakedExporter::new(mod_directory, {
+            let mut options = baked_exporter::Options::default();
+            options.overwrite = true;
+            options.use_internal_fallback = false;
+            options
+        })
+        .unwrap();
 
         self.build_datagen_driver_with_data_keys(keys)
             .export(&SourceDataProvider::new_latest_tested(), exporter)
