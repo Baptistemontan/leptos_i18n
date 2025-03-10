@@ -1,95 +1,134 @@
 use std::fmt::{self, Display};
 
-use icu_datetime::{input::IsoTimeInput, options::length};
+use icu_datetime::{
+    fieldsets,
+    input::Time,
+    options::{Alignment, Length, TimePrecision},
+    scaffold::{AllInputMarkers, ConvertCalendar, InFixedCalendar},
+};
 use leptos::IntoView;
 
 use crate::Locale;
 
-/// Marker trait for types that can lend a reference to
-/// `T: icu::datetime::input::IsoTimeInput`.
+/// Provides a reference conversion of a type into an ICU4X Time, allowing non-destructive access to calendar-specific date operations.
 pub trait AsIcuTime {
-    /// The returned `T: IsoTimeInput`.
-    type Time: IsoTimeInput;
-
-    /// Lend a reference to `Self::Time`.
-    fn as_icu_time(&self) -> &Self::Time;
+    /// The associated Time type that represents a calendar-specific date value in ICU4X format.
+    type Time<'a>: ConvertCalendar<Converted<'a> = Time>
+        + InFixedCalendar<()>
+        + AllInputMarkers<fieldsets::T>;
+    /// Returns a reference to the calendar-specific Time representation of this value.
+    fn as_icu_time<'a>(&self) -> &Self::Time<'a>;
 }
 
-impl<T: IsoTimeInput> AsIcuTime for T {
-    type Time = Self;
-
-    fn as_icu_time(&self) -> &Self::Time {
+impl<T> AsIcuTime for T
+where
+    T: for<'a> ConvertCalendar<Converted<'a> = Time>
+        + InFixedCalendar<()>
+        + AllInputMarkers<fieldsets::T>,
+{
+    type Time<'a> = Self;
+    fn as_icu_time<'a>(&self) -> &Self::Time<'a> {
         self
     }
 }
 
-/// Marker trait for types that can be turned into a type
-/// `T: icu::datetime::input::IsoTimeInput`.
+/// Enables consuming conversion of a type into an ICU4X Time, transforming the original value into a calendar-specific date representation.
 pub trait IntoIcuTime {
-    /// The returned `T: IsoTimeInput`.
-    type Time: IsoTimeInput;
-
-    /// Consume self and return a `T: IsoTimeInput`.
-    fn into_icu_time(self) -> Self::Time;
+    /// The associated Time type that represents a calendar-specific date value in ICU4X format.
+    type Time<'a>: ConvertCalendar<Converted<'a> = Time>
+        + InFixedCalendar<()>
+        + AllInputMarkers<fieldsets::T>;
+    /// Consumes self to produce its calendar-specific Time representation.
+    fn into_icu_time<'a>(self) -> Self::Time<'a>;
 }
 
-impl<T: IsoTimeInput> IntoIcuTime for T {
-    type Time = Self;
+impl<T> IntoIcuTime for T
+where
+    T: for<'a> ConvertCalendar<Converted<'a> = Time>
+        + InFixedCalendar<()>
+        + AllInputMarkers<fieldsets::T>,
+{
+    type Time<'a> = Self;
 
-    fn into_icu_time(self) -> Self::Time {
+    fn into_icu_time<'a>(self) -> Self::Time<'a> {
         self
     }
 }
 
-/// Marker trait for types that produce a `T: IsoTimeInput`.
+/// Defines a stateless, thread-safe function type that can repeatedly generate ICU4X Time instances for formatting operations.
 pub trait TimeFormatterInputFn: 'static + Clone + Send + Sync {
-    /// The returned `T: IsoTimeInput`.
-    type Time: IsoTimeInput;
+    /// The associated Time type that represents a calendar-specific date value in ICU4X format.
+    type Time<'a>: ConvertCalendar<Converted<'a> = Time>
+        + InFixedCalendar<()>
+        + AllInputMarkers<fieldsets::T>;
 
-    /// Produce a `Self::Time`.
-    fn to_icu_time(&self) -> Self::Time;
+    /// Generates a new calendar-specific Time instance for formatting operations.
+    fn to_icu_time<'a>(&self) -> Self::Time<'a>;
 }
 
-impl<T: IntoIcuTime, F: Fn() -> T + Clone + Send + Sync + 'static> TimeFormatterInputFn for F {
-    type Time = T::Time;
+impl<T, F> TimeFormatterInputFn for F
+where
+    T: IntoIcuTime,
+    F: Fn() -> T + Clone + Send + Sync + 'static,
+{
+    type Time<'a> = T::Time<'a>;
 
-    fn to_icu_time(&self) -> Self::Time {
+    fn to_icu_time<'a>(&self) -> Self::Time<'a> {
         IntoIcuTime::into_icu_time(self())
     }
 }
 
 #[doc(hidden)]
-pub fn format_time_to_view<L: Locale>(
+pub fn format_time_to_view<L, I>(
     locale: L,
-    time: impl TimeFormatterInputFn,
-    length: length::Time,
-) -> impl IntoView + Clone {
-    let time_formatter = super::get_time_formatter(locale, length);
+    time: I,
+    length: Length,
+    alignment: Alignment,
+    time_precision: TimePrecision,
+) -> impl IntoView + Clone
+where
+    L: Locale,
+    I: TimeFormatterInputFn,
+{
+    let time_formatter = super::get_time_formatter(locale, length, alignment, time_precision);
 
     move || {
         let time = time.to_icu_time();
-        time_formatter.format_to_string(&time)
+
+        time_formatter.format(&time).to_string()
     }
 }
 
 #[doc(hidden)]
-pub fn format_time_to_formatter<L: Locale>(
+pub fn format_time_to_formatter<L, I>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
-    time: &impl AsIcuTime,
-    length: length::Time,
-) -> fmt::Result {
-    let formatted_time = format_time_to_display(locale, time, length);
+    time: &I,
+    length: Length,
+    alignment: Alignment,
+    time_precision: TimePrecision,
+) -> fmt::Result
+where
+    L: Locale,
+    I: AsIcuTime,
+{
+    let formatted_time = format_time_to_display(locale, time, length, alignment, time_precision);
     Display::fmt(&formatted_time, f)
 }
 
 #[doc(hidden)]
-pub fn format_time_to_display<L: Locale>(
+pub fn format_time_to_display<L, I>(
     locale: L,
-    time: &impl AsIcuTime,
-    length: length::Time,
-) -> impl Display {
-    let time_formatter = super::get_time_formatter(locale, length);
+    time: &I,
+    length: Length,
+    alignment: Alignment,
+    time_precision: TimePrecision,
+) -> impl Display
+where
+    L: Locale,
+    I: AsIcuTime,
+{
+    let time_formatter = super::get_time_formatter(locale, length, alignment, time_precision);
     let time = time.as_icu_time();
-    time_formatter.format(time)
+    time_formatter.format(time).to_string()
 }
