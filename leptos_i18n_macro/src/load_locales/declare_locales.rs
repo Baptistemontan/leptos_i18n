@@ -419,6 +419,7 @@ impl syn::parse::Parse for ParsedInput {
                 name_spaces: None,
                 locales_dir: "".into(),
                 translations_uri: None,
+                extensions: Default::default(),
             },
             locales: LocalesOrNamespaces::Locales(locales),
             crate_path,

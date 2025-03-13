@@ -671,15 +671,17 @@ impl Locale {
             key_path.pop_key();
         }
 
-        // reverse key comparaison
-        for key in self.keys.keys() {
-            if !keys.0.contains_key(key) {
-                key_path.push_key(key.clone());
-                warnings.emit_warning(Warning::SurplusKey {
-                    locale: top_locale.clone(),
-                    key_path: key_path.clone(),
-                });
-                key_path.pop_key();
+        if !cfg!(feature = "suppress_key_warnings") {
+            // reverse key comparaison
+            for key in self.keys.keys() {
+                if !keys.0.contains_key(key) {
+                    key_path.push_key(key.clone());
+                    warnings.emit_warning(Warning::SurplusKey {
+                        locale: top_locale.clone(),
+                        key_path: key_path.clone(),
+                    });
+                    key_path.pop_key();
+                }
             }
         }
 
