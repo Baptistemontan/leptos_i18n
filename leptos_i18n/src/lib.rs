@@ -206,7 +206,7 @@ pub mod reexports {
         ))]
         pub use icu_provider as provider;
 
-        pub use icu_locid as locid;
+        pub use icu_locale as locid;
     }
     pub use leptos;
     pub use serde;
