@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - master
+      - next
   pull_request:
     branches:
       - master
+      - next
 env:
   CARGO_TERM_COLOR: always
 jobs:
