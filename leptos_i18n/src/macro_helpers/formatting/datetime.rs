@@ -3,7 +3,7 @@ use std::fmt::{self, Display};
 use icu_calendar::{AnyCalendar, Ref};
 use icu_datetime::{
     input::DateTime,
-    options::{Alignment, Length, TimePrecision},
+    options::{Alignment, Length, TimePrecision, YearStyle},
     scaffold::ConvertCalendar,
 };
 use leptos::IntoView;
@@ -77,13 +77,14 @@ pub fn format_datetime_to_view<L, I>(
     length: Length,
     alignment: Alignment,
     time_precision: TimePrecision,
+    year_style: YearStyle,
 ) -> impl IntoView + Clone
 where
     L: Locale,
     I: DateTimeFormatterInputFn,
 {
     let datetime_formatter =
-        super::get_datetime_formatter(locale, length, alignment, time_precision);
+        super::get_datetime_formatter(locale, length, alignment, time_precision, year_style);
 
     move || {
         let datetime = datetime.to_icu_datetime();
@@ -100,13 +101,20 @@ pub fn format_datetime_to_formatter<L, I>(
     length: Length,
     alignment: Alignment,
     time_precision: TimePrecision,
+    year_style: YearStyle,
 ) -> fmt::Result
 where
     L: Locale,
     I: AsIcuDateTime,
 {
-    let formatted_datetime =
-        format_datetime_to_display(locale, datetime, length, alignment, time_precision);
+    let formatted_datetime = format_datetime_to_display(
+        locale,
+        datetime,
+        length,
+        alignment,
+        time_precision,
+        year_style,
+    );
     Display::fmt(&formatted_datetime, f)
 }
 
@@ -117,13 +125,14 @@ pub fn format_datetime_to_display<L, I>(
     length: Length,
     alignment: Alignment,
     time_precision: TimePrecision,
+    year_style: YearStyle,
 ) -> impl Display
 where
     L: Locale,
     I: AsIcuDateTime,
 {
     let datetime_formatter =
-        super::get_datetime_formatter(locale, length, alignment, time_precision);
+        super::get_datetime_formatter(locale, length, alignment, time_precision, year_style);
     let datetime = datetime.as_icu_datetime();
     datetime_formatter.format(datetime).to_string()
 }

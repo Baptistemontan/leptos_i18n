@@ -23,7 +23,7 @@ pub use datetime::*;
 #[cfg(feature = "format_datetime")]
 use icu_datetime::{
     fieldsets,
-    options::{Alignment, Length, TimePrecision},
+    options::{Alignment, Length, TimePrecision, YearStyle},
     DateTimeFormatter, DateTimeFormatterLoadError, NoCalendarFormatter,
 };
 #[cfg(feature = "format_list")]
@@ -110,6 +110,7 @@ fn get_date_formatter<L: Locale>(
     locale: L,
     length: Length,
     alignment: Alignment,
+    year_style: YearStyle,
 ) -> &'static DateTimeFormatter<fieldsets::YMD> {
     use data_provider::IcuDataProvider;
 
@@ -117,11 +118,11 @@ fn get_date_formatter<L: Locale>(
         let locale = locale.as_icu_locale();
         let date_formatters = formatters.date.entry(locale).or_default();
         let date_formatter = date_formatters
-            .entry((length, alignment))
+            .entry((length, alignment, year_style))
             .or_insert_with(|| {
                 let formatter = formatters
                     .provider
-                    .try_new_date_formatter(locale, length, alignment)
+                    .try_new_date_formatter(locale, length, alignment, year_style)
                     .expect("A DateFormatter");
                 Box::leak(Box::new(formatter))
             });
@@ -160,6 +161,7 @@ fn get_datetime_formatter<L: Locale>(
     length: Length,
     alignment: Alignment,
     time_precision: TimePrecision,
+    year_style: YearStyle,
 ) -> &'static DateTimeFormatter<fieldsets::YMDT> {
     use data_provider::IcuDataProvider;
 
@@ -167,11 +169,17 @@ fn get_datetime_formatter<L: Locale>(
         let locale = locale.as_icu_locale();
         let datetime_formatters = formatters.datetime.entry(locale).or_default();
         let datetime_formatter = datetime_formatters
-            .entry((length, alignment, time_precision))
+            .entry((length, alignment, time_precision, year_style))
             .or_insert_with(|| {
                 let formatter = formatters
                     .provider
-                    .try_new_datetime_formatter(locale, length, alignment, time_precision)
+                    .try_new_datetime_formatter(
+                        locale,
+                        length,
+                        alignment,
+                        time_precision,
+                        year_style,
+                    )
                     .expect("A DateTimeFormatter");
                 Box::leak(Box::new(formatter))
             });
@@ -236,7 +244,9 @@ pub(crate) mod inner {
     };
 
     #[cfg(feature = "format_datetime")]
-    type DateTimeFormatterKey = (Length, Alignment, TimePrecision);
+    type DateTimeFormatterKey = (Length, Alignment, TimePrecision, YearStyle);
+    type DateFormatterKey = (Length, Alignment, YearStyle);
+    type TimeFormatterKey = (Length, Alignment, TimePrecision);
     // Formatters cache
     //
     // The reason we leak the formatter is so that we can get a static ref,
@@ -274,12 +284,12 @@ pub(crate) mod inner {
         #[cfg(feature = "format_datetime")]
         pub date: HashMap<
             &'static IcuLocale,
-            HashMap<(Length, Alignment), &'static DateTimeFormatter<fieldsets::YMD>>,
+            HashMap<DateFormatterKey, &'static DateTimeFormatter<fieldsets::YMD>>,
         >,
         #[cfg(feature = "format_datetime")]
         pub time: HashMap<
             &'static IcuLocale,
-            HashMap<DateTimeFormatterKey, &'static NoCalendarFormatter<fieldsets::T>>,
+            HashMap<TimeFormatterKey, &'static NoCalendarFormatter<fieldsets::T>>,
         >,
         #[cfg(feature = "format_datetime")]
         pub datetime: HashMap<
@@ -369,6 +379,7 @@ pub(crate) mod data_provider {
             locale: &Locale,
             length: Length,
             alignment: Alignment,
+            year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError>;
 
         /// Tries to create a new `TimeFormatter` with the given options
@@ -389,6 +400,7 @@ pub(crate) mod data_provider {
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
+            year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMDT>, DateTimeFormatterLoadError>;
 
         /// Tries to create a and `ListFormatter` with the given options
@@ -453,8 +465,11 @@ pub(crate) mod data_provider {
             locale: &Locale,
             length: Length,
             alignment: Alignment,
+            year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError> {
-            let fset = fieldsets::YMD::with_length(length).with_alignment(alignment);
+            let fset = fieldsets::YMD::with_length(length)
+                .with_alignment(alignment)
+                .with_year_style(year_style);
             DateTimeFormatter::try_new(locale.into(), fset)
         }
 
@@ -479,10 +494,12 @@ pub(crate) mod data_provider {
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
+            year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMDT>, DateTimeFormatterLoadError> {
             let fset = fieldsets::YMDT::with_length(length)
                 .with_alignment(alignment)
-                .with_time_precision(time_precision);
+                .with_time_precision(time_precision)
+                .with_year_style(year_style);
             DateTimeFormatter::try_new(locale.into(), fset)
         }
 
@@ -569,9 +586,10 @@ pub(crate) mod data_provider {
             locale: &Locale,
             length: Length,
             alignment: Alignment,
+            year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError> {
             self.get_provider()
-                .try_new_date_formatter(locale, length, alignment)
+                .try_new_date_formatter(locale, length, alignment, year_style)
         }
 
         #[cfg(feature = "format_datetime")]
@@ -593,12 +611,14 @@ pub(crate) mod data_provider {
             length: Length,
             alignment: Alignment,
             time_precision: TimePrecision,
+            year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMDT>, DateTimeFormatterLoadError> {
             self.get_provider().try_new_datetime_formatter(
                 locale,
                 length,
                 alignment,
                 time_precision,
+                year_style,
             )
         }
 

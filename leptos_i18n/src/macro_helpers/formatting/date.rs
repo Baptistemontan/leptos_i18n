@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use icu_calendar::{AnyCalendar, Date, Ref};
 use icu_datetime::{
-    options::{Alignment, Length},
+    options::{Alignment, Length, YearStyle},
     scaffold::ConvertCalendar,
 };
 use leptos::IntoView;
@@ -73,12 +73,13 @@ pub fn format_date_to_view<L, I>(
     date: I,
     length: Length,
     alignment: Alignment,
+    year_style: YearStyle,
 ) -> impl IntoView + Clone
 where
     L: Locale,
     I: DateFormatterInputFn,
 {
-    let date_formatter = super::get_date_formatter(locale, length, alignment);
+    let date_formatter = super::get_date_formatter(locale, length, alignment, year_style);
 
     move || {
         let date = date.to_icu_date();
@@ -94,12 +95,13 @@ pub fn format_date_to_formatter<L, I>(
     date: &I,
     length: Length,
     alignment: Alignment,
+    year_style: YearStyle,
 ) -> fmt::Result
 where
     L: Locale,
     I: AsIcuDate,
 {
-    let formatted_date = format_date_to_display(locale, date, length, alignment);
+    let formatted_date = format_date_to_display(locale, date, length, alignment, year_style);
     Display::fmt(&formatted_date, f)
 }
 
@@ -109,12 +111,13 @@ pub fn format_date_to_display<L, I>(
     date: &I,
     length: Length,
     alignment: Alignment,
+    year_style: YearStyle,
 ) -> impl Display
 where
     L: Locale,
     I: AsIcuDate,
 {
-    let date_formatter = super::get_date_formatter(locale, length, alignment);
+    let date_formatter = super::get_date_formatter(locale, length, alignment, year_style);
     let date = date.as_icu_date();
     date_formatter.format(date).to_string()
 }

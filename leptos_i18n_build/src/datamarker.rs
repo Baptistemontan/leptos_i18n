@@ -42,9 +42,9 @@ pub fn find_used_datamarker(keys: &BuildersKeysInner, used_icu_keys: &mut HashSe
                         let dk = match formatter {
                             Formatter::None => continue,
                             Formatter::Number(_) => Options::FormatNums,
-                            Formatter::Date(_, _)
+                            Formatter::Date(_, _, _)
                             | Formatter::Time(_, _, _)
-                            | Formatter::DateTime(_, _, _) => Options::FormatDateTime,
+                            | Formatter::DateTime(_, _, _, _) => Options::FormatDateTime,
                             Formatter::List(_, _) => Options::FormatList,
                             Formatter::Currency(_, _) => Options::FormatCurrency,
                         };

@@ -26,9 +26,14 @@ pub enum Formatter {
     #[default]
     None,
     Number(GroupingStrategy),
-    Date(DateTimeLength, DateTimeAlignment),
+    Date(DateTimeLength, DateTimeAlignment, DateTimeYearStyle),
     Time(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
-    DateTime(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
+    DateTime(
+        DateTimeLength,
+        DateTimeAlignment,
+        DateTimeTimePrecision,
+        DateTimeYearStyle,
+    ),
     List(ListType, ListStyle),
     Currency(CurrencyWidth, CurrencyCode),
 }
@@ -98,6 +103,14 @@ pub enum DateTimeSubsecondDigits {
 }
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeYearStyle {
+    #[default]
+    Auto,
+    Full,
+    WithEra,
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListType {
     And,
     Or,
@@ -139,6 +152,7 @@ impl Formatter {
                 DateTimeLength::from_args(args),
                 DateTimeAlignment::from_args(args),
                 DateTimeTimePrecision::from_args(args),
+                DateTimeYearStyle::from_args(args),
             );
             if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
                 Ok(Some(formatter))
@@ -149,6 +163,7 @@ impl Formatter {
             let formatter = Formatter::Date(
                 DateTimeLength::from_args(args),
                 DateTimeAlignment::from_args(args),
+                DateTimeYearStyle::from_args(args),
             );
             if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
                 Ok(Some(formatter))
@@ -183,9 +198,9 @@ impl Formatter {
             Formatter::None => "",
             Formatter::Number(_) => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
             Formatter::Currency(_, _) => "Formatting currencies is not enabled, enable the \"format_currency\" feature to do so",
-            Formatter::Date(_, _) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::Date(_, _, _) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
             Formatter::Time(_, _, _) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::DateTime(_, _, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::DateTime(_, _, _, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
             Formatter::List(_, _) => "Formatting lists is not enabled, enable the \"format_list\" feature to do so",
         }
     }
@@ -241,6 +256,15 @@ impl DateTimeAlignment {
         "alignment",
         "auto" => Self::Auto,
         "column" => Self::Column,
+    }
+}
+
+impl DateTimeYearStyle {
+    impl_from_args! {
+        "alignment",
+        "auto" => Self::Auto,
+        "full" => Self::Full,
+        "with_era" => Self::WithEra,
     }
 }
 

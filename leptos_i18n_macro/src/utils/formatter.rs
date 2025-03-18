@@ -117,6 +117,13 @@ pub enum DateTimeAlignment {
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeYearStyle {
+    Auto,
+    Full,
+    WithEra,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DateTimeTimePrecision {
     Hour,
     Minute,
@@ -161,29 +168,17 @@ impl_to_tokens!(
 
 impl_from!(DateTimeAlignment, Auto, Column);
 
-// impl_to_tokens!(
-//     DateTimeTimePrecision,
-//     l_i18n_crate::reexports::icu::datetime::options::TimePrecision,
-//     {
-//         Hour,
-//         Minute,
-//         Second,
-//         Subsecond(SubsecondDigits) => {
-//             l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits,
-//             S1,
-//             S2,
-//             S3,
-//             S4,
-//             S5,
-//             S6,
-//             S7,
-//             S8,
-//             S9,
-//
-//         },
-//         MinuteOptional,
-//     }
-// );
+impl_to_tokens!(
+    DateTimeYearStyle,
+    l_i18n_crate::reexports::icu::datetime::options::YearStyle,
+    {
+        Auto,
+        Full,
+        WithEra
+    }
+);
+
+impl_from!(DateTimeYearStyle, Auto, Full, WithEra);
 
 impl ToTokens for DateTimeTimePrecision {
     fn to_token_stream(&self) -> TokenStream {
@@ -330,9 +325,14 @@ pub enum Formatter {
     None,
     Currency(CurrencyWidth, CurrencyCode),
     Number(GroupingStrategy),
-    Date(DateTimeLength, DateTimeAlignment),
+    Date(DateTimeLength, DateTimeAlignment, DateTimeYearStyle),
     Time(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
-    DateTime(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
+    DateTime(
+        DateTimeLength,
+        DateTimeAlignment,
+        DateTimeTimePrecision,
+        DateTimeYearStyle,
+    ),
     List(ListType, ListStyle),
 }
 
@@ -346,8 +346,8 @@ impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
             leptos_i18n_parser::utils::formatter::Formatter::Number(grouping_strategy) => {
                 Self::Number(grouping_strategy.into())
             }
-            leptos_i18n_parser::utils::formatter::Formatter::Date(length, aligment) => {
-                Self::Date(length.into(), aligment.into())
+            leptos_i18n_parser::utils::formatter::Formatter::Date(length, aligment, year_style) => {
+                Self::Date(length.into(), aligment.into(), year_style.into())
             }
             leptos_i18n_parser::utils::formatter::Formatter::Time(
                 length,
@@ -358,7 +358,13 @@ impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
                 length,
                 alignment,
                 time_precision,
-            ) => Self::DateTime(length.into(), alignment.into(), time_precision.into()),
+                year_style,
+            ) => Self::DateTime(
+                length.into(),
+                alignment.into(),
+                time_precision.into(),
+                year_style.into(),
+            ),
             leptos_i18n_parser::utils::formatter::Formatter::List(list_type, list_style) => {
                 Self::List(list_type.into(), list_style.into())
             }
@@ -378,14 +384,14 @@ impl Formatter {
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key, #grouping_strategy))
             }
-            Formatter::Date(length, alignment) => {
-                quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment))
+            Formatter::Date(length, alignment, year_style) => {
+                quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment, #year_style))
             }
             Formatter::Time(length, alignment, time_precision) => {
                 quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length, #alignment, #time_precision))
             }
-            Formatter::DateTime(length, alignment, time_precision) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #length, #alignment, #time_precision))
+            Formatter::DateTime(length, alignment, time_precision, year_style) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
             }
             Formatter::List(list_type, list_style) => {
                 quote!(l_i18n_crate::__private::format_list_to_view(#locale_field, #key, #list_type, #list_style))
@@ -404,14 +410,14 @@ impl Formatter {
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key, #grouping_strategy))
             }
-            Formatter::Date(length, alignment) => {
-                quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment))
+            Formatter::Date(length, alignment, year_style) => {
+                quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment, #year_style))
             }
             Formatter::Time(length, alignment, time_precision) => {
                 quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length, #alignment, #time_precision))
             }
-            Formatter::DateTime(length, alignment, time_precision) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #length, #alignment, #time_precision))
+            Formatter::DateTime(length, alignment, time_precision, year_style) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
             }
             Formatter::List(list_type, list_style) => {
                 quote!(l_i18n_crate::__private::format_list_to_display(#locale_field, #key, #list_type, #list_style))
@@ -430,14 +436,14 @@ impl Formatter {
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #grouping_strategy))
             }
-            Formatter::Date(length, alignment) => {
-                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length, #alignment))
+            Formatter::Date(length, alignment, year_style) => {
+                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #year_style))
             }
             Formatter::Time(length, alignment, time_precision) => {
                 quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #time_precision))
             }
-            Formatter::DateTime(length, alignment, time_precision) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #time_precision))
+            Formatter::DateTime(length, alignment, time_precision, year_style) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #time_precision, #year_style))
             }
             Formatter::List(list_type, list_style) => {
                 quote!(l_i18n_crate::__private::format_list_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
@@ -450,9 +456,9 @@ impl Formatter {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
             Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
-            Formatter::Date(_, _) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
+            Formatter::Date(_, _, _) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
             Formatter::Time(_, _, _) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
-            Formatter::DateTime(_, _, _) => {
+            Formatter::DateTime(_, _, _, _) => {
                 quote!(l_i18n_crate::__private::DateTimeFormatterInputFn)
             }
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::ListFormatterInputFn),
@@ -464,9 +470,9 @@ impl Formatter {
             Formatter::None => quote!(::std::fmt::Display),
             Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
-            Formatter::Date(_, _) => quote!(l_i18n_crate::__private::AsIcuDate),
+            Formatter::Date(_, _, _) => quote!(l_i18n_crate::__private::AsIcuDate),
             Formatter::Time(_, _, _) => quote!(l_i18n_crate::__private::AsIcuTime),
-            Formatter::DateTime(_, _, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
+            Formatter::DateTime(_, _, _, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
         }
     }

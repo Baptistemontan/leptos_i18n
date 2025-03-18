@@ -36,10 +36,11 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
                 locale: &leptos_i18n::reexports::icu::locid::Locale,
                 length: leptos_i18n::reexports::icu::datetime::options::Length,
                 alignment: leptos_i18n::reexports::icu::datetime::options::Alignment,
+                year_style: leptos_i18n::reexports::icu::datetime::options::YearStyle,
             ) -> Result<leptos_i18n::reexports::icu::datetime::DateTimeFormatter<leptos_i18n::reexports::icu::datetime::fieldsets::YMD>, leptos_i18n::reexports::icu::datetime::DateTimeFormatterLoadError> {
 
                 let fset = leptos_i18n::reexports::icu::datetime::fieldsets::YMD::with_length(length)
-                    .with_alignment(alignment);
+                    .with_alignment(alignment).with_year_style(year_style);
                 leptos_i18n::reexports::icu::datetime::DateTimeFormatter::try_new_unstable(self, locale.into(), fset)
             }
 
@@ -62,10 +63,11 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
                 length: leptos_i18n::reexports::icu::datetime::options::Length,
                 alignment: leptos_i18n::reexports::icu::datetime::options::Alignment,
                 time_precision: leptos_i18n::reexports::icu::datetime::options::TimePrecision,
+                year_style: leptos_i18n::reexports::icu::datetime::options::YearStyle,
             ) -> Result<leptos_i18n::reexports::icu::datetime::DateTimeFormatter<leptos_i18n::reexports::icu::datetime::fieldsets::YMDT>, leptos_i18n::reexports::icu::datetime::DateTimeFormatterLoadError> {
                 let fset = leptos_i18n::reexports::icu::datetime::fieldsets::YMDT::with_length(length)
                     .with_alignment(alignment)
-                    .with_time_precision(time_precision);
+                    .with_time_precision(time_precision).with_year_style(year_style);
                 leptos_i18n::reexports::icu::datetime::DateTimeFormatter::try_new_unstable(self, locale.into(), fset)
             }
         }
