@@ -162,7 +162,7 @@ This will inject the ICU `DataMarker`s needed for the `date`, `time`, and `datet
 ```rust,ignore
 use leptos_i18n_build::Options;
 
-translations_infos.generate_data_with_data_keys(
+translations_infos.generate_data_with_data_markers(
     mod_directory,
     &[icu::plurals::provider::MARKERS]
 ).unwrap();
@@ -175,12 +175,12 @@ If you need both, `Options` can be turned into the needed keys:
 ```rust,ignore
 use leptos_i18n_build::Options;
 
-let mut keys = &[icu::plurals::provider::MARKERS]
-let keys.extend(Options::FormatDateTime.into_data_keys())
+let mut markers = &[icu::plurals::provider::MARKERS]
+let markers.extend(Options::FormatDateTime.into_data_markers())
 
-// keys now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
+// markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
 
-translations_infos.generate_data_with_data_keys(mod_directory, markers).unwrap();
+translations_infos.generate_data_with_data_markers(mod_directory, markers).unwrap();
 ```
 
 ## Is it worth the trouble ?

@@ -163,7 +163,7 @@ impl TranslationsInfos {
     pub fn get_icu_keys(&self) -> impl Iterator<Item = DataMarkerInfo> {
         let mut used_icu_keys = HashSet::new();
         self.get_icu_keys_inner(&mut used_icu_keys);
-        datamarker::get_keys(used_icu_keys)
+        datamarker::get_markers(used_icu_keys)
     }
 
     /// Same as `build_datagen_driver` but can be supplied with additional ICU `DataMarker`.
@@ -190,7 +190,7 @@ impl TranslationsInfos {
         &self,
         keys: impl IntoIterator<Item = Options>,
     ) -> ExportDriver {
-        self.build_datagen_driver_with_data_keys(datamarker::get_keys(keys))
+        self.build_datagen_driver_with_data_keys(datamarker::get_markers(keys))
     }
 
     /// Build a `ExportDriver` using the locales and keys needed for the translations.
@@ -199,7 +199,7 @@ impl TranslationsInfos {
     }
 
     /// Same as `generate_data` but can be supplied additionnal ICU `DataMarker`.
-    pub fn generate_data_with_data_keys(
+    pub fn generate_data_with_data_markers(
         &self,
         mod_directory: PathBuf,
         keys: impl IntoIterator<Item = DataMarkerInfo>,
@@ -228,7 +228,7 @@ impl TranslationsInfos {
         mod_directory: PathBuf,
         keys: impl IntoIterator<Item = Options>,
     ) -> Result<ExportMetadata, DataError> {
-        self.generate_data_with_data_keys(mod_directory, datamarker::get_keys(keys))
+        self.generate_data_with_data_markers(mod_directory, datamarker::get_markers(keys))
     }
 
     /// Generate an ICU datagen at the given mod_directory using the infos from the translations.

@@ -20,10 +20,10 @@ pub enum Options {
     FormatCurrency,
 }
 
-pub fn find_used_datamarker(keys: &BuildersKeysInner, used_icu_keys: &mut HashSet<Options>) {
-    for locale_value in keys.0.values() {
+pub fn find_used_datamarker(markers: &BuildersKeysInner, used_icu_markers: &mut HashSet<Options>) {
+    for locale_value in markers.0.values() {
         match locale_value {
-            LocaleValue::Subkeys { keys, .. } => find_used_datamarker(keys, used_icu_keys),
+            LocaleValue::Subkeys { keys, .. } => find_used_datamarker(keys, used_icu_markers),
             LocaleValue::Value {
                 // skip literals
                 value: InterpolOrLit::Lit(_),
@@ -35,7 +35,7 @@ pub fn find_used_datamarker(keys: &BuildersKeysInner, used_icu_keys: &mut HashSe
             } => {
                 for (_, var_infos) in interpolation_keys.iter_vars() {
                     if matches!(var_infos.range_count, Some(RangeOrPlural::Plural)) {
-                        used_icu_keys.insert(Options::Plurals);
+                        used_icu_markers.insert(Options::Plurals);
                     }
 
                     for formatter in &var_infos.formatters {
@@ -48,7 +48,7 @@ pub fn find_used_datamarker(keys: &BuildersKeysInner, used_icu_keys: &mut HashSe
                             Formatter::List(_, _) => Options::FormatList,
                             Formatter::Currency(_, _) => Options::FormatCurrency,
                         };
-                        used_icu_keys.insert(dk);
+                        used_icu_markers.insert(dk);
                     }
                 }
             }
@@ -56,15 +56,17 @@ pub fn find_used_datamarker(keys: &BuildersKeysInner, used_icu_keys: &mut HashSe
     }
 }
 
-pub fn get_keys(
-    used_icu_keys: impl IntoIterator<Item = Options>,
+pub fn get_markers(
+    used_icu_markers: impl IntoIterator<Item = Options>,
 ) -> impl Iterator<Item = DataMarkerInfo> {
-    used_icu_keys.into_iter().flat_map(Options::into_data_keys)
+    used_icu_markers
+        .into_iter()
+        .flat_map(Options::into_data_markers)
 }
 
 impl Options {
     /// Return a `Vec<DataMarkerInfo>` needed to use the given option.
-    pub fn into_data_keys(self) -> Vec<DataMarkerInfo> {
+    pub fn into_data_markers(self) -> Vec<DataMarkerInfo> {
         match self {
             Options::Plurals => icu::calendar::provider::MARKERS.to_vec(),
             Options::FormatDateTime => [
