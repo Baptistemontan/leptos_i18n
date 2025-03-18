@@ -71,7 +71,7 @@ impl EitherOfWrapper {
 
     pub fn wrap<T: ToTokens>(&self, i: usize, ts: T) -> TokenStream {
         const LETTERS: [char; 16] = [
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'O', 'P', 'Q',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
         ];
         match self {
             EitherOfWrapper::Single => ts.into_token_stream(),

@@ -6,6 +6,7 @@
   - [Configuration](./setting_up/01_configuration.md)
   - [File structure](./setting_up/02_file_structure.md)
   - [Namespaces](./setting_up/03_namespaces.md)
+  - [Inheritance](./setting_up/04_inheritance.md)
 - [Declare Translations](./declare/README.md)
   - [Key-Value Pairs](./declare/01_key_value.md)
   - [Interpolation](./declare/02_interpolation.md)

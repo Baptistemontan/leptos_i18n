@@ -91,7 +91,7 @@ pub fn make_builder_keys(
 
     resolve_foreign_keys(&locales, &cfg_file.default, foreign_keys_paths.into_inner())?;
 
-    check_locales(locales, warnings)
+    check_locales(locales, &cfg_file.extensions, warnings)
 }
 
 pub fn parse_locales(
@@ -126,7 +126,11 @@ fn resolve_foreign_keys(
     Ok(())
 }
 
-fn check_locales(locales: LocalesOrNamespaces, warnings: &Warnings) -> Result<BuildersKeys> {
+fn check_locales(
+    locales: LocalesOrNamespaces,
+    extensions: &BTreeMap<Key, Key>,
+    warnings: &Warnings,
+) -> Result<BuildersKeys> {
     match locales {
         LocalesOrNamespaces::NameSpaces(mut namespaces) => {
             let mut keys = BTreeMap::new();
@@ -134,6 +138,7 @@ fn check_locales(locales: LocalesOrNamespaces, warnings: &Warnings) -> Result<Bu
                 let k = check_locales_inner(
                     &mut namespace.locales,
                     Some(namespace.key.clone()),
+                    extensions,
                     warnings,
                 )?;
                 keys.insert(namespace.key.clone(), k);
@@ -141,7 +146,7 @@ fn check_locales(locales: LocalesOrNamespaces, warnings: &Warnings) -> Result<Bu
             Ok(BuildersKeys::NameSpaces { namespaces, keys })
         }
         LocalesOrNamespaces::Locales(mut locales) => {
-            let keys = check_locales_inner(&mut locales, None, warnings)?;
+            let keys = check_locales_inner(&mut locales, None, extensions, warnings)?;
             Ok(BuildersKeys::Locales { locales, keys })
         }
     }
@@ -150,6 +155,7 @@ fn check_locales(locales: LocalesOrNamespaces, warnings: &Warnings) -> Result<Bu
 fn check_locales_inner(
     locales: &mut [Locale],
     namespace: Option<Key>,
+    extensions: &BTreeMap<Key, Key>,
     warnings: &Warnings,
 ) -> Result<BuildersKeysInner> {
     let mut locales_iter = locales.iter_mut();
@@ -164,10 +170,22 @@ fn check_locales_inner(
     for locale in locales_iter {
         let top_locale = locale.name.clone();
         let mut string_indexer = StringIndexer::default();
+
+        let default_to = match extensions.get(&top_locale) {
+            Some(default_to) => DefaultTo::Explicit(default_to),
+            None => {
+                if cfg!(feature = "suppress_key_warnings") {
+                    DefaultTo::Explicit(&default_locale.top_locale_name)
+                } else {
+                    DefaultTo::Implicit(&default_locale.top_locale_name)
+                }
+            }
+        };
+
         locale.merge(
             &mut default_keys,
             top_locale,
-            DefaultTo::Implicit(&default_locale.top_locale_name),
+            default_to,
             &mut key_path,
             &mut string_indexer,
             warnings,

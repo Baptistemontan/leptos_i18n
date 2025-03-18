@@ -13,9 +13,11 @@ default = "en"
 locales = ["en", "fr"]
 ```
 
-There are 2 more optional values you can supply:
+There are more optional values you can supply:
 
 - `namespaces`: This is to split your translations into multiple files, we will cover it in a later chapter
 - `locales-dir`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
+- `translations-path`: Used in a CSR application with the `dynamic_load` feature, more information in a later chapter.
+- `inherits`: Allow to describe inheritance structure for locales, covered in a later chapter.
 
 Once this configuration is done, you can start writing your translations.

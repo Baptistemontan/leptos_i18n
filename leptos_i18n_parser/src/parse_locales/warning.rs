@@ -35,13 +35,6 @@ impl Warnings {
     }
 
     pub fn emit_warning(&self, warning: Warning) {
-        if matches!(
-            warning,
-            Warning::MissingKey { .. } | Warning::SurplusKey { .. }
-        ) && cfg!(feature = "suppress_key_warnings")
-        {
-            return;
-        }
         self.0.borrow_mut().push(warning);
     }
 

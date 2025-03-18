@@ -1,4 +1,8 @@
-use std::{borrow::Cow, collections::BTreeSet, path::PathBuf};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
+};
 
 use super::error::{Error, Result};
 use crate::utils::Key;
@@ -10,6 +14,7 @@ pub struct ConfigFile {
     pub name_spaces: Option<Vec<Key>>,
     pub locales_dir: Cow<'static, str>,
     pub translations_uri: Option<String>,
+    pub extensions: BTreeMap<Key, Key>,
 }
 
 impl ConfigFile {
@@ -99,6 +104,7 @@ pub enum Field {
     Namespaces,
     LocalesDir,
     TranslationsUri,
+    Extensions,
     Unknown,
 }
 
@@ -108,12 +114,14 @@ impl Field {
     pub const NAMESPACES: &'static str = "namespaces";
     pub const LOCALES_DIR: &'static str = "locales-dir";
     pub const TRANSLATIONS_URI: &'static str = "translations-path";
+    pub const EXTENSIONS: &'static str = "inherits";
     pub const FIELDS: &'static [&'static str] = &[
         Self::DEFAULT,
         Self::LOCALES,
         Self::NAMESPACES,
         Self::LOCALES_DIR,
         Self::TRANSLATIONS_URI,
+        Self::EXTENSIONS,
     ];
 }
 
@@ -149,6 +157,7 @@ impl serde::de::Visitor<'_> for FieldVisitor {
             Field::NAMESPACES => Ok(Field::Namespaces),
             Field::LOCALES_DIR => Ok(Field::LocalesDir),
             Field::TRANSLATIONS_URI => Ok(Field::TranslationsUri),
+            Field::EXTENSIONS => Ok(Field::Extensions),
             _ => Ok(Field::Unknown), // skip unknown fields
         }
     }
@@ -177,10 +186,11 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
             }
         }
         let mut default = None;
-        let mut locales = None;
+        let mut locales: Option<Vec<Key>> = None;
         let mut name_spaces = None;
         let mut locales_dir = None;
         let mut translations_uri = None;
+        let mut extensions: Option<BTreeMap<Key, Key>> = None;
         while let Some(field) = map.next_key::<Field>()? {
             match field {
                 Field::Default => deser_field(&mut default, &mut map, Field::DEFAULT)?,
@@ -190,6 +200,7 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
                 Field::TranslationsUri => {
                     deser_field(&mut translations_uri, &mut map, Field::TRANSLATIONS_URI)?
                 }
+                Field::Extensions => deser_field(&mut extensions, &mut map, Field::EXTENSIONS)?,
                 Field::Unknown => continue,
             }
         }
@@ -205,12 +216,29 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
             .map(Cow::Owned)
             .unwrap_or(Cow::Borrowed("locales"));
 
+        let extensions = extensions.unwrap_or_default();
+
+        for (k, v) in &extensions {
+            if !locales.contains(k) {
+                return Err(serde::de::Error::custom(format!("unknown locale {:?}", k)));
+            }
+
+            if !locales.contains(v) {
+                return Err(serde::de::Error::custom(format!("unknown locale {:?}", v)));
+            }
+        }
+
+        if extensions.contains_key(&default) {
+            return Err(serde::de::Error::custom("default locale can't inherit"));
+        }
+
         Ok(ConfigFile {
             default,
             locales,
             name_spaces,
             locales_dir,
             translations_uri,
+            extensions,
         })
     }
 
