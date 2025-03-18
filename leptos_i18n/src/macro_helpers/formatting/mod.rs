@@ -245,7 +245,9 @@ pub(crate) mod inner {
 
     #[cfg(feature = "format_datetime")]
     type DateTimeFormatterKey = (Length, Alignment, TimePrecision, YearStyle);
+    #[cfg(feature = "format_datetime")]
     type DateFormatterKey = (Length, Alignment, YearStyle);
+    #[cfg(feature = "format_datetime")]
     type TimeFormatterKey = (Length, Alignment, TimePrecision);
     // Formatters cache
     //
