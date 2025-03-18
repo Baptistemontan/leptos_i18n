@@ -11,7 +11,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos-use = { version = "0.15.0", default-features = false, features = [
+leptos-use = { version = "0.15.7", default-features = false, features = [
   "use_locales",
   "use_cookie",
 ] }
@@ -31,12 +31,12 @@ fixed_decimal = { workspace = true, optional = true, features = ["ryu"] }
 icu_experimental = { workspace = true, optional = true, features = ["ryu"] }
 writeable = "0.6"
 serde = "1.0"
-async-once-cell = { version = "0.5.3", optional = true }
-js-sys = { version = "0.3.70", optional = true }
+async-once-cell = { version = "0.5.4", optional = true }
+js-sys = { version = "0.3.77", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
-futures = { version = "0.3.30", optional = true }
+futures = { version = "0.3.31", optional = true }
 default-struct-builder = "0.5"
-wasm-bindgen = "0.2.96"
+wasm-bindgen = "0.2.100"
 tinystr = { workspace = true, optional = true }
 
 [features]
