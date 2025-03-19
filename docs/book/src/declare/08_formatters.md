@@ -5,6 +5,7 @@ For interpolation, every variables (other than `count` for ranges) are expected 
 But some values have different ways to be represented based on the locale:
 
 - Number
+- Currency
 - Date
 - Time
 - List
@@ -39,9 +40,11 @@ Here are all the formatters:
 
 Will format the number based on the locale.
 This makes the variable needed to be `impl leptos_i18n::formatting::NumberFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoFixedDecimal`.
-`IntoFixedDecimal` is a trait to turn a value into a `fixed_decimal::FixedDecimal`, which is a type used by `icu` to format numbers. That trait is currently implemented for:
+`IntoFixedDecimal` is a trait to turn a value into a `fixed_decimal::Decimal`, which is a type used by `icu` to format numbers. That trait is currently implemented for:
 
-- FixedDecimal
+- Decimal
+- UnsignedDecimal
+- Unsigned
 - usize
 - u8
 - u16
@@ -57,15 +60,15 @@ This makes the variable needed to be `impl leptos_i18n::formatting::NumberFormat
 - f32 \*
 - f64 \*
 
-> \* Is implemented for convenience, but uses [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision; you may want to use your own.
+> \* Is implemented for convenience, but uses [`Decimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/type.Decimal.html#method.try_from_f64) with the floating precision; you may want to use your own.
 
-The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through `FixedDecimal` before being passed to the formatter.
+The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through `Decimal` before being passed to the formatter.
 
 Enable the "format_nums" feature to use the number formatter.
 
 ### Arguments
 
-There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu_decimal/latest/icu_decimal/options/enum.GroupingStrategy.html), that can take 4 values:
+There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu/2.0.0-beta2/icu/decimal/options/enum.GroupingStrategy.html), that can take 4 values:
 
 - auto (default)
 - never
@@ -99,7 +102,7 @@ Enable the "format_currency" feature to use the number formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu_experimental::dimension::currency::options::Width`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html) and [`icu_experimental::dimension::currency::formatter::CurrencyCode`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/formatter/struct.CurrencyCode.html).
+There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu::experimental::dimension::currency::options::Width`](https://docs.rs/icu/2.0.0-beta2/icu/experimental/dimension/currency/options/enum.Width.html) and [`icu::experimental::dimension::currency::CurrencyCode`](https://docs.rs/icu/2.0.0-beta2/icu/experimental/dimension/currency/struct.CurrencyCode.html).
 
 `width` values:
 
