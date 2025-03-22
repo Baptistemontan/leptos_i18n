@@ -3,8 +3,11 @@ use std::{
     fmt::Display,
 };
 
-use fixed_decimal::{FixedDecimal, FloatPrecision};
-use icu_plurals::{PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules};
+use fixed_decimal::{Decimal, FloatPrecision};
+use icu_plurals::{
+    PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules,
+    PluralRulesOptions as IcuPluralRulesOptions,
+};
 
 use super::{
     error::{Error, Result},
@@ -77,17 +80,23 @@ impl From<PluralRuleType> for IcuRuleType {
     }
 }
 
+impl From<PluralRuleType> for IcuPluralRulesOptions {
+    fn from(value: PluralRuleType) -> Self {
+        Self::default().with_type(value.into())
+    }
+}
+
 impl Plurals {
     fn get_plural_rules(&self, locale: &Key) -> Result<PluralRules> {
         let locale =
             locale
                 .name
-                .parse::<icu_locid::Locale>()
+                .parse::<icu_locale::Locale>()
                 .map_err(|err| Error::InvalidLocale {
                     locale: locale.name.clone(),
                     err,
                 })?;
-        PluralRules::try_new(&locale.into(), self.rule_type.into())
+        PluralRules::try_new(locale.into(), self.rule_type.into())
             .map_err(Error::PluralRulesError)
             .map_err(Box::new)
     }
@@ -202,7 +211,7 @@ impl Plurals {
 
         let category = match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
-                let count = FixedDecimal::try_from_f64(*count, FloatPrecision::Floating)
+                let count = Decimal::try_from_f64(*count, FloatPrecision::RoundTrip)
                     .unwrap_at("populate_with_count_arg_1");
                 get_category(self, locale, &count)
             }

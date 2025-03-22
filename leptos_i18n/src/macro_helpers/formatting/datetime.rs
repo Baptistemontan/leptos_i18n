@@ -1,113 +1,138 @@
 use std::fmt::{self, Display};
 
-use icu_calendar::AnyCalendar;
-use icu_datetime::{input::DateTimeInput, options::length};
+use icu_calendar::{AnyCalendar, Ref};
+use icu_datetime::{
+    input::DateTime,
+    options::{Alignment, Length, TimePrecision, YearStyle},
+    scaffold::ConvertCalendar,
+};
 use leptos::IntoView;
 
 use crate::Locale;
 
-use super::{AsIcuDate, AsIcuTime, IntoIcuDate, IntoIcuTime};
-
-/// Marker trait for types that can lend a reference to
-/// `T: icu::datetime::input::DateTimeInput<Calendar = icu::calendar::AnyCalendar>`.
+/// Provides a reference conversion of a type into an ICU4X DateTime, allowing non-destructive access to calendar-specific datetime operations.
 pub trait AsIcuDateTime {
-    /// The returned `T: DateTimeInput<Calendar = AnyCalendar>`.
-    type DateTime: DateTimeInput<Calendar = AnyCalendar>;
+    /// The associated DateTime type that represents a calendar-specific datetime value in ICU4X format.
+    type DateTime<'a>: ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>;
 
-    /// Lend a reference to `Self::DateTime`.
-    fn as_icu_datetime(&self) -> &Self::DateTime;
+    /// Returns a reference to the calendar-specific DateTime representation of this value.
+    fn as_icu_datetime<'a>(&self) -> &Self::DateTime<'a>;
 }
 
-impl<DT: DateTimeInput<Calendar = AnyCalendar>, T: AsIcuDate<Date = DT> + AsIcuTime<Time = DT>>
-    AsIcuDateTime for T
+impl<T> AsIcuDateTime for T
+where
+    T: for<'a> ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>,
 {
-    type DateTime = DT;
-
-    fn as_icu_datetime(&self) -> &Self::DateTime {
-        self.as_icu_date()
+    type DateTime<'a> = Self;
+    fn as_icu_datetime<'a>(&self) -> &Self::DateTime<'a> {
+        self
     }
 }
 
-/// Marker trait for types that can be turned into a type
-/// `T: icu::datetime::input::DateTimeInput<Calendar = icu::calendar::AnyCalendar>`.
+/// Enables consuming conversion of a type into an ICU4X DateTime, transforming the original value into a calendar-specific datetime representation.
 pub trait IntoIcuDateTime {
-    /// The returned `T: DateTimeInput<Calendar = AnyCalendar>`.
-    type DateTime: DateTimeInput<Calendar = AnyCalendar>;
+    /// The associated DateTime type that represents a calendar-specific datetime value in ICU4X format.
+    type DateTime<'a>: ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>;
 
-    /// Consume self and return a `T: DateTimeInput<Calendar = AnyCalendar>`
-    fn into_icu_datetime(self) -> Self::DateTime;
+    /// Consumes self to produce its calendar-specific DateTime representation.
+    fn into_icu_datetime<'a>(self) -> Self::DateTime<'a>;
 }
 
-impl<
-        DT: DateTimeInput<Calendar = AnyCalendar>,
-        T: IntoIcuDate<Date = DT> + IntoIcuTime<Time = DT>,
-    > IntoIcuDateTime for T
+impl<T> IntoIcuDateTime for T
+where
+    T: for<'a> ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>,
 {
-    type DateTime = DT;
+    type DateTime<'a> = Self;
 
-    fn into_icu_datetime(self) -> Self::DateTime {
-        self.into_icu_date()
+    fn into_icu_datetime<'a>(self) -> Self::DateTime<'a> {
+        self
     }
 }
 
-/// Marker trait for types that produce a `T: DateTimeInput<Calendar = AnyCalendar>`.
+/// Defines a stateless, thread-safe function type that can repeatedly generate ICU4X DateTime instances for formatting operations.
 pub trait DateTimeFormatterInputFn: 'static + Clone + Send + Sync {
-    /// The returned `T: DateTimeInput<Calendar = AnyCalendar>`.
-    type DateTime: DateTimeInput<Calendar = AnyCalendar>;
+    /// The associated DateTime type that represents a calendar-specific datetime value in ICU4X format.
+    type DateTime<'a>: ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>;
 
-    /// Produce a `Self::DateTime`.
-    fn to_icu_datetime(&self) -> Self::DateTime;
+    /// Generates a new calendar-specific DateTime instance for formatting operations.
+    fn to_icu_datetime<'a>(&self) -> Self::DateTime<'a>;
 }
 
-impl<T: IntoIcuDateTime, F: Fn() -> T + Clone + Send + Sync + 'static> DateTimeFormatterInputFn
-    for F
+impl<T, F> DateTimeFormatterInputFn for F
+where
+    T: IntoIcuDateTime,
+    F: Fn() -> T + Clone + Send + Sync + 'static,
 {
-    type DateTime = T::DateTime;
+    type DateTime<'a> = T::DateTime<'a>;
 
-    fn to_icu_datetime(&self) -> Self::DateTime {
+    fn to_icu_datetime<'a>(&self) -> Self::DateTime<'a> {
         IntoIcuDateTime::into_icu_datetime(self())
     }
 }
 
 #[doc(hidden)]
-pub fn format_datetime_to_view<L: Locale>(
+pub fn format_datetime_to_view<L, I>(
     locale: L,
-    datetime: impl DateTimeFormatterInputFn,
-    date_length: length::Date,
-    time_length: length::Time,
-) -> impl IntoView + Clone {
-    let datetime_formatter = super::get_datetime_formatter(locale, date_length, time_length);
+    datetime: I,
+    length: Length,
+    alignment: Alignment,
+    time_precision: TimePrecision,
+    year_style: YearStyle,
+) -> impl IntoView + Clone
+where
+    L: Locale,
+    I: DateTimeFormatterInputFn,
+{
+    let datetime_formatter =
+        super::get_datetime_formatter(locale, length, alignment, time_precision, year_style);
 
     move || {
         let datetime = datetime.to_icu_datetime();
-        datetime_formatter
-            .format_to_string(&datetime)
-            .expect("The datetime formatter to return a formatted datetime.")
+
+        datetime_formatter.format(&datetime).to_string()
     }
 }
 
 #[doc(hidden)]
-pub fn format_datetime_to_formatter<L: Locale>(
+pub fn format_datetime_to_formatter<L, I>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
-    datetime: &impl AsIcuDateTime,
-    date_length: length::Date,
-    time_length: length::Time,
-) -> fmt::Result {
-    let formatted_date = format_datetime_to_display(locale, datetime, date_length, time_length);
-    Display::fmt(&formatted_date, f)
+    datetime: &I,
+    length: Length,
+    alignment: Alignment,
+    time_precision: TimePrecision,
+    year_style: YearStyle,
+) -> fmt::Result
+where
+    L: Locale,
+    I: AsIcuDateTime,
+{
+    let formatted_datetime = format_datetime_to_display(
+        locale,
+        datetime,
+        length,
+        alignment,
+        time_precision,
+        year_style,
+    );
+    Display::fmt(&formatted_datetime, f)
 }
 
 #[doc(hidden)]
-pub fn format_datetime_to_display<L: Locale>(
+pub fn format_datetime_to_display<L, I>(
     locale: L,
-    datetime: &impl AsIcuDateTime,
-    date_length: length::Date,
-    time_length: length::Time,
-) -> impl Display {
-    let datetime_formatter = super::get_datetime_formatter(locale, date_length, time_length);
-    let date = datetime.as_icu_datetime();
-    datetime_formatter
-        .format(date)
-        .expect("The datetime formatter to return a formatted datetime.")
+    datetime: &I,
+    length: Length,
+    alignment: Alignment,
+    time_precision: TimePrecision,
+    year_style: YearStyle,
+) -> impl Display
+where
+    L: Locale,
+    I: AsIcuDateTime,
+{
+    let datetime_formatter =
+        super::get_datetime_formatter(locale, length, alignment, time_precision, year_style);
+    let datetime = datetime.as_icu_datetime();
+    datetime_formatter.format(datetime).to_string()
 }

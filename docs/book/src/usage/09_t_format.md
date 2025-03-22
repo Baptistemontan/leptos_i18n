@@ -18,12 +18,10 @@ There are 9 variants, just like the `t!` macro, `td_format!`, `tu_format!`, `*_f
 ### Example
 
 ```rust,ignore
-let date = move || Date::try_new_iso_date(1970, 1, 2).unwrap().to_any();
+let date = move || Date::try_new_iso(1970, 1, 2).unwrap().to_any();
 
 let en = td_format_string!(Locale::en, date, formatter: date);
 assert_eq!(en, "Jan 2, 1970");
-let fr = td_format_string!(Locale::fr, date, formatter: date(date_length: full));
-assert_eq!(fr, "vendredi 2 janvier 1970");
-
-
+let fr = td_format_string!(Locale::fr, date, formatter: date(date_length: long));
+assert_eq!(fr, "2 janvier 1970");
 ```

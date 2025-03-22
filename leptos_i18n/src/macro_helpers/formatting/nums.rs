@@ -1,6 +1,6 @@
 use core::fmt::{self, Display};
 
-use fixed_decimal::{FixedDecimal, FloatPrecision};
+use fixed_decimal::{Decimal, FloatPrecision, Sign, UnsignedDecimal};
 use icu_decimal::options::GroupingStrategy;
 use leptos::IntoView;
 
@@ -10,7 +10,7 @@ use crate::Locale;
 macro_rules! impl_into_fixed_decimal {
     ($ty:ty) => {
         impl IntoFixedDecimal for $ty {
-            fn to_fixed_decimal(self) -> FixedDecimal {
+            fn to_fixed_decimal(self) -> Decimal {
                 Into::into(self)
             }
         }
@@ -21,53 +21,44 @@ macro_rules! impl_into_fixed_decimal {
     }
 }
 
-/// Marker trait for types that can be turned into a `fixed_decimal::FixedDecimal`.
+/// Marker trait for types that can be turned into a `fixed_decimal::Decimal`.
 pub trait IntoFixedDecimal: Clone {
-    /// Consume self to produce a `FixedDecimal`.
-    fn to_fixed_decimal(self) -> FixedDecimal;
+    /// Consume self to produce a `Decimal`.
+    fn to_fixed_decimal(self) -> Decimal;
 }
 
-// T: Into<FixedDecimal>
-impl_into_fixed_decimal!(
-    usize,
-    u8,
-    u16,
-    u32,
-    u64,
-    u128,
-    isize,
-    i8,
-    i16,
-    i32,
-    i64,
-    i128,
-    FixedDecimal
-);
+// T: Into<Decimal>
+impl_into_fixed_decimal!(usize, u8, u16, u32, u64, u128, isize, i8, i16, i32, i64, i128, Decimal);
 
 impl IntoFixedDecimal for f32 {
-    fn to_fixed_decimal(self) -> FixedDecimal {
-        FixedDecimal::try_from_f64(Into::into(self), FloatPrecision::Floating)
-            .expect("A FixedDecimal from a f32")
+    fn to_fixed_decimal(self) -> Decimal {
+        Decimal::try_from_f64(Into::into(self), FloatPrecision::RoundTrip)
+            .expect("A Decimal from a f32")
     }
 }
 
 impl IntoFixedDecimal for f64 {
-    fn to_fixed_decimal(self) -> FixedDecimal {
-        FixedDecimal::try_from_f64(self, FloatPrecision::Floating)
-            .expect("A FixedDecimal from a f64")
+    fn to_fixed_decimal(self) -> Decimal {
+        Decimal::try_from_f64(self, FloatPrecision::RoundTrip).expect("A Decimal from a f64")
     }
 }
 
-/// Marker trait for types that produce a `FixedDecimal`.
+impl IntoFixedDecimal for UnsignedDecimal {
+    fn to_fixed_decimal(self) -> Decimal {
+        Decimal::new(Sign::None, self)
+    }
+}
+
+/// Marker trait for types that produce a `Decimal`.
 pub trait NumberFormatterInputFn: Clone + Send + Sync + 'static {
-    /// Produce a `FixedDecimal`.
-    fn to_fixed_decimal(&self) -> FixedDecimal;
+    /// Produce a `Decimal`.
+    fn to_fixed_decimal(&self) -> Decimal;
 }
 
 impl<T: IntoFixedDecimal, F: Fn() -> T + Clone + Send + Sync + 'static> NumberFormatterInputFn
     for F
 {
-    fn to_fixed_decimal(&self) -> FixedDecimal {
+    fn to_fixed_decimal(&self) -> Decimal {
         IntoFixedDecimal::to_fixed_decimal(self())
     }
 }
@@ -82,7 +73,7 @@ pub fn format_number_to_view<L: Locale>(
 
     move || {
         let value = number.to_fixed_decimal();
-        num_formatter.format_to_string(&value)
+        num_formatter.format(&value).to_string()
     }
 }
 
@@ -111,5 +102,5 @@ pub fn format_number_to_display<L: Locale>(
 ) -> impl Display {
     let num_formatter = super::get_num_formatter(locale, grouping_strategy);
     let fixed_dec = number.to_fixed_decimal();
-    num_formatter.format_to_string(&fixed_dec)
+    num_formatter.format(&fixed_dec).to_string()
 }
