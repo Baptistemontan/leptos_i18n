@@ -17,6 +17,31 @@ macro_rules! impl_from {
     };
 }
 
+macro_rules! impl_to_tokens {
+    (
+        $type_name:ident,
+        $path_prefix:expr,
+        { $($variant:ident),+ $(,)? }
+    ) => {
+        impl ToTokens for $type_name {
+            fn to_token_stream(&self) -> TokenStream {
+                match self {
+                    $(
+                        $type_name::$variant => {
+                            quote!($path_prefix::$variant)
+                        },
+                    )+
+                }
+            }
+
+            fn to_tokens(&self, tokens: &mut TokenStream) {
+                let ts = Self::to_token_stream(self);
+                tokens.extend(ts);
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GroupingStrategy {
     Auto,
@@ -25,29 +50,16 @@ pub enum GroupingStrategy {
     Min2,
 }
 
-impl ToTokens for GroupingStrategy {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            GroupingStrategy::Auto => {
-                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Auto)
-            }
-            GroupingStrategy::Never => {
-                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Never)
-            }
-            GroupingStrategy::Always => {
-                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Always)
-            }
-            GroupingStrategy::Min2 => {
-                quote!(l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy::Min2)
-            }
-        }
+impl_to_tokens!(
+    GroupingStrategy,
+    l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy,
+    {
+        Auto,
+        Never,
+        Always,
+        Min2
     }
-
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ts = Self::to_token_stream(self);
-        tokens.extend(ts);
-    }
-}
+);
 
 impl_from!(GroupingStrategy, Auto, Never, Always, Min2);
 
@@ -57,23 +69,14 @@ pub enum CurrencyWidth {
     Narrow,
 }
 
-impl ToTokens for CurrencyWidth {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            CurrencyWidth::Short => {
-                quote!(l_i18n_crate::reexports::icu::currency::options::Width::Short)
-            }
-            CurrencyWidth::Narrow => {
-                quote!(l_i18n_crate::reexports::icu::currency::options::Width::Narrow)
-            }
-        }
+impl_to_tokens!(
+    CurrencyWidth,
+    l_i18n_crate::reexports::icu::currency::options::Width,
+    {
+        Short,
+        Narrow
     }
-
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ts = Self::to_token_stream(self);
-        tokens.extend(ts);
-    }
-}
+);
 
 impl_from!(CurrencyWidth, Short, Narrow);
 
@@ -83,11 +86,9 @@ pub struct CurrencyCode(pub TinyAsciiStr<3>);
 impl ToTokens for CurrencyCode {
     fn to_token_stream(&self) -> TokenStream {
         let code = Literal::string(self.0.as_str());
-        quote!(
-            l_i18n_crate::reexports::icu::currency::formatter::CurrencyCode(
-                l_i18n_crate::reexports::tinystr!(3, #code)
-            )
-        )
+        quote!(l_i18n_crate::reexports::icu::currency::CurrencyCode(
+            l_i18n_crate::reexports::tinystr!(3, #code)
+        ))
     }
 
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -102,64 +103,183 @@ impl From<leptos_i18n_parser::utils::formatter::CurrencyCode> for CurrencyCode {
     }
 }
 
-// impl From<CurrencyCode> for leptos_i18n_parser::utils::formatter::CurrencyCode {
-//     fn from(value: CurrencyCode) -> Self {
-//         Self(value.0)
-//     }
-// }
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DateLength {
-    Full,
+pub enum DateTimeLength {
     Long,
     Medium,
     Short,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TimeLength {
-    Full,
-    Long,
-    Medium,
-    Short,
+pub enum DateTimeAlignment {
+    Auto,
+    Column,
 }
 
-macro_rules! impl_length {
-    ($t:ident, $name:ident) => {
-        impl ToTokens for $t {
-            fn to_token_stream(&self) -> TokenStream {
-                match self {
-                    Self::Full => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::length::$name::Full)
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeYearStyle {
+    Auto,
+    Full,
+    WithEra,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeTimePrecision {
+    Hour,
+    Minute,
+    Second,
+    Subsecond(DateTimeSubsecondDigits),
+    MinuteOptional,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeSubsecondDigits {
+    S1 = 1,
+    S2 = 2,
+    S3 = 3,
+    S4 = 4,
+    S5 = 5,
+    S6 = 6,
+    S7 = 7,
+    S8 = 8,
+    S9 = 9,
+}
+
+impl_to_tokens!(
+    DateTimeLength,
+    l_i18n_crate::reexports::icu::datetime::options::Length,
+    {
+        Long,
+        Medium,
+        Short
+    }
+);
+
+impl_from!(DateTimeLength, Long, Medium, Short);
+
+impl_to_tokens!(
+    DateTimeAlignment,
+    l_i18n_crate::reexports::icu::datetime::options::Alignment,
+    {
+        Auto,
+        Column
+    }
+);
+
+impl_from!(DateTimeAlignment, Auto, Column);
+
+impl_to_tokens!(
+    DateTimeYearStyle,
+    l_i18n_crate::reexports::icu::datetime::options::YearStyle,
+    {
+        Auto,
+        Full,
+        WithEra
+    }
+);
+
+impl_from!(DateTimeYearStyle, Auto, Full, WithEra);
+
+impl ToTokens for DateTimeTimePrecision {
+    fn to_token_stream(&self) -> TokenStream {
+        match self {
+            DateTimeTimePrecision::Hour => {
+                quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Hour)
+            }
+            DateTimeTimePrecision::Minute => {
+                quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Minute)
+            }
+            DateTimeTimePrecision::Second => {
+                quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Second)
+            }
+            DateTimeTimePrecision::Subsecond(subsecond) => {
+                match subsecond {
+                    DateTimeSubsecondDigits::S1 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S1))
                     }
-                    Self::Long => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::length::$name::Long)
+                    DateTimeSubsecondDigits::S2 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S2))
                     }
-                    Self::Medium => {
-                        quote!(
-                            l_i18n_crate::reexports::icu::datetime::options::length::$name::Medium
-                        )
+                    DateTimeSubsecondDigits::S3 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S3))
                     }
-                    Self::Short => {
-                        quote!(
-                            l_i18n_crate::reexports::icu::datetime::options::length::$name::Short
-                        )
+                    DateTimeSubsecondDigits::S4 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S4))
+                    }
+                    DateTimeSubsecondDigits::S5 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S5))
+                    }
+                    DateTimeSubsecondDigits::S6 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S6))
+                    }
+                    DateTimeSubsecondDigits::S7 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S7))
+                    }
+                    DateTimeSubsecondDigits::S8 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S8))
+                    }
+                    DateTimeSubsecondDigits::S9 => {
+                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S9))
                     }
                 }
             }
-
-            fn to_tokens(&self, tokens: &mut TokenStream) {
-                let ts = self.to_token_stream();
-                tokens.extend(ts);
+            DateTimeTimePrecision::MinuteOptional => {
+                quote!(
+                    l_i18n_crate::reexports::icu::datetime::options::TimePrecision::MinuteOptional
+                )
             }
         }
+    }
 
-        impl_from!($t, Full, Long, Medium, Short);
-    };
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
+    }
 }
 
-impl_length!(DateLength, Date);
-impl_length!(TimeLength, Time);
+impl From<leptos_i18n_parser::utils::formatter::DateTimeTimePrecision> for DateTimeTimePrecision {
+    fn from(value: leptos_i18n_parser::utils::formatter::DateTimeTimePrecision) -> Self {
+        match value {
+            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Hour => Self::Hour,
+            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Minute => Self::Minute,
+            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Second => Self::Second,
+            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Subsecond(subsecond) => {
+                match subsecond {
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S1 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S1)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S2 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S2)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S3 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S3)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S4 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S4)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S5 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S5)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S6 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S6)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S7 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S7)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S8 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S8)
+                    }
+                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S9 => {
+                        Self::Subsecond(DateTimeSubsecondDigits::S9)
+                    }
+                }
+            }
+            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::MinuteOptional => {
+                Self::MinuteOptional
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListType {
@@ -168,43 +288,34 @@ pub enum ListType {
     Unit,
 }
 
+impl_to_tokens!(
+    ListType,
+    l_i18n_crate::__private::ListType,
+    {
+        And,
+        Or,
+        Unit
+    }
+);
+
+impl_from!(ListType, And, Or, Unit);
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListStyle {
     Wide,
     Short,
     Narrow,
 }
-impl ToTokens for ListType {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            ListType::And => quote!(l_i18n_crate::__private::ListType::And),
-            ListType::Or => quote!(l_i18n_crate::__private::ListType::Or),
-            ListType::Unit => quote!(l_i18n_crate::__private::ListType::Unit),
-        }
-    }
 
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ts = Self::to_token_stream(self);
-        tokens.extend(ts);
+impl_to_tokens!(
+    ListStyle,
+    l_i18n_crate::reexports::icu::list::options::ListLength,
+    {
+        Wide,
+        Short,
+        Narrow
     }
-}
-
-impl_from!(ListType, And, Or, Unit);
-
-impl ToTokens for ListStyle {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            ListStyle::Wide => quote!(l_i18n_crate::reexports::icu::list::ListLength::Wide),
-            ListStyle::Short => quote!(l_i18n_crate::reexports::icu::list::ListLength::Short),
-            ListStyle::Narrow => quote!(l_i18n_crate::reexports::icu::list::ListLength::Narrow),
-        }
-    }
-
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ts = Self::to_token_stream(self);
-        tokens.extend(ts);
-    }
-}
+);
 
 impl_from!(ListStyle, Wide, Short, Narrow);
 
@@ -214,9 +325,14 @@ pub enum Formatter {
     None,
     Currency(CurrencyWidth, CurrencyCode),
     Number(GroupingStrategy),
-    Date(DateLength),
-    Time(TimeLength),
-    DateTime(DateLength, TimeLength),
+    Date(DateTimeLength, DateTimeAlignment, DateTimeYearStyle),
+    Time(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
+    DateTime(
+        DateTimeLength,
+        DateTimeAlignment,
+        DateTimeTimePrecision,
+        DateTimeYearStyle,
+    ),
     List(ListType, ListStyle),
 }
 
@@ -230,15 +346,25 @@ impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
             leptos_i18n_parser::utils::formatter::Formatter::Number(grouping_strategy) => {
                 Self::Number(grouping_strategy.into())
             }
-            leptos_i18n_parser::utils::formatter::Formatter::Date(date_length) => {
-                Self::Date(date_length.into())
+            leptos_i18n_parser::utils::formatter::Formatter::Date(length, aligment, year_style) => {
+                Self::Date(length.into(), aligment.into(), year_style.into())
             }
-            leptos_i18n_parser::utils::formatter::Formatter::Time(time_length) => {
-                Self::Time(time_length.into())
-            }
-            leptos_i18n_parser::utils::formatter::Formatter::DateTime(date_length, time_length) => {
-                Self::DateTime(date_length.into(), time_length.into())
-            }
+            leptos_i18n_parser::utils::formatter::Formatter::Time(
+                length,
+                alignment,
+                time_precision,
+            ) => Self::Time(length.into(), alignment.into(), time_precision.into()),
+            leptos_i18n_parser::utils::formatter::Formatter::DateTime(
+                length,
+                alignment,
+                time_precision,
+                year_style,
+            ) => Self::DateTime(
+                length.into(),
+                alignment.into(),
+                time_precision.into(),
+                year_style.into(),
+            ),
             leptos_i18n_parser::utils::formatter::Formatter::List(list_type, list_style) => {
                 Self::List(list_type.into(), list_style.into())
             }
@@ -258,14 +384,14 @@ impl Formatter {
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key, #grouping_strategy))
             }
-            Formatter::Date(length) => {
-                quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length))
+            Formatter::Date(length, alignment, year_style) => {
+                quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment, #year_style))
             }
-            Formatter::Time(length) => {
-                quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length))
+            Formatter::Time(length, alignment, time_precision) => {
+                quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length, #alignment, #time_precision))
             }
-            Formatter::DateTime(date_length, time_length) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #date_length, #time_length))
+            Formatter::DateTime(length, alignment, time_precision, year_style) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
             }
             Formatter::List(list_type, list_style) => {
                 quote!(l_i18n_crate::__private::format_list_to_view(#locale_field, #key, #list_type, #list_style))
@@ -284,14 +410,14 @@ impl Formatter {
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key, #grouping_strategy))
             }
-            Formatter::Date(length) => {
-                quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length))
+            Formatter::Date(length, alignment, year_style) => {
+                quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment, #year_style))
             }
-            Formatter::Time(length) => {
-                quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length))
+            Formatter::Time(length, alignment, time_precision) => {
+                quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length, #alignment, #time_precision))
             }
-            Formatter::DateTime(date_length, time_length) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #date_length, #time_length))
+            Formatter::DateTime(length, alignment, time_precision, year_style) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
             }
             Formatter::List(list_type, list_style) => {
                 quote!(l_i18n_crate::__private::format_list_to_display(#locale_field, #key, #list_type, #list_style))
@@ -310,14 +436,14 @@ impl Formatter {
             Formatter::Number(grouping_strategy) => {
                 quote!(l_i18n_crate::__private::format_number_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #grouping_strategy))
             }
-            Formatter::Date(length) => {
-                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length))
+            Formatter::Date(length, alignment, year_style) => {
+                quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #year_style))
             }
-            Formatter::Time(length) => {
-                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length))
+            Formatter::Time(length, alignment, time_precision) => {
+                quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #time_precision))
             }
-            Formatter::DateTime(date_length, time_length) => {
-                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #date_length, #time_length))
+            Formatter::DateTime(length, alignment, time_precision, year_style) => {
+                quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #time_precision, #year_style))
             }
             Formatter::List(list_type, list_style) => {
                 quote!(l_i18n_crate::__private::format_list_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
@@ -330,9 +456,11 @@ impl Formatter {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
             Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
-            Formatter::Date(_) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
-            Formatter::Time(_) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
-            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::DateTimeFormatterInputFn),
+            Formatter::Date(_, _, _) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
+            Formatter::Time(_, _, _) => quote!(l_i18n_crate::__private::TimeFormatterInputFn),
+            Formatter::DateTime(_, _, _, _) => {
+                quote!(l_i18n_crate::__private::DateTimeFormatterInputFn)
+            }
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::ListFormatterInputFn),
         }
     }
@@ -342,9 +470,9 @@ impl Formatter {
             Formatter::None => quote!(::std::fmt::Display),
             Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
-            Formatter::Date(_) => quote!(l_i18n_crate::__private::AsIcuDate),
-            Formatter::Time(_) => quote!(l_i18n_crate::__private::AsIcuTime),
-            Formatter::DateTime(_, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
+            Formatter::Date(_, _, _) => quote!(l_i18n_crate::__private::AsIcuDate),
+            Formatter::Time(_, _, _) => quote!(l_i18n_crate::__private::AsIcuTime),
+            Formatter::DateTime(_, _, _, _) => quote!(l_i18n_crate::__private::AsIcuDateTime),
             Formatter::List(_, _) => quote!(l_i18n_crate::__private::WriteableList),
         }
     }

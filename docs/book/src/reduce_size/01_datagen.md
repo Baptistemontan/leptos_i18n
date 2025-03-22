@@ -12,7 +12,7 @@ Great, we lost a lot of size, but now instead of having too much information, we
 
 ## 1. Datagen
 
-First, generate the information; you can use [`icu_datagen`](https://docs.rs/icu_datagen/latest/icu_datagen/) for that, either as a CLI or with a build.rs (we will come back to it later).
+First, generate the information; you can use [`icu_datagen`](https://docs.rs/crate/icu4x-datagen/2.0.0-beta2) for that, either as a [CLI](https://github.com/unicode-org/icu4x/blob/main/tutorials/data-management.md#2-generating-data) or with a [build.rs](https://github.com/unicode-org/icu4x/blob/main/tutorials/cargo.md) (we will come back to it later).
 
 ## 2. Load
 
@@ -30,9 +30,9 @@ you will also need some depedencies:
 ```toml
 [dependencies]
 # "default-features = false" to turn off compiled_data
-icu = { version = "1.5", default-features = false }
-icu_provider = "1.5" # for databake
-zerovec = "0.10" # for databake
+icu_provider_baked = "2.0.0-beta2" # for databake
+icu_provider = "2.0.0-beta2" # for databake
+zerovec = "0.11" # for databake
 ```
 
 This is explained more in depth in the `icu_datagen` doc.
@@ -85,8 +85,10 @@ async fn main() -> std::io::Result<()> {
 The doc for ICU4X datagen can be quite intimidating, but it is actually quite straightforward. Your build.rs can look like this:
 
 ```rust,ignore
-use icu_datagen::baked_exporter::*;
-use icu_datagen::prelude::*;
+use icu_provider_export::{
+    baked_exporter::{self, BakedExporter},
+    DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
+};
 use std::path::PathBuf;
 
 fn main() {
@@ -94,18 +96,20 @@ fn main() {
 
     let mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("baked_data");
 
-    let exporter = BakedExporter::new(mod_directory, Default::default()).unwrap();
+    let exporter = BakedExporter::new(mod_directory, {
+        let mut options = baked_exporter::Options::default();
+        options.overwrite = true;
+        options.use_internal_fallback = false;
+        options
+    })
+    .unwrap();
 
-    DatagenDriver::new()
-        // Keys needed for plurals
-        .with_keys(icu_datagen::keys(&[
-            "plurals/cardinal@1",
-            "plurals/ordinal@1",
-        ]))
-        // Used locales, no fallback needed
-        .with_locales_no_fallback([langid!("en"), langid!("fr")], Default::default())
-        .export(&DatagenProvider::new_latest_tested(), exporter)
-        .unwrap();
+    ExportDriver::new(
+        &[locale!("en"), locale!("fr")],
+        DeduplicationStrategy::None.into(),
+        LocaleFallbacker::new_without_data(),
+    )
+    .with_markers(&[icu::plurals::provider::MARKERS]);
 }
 ```
 
@@ -153,14 +157,14 @@ use leptos_i18n_build::Options;
 translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();
 ```
 
-This will inject the ICU `DataKey`s needed for the `date`, `time`, and `datetime` formatters.
+This will inject the ICU `DataMarker`s needed for the `date`, `time`, and `datetime` formatters.
 
 ```rust,ignore
 use leptos_i18n_build::Options;
 
-translations_infos.generate_data_with_data_keys(
+translations_infos.generate_data_with_data_markers(
     mod_directory,
-    icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"])
+    &[icu::plurals::provider::MARKERS]
 ).unwrap();
 ```
 
@@ -171,12 +175,12 @@ If you need both, `Options` can be turned into the needed keys:
 ```rust,ignore
 use leptos_i18n_build::Options;
 
-let mut keys = icu_datagen::keys(&["plurals/cardinal@1", "plurals/ordinal@1"])
-let keys.extend(Options::FormatDateTime.into_data_keys())
+let mut markers = &[icu::plurals::provider::MARKERS]
+let markers.extend(Options::FormatDateTime.into_data_markers())
 
-// keys now contains the `DataKey`s needed for plurals and for the `time`, `date` and `datetime` formatters.
+// markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
 
-translations_infos.generate_data_with_data_keys(mod_directory, keys).unwrap();
+translations_infos.generate_data_with_data_markers(mod_directory, markers).unwrap();
 ```
 
 ## Is it worth the trouble ?
