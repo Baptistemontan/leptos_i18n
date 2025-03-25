@@ -461,7 +461,7 @@ pub fn i18n_routing<L: Locale, View, Chil>(
     children: RouteChildren<Chil>,
     ssr_mode: SsrMode,
     view: View,
-) -> impl MatchNestedRoutes + Clone + Send + 'static
+) -> impl MatchNestedRoutes + Clone + Sync + Send + 'static
 where
     View: ChooseView + Clone + Send + Sync,
     Chil: MatchNestedRoutes + 'static + Send + Sync + Clone,
