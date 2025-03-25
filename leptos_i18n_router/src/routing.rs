@@ -531,7 +531,7 @@ pub struct I18nRouteMatch<L, View, Chil>
 where
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
-    View: ChooseView + Clone,
+    View: ChooseView + Send + Sync + Clone,
 {
     locale: Option<L>,
     base_path: &'static str,
@@ -544,7 +544,7 @@ impl<L, View, Chil> MatchParams for I18nRouteMatch<L, View, Chil>
 where
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
-    View: ChooseView + Clone,
+    View: ChooseView + Send + Sync + Clone,
 {
     fn to_params(&self) -> Vec<(std::borrow::Cow<'static, str>, String)> {
         MatchParams::to_params(&self.inner_match)
@@ -556,7 +556,7 @@ where
     L: Locale,
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
-    View: ChooseView + Clone + Sync,
+    View: ChooseView + Clone + Send + Sync,
 {
     type Child = <<BaseRoute<View, Chil> as MatchNestedRoutes>::Match as MatchInterface>::Child;
 
