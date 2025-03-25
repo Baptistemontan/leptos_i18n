@@ -449,7 +449,7 @@ fn view_wrapper<L: Locale, View: ChooseView>(
     match redir {
         None => Either::Left(view),
         Some(path) => {
-            let view = Arc::new(move || view! { <Redirect path={ path.clone() }/> });
+            let view = Arc::new(move || view! { <Redirect path=path.clone() /> });
             Either::Right(RedirectView(view))
         }
     }
@@ -673,6 +673,10 @@ where
             .chain(default_locale_routes)
             .chain(reset)
     }
+
+    fn optional(&self) -> bool {
+        true
+    }
 }
 
 impl<L: Locale, View, Chil> I18nNestedRoute<L, View, Chil>
@@ -750,6 +754,10 @@ where
 
     fn generate_path(&self, path: &mut Vec<PathSegment>) {
         self.get_segment().generate_path(path);
+    }
+
+    fn optional(&self) -> bool {
+        true
     }
 }
 
