@@ -586,7 +586,7 @@ impl<L: Locale, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
 where
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
-    View: ChooseView + Clone + Sync,
+    View: ChooseView + Clone + Sync + Send,
 {
     type Data = ();
 
