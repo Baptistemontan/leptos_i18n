@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use leptos::component;
 use leptos_i18n::Locale;
-use leptos_router::{components::RouteChildren, ChooseView, MatchNestedRoutes, SsrMode};
+use leptos_router::{
+    any_nested_route::IntoAnyNestedRoute, components::RouteChildren, ChooseView, MatchNestedRoutes,
+    SsrMode,
+};
 
 #[component(transparent)]
 pub fn I18nRoute<L, View, Chil>(
@@ -23,11 +26,12 @@ pub fn I18nRoute<L, View, Chil>(
     /// `children` may be empty or include nested routes.
     children: RouteChildren<Chil>,
     #[prop(optional)] _marker: PhantomData<L>,
-) -> impl MatchNestedRoutes + 'static + Send + Sync + Clone
+) -> impl MatchNestedRoutes + Clone
 where
-    View: ChooseView + 'static + Send + Sync,
-    Chil: MatchNestedRoutes + 'static + Send + Sync + Clone,
+    View: ChooseView + Clone,
+    Chil: MatchNestedRoutes + Send + Clone + 'static,
     L: Locale,
 {
     crate::routing::i18n_routing::<L, View, Chil>(base_path, children, ssr, view)
+        .into_any_nested_route()
 }
