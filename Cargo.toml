@@ -45,7 +45,8 @@ tinystr = "0.8.1"
 # internal use
 tests_common = { path = "./tests/common", version = "0.1.0" }
 
-[patch.crates-io]
-leptos = { git = "https://github.com/leptos-rs/leptos", rev = "bf35298" }
-leptos_router = { git = "https://github.com/leptos-rs/leptos", rev = "bf35298" }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos", rev = "bf35298" }
+# [patch.crates-io]
+# leptos = { path = "../leptos/leptos" }
+# leptos_router = { path = "../leptos/router" }
+# leptos_meta = { path = "../leptos/meta" }
+# leptos_integration_utils = { path = "../leptos/integrations/utils/" }
