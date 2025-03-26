@@ -11,7 +11,7 @@ fn subkey_1() {
 
 #[test]
 fn subkey_2() {
-    let b = |children: ChildrenFn| view! { <b>{move || children()}</b> }.into_any();
+    let b = |children: ChildrenFn| view! { <b>{move || children()}</b> };
     let en = td!(Locale::en, subkeys.subkey_2, <b>);
     assert_eq_rendered!(en, "<b>subkey_2</b>");
     let fr = td!(Locale::fr, subkeys.subkey_2, <b>);
