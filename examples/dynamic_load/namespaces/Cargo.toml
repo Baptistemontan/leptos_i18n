@@ -9,10 +9,10 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.7", optional = true }
-leptos = { version = "0.7.3" }
-leptos_meta = { version = "0.7.0" }
-leptos_axum = { version = "0.7.0", optional = true }
+axum = { version = "0.8", optional = true }
+leptos = { version = "0.8.0-beta" }
+leptos_meta = { version = "0.8.0-beta" }
+leptos_axum = { version = "0.8.0-beta", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
   "track_locale_files",
   "dynamic_load",
