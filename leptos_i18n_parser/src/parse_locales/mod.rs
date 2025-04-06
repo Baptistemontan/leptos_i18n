@@ -104,8 +104,7 @@ pub fn parse_locales(
         foreign_keys_paths,
         warnings,
         tracked_files,
-        ..
-    } = parse_locales_raw(cargo_manifest_dir)?;
+    } = parse_locales_raw(skip_icu_cfg, cargo_manifest_dir)?;
 
     let builder_keys = make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings)?;
 
