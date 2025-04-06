@@ -51,6 +51,7 @@ pub fn load_locales() -> Result<TokenStream> {
         foreign_keys_paths,
         warnings,
         tracked_files,
+        ..
     } = leptos_i18n_parser::parse_locales::parse_locales_raw(false, None)?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));

@@ -1,6 +1,8 @@
 use icu_locale::ParseError as LocidError;
 use icu_provider::DataError as IcuDataError;
-use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
+use std::{
+    cell::RefCell, collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc,
+};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::{
@@ -244,7 +246,7 @@ impl Errors {
     }
 
     pub fn emit_warning(&self, error: Error) {
-        self.0.borrow_mut().push(warning);
+        self.0.borrow_mut().push(error);
     }
 
     pub fn into_inner(self) -> Vec<Error> {

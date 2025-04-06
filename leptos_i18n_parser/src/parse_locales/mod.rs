@@ -16,7 +16,7 @@ pub mod plurals;
 pub mod ranges;
 pub mod warning;
 
-use error::{Error, Result};
+use error::{Error, Errors, Result};
 use warning::Warnings;
 
 use crate::utils::{formatter::SkipIcuCfgGuard, Key, KeyPath, UnwrapAt};
@@ -42,6 +42,7 @@ pub struct RawParsedLocales {
     pub cfg_file: ConfigFile,
     pub foreign_keys_paths: ForeignKeysPaths,
     pub warnings: Warnings,
+    pub errors: Errors,
     pub tracked_files: Vec<String>,
 }
 
@@ -54,6 +55,8 @@ pub fn parse_locales_raw(
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
     let foreign_keys_paths = ForeignKeysPaths::new();
+
+    let errors = Errors::new();
 
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
 
@@ -76,6 +79,7 @@ pub fn parse_locales_raw(
         cfg_file,
         foreign_keys_paths,
         warnings,
+        errors,
         tracked_files,
     };
 
@@ -108,6 +112,7 @@ pub fn parse_locales(
         foreign_keys_paths,
         warnings,
         tracked_files,
+        ..
     } = parse_locales_raw(skip_icu_cfg, cargo_manifest_dir)?;
 
     let builder_keys = make_builder_keys(
