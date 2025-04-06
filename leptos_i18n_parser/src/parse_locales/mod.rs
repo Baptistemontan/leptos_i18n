@@ -37,16 +37,18 @@ fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {
     }
 }
 
+pub struct RawParsedLocales {
+    pub locales: LocalesOrNamespaces,
+    pub cfg_file: ConfigFile,
+    pub foreign_keys_paths: ForeignKeysPaths,
+    pub warnings: Warnings,
+    pub tracked_files: Vec<String>,
+}
+
 pub fn parse_locales_raw(
     skip_icu_cfg: bool,
     cargo_manifest_dir: Option<PathBuf>,
-) -> Result<(
-    LocalesOrNamespaces,
-    ConfigFile,
-    ForeignKeysPaths,
-    Warnings,
-    Vec<String>,
-)> {
+) -> Result<RawParsedLocales> {
     let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
 
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
@@ -69,13 +71,15 @@ pub fn parse_locales_raw(
         &mut tracked_files,
     )?;
 
-    Ok((
+    let raw_parsed_locales = RawParsedLocales {
         locales,
         cfg_file,
         foreign_keys_paths,
         warnings,
         tracked_files,
-    ))
+    };
+
+    Ok(raw_parsed_locales)
 }
 
 pub fn make_builder_keys(
@@ -98,8 +102,13 @@ pub fn parse_locales(
     skip_icu_cfg: bool,
     cargo_manifest_dir: Option<PathBuf>,
 ) -> Result<(BuildersKeys, Warnings, Vec<String>)> {
-    let (locales, cfg_file, foreign_keys_paths, warnings, tracked_files) =
-        parse_locales_raw(skip_icu_cfg, cargo_manifest_dir)?;
+    let RawParsedLocales {
+        locales,
+        cfg_file,
+        foreign_keys_paths,
+        warnings,
+        tracked_files,
+    } = parse_locales_raw(skip_icu_cfg, cargo_manifest_dir)?;
 
     let builder_keys = make_builder_keys(
         locales,
