@@ -582,7 +582,6 @@ fn strings_accessor_method_name(locale: &Locale) -> Ident {
     format_ident!("__get_{}_translations__", locale.top_locale_name)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn create_locale_type_inner<const IS_TOP: bool>(
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,

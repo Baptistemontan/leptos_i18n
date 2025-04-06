@@ -243,8 +243,7 @@ impl Interpolation {
         fields
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
+        pub fn new(
         key: &Key,
         enum_ident: &syn::Ident,
         keys: &InterpolationKeys,
@@ -447,8 +446,7 @@ impl Interpolation {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn dummy_impl(
+        fn dummy_impl(
         ident: &syn::Ident,
         dummy_ident: &syn::Ident,
         enum_ident: &syn::Ident,
@@ -561,8 +559,7 @@ impl Interpolation {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn display_impl(
+        fn display_impl(
         key: &Key,
         ident: &syn::Ident,
         display_struct_ident: &syn::Ident,
@@ -691,8 +688,7 @@ impl Interpolation {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn into_view_impl(
+        fn into_view_impl(
         key: &Key,
         ident: &syn::Ident,
         enum_ident: &syn::Ident,

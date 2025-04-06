@@ -620,7 +620,6 @@ impl ParsedValue {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn merge(
         &mut self,
         keys: &mut LocaleValue,
