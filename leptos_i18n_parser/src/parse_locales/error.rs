@@ -245,7 +245,7 @@ impl Errors {
         Default::default()
     }
 
-    pub fn emit_warning(&self, error: Error) {
+    pub fn emit_error(&self, error: Error) {
         self.0.borrow_mut().push(error);
     }
 

@@ -864,7 +864,7 @@ impl<'de> serde::de::Visitor<'de> for TypeOrRangeSeed<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct RangeStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
 
 impl<'de, T: RangeNumber> serde::de::DeserializeSeed<'de> for RangeStructSeed<'_, T> {

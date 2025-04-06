@@ -71,6 +71,7 @@ pub fn parse_locales_raw(
         &cfg_file,
         &foreign_keys_paths,
         &warnings,
+        &errors,
         &mut tracked_files,
     )?;
 

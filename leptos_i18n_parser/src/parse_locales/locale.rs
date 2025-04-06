@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use super::cfg_file::ConfigFile;
-use super::error::{Error, Result};
+use super::error::{Error, Errors, Result};
 use super::parsed_value::{ParsedValue, ParsedValueSeed};
 use super::plurals::{PluralForm, PluralRuleType, Plurals};
 use super::ranges::RangeType;
@@ -214,12 +214,13 @@ pub enum BuildersKeys {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LocaleSeed<'a> {
     pub name: Key,
     pub top_locale_name: Key,
     pub key_path: KeyPath,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
+    pub errors: &'a Errors,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -357,6 +358,7 @@ impl Namespace {
         locale_keys: &[Key],
         foreign_keys_paths: &ForeignKeysPaths,
         warnings: &Warnings,
+        errors: &Errors,
         tracked_files: &mut Vec<String>,
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
@@ -374,6 +376,7 @@ impl Namespace {
                 Some(key.clone()),
                 foreign_keys_paths,
                 warnings,
+                errors,
                 tracked_files,
             )?;
 
@@ -391,6 +394,7 @@ impl LocalesOrNamespaces {
         cfg_file: &ConfigFile,
         foreign_keys_paths: &ForeignKeysPaths,
         warnings: &Warnings,
+        errors: &Errors,
         tracked_files: &mut Vec<String>,
     ) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
@@ -404,6 +408,7 @@ impl LocalesOrNamespaces {
                     locale_keys,
                     foreign_keys_paths,
                     warnings,
+                    errors,
                     tracked_files,
                 )?);
             }
@@ -420,6 +425,7 @@ impl LocalesOrNamespaces {
                     None,
                     foreign_keys_paths,
                     warnings,
+                    errors,
                     tracked_files,
                 )?;
                 locales.push(locale);
@@ -493,6 +499,7 @@ impl Locale {
         namespace: Option<Key>,
         foreign_keys_paths: &ForeignKeysPaths,
         warnings: &Warnings,
+        errors: &Errors,
         tracked_files: &mut Vec<String>,
     ) -> Result<Self> {
         track_file(tracked_files, &locale, namespace.as_ref(), path, warnings);
@@ -502,6 +509,7 @@ impl Locale {
             top_locale_name: locale,
             key_path: KeyPath::new(namespace),
             foreign_keys_paths,
+            errors,
         };
 
         Self::de(locale_file, path, seed)
@@ -758,6 +766,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
                 key_path: &self.key_path,
                 in_range: false,
                 foreign_keys_paths: self.foreign_keys_paths,
+                errors: self.errors,
             })?;
             self.key_path.pop_key();
             keys.insert(locale_key, value);
