@@ -20,6 +20,12 @@ use super::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Dummy {
+    Variable(Key),
+    Component(Key),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
     Default,
     ForeignKey(RefCell<ForeignKey>),
@@ -30,6 +36,7 @@ pub enum ParsedValue {
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
     Plurals(Plurals),
+    Dummy(Vec<Dummy>),
 }
 
 impl Default for ParsedValue {
@@ -160,8 +167,17 @@ impl ParsedValue {
         }
     }
 
-    fn make_dummy(_: &str) -> Self {
-        todo!()
+    /// Just collect variable and component names
+    fn make_dummy(value: &str) -> Self {
+        let mut dummies = Vec::new();
+        Self::make_dummy_inner(value, &mut dummies);
+        ParsedValue::Dummy(dummies)
+    }
+
+    fn make_dummy_inner(value: &str, dummies: &mut Vec<Dummy>) {
+        if Self::find_dummy_component(value, dummies).is_none() {
+            Self::find_dummy_var(value, dummies);
+        }
     }
 
     fn parse_formatter_args(s: &str) -> (&str, Option<Vec<(&str, &str)>>) {
@@ -358,26 +374,34 @@ impl ParsedValue {
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
 
-    fn find_variable(
-        value: &str,
+    fn find_dummy_var(value: &str, dummies: &mut Vec<Dummy>) -> Option<()> {
+        let (before, rest) = value.split_once("{{")?;
+        let (ident, after) = rest.split_once("}}")?;
+
+        let ident = if let Some((ident, _)) = ident.split_once(',') {
+            ident.trim()
+        } else {
+            ident.trim()
+        };
+        let key = Key::new(&format!("var_{}", ident))?;
+
+        dummies.push(Dummy::Variable(key));
+
+        Self::make_dummy_inner(before, dummies);
+        Self::make_dummy_inner(after, dummies);
+
+        Some(())
+    }
+
+    fn find_valid_variable<'a>(
+        value: &'a str,
         key_path: &KeyPath,
         locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
-        errors: &Errors,
-    ) -> Option<Result<Self>> {
+    ) -> Option<Result<(&'a str, Self, &'a str)>> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
         let ident = ident.trim();
-
-        let before = try_new!(
-            errors,
-            Self::new(before, key_path, locale, foreign_keys_paths, errors)
-        );
-        let after = try_new!(
-            errors,
-            Self::new(after, key_path, locale, foreign_keys_paths, errors)
-        );
 
         let this = if let Some((ident, formatter)) = ident.split_once(',') {
             let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
@@ -391,7 +415,39 @@ impl ParsedValue {
             }
         };
 
+        Some(Ok((before, this, after)))
+    }
+
+    fn find_variable(
+        value: &str,
+        key_path: &KeyPath,
+        locale: &Key,
+        foreign_keys_paths: &ForeignKeysPaths,
+        errors: &Errors,
+    ) -> Option<Result<Self>> {
+        let (before, this, after) =
+            nested_result_try!(Self::find_valid_variable(value, key_path, locale)?);
+
+        let before = try_new!(
+            errors,
+            Self::new(before, key_path, locale, foreign_keys_paths, errors)
+        );
+        let after = try_new!(
+            errors,
+            Self::new(after, key_path, locale, foreign_keys_paths, errors)
+        );
+
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
+    }
+
+    fn find_dummy_component(value: &str, dummies: &mut Vec<Dummy>) -> Option<()> {
+        let (key, before, beetween, after) = Self::find_valid_component(value)?;
+        dummies.push(Dummy::Component(key));
+        Self::make_dummy_inner(before, dummies);
+        Self::make_dummy_inner(beetween, dummies);
+        Self::make_dummy_inner(after, dummies);
+
+        Some(())
     }
 
     fn find_valid_component(value: &str) -> Option<(Key, &str, &str, &str)> {
@@ -542,7 +598,10 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::Variable { .. }
+            | ParsedValue::Literal(_)
+            | ParsedValue::Default
+            | ParsedValue::Dummy(_) => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -590,9 +649,10 @@ impl ParsedValue {
         key_path: &KeyPath,
     ) -> Result<Self> {
         match self {
-            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::Literal(_) => {
-                Ok(self.clone())
-            }
+            ParsedValue::Default
+            | ParsedValue::ForeignKey(_)
+            | ParsedValue::Literal(_)
+            | ParsedValue::Dummy(_) => Ok(self.clone()),
             ParsedValue::Variable { key, formatter } => match args.get(&*key.name) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
@@ -715,7 +775,10 @@ impl ParsedValue {
             ParsedValue::Literal(Literal::String(s, _)) if s.is_empty() => {
                 // skip empty strings
             }
-            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => {}
+            ParsedValue::Variable { .. }
+            | ParsedValue::Literal(_)
+            | ParsedValue::Default
+            | ParsedValue::Dummy(_) => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -762,6 +825,7 @@ impl ParsedValue {
         match self {
             ParsedValue::Default => {}    // default in a bloc ? skip
             ParsedValue::Subkeys(_) => {} // same for subkeys
+            ParsedValue::Dummy(_) => {}   // Dummies are already reduced
             mut plurals_like @ (ParsedValue::Ranges(_) | ParsedValue::Plurals(_)) => {
                 plurals_like.reduce();
                 bloc.push(plurals_like);
@@ -846,6 +910,19 @@ impl ParsedValue {
                 keys.get_interpol_keys_mut().push_comp(key.clone());
                 inner.get_keys_inner(key_path, keys, false)?;
             }
+            ParsedValue::Dummy(dummies) => {
+                let interpol_keys = keys.get_interpol_keys_mut();
+                for dummy in dummies {
+                    match dummy {
+                        Dummy::Variable(key) => {
+                            interpol_keys.push_var(key.clone(), Formatter::Dummy);
+                        }
+                        Dummy::Component(key) => {
+                            interpol_keys.push_comp(key.clone());
+                        }
+                    }
+                }
+            }
             ParsedValue::Bloc(values) => {
                 for value in values {
                     value.get_keys_inner(key_path, keys, false)?;
@@ -911,7 +988,8 @@ impl ParsedValue {
             ParsedValue::Default
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
-            | ParsedValue::Subkeys(_) => {}
+            | ParsedValue::Subkeys(_)
+            | ParsedValue::Dummy(_) => {}
         }
     }
 
