@@ -23,6 +23,8 @@ impl Drop for SkipIcuCfgGuard {
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
+    /// NOT A FORMATTER, this formatter will emit no bound, this is for dummy code to reduce errors
+    Dummy,
     #[default]
     None,
     Number(GroupingStrategy),
@@ -196,6 +198,7 @@ impl Formatter {
     pub fn err_message(&self) -> &'static str {
         match self {
             Formatter::None => "",
+            Formatter::Dummy => "", // never used as err code
             Formatter::Number(_) => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
             Formatter::Currency(_, _) => "Formatting currencies is not enabled, enable the \"format_currency\" feature to do so",
             Formatter::Date(_, _, _) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
