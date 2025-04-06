@@ -234,3 +234,20 @@ impl Display for Error {
 pub type Result<T, E = Box<Error>> = core::result::Result<T, E>;
 
 impl std::error::Error for Error {}
+
+#[derive(Default)]
+pub struct Errors(RefCell<Vec<Error>>);
+
+impl Errors {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn emit_warning(&self, error: Error) {
+        self.0.borrow_mut().push(warning);
+    }
+
+    pub fn into_inner(self) -> Vec<Error> {
+        self.0.into_inner()
+    }
+}
