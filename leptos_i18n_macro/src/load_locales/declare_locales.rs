@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use leptos_i18n_parser::{
     parse_locales::{
         cfg_file::ConfigFile,
+        error::Errors,
         locale::{Locale, LocalesOrNamespaces},
         parsed_value::ParsedValue,
         ranges::{
@@ -88,9 +89,18 @@ fn parse_str_value(
     }
     let lit_str = input.parse::<LitStr>()?;
     let value = lit_str.value();
-    ParsedValue::new(&value, key_path, locale, foreign_keys_paths)
-        .map(Some)
-        .map_err(|_| syn::Error::new_spanned(lit_str, "unknown formatter."))
+    let errors = Errors::new();
+
+    match ParsedValue::new(&value, key_path, locale, foreign_keys_paths, &errors) {
+        Ok(pv) => {
+            if let Some(err) = errors.into_inner().first() {
+                Err(syn::Error::new_spanned(lit_str, err.to_string()))
+            } else {
+                Ok(Some(pv))
+            }
+        }
+        Err((err, _)) => Err(syn::Error::new_spanned(lit_str, err.to_string())),
+    }
 }
 
 fn parse_map_values(
