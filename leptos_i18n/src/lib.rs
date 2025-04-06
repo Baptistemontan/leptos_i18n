@@ -165,6 +165,10 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use leptos_i18n_macro as macros_reexport;
+
+    /// Helper trait to make some bounds for dummy code
+    pub trait AnyBound {}
+    impl<T: ?Sized> AnyBound for T {}
 }
 
 /// This module contain utilities to create custom ICU providers.
