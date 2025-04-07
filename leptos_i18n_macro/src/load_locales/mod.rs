@@ -52,7 +52,7 @@ pub fn load_locales() -> Result<TokenStream> {
         warnings,
         tracked_files,
         ..
-    } = leptos_i18n_parser::parse_locales::parse_locales_raw(false, None)?;
+    } = leptos_i18n_parser::parse_locales::parse_locales_raw(None)?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
@@ -87,7 +87,6 @@ fn load_locales_inner(
         cfg_file,
         foreign_keys_paths,
         &warnings,
-        false,
     )?;
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());

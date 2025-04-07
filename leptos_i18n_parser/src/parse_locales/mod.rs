@@ -19,7 +19,7 @@ pub mod warning;
 use error::{Error, Errors, Result};
 use warning::Warnings;
 
-use crate::utils::{formatter::SkipIcuCfgGuard, Key, KeyPath, UnwrapAt};
+use crate::utils::{Key, KeyPath, UnwrapAt};
 
 pub const VAR_COUNT_KEY: &str = "var_count";
 
@@ -46,12 +46,7 @@ pub struct RawParsedLocales {
     pub tracked_files: Vec<String>,
 }
 
-pub fn parse_locales_raw(
-    skip_icu_cfg: bool,
-    cargo_manifest_dir: Option<PathBuf>,
-) -> Result<RawParsedLocales> {
-    let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
-
+pub fn parse_locales_raw(cargo_manifest_dir: Option<PathBuf>) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
     let foreign_keys_paths = ForeignKeysPaths::new();
@@ -92,10 +87,7 @@ pub fn make_builder_keys(
     cfg_file: &ConfigFile,
     foreign_keys_paths: ForeignKeysPaths,
     warnings: &Warnings,
-    skip_icu_cfg: bool,
 ) -> Result<BuildersKeys> {
-    let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
-
     locales.merge_plurals(warnings)?;
 
     resolve_foreign_keys(&locales, &cfg_file.default, foreign_keys_paths.into_inner())?;
@@ -104,7 +96,6 @@ pub fn make_builder_keys(
 }
 
 pub fn parse_locales(
-    skip_icu_cfg: bool,
     cargo_manifest_dir: Option<PathBuf>,
 ) -> Result<(BuildersKeys, Warnings, Vec<String>)> {
     let RawParsedLocales {
@@ -114,15 +105,9 @@ pub fn parse_locales(
         warnings,
         tracked_files,
         ..
-    } = parse_locales_raw(skip_icu_cfg, cargo_manifest_dir)?;
+    } = parse_locales_raw(cargo_manifest_dir)?;
 
-    let builder_keys = make_builder_keys(
-        locales,
-        &cfg_file,
-        foreign_keys_paths,
-        &warnings,
-        skip_icu_cfg,
-    )?;
+    let builder_keys = make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings)?;
 
     Ok((builder_keys, warnings, tracked_files))
 }

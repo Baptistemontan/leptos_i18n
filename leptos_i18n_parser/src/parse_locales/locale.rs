@@ -1,6 +1,6 @@
 use serde::de::MapAccess;
 
-use crate::utils::formatter::{Formatter, SKIP_ICU_CFG};
+use crate::utils::formatter::Formatter;
 use crate::utils::{Key, KeyPath, UnwrapAt};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -599,7 +599,7 @@ impl Locale {
             };
             let key = Key::new(&base_key).unwrap_at("merge_plurals_1");
             key_path.push_key(key);
-            if !cfg!(feature = "plurals") && !SKIP_ICU_CFG.get() {
+            if !cfg!(feature = "plurals") {
                 return Err(Error::DisabledPlurals {
                     locale: locale.clone(),
                     key_path: std::mem::take(key_path),

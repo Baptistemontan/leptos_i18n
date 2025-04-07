@@ -1,25 +1,4 @@
-use std::cell::Cell;
-
 use tinystr::{tinystr, TinyAsciiStr};
-
-thread_local! {
-    pub(crate) static SKIP_ICU_CFG: Cell<bool> = const { Cell::new(false) };
-}
-
-pub(crate) struct SkipIcuCfgGuard(());
-
-impl SkipIcuCfgGuard {
-    pub fn new(skip_icu_cfg: bool) -> Self {
-        SKIP_ICU_CFG.set(skip_icu_cfg);
-        SkipIcuCfgGuard(())
-    }
-}
-
-impl Drop for SkipIcuCfgGuard {
-    fn drop(&mut self) {
-        SKIP_ICU_CFG.set(false);
-    }
-}
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
@@ -138,13 +117,13 @@ impl Formatter {
                 CurrencyWidth::from_args(args),
                 CurrencyCode::from_args(args),
             );
-            if cfg!(feature = "format_currency") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_currency") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "number" {
-            if cfg!(feature = "format_nums") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_nums") {
                 Ok(Some(Formatter::Number(GroupingStrategy::from_args(args))))
             } else {
                 Err(Formatter::Number(GroupingStrategy::from_args(args)))
@@ -156,7 +135,7 @@ impl Formatter {
                 DateTimeTimePrecision::from_args(args),
                 DateTimeYearStyle::from_args(args),
             );
-            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_datetime") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
@@ -167,7 +146,7 @@ impl Formatter {
                 DateTimeAlignment::from_args(args),
                 DateTimeYearStyle::from_args(args),
             );
-            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_datetime") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
@@ -178,14 +157,14 @@ impl Formatter {
                 DateTimeAlignment::from_args(args),
                 DateTimeTimePrecision::from_args(args),
             );
-            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_datetime") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "list" {
             let formatter = Formatter::List(ListType::from_args(args), ListStyle::from_args(args));
-            if cfg!(feature = "format_list") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_list") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
