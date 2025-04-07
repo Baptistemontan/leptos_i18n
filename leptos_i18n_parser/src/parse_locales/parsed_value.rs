@@ -136,8 +136,8 @@ impl ParsedValue {
         foreign_keys_paths: &ForeignKeysPaths,
     ) -> Result<Self> {
         let parsed_value = [
-            Self::find_foreign_key,
             Self::find_component,
+            Self::find_foreign_key,
             Self::find_variable,
         ]
         .into_iter()
