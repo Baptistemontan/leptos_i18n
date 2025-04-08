@@ -744,7 +744,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let subkeys_ts = subkeys.iter().map(|sk| {
         let subkey_mod_ident = &sk.mod_key;
-        key_path.push_key(sk.original_key.clone());
+        let mut pushed_key = key_path.push_key(sk.original_key.clone());
         let subkey_impl = create_locale_type_inner::<false>(
             &sk.key,
             Some(type_ident),
@@ -752,12 +752,11 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             translation_unit_enum_ident,
             sk.locales,
             &sk.keys.0,
-            key_path,
+            &mut pushed_key,
             interpolate_display,
             namespace_name,
             translations_uri,
         );
-        key_path.pop_key();
         quote! {
             pub mod #subkey_mod_ident {
                 use super::{#enum_ident, l_i18n_crate};

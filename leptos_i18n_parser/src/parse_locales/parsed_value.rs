@@ -203,20 +203,20 @@ impl ParsedValue {
     }
 
     fn parse_key_path(path: &str) -> Option<KeyPath> {
-        let (mut key_path, path) = if let Some((namespace, rest)) = path.split_once(':') {
+        let (ns, path) = if let Some((namespace, rest)) = path.split_once(':') {
             let namespace = Key::new(namespace)?;
 
-            (KeyPath::new(Some(namespace)), rest)
+            (Some(namespace), rest)
         } else {
-            (KeyPath::new(None), path)
+            (None, path)
         };
-
+        let mut key_path = Vec::new();
         for key in path.split('.') {
             let key = Key::new(key)?;
-            key_path.push_key(key);
+            key_path.push(key);
         }
 
-        Some(key_path)
+        Some(KeyPath::new_from_path(ns, key_path))
     }
 
     fn parse_foreign_key_args_inner(
@@ -727,7 +727,7 @@ impl ParsedValue {
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
-                key_path: std::mem::take(key_path),
+                key_path: key_path.clone(),
             }
             .into()),
         }
@@ -841,9 +841,7 @@ impl ParsedValue {
                     locales: vec![locale],
                 })
             }
-            ParsedValue::Default => {
-                Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path)).into())
-            }
+            ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(key_path.clone()).into()),
             this => {
                 this.index_strings(strings);
                 this.get_keys(key_path).map(|value| LocaleValue::Value {

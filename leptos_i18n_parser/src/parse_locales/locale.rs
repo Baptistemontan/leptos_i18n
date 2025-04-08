@@ -308,13 +308,13 @@ impl InterpolationKeys {
             (Some(RangeOrPlural::Plural), RangeOrPlural::Range(_))
             | (Some(RangeOrPlural::Range(_)), RangeOrPlural::Plural) => {
                 Err(Error::RangeAndPluralsMix {
-                    key_path: std::mem::take(key_path),
+                    key_path: key_path.clone(),
                 }
                 .into())
             }
             (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) => {
                 Err(Error::RangeTypeMissmatch {
-                    key_path: std::mem::take(key_path),
+                    key_path: key_path.clone(),
                     type1: old,
                     type2: new,
                 }
@@ -572,9 +572,8 @@ impl Locale {
         > = BTreeMap::new();
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
-                key_path.push_key(key.clone());
-                subkeys.merge_plurals(locale.clone(), key_path, warnings)?;
-                key_path.pop_key();
+                let mut pushed_key = key_path.push_key(key.clone());
+                subkeys.merge_plurals(locale.clone(), &mut pushed_key, warnings)?;
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
@@ -598,11 +597,11 @@ impl Locale {
                 continue;
             };
             let key = Key::new(&base_key).unwrap_at("merge_plurals_1");
-            key_path.push_key(key);
+            let pushed_key = key_path.push_key(key);
             if !cfg!(feature = "plurals") {
                 return Err(Error::DisabledPlurals {
                     locale: locale.clone(),
-                    key_path: std::mem::take(key_path),
+                    key_path: pushed_key.clone(),
                 }
                 .into());
             }
@@ -615,7 +614,7 @@ impl Locale {
                     } else {
                         Err(Error::ConflictingPluralRuleType {
                             locale: locale.clone(),
-                            key_path: std::mem::take(key_path),
+                            key_path: pushed_key.clone(),
                         }
                         .into())
                     }
@@ -627,14 +626,14 @@ impl Locale {
                 count_key: Key::count(),
                 other: Box::new(other),
             };
-            plural.check_forms(&locale, key_path, warnings)?;
+            plural.check_forms(&locale, &pushed_key, warnings)?;
             let value = ParsedValue::Plurals(plural);
-            let key = key_path.pop_key().unwrap_at("merge_plurals_3");
+            let key = pushed_key.pop().unwrap_at("merge_plurals_3");
             if self.keys.insert(key.clone(), value).is_some() {
-                key_path.push_key(key);
+                let pushed_key = key_path.push_key(key);
                 return Err(Error::PluralsAtNormalKey {
                     locale,
-                    key_path: std::mem::take(key_path),
+                    key_path: pushed_key.clone(),
                 }
                 .into());
             }
@@ -653,14 +652,14 @@ impl Locale {
         warnings: &Warnings,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
-            key_path.push_key(key.clone());
+            let mut pushed_key = key_path.push_key(key.clone());
             let entry = self.keys.entry(key.clone());
             let value = match entry {
                 Entry::Vacant(entry) => {
                     if matches!(default_to, DefaultTo::Implicit(_)) {
                         warnings.emit_warning(Warning::MissingKey {
                             locale: top_locale.clone(),
-                            key_path: key_path.clone(),
+                            key_path: pushed_key.clone(),
                         });
                     }
                     entry.insert(ParsedValue::Default)
@@ -671,23 +670,21 @@ impl Locale {
                 keys,
                 top_locale.clone(),
                 default_to,
-                key_path,
+                &mut pushed_key,
                 strings,
                 warnings,
             )?;
-            key_path.pop_key();
         }
 
         if !cfg!(feature = "suppress_key_warnings") {
             // reverse key comparaison
             for key in self.keys.keys() {
                 if !keys.0.contains_key(key) {
-                    key_path.push_key(key.clone());
+                    let pushed_key = key_path.push_key(key.clone());
                     warnings.emit_warning(Warning::SurplusKey {
                         locale: top_locale.clone(),
-                        key_path: key_path.clone(),
+                        key_path: pushed_key.clone(),
                     });
-                    key_path.pop_key();
                 }
             }
         }
@@ -703,9 +700,10 @@ impl Locale {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
             value.reduce();
-            key_path.push_key(key.clone());
-            let locale_value = value.make_locale_value(&self.top_locale_name, key_path, strings)?;
-            let key = key_path.pop_key().unwrap_at("make_builder_keys_1");
+            let mut pushed_key = key_path.push_key(key.clone());
+            let locale_value =
+                value.make_locale_value(&self.top_locale_name, &mut pushed_key, strings)?;
+            let key = pushed_key.pop().unwrap_at("make_builder_keys_1");
             keys.0.insert(key, locale_value);
         }
         Ok(keys)
@@ -758,16 +756,15 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
         let mut keys = BTreeMap::new();
 
         while let Some(locale_key) = map.next_key::<Key>()? {
-            self.key_path.push_key(locale_key.clone());
+            let pushed_key = self.key_path.push_key(locale_key.clone());
             let value = map.next_value_seed(ParsedValueSeed {
                 top_locale_name: &self.top_locale_name,
                 key: &locale_key,
-                key_path: &self.key_path,
+                key_path: &pushed_key,
                 in_range: false,
                 foreign_keys_paths: self.foreign_keys_paths,
                 errors: self.errors,
             })?;
-            self.key_path.pop_key();
             keys.insert(locale_key, value);
         }
 

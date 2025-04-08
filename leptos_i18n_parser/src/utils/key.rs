@@ -2,6 +2,7 @@ use crate::parse_locales::error::{Error, Result};
 use crate::parse_locales::VAR_COUNT_KEY;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use super::UnwrapAt;
@@ -116,6 +117,35 @@ impl Display for KeyPath {
     }
 }
 
+pub struct KeyPathPushGuard<'a>(&'a mut KeyPath);
+
+impl KeyPathPushGuard<'_> {
+    pub fn pop(self) -> Option<Key> {
+        let k = self.0.path.pop();
+        core::mem::forget(self);
+        k
+    }
+}
+
+impl Drop for KeyPathPushGuard<'_> {
+    fn drop(&mut self) {
+        self.0.path.pop();
+    }
+}
+
+impl Deref for KeyPathPushGuard<'_> {
+    type Target = KeyPath;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl DerefMut for KeyPathPushGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
 impl KeyPath {
     pub const fn new(namespace: Option<Key>) -> Self {
         KeyPath {
@@ -124,12 +154,13 @@ impl KeyPath {
         }
     }
 
-    pub fn push_key(&mut self, key: Key) {
-        self.path.push(key);
+    pub fn new_from_path(namespace: Option<Key>, path: Vec<Key>) -> Self {
+        KeyPath { namespace, path }
     }
 
-    pub fn pop_key(&mut self) -> Option<Key> {
-        self.path.pop()
+    pub fn push_key(&mut self, key: Key) -> KeyPathPushGuard {
+        self.path.push(key);
+        KeyPathPushGuard(self)
     }
 
     pub fn to_string_with_key(&self, key: &Key) -> String {

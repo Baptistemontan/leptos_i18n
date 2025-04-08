@@ -261,26 +261,25 @@ fn parse_values(
 ) -> syn::Result<(Key, ParsedValue)> {
     let ident: Ident = input.parse()?;
     let key = Key::from_ident(ident);
-    key_path.push_key(key.clone());
+    let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    if let Some(parsed_value) = parse_str_value(input, key_path, locale, foreign_keys_paths)? {
-        key_path.pop_key();
+    if let Some(parsed_value) = parse_str_value(input, &mut pushed_key, locale, foreign_keys_paths)?
+    {
         return Ok((key, parsed_value));
     }
-    if let Some(parsed_value) = parse_map_values(input, &key, key_path, locale, foreign_keys_paths)?
+    if let Some(parsed_value) =
+        parse_map_values(input, &key, &mut pushed_key, locale, foreign_keys_paths)?
     {
-        key_path.pop_key();
         return Ok((key, parsed_value));
     }
 
     let seed = ParseRangeSeed {
-        key_path,
+        key_path: &mut pushed_key,
         locale,
         foreign_keys_paths,
     };
 
     if let Some(parsed_value) = parse_ranges(input, seed, foreign_keys_paths)? {
-        key_path.pop_key();
         return Ok((key, parsed_value));
     }
 
