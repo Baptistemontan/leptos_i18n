@@ -13,7 +13,7 @@ use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
         cfg_file::ConfigFile,
-        error::{Error, Result},
+        error::{Error, Errors, Result},
         locale::{
             BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
             LocalesOrNamespaces, Namespace,
@@ -51,7 +51,7 @@ pub fn load_locales() -> Result<TokenStream> {
         foreign_keys_paths,
         warnings,
         tracked_files,
-        ..
+        errors,
     } = leptos_i18n_parser::parse_locales::parse_locales_raw(None)?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
@@ -64,6 +64,7 @@ pub fn load_locales() -> Result<TokenStream> {
         locales,
         foreign_keys_paths,
         warnings,
+        errors,
         Some(tracked_files),
         interpolate_display,
     )
@@ -75,6 +76,7 @@ fn load_locales_inner(
     locales: LocalesOrNamespaces,
     foreign_keys_paths: ForeignKeysPaths,
     warnings: Warnings,
+    errors: Errors,
     tracked_files: Option<Vec<String>>,
     interpolate_display: bool,
 ) -> Result<TokenStream> {
@@ -297,6 +299,8 @@ fn load_locales_inner(
             #macros_reexport
 
             #warnings
+
+            #errors
         }
     })
 }

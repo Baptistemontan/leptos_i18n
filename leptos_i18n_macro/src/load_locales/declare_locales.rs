@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use leptos_i18n_parser::{
     parse_locales::{
         cfg_file::ConfigFile,
+        error::Errors,
         locale::{Locale, LocalesOrNamespaces},
         parsed_value::ParsedValue,
         ranges::{
@@ -29,6 +30,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
     let warnings = Warnings::new();
+    let errors = Errors::new();
 
     let result = super::load_locales_inner(
         &crate_path,
@@ -36,6 +38,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         locales,
         foreign_keys_paths,
         warnings,
+        errors,
         None,
         interpolate_display,
     );

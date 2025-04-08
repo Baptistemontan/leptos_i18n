@@ -1,5 +1,6 @@
 use icu_locale::ParseError as LocidError;
 use icu_provider::DataError as IcuDataError;
+use quote::{quote, ToTokens};
 use std::{
     cell::RefCell, collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc,
 };
@@ -251,5 +252,22 @@ impl Errors {
 
     pub fn into_inner(self) -> Vec<Error> {
         self.0.into_inner()
+    }
+}
+
+impl ToTokens for Errors {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        let errors = self.0.borrow();
+        let iter = errors.iter().map(|err| err.to_string());
+
+        quote! {
+            #(
+                compile_error!(#iter);
+            )*
+        }
+    }
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
     }
 }
