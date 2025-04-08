@@ -713,7 +713,8 @@ impl ParsedValue {
                 | ParsedValue::Ranges(_)
                 | ParsedValue::Variable { .. }
                 | ParsedValue::Plurals(_)
-                | ParsedValue::ForeignKey(_),
+                | ParsedValue::ForeignKey(_)
+                | ParsedValue::Dummy(_),
                 LocaleValue::Value {
                     value: interpol_or_lit,
                     ..
