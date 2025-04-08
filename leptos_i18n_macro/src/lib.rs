@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![deny(warnings)]
+#![allow(clippy::too_many_arguments)]
 #![cfg_attr(feature = "nightly", feature(proc_macro_diagnostic, track_path))]
 //! # About Leptos i18n macro
 //!

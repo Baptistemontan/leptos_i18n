@@ -123,6 +123,8 @@ fn flatten(
         ParsedValue::Plurals(plurals) => {
             tokens.push(plurals::to_token_stream(plurals, strings_count))
         }
+        // don't emit any code for dummies, it will default to "" just for compiling
+        ParsedValue::Dummy(_) => {}
     }
 }
 
@@ -163,6 +165,8 @@ fn flatten_string(
             &plurals.count_key,
             strings_count,
         )),
+        // Same as for view
+        ParsedValue::Dummy(_) => {}
     }
 }
 

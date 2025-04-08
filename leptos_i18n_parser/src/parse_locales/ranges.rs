@@ -61,21 +61,10 @@ pub enum RangeType {
     F32,
     F64,
 }
+
 type DefaultRangeType = i32;
 
-#[cfg(not(feature = "quote"))]
-pub trait MaybeToTokens {}
-
-#[cfg(not(feature = "quote"))]
-impl<T> MaybeToTokens for T {}
-
-#[cfg(feature = "quote")]
-pub trait MaybeToTokens: quote::ToTokens {}
-
-#[cfg(feature = "quote")]
-impl<T: quote::ToTokens> MaybeToTokens for T {}
-
-pub trait RangeNumber: FromStr + PartialOrd + Copy + MaybeToTokens {
+pub trait RangeNumber: FromStr + PartialOrd + Copy + quote::ToTokens {
     const TYPE: RangeType;
 
     fn range_end_bound(self) -> Option<Bound<Self>>;
@@ -864,7 +853,7 @@ impl<'de> serde::de::Visitor<'de> for TypeOrRangeSeed<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct RangeStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
 
 impl<'de, T: RangeNumber> serde::de::DeserializeSeed<'de> for RangeStructSeed<'_, T> {

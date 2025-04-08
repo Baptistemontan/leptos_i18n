@@ -321,6 +321,8 @@ impl_from!(ListStyle, Wide, Short, Narrow);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
+    /// NOT A FORMATTER (see leptos_i18n_parser::utils::formatter::Formatter::Dummy)
+    Dummy,
     #[default]
     None,
     Currency(CurrencyWidth, CurrencyCode),
@@ -340,6 +342,7 @@ impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
     fn from(value: leptos_i18n_parser::utils::formatter::Formatter) -> Self {
         match value {
             leptos_i18n_parser::utils::formatter::Formatter::None => Self::None,
+            leptos_i18n_parser::utils::formatter::Formatter::Dummy => Self::Dummy,
             leptos_i18n_parser::utils::formatter::Formatter::Currency(width, code) => {
                 Self::Currency(width.into(), code.into())
             }
@@ -378,6 +381,9 @@ impl Formatter {
             Formatter::None => {
                 quote!(#key)
             }
+            Formatter::Dummy => unreachable!(
+                "var_to_view function should not have been called on a dummy formatter"
+            ),
             Formatter::Currency(width, code) => {
                 quote!(l_i18n_crate::__private::format_currency_to_view(#locale_field, #key, #width, #code))
             }
@@ -402,8 +408,13 @@ impl Formatter {
     pub fn var_to_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         match self {
             Formatter::None => unreachable!(
-                "This function should not have been called on a variable with no formatter."
+                "var_to_display function should not have been called on a variable with no formatter."
             ),
+            Formatter::Dummy => {
+                unreachable!(
+                    "var_to_display function should not have been called on a dummy formatter"
+                )
+            }
             Formatter::Currency(width, code) => {
                 quote!(l_i18n_crate::__private::format_currency_to_display(#locale_field, #key, #width, #code))
             }
@@ -430,6 +441,9 @@ impl Formatter {
             Formatter::None => {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
+            Formatter::Dummy => {
+                unreachable!("var_fmt function should not have been called on a dummy formatter")
+            }
             Formatter::Currency(width, code) => {
                 quote!(l_i18n_crate::__private::format_currency_to_formatter(__formatter, *#locale_field, core::clone::Clone::clone(#key), #width, #code))
             }
@@ -454,6 +468,7 @@ impl Formatter {
     pub fn to_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(l_i18n_crate::__private::InterpolateVar),
+            Formatter::Dummy => quote!(l_i18n_crate::__private::AnyBound),
             Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::NumberFormatterInputFn),
             Formatter::Date(_, _, _) => quote!(l_i18n_crate::__private::DateFormatterInputFn),
@@ -468,6 +483,7 @@ impl Formatter {
     pub fn to_string_bound(self) -> TokenStream {
         match self {
             Formatter::None => quote!(::std::fmt::Display),
+            Formatter::Dummy => quote!(l_i18n_crate::__private::AnyBound),
             Formatter::Currency(_, _) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Number(_) => quote!(l_i18n_crate::__private::IntoFixedDecimal),
             Formatter::Date(_, _, _) => quote!(l_i18n_crate::__private::AsIcuDate),

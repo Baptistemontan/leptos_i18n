@@ -9,19 +9,10 @@ use super::UnwrapAt;
 #[derive(Clone)]
 pub struct Key {
     pub name: Rc<str>,
-    #[cfg(feature = "quote")]
     pub ident: Rc<syn::Ident>,
 }
 
 impl Key {
-    #[cfg(not(feature = "quote"))]
-    pub fn new(name: &str) -> Option<Self> {
-        Some(Key {
-            name: Rc::from(name.trim()),
-        })
-    }
-
-    #[cfg(feature = "quote")]
     pub fn new(name: &str) -> Option<Self> {
         let name = name.trim();
         let ident_repr = name.replace('-', "_");
@@ -36,7 +27,6 @@ impl Key {
         Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()).into())
     }
 
-    #[cfg(feature = "quote")]
     pub fn from_ident(ident: syn::Ident) -> Self {
         let s = ident.to_string();
         Key {
@@ -88,14 +78,12 @@ impl Ord for Key {
     }
 }
 
-#[cfg(feature = "quote")]
 impl quote::ToTokens for Key {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         quote::ToTokens::to_tokens(&*self.ident, tokens);
     }
 }
 
-#[cfg(feature = "quote")]
 impl quote::IdentFragment for Key {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         quote::IdentFragment::fmt(&*self.ident, f)
