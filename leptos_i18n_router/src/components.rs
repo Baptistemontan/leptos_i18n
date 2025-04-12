@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
 use leptos::component;
 use leptos_i18n::Locale;
-use leptos_router::{
-    any_nested_route::IntoAnyNestedRoute, components::RouteChildren, ChooseView, MatchNestedRoutes,
-    SsrMode,
-};
+#[cfg(erase_components)]
+use leptos_router::any_nested_route::IntoAnyNestedRoute;
+use leptos_router::{components::RouteChildren, ChooseView, MatchNestedRoutes, SsrMode};
+use std::marker::PhantomData;
 
 #[component(transparent)]
 pub fn I18nRoute<L, View, Chil>(
@@ -23,15 +21,18 @@ pub fn I18nRoute<L, View, Chil>(
     /// The mode that this route prefers during server-side rendering. Defaults to out-of-order streaming
     #[prop(optional)]
     ssr: SsrMode,
+    #[prop(optional)] _marker: PhantomData<L>,
     /// `children` may be empty or include nested routes.
     children: RouteChildren<Chil>,
-    #[prop(optional)] _marker: PhantomData<L>,
 ) -> impl MatchNestedRoutes + Clone
 where
     View: ChooseView + Clone,
     Chil: MatchNestedRoutes + Send + Clone + 'static,
     L: Locale,
 {
-    crate::routing::i18n_routing::<L, View, Chil>(base_path, children, ssr, view)
-        .into_any_nested_route()
+    let routes = crate::routing::i18n_routing::<L, View, Chil>(base_path, children, ssr, view);
+    #[cfg(erase_components)]
+    return routes.into_any_nested_route();
+    #[cfg(not(erase_components))]
+    return routes;
 }
