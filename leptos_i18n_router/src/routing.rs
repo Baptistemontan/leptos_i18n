@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     fmt::Debug,
+    future::Future,
     marker::PhantomData,
     sync::{Arc, Mutex},
 };
@@ -370,12 +371,37 @@ fn maybe_redirect<L: Locale>(
     Some(new_path)
 }
 
-fn view_wrapper<L: Locale, View: ChooseView>(
+#[derive(Clone)]
+struct ViewWrapper<T, A, B>(T)
+where
+    T: Fn() -> Either<A, B> + Send + Clone + 'static,
+    A: ChooseView,
+    B: ChooseView;
+
+impl<T, A, B> ChooseView for ViewWrapper<T, A, B>
+where
+    T: Fn() -> Either<A, B> + Send + Clone + 'static,
+    A: ChooseView,
+    B: ChooseView,
+{
+    fn choose(self) -> impl Future<Output = AnyView> {
+        let inner = self.0();
+        ChooseView::choose(inner)
+    }
+
+    async fn preload(&self) {}
+}
+
+fn view_wrapper<L, View>(
     view: View,
     route_locale: Option<L>,
     base_path: &'static str,
     segments: RouteSegments<L>,
-) -> Either<View, impl ChooseView> {
+) -> Either<View, impl ChooseView>
+where
+    L: Locale,
+    View: ChooseView,
+{
     let i18n = use_i18n_context::<L>();
 
     let previously_resolved_locale = i18n.get_locale_untracked();
@@ -540,13 +566,15 @@ where
 
     fn into_view_and_child(self) -> (impl ChooseView, Option<Self::Child>) {
         let (view, child) = MatchInterface::into_view_and_child(self.inner_match);
-        let new_view = view_wrapper(
-            view.clone(),
-            self.locale,
-            self.base_path,
-            self.segments.clone(),
-        );
-        (new_view, child)
+        let new_view = move || {
+            view_wrapper(
+                view.clone(),
+                self.locale,
+                self.base_path,
+                self.segments.clone(),
+            )
+        };
+        (ViewWrapper(new_view), child)
     }
 }
 
