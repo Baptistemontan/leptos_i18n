@@ -12,10 +12,15 @@ pub mod warning;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
-        cfg_file::ConfigFile, error::{Error, Result}, locale::{
+        cfg_file::ConfigFile,
+        error::{Error, Result},
+        locale::{
             BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
             LocalesOrNamespaces, Namespace,
-        }, parsed_value::ParsedValue, warning::Warnings, ForeignKeysPaths
+        },
+        parsed_value::ParsedValue,
+        warning::Warnings,
+        ForeignKeysPaths,
     },
     utils::{
         key::{Key, KeyPath},
@@ -89,7 +94,7 @@ fn load_locales_inner(
         &enum_ident,
         &translation_unit_enum_ident,
         interpolate_display,
-        cfg_file.translations_uri.as_deref()
+        cfg_file.translations_uri.as_deref(),
     );
     let locale_enum = create_locales_enum(
         &enum_ident,
@@ -336,10 +341,10 @@ fn create_locales_enum(
         quote! {
             mod server_fn {
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
-                use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+                use l_i18n_crate::reexports::leptos::server_fn;
 
                 #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
-                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, server_fn::ServerFnError> {
                     let strings = #keys_ident::__i18n_request_translations__(locale, translations_id);
                     let wrapped = l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput::new(strings);
                     Ok(wrapped)
@@ -400,7 +405,8 @@ fn create_locales_enum(
             Err(err) => Err(Error::InvalidLocale {
                 locale: locale.name.clone(),
                 err,
-            }.into()),
+            }
+            .into()),
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -581,14 +587,14 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     key_path: &mut KeyPath,
     interpolate_display: bool,
     namespace_name: Option<&str>,
-    translations_uri: Option<&str>
+    translations_uri: Option<&str>,
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
     let literal_keys = keys
         .iter()
         .filter_map(|(key, value)| match value {
-            LocaleValue::Value{
+            LocaleValue::Value {
                 value: InterpolOrLit::Lit(t),
                 defaults,
             } => Some((key, LiteralType::from(*t), defaults)),
@@ -741,7 +747,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             key_path,
             interpolate_display,
             namespace_name,
-            translations_uri
+            translations_uri,
         );
         key_path.pop_key();
         quote! {
@@ -783,8 +789,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         .filter_map(|(key, value)| match value {
             LocaleValue::Value {
                 value: InterpolOrLit::Interpol(keys),
-                defaults
-             } => Some((
+                defaults,
+            } => Some((
                 key,
                 Interpolation::new(
                     key,
@@ -794,7 +800,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     key_path,
                     type_ident,
                     interpolate_display,
-                    defaults
+                    defaults,
                 ),
             )),
             _ => None,
@@ -856,7 +862,6 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     }
                 };
 
-                
                 let request_translations = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
                     let uri = translations_uri.expect("Missing URI"); // Already check before
                     // trigger with rustc 1.85, still in nightly tho
@@ -864,11 +869,11 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     let endpoint = uri.replace("{locale}", &locale.name.name).replace("{namespace}", namespace_name.unwrap_or(""));
                     quote! {
                         pub async fn __i18n_request_translations__() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
-                            use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+                            use l_i18n_crate::reexports::leptos::server_fn;
 
                             #[l_i18n_crate::reexports::leptos::server(endpoint = #endpoint, prefix = "", input = l_i18n_crate::reexports::leptos::server_fn::codec::GetUrl, output = l_i18n_crate::reexports::leptos::server_fn::codec::Json)]
-                            pub async fn i18n_request_translations_inner() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError>;
-                            
+                            pub async fn i18n_request_translations_inner() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, server_fn::ServerFnError>;
+
                             i18n_request_translations_inner().await
                         }
                     }
@@ -1138,7 +1143,7 @@ fn create_namespaces_types(
     namespaces: &[Namespace],
     keys: &BTreeMap<Key, BuildersKeysInner>,
     interpolate_display: bool,
-    translations_uri: Option<&str>
+    translations_uri: Option<&str>,
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1165,7 +1170,7 @@ fn create_namespaces_types(
                 &mut key_path,
                 interpolate_display,
                 Some(&namespace.key.name),
-                translations_uri
+                translations_uri,
             );
 
             quote! {
@@ -1363,7 +1368,7 @@ fn create_locale_type(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     interpolate_display: bool,
-    translations_uri: Option<&str>
+    translations_uri: Option<&str>,
 ) -> TokenStream {
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
@@ -1373,7 +1378,7 @@ fn create_locale_type(
             namespaces,
             keys,
             interpolate_display,
-            translations_uri
+            translations_uri,
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,
@@ -1385,7 +1390,7 @@ fn create_locale_type(
             &mut KeyPath::new(None),
             interpolate_display,
             None,
-            translations_uri
+            translations_uri,
         ),
     }
 }
