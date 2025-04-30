@@ -141,6 +141,9 @@ fn load_locales_inner(
                 /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
+                /// If `true`, skip the locale resolution and directly use the default locale.
+                #[prop(optional)]
+                skip_locale_resolution: Option<bool>,
                 children: Children
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component_island::<#enum_ident>(
@@ -148,6 +151,7 @@ fn load_locales_inner(
                     set_dir_attr_on_html,
                     enable_cookie,
                     cookie_name,
+                    skip_locale_resolution,
                     children
                 )
             }
@@ -166,11 +170,15 @@ fn load_locales_inner(
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
+                /// If `true`, skip the locale resolution and directly use the default locale.
+                #[prop(optional)]
+                skip_locale_resolution: Option<bool>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_island::<#enum_ident>(
                     children,
                     initial_locale,
                     cookie_name,
+                    skip_locale_resolution,
                 )
             }
         }
@@ -201,6 +209,9 @@ fn load_locales_inner(
                 /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
+                /// If `true`, skip the locale resolution and directly use the default locale.
+                #[prop(optional)]
+                skip_locale_resolution: Option<bool>,
                 children: TypedChildren<Chil>
             ) -> impl IntoView {
                 l_i18n_crate::context::provide_i18n_context_component::<#enum_ident, Chil>(
@@ -210,6 +221,7 @@ fn load_locales_inner(
                     cookie_name,
                     cookie_options,
                     ssr_lang_header_getter,
+                    skip_locale_resolution,
                     children
                 )
             }
@@ -234,13 +246,17 @@ fn load_locales_inner(
                 /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
+                /// If `true`, skip the locale resolution and directly use the default locale.
+                #[prop(optional)]
+                skip_locale_resolution: Option<bool>,
             ) -> impl IntoView {
                 l_i18n_crate::context::i18n_sub_context_provider_inner::<#enum_ident, Chil>(
                     children,
                     initial_locale,
                     cookie_name,
                     cookie_options,
-                    ssr_lang_header_getter
+                    ssr_lang_header_getter,
+                    skip_locale_resolution,
                 )
             }
         }
