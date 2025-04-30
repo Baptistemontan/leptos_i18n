@@ -40,13 +40,13 @@ pub fn find_used_datamarker(markers: &BuildersKeysInner, used_icu_markers: &mut 
 
                     for formatter in &var_infos.formatters {
                         let dk = match formatter {
-                            Formatter::None => continue,
+                            Formatter::None | Formatter::Dummy => continue,
                             Formatter::Number(_) => Options::FormatNums,
-                            Formatter::Date(_, _, _)
-                            | Formatter::Time(_, _, _)
-                            | Formatter::DateTime(_, _, _, _) => Options::FormatDateTime,
-                            Formatter::List(_, _) => Options::FormatList,
-                            Formatter::Currency(_, _) => Options::FormatCurrency,
+                            Formatter::Date(..) | Formatter::Time(..) | Formatter::DateTime(..) => {
+                                Options::FormatDateTime
+                            }
+                            Formatter::List(..) => Options::FormatList,
+                            Formatter::Currency(..) => Options::FormatCurrency,
                         };
                         used_icu_markers.insert(dk);
                     }
