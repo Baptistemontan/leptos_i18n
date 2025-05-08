@@ -392,8 +392,22 @@ impl ParsedValue {
         let (before, this, after) =
             nested_result_try!(Self::find_valid_variable(value, key_path, locale)?);
 
-        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths,));
-        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths,));
+        let ident = ident.trim();
+
+        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths));
+        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths));
+
+        let this = if let Some((ident, formatter)) = ident.split_once(',') {
+            let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
+            let key = Key::new(&format!("var_{}", ident.trim()))?;
+            ParsedValue::Variable { key, formatter }
+        } else {
+            let key = Key::new(&format!("var_{ident}"))?;
+            ParsedValue::Variable {
+                key,
+                formatter: Formatter::None,
+            }
+        };
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }

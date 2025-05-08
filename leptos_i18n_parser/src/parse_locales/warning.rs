@@ -51,7 +51,8 @@ impl Display for Warning {
             }
             Warning::SurplusKey { locale, key_path } => write!(
                 f,
-                "Key \"{key_path}\" is present in locale {locale:?} but not in default locale, it is ignored"),
+                "Key \"{key_path}\" is present in locale {locale:?} but not in default locale, it is ignored"
+            ),
             Warning::UnusedForm { locale, key_path, form, rule_type } => {
                 write!(f, "At key \"{key_path}\", locale {locale:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless.")
             },
