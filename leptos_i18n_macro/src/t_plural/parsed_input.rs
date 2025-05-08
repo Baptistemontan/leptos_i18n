@@ -77,7 +77,7 @@ impl syn::parse::Parse for ParsedInput {
                     Some(PluralForm::Many) => "many",
                     Some(PluralForm::Other) => "other",
                 };
-                let msg = format!("Duplicate form {}.", form);
+                let msg = format!("Duplicate form {form}.");
                 return Err(syn::Error::new(span, msg));
             }
         }

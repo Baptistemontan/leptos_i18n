@@ -10,7 +10,7 @@ use icu_locale::{
 use crate::Locale;
 
 fn lang_matches(lhs: &Language, rhs: &Language, self_as_range: bool, other_as_range: bool) -> bool {
-    (self_as_range && lhs.is_default()) || (other_as_range && rhs.is_default()) || lhs == rhs
+    (self_as_range && lhs.is_unknown()) || (other_as_range && rhs.is_unknown()) || lhs == rhs
 }
 
 fn subtag_matches<P: PartialEq>(
@@ -71,7 +71,7 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
 
         // Per Unicode TR35, 4.4 Locale Matching, we don't add likely subtags to
         // requested locales, so we'll skip it from the rest of the steps.
-        if req.language.is_default() {
+        if req.language.is_unknown() {
             continue;
         }
     }
