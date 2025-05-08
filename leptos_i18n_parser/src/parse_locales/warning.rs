@@ -47,18 +47,17 @@ impl Display for Warning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Warning::MissingKey { locale, key_path } => {
-                write!(f, "Missing key \"{}\" in locale {:?}", key_path, locale)
+                write!(f, "Missing key \"{key_path}\" in locale {locale:?}")
             }
             Warning::SurplusKey { locale, key_path } => write!(
                 f,
-                "Key \"{}\" is present in locale {:?} but not in default locale, it is ignored",
-                key_path, locale
+                "Key \"{key_path}\" is present in locale {locale:?} but not in default locale, it is ignored"
             ),
             Warning::UnusedForm { locale, key_path, form, rule_type } => {
-                write!(f, "At key \"{}\", locale {:?} does not use {} plural form \"{}\", it is still kept but is useless.", key_path, locale, rule_type, form)
+                write!(f, "At key \"{key_path}\", locale {locale:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless.")
             },
-            Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, path),
-            Warning::NonUnicodePath { locale, namespace: Some(ns), path } => write!(f, "File path for locale {:?} in namespace {:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {:?}", locale, ns, path),
+            Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {locale:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"),
+            Warning::NonUnicodePath { locale, namespace: Some(ns), path } => write!(f, "File path for locale {locale:?} in namespace {ns:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"),
         }
     }
 }
