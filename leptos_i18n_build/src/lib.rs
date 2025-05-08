@@ -219,7 +219,7 @@ impl TranslationsInfos {
         .unwrap();
 
         self.build_datagen_driver_with_data_keys(keys)
-            .export(&SourceDataProvider::new_latest_tested(), exporter)
+            .export(&SourceDataProvider::new(), exporter)
     }
 
     /// Same as `generate_data` but can be supplied additionnal options.
