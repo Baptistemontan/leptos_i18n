@@ -1,4 +1,4 @@
-use crate::utils::formatter::Formatter;
+use leptos_i18n_codegen::utils::formatter::Formatter;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse_macro_input;

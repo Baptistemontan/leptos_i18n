@@ -791,6 +791,7 @@ impl Interpolation {
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote!{
                         #enum_ident::#locale_key #defaulted => {
+                            #[allow(unused)]
                             let #translations_key: &'static [Box<str>; #strings_count] = super::#locale_type_ident::#string_accessor().await;
                             #wrapped_value
                         }
@@ -798,6 +799,7 @@ impl Interpolation {
                 } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                     quote!{
                         #enum_ident::#locale_key #defaulted => {
+                            #[allow(unused)]
                             let #translations_key: &'static [&'static str; #strings_count] = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
@@ -805,6 +807,7 @@ impl Interpolation {
                 } else {
                     quote!{
                         #enum_ident::#locale_key #defaulted => {
+                            #[allow(unused)]
                             const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                             #wrapped_value
                         }
@@ -842,6 +845,7 @@ impl Interpolation {
 
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 quote!{
+                    #[allow(unused)]
                     #enum_ident::#locale_key(#translations_key) => {
                         #value
                     }
@@ -849,6 +853,7 @@ impl Interpolation {
             } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                 quote!{
                     #enum_ident::#locale_key #defaulted => {
+                        #[allow(unused)]
                         let #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }
@@ -856,6 +861,7 @@ impl Interpolation {
             }else {
                 quote!{
                     #enum_ident::#locale_key #defaulted => {
+                        #[allow(unused)]
                         const #translations_key: &[&str; #strings_count] = super::#locale_type_ident::#string_accessor();
                         #value
                     }

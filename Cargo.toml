@@ -5,6 +5,7 @@ members = [
   "leptos_i18n_macro",
   "leptos_i18n_parser",
   "leptos_i18n_build",
+  "leptos_i18n_codegen",
   "tests/json",
   "tests/common",
   "tests/namespaces",
@@ -16,9 +17,10 @@ exclude = ["examples", "tests"]
 version = "0.5.11"
 
 [workspace.dependencies]
-# pin macro and parser version, those don't follow semver internally so a version missmatch with the main crate can cause problems.
+# pin macro, codegen and parser version, those don't follow semver internally so a version missmatch with the main crate can cause problems.
 leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.5.11" }
 leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.5.11" }
+leptos_i18n_codegen = { path = "./leptos_i18n_codegen", default-features = false, version = "=0.5.11" }
 leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.5.11" }
 leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.11" }
 

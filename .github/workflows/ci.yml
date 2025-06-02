@@ -28,7 +28,7 @@ jobs:
       - name: "Test all features"
         working-directory: "leptos_i18n"
         run: cargo test-all-features
-  macros_test:
+  subcrates_test:
     # Why not also use cargo-all-features with the parser and macros packages ?
     # Because all features are forwarded from leptos_i18n,
     # so if some features mix creates a problem they will appear in leptos_i18n tests.
@@ -39,14 +39,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        packages: [leptos_i18n_macro, leptos_i18n_parser, leptos_i18n_build]
+        packages: [leptos_i18n_macro, leptos_i18n_parser, leptos_i18n_build, leptos_i18n_codegen]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
       - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: "clippy"
       - name: "Run tests"
         run: cargo test --package ${{ matrix.packages }}
+      - name: "Run clippy"
+        run: cargo clippy --package ${{ matrix.packages }}
   test_ssr_examples:
     name: Test ${{ matrix.examples }} SSR example
     runs-on: ubuntu-latest

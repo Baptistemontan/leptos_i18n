@@ -15,7 +15,7 @@ fn warning_fn((index, warning): (usize, &Warning)) -> TokenStream {
 
 fn emit_warning(warning: &Warning) {
     let _ = warning;
-    #[cfg(feature = "nightly")]
+    #[cfg(all(feature = "nightly", feature = "proc_macro"))]
     {
         use proc_macro::Diagnostic;
 
@@ -45,8 +45,8 @@ fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
     }
 }
 
-pub fn generate_warnings(warnings: Warnings) -> Option<TokenStream> {
-    let ws = warnings.into_inner();
+pub fn generate_warnings(warnings: &Warnings) -> Option<TokenStream> {
+    let ws = warnings.take_inner();
 
     if cfg!(not(feature = "nightly")) {
         if ws.is_empty() {
