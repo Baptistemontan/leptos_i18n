@@ -1230,6 +1230,7 @@ fn create_namespaces_types(
     let translation_request_fn = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
         quote! {
             #[doc(hidden)]
+            #[allow(unused_variables)]
             pub async fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
                 #get_strings_match_stmt
             }
@@ -1237,6 +1238,7 @@ fn create_namespaces_types(
     } else {
         quote! {
             #[doc(hidden)]
+            #[allow(unused_variables)]
             pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static [&'static str] {
                 #get_strings_match_stmt
             }
