@@ -11,15 +11,12 @@ pub mod warning;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
-        cfg_file::ConfigFile,
-        error::{Error, Errors, Result},
+        error::{Error, Result},
         locale::{
             BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
-            LocalesOrNamespaces, Namespace,
+            Namespace,
         },
-        parsed_value::ParsedValue,
-        warning::Warnings,
-        ForeignKeysPaths,
+        parsed_value::ParsedValue,ParsedLocales,
     },
     utils::{
         key::{Key, KeyPath},
@@ -33,32 +30,22 @@ use quote::{format_ident, quote, ToTokens};
 use warning::generate_warnings;
 
 pub fn load_locales(
+    parsed_locales: &ParsedLocales,
     crate_path: &syn::Path,
-    cfg_file: &ConfigFile,
-    locales: LocalesOrNamespaces,
-    foreign_keys_paths: ForeignKeysPaths,
-    warnings: Warnings,
-    errors: Errors,
-    tracked_files: Option<Vec<String>>,
     interpolate_display: bool,
 ) -> Result<TokenStream> {
+    let ParsedLocales { cfg_file, builder_keys, warnings, errors, tracked_files } = parsed_locales;
+
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
     }
-
-    let keys = leptos_i18n_parser::parse_locales::make_builder_keys(
-        locales,
-        cfg_file,
-        foreign_keys_paths,
-        &warnings,
-    )?;
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
     let translation_unit_enum_ident = syn::Ident::new("I18nTranslationUnitsId", Span::call_site());
 
     let locale_type = create_locale_type(
-        &keys,
+        builder_keys,
         &keys_ident,
         &enum_ident,
         &translation_unit_enum_ident,
@@ -74,7 +61,7 @@ pub fn load_locales(
 
     let warnings = generate_warnings(warnings);
 
-    let file_tracking = tracking::generate_file_tracking(tracked_files);
+    let file_tracking = tracking::generate_file_tracking(tracked_files.as_deref());
 
     let mut macros_reexport = vec![
         quote!(t),

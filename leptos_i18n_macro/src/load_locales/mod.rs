@@ -1,5 +1,4 @@
 use leptos_i18n_parser::parse_locales::error::Result;
-use leptos_i18n_parser::parse_locales::RawParsedLocales;
 use proc_macro2::{Span, TokenStream};
 
 pub mod declare_locales;
@@ -16,27 +15,11 @@ pub mod declare_locales;
 /// 4.4: discard any surplus key and emit a warning
 /// 5: generate code (and warnings)
 pub fn load_locales() -> Result<TokenStream> {
-    let RawParsedLocales {
-        locales,
-        cfg_file,
-        foreign_keys_paths,
-        warnings,
-        tracked_files,
-        errors,
-    } = leptos_i18n_parser::parse_locales::parse_locales_raw(None)?;
-
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
     let interpolate_display = cfg!(feature = "interpolate_display");
 
-    leptos_i18n_codegen::load_locales(
-        &crate_path,
-        &cfg_file,
-        locales,
-        foreign_keys_paths,
-        warnings,
-        errors,
-        Some(tracked_files),
-        interpolate_display,
-    )
+    let parsed_locales = leptos_i18n_parser::parse_locales::parse_locales(None)?;
+
+    leptos_i18n_codegen::gen_code(&parsed_locales, &crate_path, interpolate_display)
 }

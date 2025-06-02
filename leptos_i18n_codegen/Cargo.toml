@@ -41,6 +41,7 @@ format_datetime = ["leptos_i18n_parser/format_datetime"]
 format_list = ["leptos_i18n_parser/format_list"]
 format_nums = ["leptos_i18n_parser/format_nums"]
 format_currency = ["leptos_i18n_parser/format_currency", "format_nums"]
+proc_macro = []
 
 # check if they are still needed ?
 interpolate_display = []

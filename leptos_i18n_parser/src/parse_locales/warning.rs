@@ -41,6 +41,10 @@ impl Warnings {
     pub fn into_inner(self) -> Vec<Warning> {
         self.0.into_inner()
     }
+
+    pub fn take_inner(&self) -> Vec<Warning> {
+        self.0.take()
+    }
 }
 
 impl Display for Warning {

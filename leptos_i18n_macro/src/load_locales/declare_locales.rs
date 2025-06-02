@@ -5,12 +5,13 @@ use leptos_i18n_parser::{
         cfg_file::ConfigFile,
         error::Errors,
         locale::{Locale, LocalesOrNamespaces},
+        make_builder_keys,
         parsed_value::ParsedValue,
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
         warning::Warnings,
-        ForeignKeysPaths,
+        ForeignKeysPaths, ParsedLocales,
     },
     utils::{Key, KeyPath},
 };
@@ -32,16 +33,18 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     let warnings = Warnings::new();
     let errors = Errors::new();
 
-    let result = leptos_i18n_codegen::load_locales(
-        &crate_path,
-        &cfg_file,
-        locales,
-        foreign_keys_paths,
+    let builder_keys =
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings).unwrap();
+
+    let parsed_locales = ParsedLocales {
+        cfg_file,
+        builder_keys,
         warnings,
         errors,
-        None,
-        interpolate_display,
-    );
+        tracked_files: None,
+    };
+
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, &crate_path, interpolate_display);
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {

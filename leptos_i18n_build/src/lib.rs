@@ -20,12 +20,10 @@ use icu_provider_export::{
     DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
 };
 use icu_provider_source::SourceDataProvider;
-use leptos_i18n_parser::{
-    parse_locales,
-    parse_locales::{
-        error::Result,
-        locale::{BuildersKeys, Locale},
-    },
+use leptos_i18n_parser::parse_locales::{
+    error::Result,
+    locale::{BuildersKeys, Locale},
+    parse_locales, ParsedLocales,
 };
 
 mod datamarker;
@@ -49,16 +47,15 @@ impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A,
 
 /// Contains informations about the translations.
 pub struct TranslationsInfos {
-    locales: BuildersKeys,
-    paths: Vec<String>,
+    parsed_locales: ParsedLocales,
 }
 
 impl TranslationsInfos {
     fn parse_inner(dir_path: Option<PathBuf>) -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
-        let (locales, _, paths) = parse_locales::parse_locales(dir_path)?;
+        let parsed_locales = parse_locales(dir_path)?;
 
-        Ok(TranslationsInfos { locales, paths })
+        Ok(TranslationsInfos { parsed_locales })
     }
 
     /// Parse the translations and obtain informations about them.
@@ -72,14 +69,16 @@ impl TranslationsInfos {
     }
 
     /// Paths to all files containing translations.
-    pub fn files_paths(&self) -> &[String] {
-        &self.paths
+    pub fn files_paths(&self) -> Option<&[String]> {
+        self.parsed_locales.tracked_files.as_deref()
     }
 
     /// Output "cargo:rerun-if-changed" for all locales files.
     pub fn rerun_if_locales_changed(&self) {
-        for path in &self.paths {
-            println!("cargo:rerun-if-changed={path}");
+        if let Some(paths) = self.files_paths() {
+            for path in paths {
+                println!("cargo:rerun-if-changed={path}");
+            }
         }
     }
 
@@ -88,7 +87,7 @@ impl TranslationsInfos {
         fn map_locales(locales: &[Locale]) -> impl Iterator<Item = Rc<str>> + '_ {
             locales.iter().map(|locale| locale.name.name.clone())
         }
-        match &self.locales {
+        match &self.parsed_locales.builder_keys {
             BuildersKeys::NameSpaces { namespaces, .. } => {
                 let iter = namespaces
                     .iter()
@@ -114,7 +113,7 @@ impl TranslationsInfos {
                 strings: &locale.strings,
             })
         }
-        match &self.locales {
+        match &self.parsed_locales.builder_keys {
             BuildersKeys::NameSpaces { namespaces, .. } => {
                 let iter = namespaces.iter().map(|ns| {
                     let locales = map_locales(&ns.locales);
@@ -131,7 +130,7 @@ impl TranslationsInfos {
 
     /// Return an iterator containing the name of each namespaces, if any.
     pub fn get_namespaces(&self) -> Option<impl Iterator<Item = Rc<str>> + '_> {
-        match &self.locales {
+        match &self.parsed_locales.builder_keys {
             BuildersKeys::NameSpaces { namespaces, .. } => {
                 let namespaces = namespaces.iter().map(|ns| ns.key.name.clone());
                 Some(namespaces)
@@ -147,7 +146,7 @@ impl TranslationsInfos {
     }
 
     fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<Options>) {
-        match &self.locales {
+        match &self.parsed_locales.builder_keys {
             BuildersKeys::NameSpaces { keys, .. } => {
                 for builder_keys in keys.values() {
                     datamarker::find_used_datamarker(builder_keys, used_icu_keys);

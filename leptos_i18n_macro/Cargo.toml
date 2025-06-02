@@ -26,7 +26,7 @@ fixed_decimal = { workspace = true, features = ["ryu"] }
 json5 = { version = "0.4", optional = true }
 leptos_i18n_parser = { workspace = true }
 tinystr = { workspace = true }
-leptos_i18n_codegen = { workspace = true }
+leptos_i18n_codegen = { workspace = true, features = ["proc_macro"] }
 
 [features]
 default = ["json_files"]

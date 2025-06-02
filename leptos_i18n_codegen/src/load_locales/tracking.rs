@@ -1,4 +1,4 @@
-pub fn generate_file_tracking(tracked_files: Option<Vec<String>>) -> proc_macro2::TokenStream {
+pub fn generate_file_tracking(tracked_files: Option<&[String]>) -> proc_macro2::TokenStream {
     if cfg!(all(
         not(feature = "track_locale_files"),
         not(feature = "nightly")
@@ -16,7 +16,7 @@ pub fn generate_file_tracking(tracked_files: Option<Vec<String>>) -> proc_macro2
     )) {
         quote::quote!(#(const _: &[u8] = include_bytes!(#paths);)*)
     } else {
-        #[cfg(feature = "nightly")]
+        #[cfg(all(feature = "nightly", feature = "proc_macro"))]
         for path in paths {
             proc_macro::tracked_path::path(path);
         }

@@ -96,21 +96,33 @@ pub fn make_builder_keys(
     check_locales(locales, &cfg_file.extensions, warnings)
 }
 
-pub fn parse_locales(
-    cargo_manifest_dir: Option<PathBuf>,
-) -> Result<(BuildersKeys, Warnings, Vec<String>)> {
+pub struct ParsedLocales {
+    pub cfg_file: ConfigFile,
+    pub builder_keys: BuildersKeys,
+    pub warnings: Warnings,
+    pub errors: Errors,
+    pub tracked_files: Option<Vec<String>>,
+}
+
+pub fn parse_locales(cargo_manifest_dir: Option<PathBuf>) -> Result<ParsedLocales> {
     let RawParsedLocales {
         locales,
         cfg_file,
         foreign_keys_paths,
         warnings,
         tracked_files,
-        ..
+        errors,
     } = parse_locales_raw(cargo_manifest_dir)?;
 
     let builder_keys = make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings)?;
 
-    Ok((builder_keys, warnings, tracked_files))
+    Ok(ParsedLocales {
+        cfg_file,
+        builder_keys,
+        warnings,
+        errors,
+        tracked_files: Some(tracked_files),
+    })
 }
 
 fn resolve_foreign_keys(
