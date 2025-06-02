@@ -517,12 +517,11 @@ impl Locale {
 
     fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
         let reader = BufReader::new(locale_file);
-        de_inner(reader, seed)
-            .map_err(|err| Error::LocaleFileDeser {
-                path: std::mem::take(path),
-                err,
-            })
-            .map_err(Box::new)
+        let locale = de_inner(reader, seed).map_err(|err| Error::LocaleFileDeser {
+            path: std::mem::take(path),
+            err,
+        })?;
+        Ok(locale)
     }
 
     pub fn get_value_at(&self, path: &[Key]) -> Option<&'_ ParsedValue> {

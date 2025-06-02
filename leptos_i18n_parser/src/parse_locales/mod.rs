@@ -24,10 +24,11 @@ use crate::utils::{Key, KeyPath, UnwrapAt};
 pub const VAR_COUNT_KEY: &str = "var_count";
 
 fn get_manifest_dir() -> Result<PathBuf> {
-    std::env::var("CARGO_MANIFEST_DIR")
+    let path = std::env::var("CARGO_MANIFEST_DIR")
         .map(Into::into)
-        .map_err(Error::CargoDirEnvNotPresent)
-        .map_err(Box::new)
+        .map_err(Error::CargoDirEnvNotPresent)?;
+
+    Ok(path)
 }
 
 fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {

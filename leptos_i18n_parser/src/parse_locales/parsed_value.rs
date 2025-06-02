@@ -1033,7 +1033,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         let pv = match pv {
             Ok(pv) => pv,
             Err(err) => {
-                self.errors.emit_error(*err);
+                self.errors.emit_error(err.into_inner());
                 ParsedValue::new_dummy(v)
             }
         };

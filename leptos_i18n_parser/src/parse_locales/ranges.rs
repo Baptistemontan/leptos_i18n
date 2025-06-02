@@ -211,7 +211,8 @@ impl<T: RangeNumber> Range<T> {
 
             Ok(Self::Bounds { start, end })
         } else {
-            parse(s).map(Self::Exact).map_err(Box::new)
+            let exact_value = parse(s)?;
+            Ok(Self::Exact(exact_value))
         }
     }
 }
@@ -464,20 +465,21 @@ impl Ranges {
             }
             unreachable!("plurals validity should already have been checked.");
         }
+
         fn try_from<T, U: TryFrom<T, Error = TryFromIntError>>(
             count: T,
             locale: &Key,
             key_path: &KeyPath,
             foreign_key: &KeyPath,
         ) -> Result<U> {
-            TryFrom::try_from(count)
-                .map_err(|err| Error::CountArgOutsideRange {
-                    locale: locale.clone(),
-                    key_path: key_path.to_owned(),
-                    foreign_key: foreign_key.to_owned(),
-                    err,
-                })
-                .map_err(Box::new)
+            let value = TryFrom::try_from(count).map_err(|err| Error::CountArgOutsideRange {
+                locale: locale.clone(),
+                key_path: key_path.to_owned(),
+                foreign_key: foreign_key.to_owned(),
+                err,
+            })?;
+
+            Ok(value)
         }
         match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
