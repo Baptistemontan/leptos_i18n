@@ -21,5 +21,5 @@ pub fn gen_code(
     crate_path: &syn::Path,
     interpolate_display: bool,
 ) -> Result<proc_macro2::TokenStream> {
-    load_locales::load_locales(&parsed_locales, crate_path, interpolate_display)
+    load_locales::load_locales(parsed_locales, crate_path, interpolate_display)
 }
