@@ -234,6 +234,26 @@ impl TranslationsInfos {
     pub fn generate_data(&self, mod_directory: PathBuf) -> Result<ExportMetadata, DataError> {
         self.generate_data_with_options(mod_directory, std::iter::empty())
     }
+
+    /// Generate the `i18n` module at the given mod directory
+    pub fn generate_i18n_module(
+        &self,
+        mut mod_directory: PathBuf,
+        interpolate_display: bool,
+    ) -> Result<()> {
+        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, interpolate_display)?;
+
+        create_dir_all(&mod_directory)?;
+
+        mod_directory.push("mod.rs");
+
+        let mut file = File::create(&mod_directory)?;
+
+        use std::io::Write;
+        write!(&mut file, "{}", ts)?;
+
+        Ok(())
+    }
 }
 
 /// Describe if the translations have been declared in namespaces or as is.

@@ -44,7 +44,8 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         tracked_files: None,
     };
 
-    let result = leptos_i18n_codegen::gen_code(&parsed_locales, &crate_path, interpolate_display);
+    let result =
+        leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), interpolate_display);
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {

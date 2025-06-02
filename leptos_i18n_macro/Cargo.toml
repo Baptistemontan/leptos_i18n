@@ -38,7 +38,7 @@ suppress_key_warnings = [
 json_files = ["leptos_i18n_parser/json_files"]
 yaml_files = ["dep:serde_yaml", "leptos_i18n_parser/yaml_files"]
 json5_files = ["dep:json5", "leptos_i18n_parser/json5_files"]
-interpolate_display = ["leptos_i18n_codegen/interpolate_display"]
+interpolate_display = []
 track_locale_files = ["leptos_i18n_codegen/track_locale_files"]
 islands = ["leptos_i18n_codegen/islands"]
 show_keys_only = ["leptos_i18n_codegen/show_keys_only"]
@@ -70,3 +70,12 @@ icu_compiled_data = ["leptos_i18n_codegen/icu_compiled_data"]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
 denylist = ["nightly", "yaml_files", "json5_files"]
 always_include_features = ["json_files"]
+default = ["json_files"]
+nightly = ["leptos_i18n_codegen/nightly"]
+suppress_key_warnings = [
+    "leptos_i18n_parser/suppress_key_warnings",
+    "leptos_i18n_codegen/suppress_key_warnings",
+]
+json_files = ["leptos_i18n_parser/json_files"]
+yaml_files = ["dep:serde_yaml", "leptos_i18n_parser/yaml_files"]
+json5_files = ["dep:json5", "leptos_i18n_parser/json5_files"]

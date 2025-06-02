@@ -18,7 +18,7 @@ pub mod utils;
 
 pub fn gen_code(
     parsed_locales: &ParsedLocales,
-    crate_path: &syn::Path,
+    crate_path: Option<&syn::Path>,
     interpolate_display: bool,
 ) -> Result<proc_macro2::TokenStream> {
     load_locales::load_locales(parsed_locales, crate_path, interpolate_display)

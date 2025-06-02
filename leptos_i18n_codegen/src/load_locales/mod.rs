@@ -31,9 +31,13 @@ use warning::generate_warnings;
 
 pub fn load_locales(
     parsed_locales: &ParsedLocales,
-    crate_path: &syn::Path,
+    crate_path: Option<&syn::Path>,
     interpolate_display: bool,
 ) -> Result<TokenStream> {
+
+    let default_crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
+    let crate_path = crate_path.unwrap_or(&default_crate_path);
+
     let ParsedLocales { cfg_file, builder_keys, warnings, errors, tracked_files } = parsed_locales;
 
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
@@ -609,6 +613,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                             quote! {
                                 #enum_ident::#ident #defaulted => {
+                                    #[allow(unused)]
                                     let #translations_key: &'static [Box<str>; #strings_count] = #type_ident::#accessor().await;
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }
@@ -616,6 +621,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                             quote! {
                                 #enum_ident::#ident #defaulted => {
+                                    #[allow(unused)]
                                     let #translations_key: &'static [&'static str; #strings_count] = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapperFut::new_not_fut(#lit)
                                 }
@@ -623,6 +629,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         } else {
                             quote! {
                                 #enum_ident::#ident #defaulted => {
+                                    #[allow(unused)]
                                     const #translations_key: &[&str; #strings_count] = #type_ident::#accessor();
                                     l_i18n_crate::__private::LitWrapper::new(#lit)
                                 }

@@ -22,6 +22,7 @@ icu_provider_source = { workspace = true, features = [
 icu = { workspace = true, features = ["experimental"] }
 icu_provider = { workspace = true }
 icu_locale = { workspace = true }
+leptos_i18n_codegen = { workspace = true }
 
 [features]
 default = ["json_files"]

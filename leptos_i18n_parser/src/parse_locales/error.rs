@@ -5,6 +5,7 @@ use std::{
     cell::RefCell,
     collections::BTreeSet,
     fmt::{Debug, Display},
+    io,
     num::TryFromIntError,
     path::PathBuf,
     rc::Rc,
@@ -18,6 +19,7 @@ use crate::{
 
 #[derive(Debug)]
 pub enum Error {
+    IoError(io::Error),
     InvalidLocale {
         locale: Rc<str>,
         err: LocidError,
@@ -140,6 +142,7 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::IoError(err) => <io::Error as Display>::fmt(err, f),
             Error::CargoDirEnvNotPresent(err) => {
                 write!(f, "Error, can't access env variable \"CARGO_MANIFEST_DIR\": {err}")
             }
@@ -228,6 +231,12 @@ impl Display for Error {
                 write!(f, "{:?} config option is missing. You are using dynamic loading in CSR, that value is required.", cfg_file::Field::TRANSLATIONS_URI)
             },
         }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(value: io::Error) -> Self {
+        Self::IoError(value)
     }
 }
 
