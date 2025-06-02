@@ -13,14 +13,14 @@ use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
         cfg_file::ConfigFile,
-        error::{Error, Result},
+        error::{Error, Errors, Result},
         locale::{
             BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
             LocalesOrNamespaces, Namespace,
         },
         parsed_value::ParsedValue,
         warning::Warnings,
-        ForeignKeysPaths,
+        ForeignKeysPaths, RawParsedLocales,
     },
     utils::{
         key::{Key, KeyPath},
@@ -45,8 +45,14 @@ use warning::generate_warnings;
 /// 4.4: discard any surplus key and emit a warning
 /// 5: generate code (and warnings)
 pub fn load_locales() -> Result<TokenStream> {
-    let (locales, cfg_file, foreign_keys, warnings, tracked_files) =
-        leptos_i18n_parser::parse_locales::parse_locales_raw(false, None)?;
+    let RawParsedLocales {
+        locales,
+        cfg_file,
+        foreign_keys_paths,
+        warnings,
+        tracked_files,
+        errors,
+    } = leptos_i18n_parser::parse_locales::parse_locales_raw(None)?;
 
     let crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
 
@@ -56,8 +62,9 @@ pub fn load_locales() -> Result<TokenStream> {
         &crate_path,
         &cfg_file,
         locales,
-        foreign_keys,
+        foreign_keys_paths,
         warnings,
+        errors,
         Some(tracked_files),
         interpolate_display,
     )
@@ -69,6 +76,7 @@ fn load_locales_inner(
     locales: LocalesOrNamespaces,
     foreign_keys_paths: ForeignKeysPaths,
     warnings: Warnings,
+    errors: Errors,
     tracked_files: Option<Vec<String>>,
     interpolate_display: bool,
 ) -> Result<TokenStream> {
@@ -81,7 +89,6 @@ fn load_locales_inner(
         cfg_file,
         foreign_keys_paths,
         &warnings,
-        false,
     )?;
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
@@ -292,6 +299,8 @@ fn load_locales_inner(
             #macros_reexport
 
             #warnings
+
+            #errors
         }
     })
 }
@@ -576,7 +585,6 @@ fn strings_accessor_method_name(locale: &Locale) -> Ident {
     format_ident!("__get_{}_translations__", locale.top_locale_name)
 }
 
-#[allow(clippy::too_many_arguments)]
 fn create_locale_type_inner<const IS_TOP: bool>(
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
@@ -736,7 +744,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let subkeys_ts = subkeys.iter().map(|sk| {
         let subkey_mod_ident = &sk.mod_key;
-        key_path.push_key(sk.original_key.clone());
+        let mut pushed_key = key_path.push_key(sk.original_key.clone());
         let subkey_impl = create_locale_type_inner::<false>(
             &sk.key,
             Some(type_ident),
@@ -744,12 +752,11 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             translation_unit_enum_ident,
             sk.locales,
             &sk.keys.0,
-            key_path,
+            &mut pushed_key,
             interpolate_display,
             namespace_name,
             translations_uri,
         );
-        key_path.pop_key();
         quote! {
             pub mod #subkey_mod_ident {
                 use super::{#enum_ident, l_i18n_crate};
@@ -861,7 +868,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         }
                     }
                 };
-
+                
                 let request_translations = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
                     let uri = translations_uri.expect("Missing URI"); // Already check before
                     // trigger with rustc 1.85, still in nightly tho

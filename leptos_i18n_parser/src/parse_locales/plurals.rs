@@ -96,9 +96,10 @@ impl Plurals {
                     locale: locale.name.clone(),
                     err,
                 })?;
-        PluralRules::try_new(locale.into(), self.rule_type.into())
-            .map_err(Error::PluralRulesError)
-            .map_err(Box::new)
+        let plural_rules = PluralRules::try_new(locale.into(), self.rule_type.into())
+            .map_err(Error::PluralRulesError)?;
+
+        Ok(plural_rules)
     }
 
     pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) -> Result<()> {

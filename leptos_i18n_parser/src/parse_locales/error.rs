@@ -1,6 +1,14 @@
 use icu_locale::ParseError as LocidError;
 use icu_provider::DataError as IcuDataError;
-use std::{collections::BTreeSet, fmt::Display, num::TryFromIntError, path::PathBuf, rc::Rc};
+use quote::{quote, ToTokens};
+use std::{
+    cell::RefCell,
+    collections::BTreeSet,
+    fmt::{Debug, Display},
+    num::TryFromIntError,
+    path::PathBuf,
+    rc::Rc,
+};
 
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::{
@@ -223,6 +231,70 @@ impl Display for Error {
     }
 }
 
-pub type Result<T, E = Box<Error>> = core::result::Result<T, E>;
+pub struct BoxedError(Box<Error>);
+
+impl<T: Into<Error>> From<T> for BoxedError {
+    fn from(value: T) -> Self {
+        BoxedError(Box::new(value.into()))
+    }
+}
+
+impl BoxedError {
+    pub fn into_inner(self) -> Error {
+        *self.0
+    }
+
+    pub fn into_boxed(self) -> Box<Error> {
+        self.0
+    }
+}
+
+impl Debug for BoxedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Error as Debug>::fmt(&self.0, f)
+    }
+}
+
+impl Display for BoxedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        <Error as Display>::fmt(&self.0, f)
+    }
+}
+
+pub type Result<T, E = BoxedError> = core::result::Result<T, E>;
 
 impl std::error::Error for Error {}
+
+#[derive(Default)]
+pub struct Errors(RefCell<Vec<Error>>);
+
+impl Errors {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn emit_error(&self, error: Error) {
+        self.0.borrow_mut().push(error);
+    }
+
+    pub fn into_inner(self) -> Vec<Error> {
+        self.0.into_inner()
+    }
+}
+
+impl ToTokens for Errors {
+    fn to_token_stream(&self) -> proc_macro2::TokenStream {
+        let errors = self.0.borrow();
+        let iter = errors.iter().map(|err| err.to_string());
+
+        quote! {
+            #(
+                compile_error!(#iter);
+            )*
+        }
+    }
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let ts = Self::to_token_stream(self);
+        tokens.extend(ts);
+    }
+}

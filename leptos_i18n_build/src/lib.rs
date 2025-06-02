@@ -56,7 +56,7 @@ pub struct TranslationsInfos {
 impl TranslationsInfos {
     fn parse_inner(dir_path: Option<PathBuf>) -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
-        let (locales, _, paths) = parse_locales::parse_locales(true, dir_path)?;
+        let (locales, _, paths) = parse_locales::parse_locales(dir_path)?;
 
         Ok(TranslationsInfos { locales, paths })
     }

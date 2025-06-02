@@ -61,21 +61,10 @@ pub enum RangeType {
     F32,
     F64,
 }
+
 type DefaultRangeType = i32;
 
-#[cfg(not(feature = "quote"))]
-pub trait MaybeToTokens {}
-
-#[cfg(not(feature = "quote"))]
-impl<T> MaybeToTokens for T {}
-
-#[cfg(feature = "quote")]
-pub trait MaybeToTokens: quote::ToTokens {}
-
-#[cfg(feature = "quote")]
-impl<T: quote::ToTokens> MaybeToTokens for T {}
-
-pub trait RangeNumber: FromStr + PartialOrd + Copy + MaybeToTokens {
+pub trait RangeNumber: FromStr + PartialOrd + Copy + quote::ToTokens {
     const TYPE: RangeType;
 
     fn range_end_bound(self) -> Option<Bound<Self>>;
@@ -222,7 +211,8 @@ impl<T: RangeNumber> Range<T> {
 
             Ok(Self::Bounds { start, end })
         } else {
-            parse(s).map(Self::Exact).map_err(Box::new)
+            let exact_value = parse(s)?;
+            Ok(Self::Exact(exact_value))
         }
     }
 }
@@ -475,20 +465,21 @@ impl Ranges {
             }
             unreachable!("plurals validity should already have been checked.");
         }
+
         fn try_from<T, U: TryFrom<T, Error = TryFromIntError>>(
             count: T,
             locale: &Key,
             key_path: &KeyPath,
             foreign_key: &KeyPath,
         ) -> Result<U> {
-            TryFrom::try_from(count)
-                .map_err(|err| Error::CountArgOutsideRange {
-                    locale: locale.clone(),
-                    key_path: key_path.to_owned(),
-                    foreign_key: foreign_key.to_owned(),
-                    err,
-                })
-                .map_err(Box::new)
+            let value = TryFrom::try_from(count).map_err(|err| Error::CountArgOutsideRange {
+                locale: locale.clone(),
+                key_path: key_path.to_owned(),
+                foreign_key: foreign_key.to_owned(),
+                err,
+            })?;
+
+            Ok(value)
         }
         match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
@@ -864,7 +855,7 @@ impl<'de> serde::de::Visitor<'de> for TypeOrRangeSeed<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct RangeStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
 
 impl<'de, T: RangeNumber> serde::de::DeserializeSeed<'de> for RangeStructSeed<'_, T> {

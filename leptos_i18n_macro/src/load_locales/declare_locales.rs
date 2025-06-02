@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use leptos_i18n_parser::{
     parse_locales::{
         cfg_file::ConfigFile,
+        error::Errors,
         locale::{Locale, LocalesOrNamespaces},
         parsed_value::ParsedValue,
         ranges::{
@@ -29,6 +30,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
     let warnings = Warnings::new();
+    let errors = Errors::new();
 
     let result = super::load_locales_inner(
         &crate_path,
@@ -36,6 +38,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         locales,
         foreign_keys_paths,
         warnings,
+        errors,
         None,
         interpolate_display,
     );
@@ -88,9 +91,11 @@ fn parse_str_value(
     }
     let lit_str = input.parse::<LitStr>()?;
     let value = lit_str.value();
-    ParsedValue::new(&value, key_path, locale, foreign_keys_paths)
-        .map(Some)
-        .map_err(|_| syn::Error::new_spanned(lit_str, "unknown formatter."))
+
+    match ParsedValue::new(&value, key_path, locale, foreign_keys_paths) {
+        Ok(pv) => Ok(Some(pv)),
+        Err(err) => Err(syn::Error::new_spanned(lit_str, err.to_string())),
+    }
 }
 
 fn parse_map_values(
@@ -256,26 +261,25 @@ fn parse_values(
 ) -> syn::Result<(Key, ParsedValue)> {
     let ident: Ident = input.parse()?;
     let key = Key::from_ident(ident);
-    key_path.push_key(key.clone());
+    let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    if let Some(parsed_value) = parse_str_value(input, key_path, locale, foreign_keys_paths)? {
-        key_path.pop_key();
+    if let Some(parsed_value) = parse_str_value(input, &mut pushed_key, locale, foreign_keys_paths)?
+    {
         return Ok((key, parsed_value));
     }
-    if let Some(parsed_value) = parse_map_values(input, &key, key_path, locale, foreign_keys_paths)?
+    if let Some(parsed_value) =
+        parse_map_values(input, &key, &mut pushed_key, locale, foreign_keys_paths)?
     {
-        key_path.pop_key();
         return Ok((key, parsed_value));
     }
 
     let seed = ParseRangeSeed {
-        key_path,
+        key_path: &mut pushed_key,
         locale,
         foreign_keys_paths,
     };
 
     if let Some(parsed_value) = parse_ranges(input, seed, foreign_keys_paths)? {
-        key_path.pop_key();
         return Ok((key, parsed_value));
     }
 
