@@ -845,7 +845,8 @@ impl Interpolation {
 
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 quote!{
-                    #enum_ident::#locale_key(#[allow(unused)] #translations_key) => {
+                    #[allow(unused)]
+                    #enum_ident::#locale_key(#translations_key) => {
                         #value
                     }
                 }
