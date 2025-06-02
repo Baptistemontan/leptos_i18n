@@ -1050,6 +1050,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident(#enum_ident);
 
+        #[allow(dead_code)]
         type #translation_unit_enum_ident = ();
 
         impl #type_ident {
