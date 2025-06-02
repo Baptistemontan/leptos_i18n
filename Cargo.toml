@@ -23,23 +23,23 @@ leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.5
 leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.11" }
 
 # leptos
-leptos = { version = "0.7.7", default-features = false }
-leptos_router = { version = "0.7.7", default-features = false }
-leptos_meta = { version = "0.7.7", default-features = false }
+leptos = { version = "0.8.2", default-features = false }
+leptos_router = { version = "0.8.2", default-features = false }
+leptos_meta = { version = "0.8.2", default-features = false }
 
 # icu
-icu = { version = "2.0.0-beta2", default-features = false }
-icu_locale = { version = "2.0.0-beta2", default-features = false }
-icu_provider = { version = "2.0.0-beta2", default-features = false }
+icu = { version = "2.0.0", default-features = false }
+icu_locale = { version = "2.0.0", default-features = false }
+icu_provider = { version = "2.0.0", default-features = false }
 fixed_decimal = { version = "0.7.0", default-features = false }
-icu_provider_export = { version = "2.0.0-beta2", default-features = false }
-icu_provider_source = { version = "2.0.0-beta2", default-features = false }
-icu_plurals = { version = "2.0.0-beta2", default-features = false }
-icu_datetime = { version = "2.0.0-beta2", default-features = false }
-icu_calendar = { version = "2.0.0-beta2", default-features = false }
-icu_list = { version = "2.0.0-beta2", default-features = false }
-icu_decimal = { version = "2.0.0-beta2", default-features = false }
-icu_experimental = { version = "0.3.0-beta2", default-features = false }
+icu_provider_export = { version = "2.0.0", default-features = false }
+icu_provider_source = { version = "2.0.0", default-features = false }
+icu_plurals = { version = "2.0.0", default-features = false }
+icu_datetime = { version = "2.0.0", default-features = false }
+icu_calendar = { version = "2.0.0", default-features = false }
+icu_list = { version = "2.0.0", default-features = false }
+icu_decimal = { version = "2.0.0", default-features = false }
+icu_experimental = { version = "0.3.0", default-features = false }
 tinystr = "0.8.1"
 
 # internal use

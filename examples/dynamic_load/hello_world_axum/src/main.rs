@@ -4,8 +4,7 @@
 #[tokio::main]
 async fn main() {
     use axum::{routing::post, Router};
-    use hello_world_axum::app::App;
-    use hello_world_axum::fileserv::file_and_error_handler;
+    use hello_world_axum::{app::App, fileserv::file_and_error_handler};
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
     use leptos_meta::MetaTags;
@@ -25,7 +24,7 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-        .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
+        .route("/api/{*fn_name}", post(leptos_axum::handle_server_fns))
         .leptos_routes(&leptos_options, routes, {
             let leptos_options = leptos_options.clone();
             move || {
@@ -35,14 +34,14 @@ async fn main() {
                     <!DOCTYPE html>
                     <html>
                         <head>
-                            <meta charset="utf-8"/>
-                            <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                            <meta charset="utf-8" />
+                            <meta name="viewport" content="width=device-width, initial-scale=1" />
                             <AutoReload options=leptos_options.clone() />
-                            <HydrationScripts options=leptos_options.clone()/>
-                            <MetaTags/>
+                            <HydrationScripts options=leptos_options.clone() />
+                            <MetaTags />
                         </head>
                         <body>
-                            <App/>
+                            <App />
                         </body>
                     </html>
                 }

@@ -79,7 +79,7 @@ impl TranslationsInfos {
     /// Output "cargo:rerun-if-changed" for all locales files.
     pub fn rerun_if_locales_changed(&self) {
         for path in &self.paths {
-            println!("cargo:rerun-if-changed={}", path);
+            println!("cargo:rerun-if-changed={path}");
         }
     }
 
@@ -219,7 +219,7 @@ impl TranslationsInfos {
         .unwrap();
 
         self.build_datagen_driver_with_data_keys(keys)
-            .export(&SourceDataProvider::new_latest_tested(), exporter)
+            .export(&SourceDataProvider::new(), exporter)
     }
 
     /// Same as `generate_data` but can be supplied additionnal options.
@@ -367,10 +367,10 @@ impl Display for TranslationsFormatter<'_> {
         f.write_char('[')?;
         let mut iter = self.strings.iter();
         if let Some(first) = iter.next() {
-            write!(f, "{:?}", first)?;
+            write!(f, "{first:?}")?;
         }
         for s in iter {
-            write!(f, ",{:?}", s)?;
+            write!(f, ",{s:?}")?;
         }
         f.write_char(']')
     }

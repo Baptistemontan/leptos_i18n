@@ -264,7 +264,7 @@ impl Interpolation {
             })
             .collect::<Vec<_>>();
 
-        let builder_name = format!("{}_builder", key);
+        let builder_name = format!("{key}_builder");
 
         let ident = syn::Ident::new(&builder_name, Span::call_site());
 

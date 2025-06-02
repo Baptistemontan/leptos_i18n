@@ -350,10 +350,10 @@ fn create_locales_enum(
         quote! {
             mod server_fn {
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
-                use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+                use l_i18n_crate::reexports::leptos::server_fn;
 
                 #[l_i18n_crate::reexports::leptos::server(I18nRequestTranslationsServerFn)]
-                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError> {
+                pub async fn i18n_request_translations(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, server_fn::ServerFnError> {
                     let strings = #keys_ident::__i18n_request_translations__(locale, translations_id);
                     let wrapped = l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput::new(strings);
                     Ok(wrapped)
@@ -868,6 +868,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                         }
                     }
                 };
+                
                 let request_translations = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
                     let uri = translations_uri.expect("Missing URI"); // Already check before
                     // trigger with rustc 1.85, still in nightly tho
@@ -875,10 +876,11 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     let endpoint = uri.replace("{locale}", &locale.name.name).replace("{namespace}", namespace_name.unwrap_or(""));
                     quote! {
                         pub async fn __i18n_request_translations__() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
-                            use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
+                            use l_i18n_crate::reexports::leptos::server_fn;
 
                             #[l_i18n_crate::reexports::leptos::server(endpoint = #endpoint, prefix = "", input = l_i18n_crate::reexports::leptos::server_fn::codec::GetUrl, output = l_i18n_crate::reexports::leptos::server_fn::codec::Json)]
-                            pub async fn i18n_request_translations_inner() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, ServerFnError>;
+                            pub async fn i18n_request_translations_inner() -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, server_fn::ServerFnError>;
+
                             i18n_request_translations_inner().await
                         }
                     }

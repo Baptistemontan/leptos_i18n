@@ -469,7 +469,7 @@ pub(crate) mod data_provider {
             alignment: Alignment,
             year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMD>, DateTimeFormatterLoadError> {
-            let fset = fieldsets::YMD::with_length(length)
+            let fset = fieldsets::YMD::for_length(length)
                 .with_alignment(alignment)
                 .with_year_style(year_style);
             DateTimeFormatter::try_new(locale.into(), fset)
@@ -483,7 +483,7 @@ pub(crate) mod data_provider {
             alignment: Alignment,
             time_precision: TimePrecision,
         ) -> Result<NoCalendarFormatter<fieldsets::T>, DateTimeFormatterLoadError> {
-            let fset = fieldsets::T::with_length(length)
+            let fset = fieldsets::T::for_length(length)
                 .with_alignment(alignment)
                 .with_time_precision(time_precision);
             NoCalendarFormatter::try_new(locale.into(), fset)
@@ -498,7 +498,7 @@ pub(crate) mod data_provider {
             time_precision: TimePrecision,
             year_style: YearStyle,
         ) -> Result<DateTimeFormatter<fieldsets::YMDT>, DateTimeFormatterLoadError> {
-            let fset = fieldsets::YMDT::with_length(length)
+            let fset = fieldsets::YMDT::for_length(length)
                 .with_alignment(alignment)
                 .with_time_precision(time_precision)
                 .with_year_style(year_style);
