@@ -6,8 +6,7 @@ async fn main() {
     use axum::{routing::post, Router};
     use leptos::prelude::*;
     use leptos_axum::{generate_route_list, LeptosRoutes};
-    use routing_ssr::app::App;
-    use routing_ssr::fileserv::file_and_error_handler;
+    use routing_ssr::{app::App, fileserv::file_and_error_handler};
     use tokio::net::TcpListener;
 
     simple_logger::init_with_level(log::Level::Debug).expect("couldn't initialize logging");
@@ -24,7 +23,7 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-        .route("/api/*fn_name", post(leptos_axum::handle_server_fns))
+        .route("/api/{*fn_name}", post(leptos_axum::handle_server_fns))
         .leptos_routes(&leptos_options, routes, {
             let leptos_options = leptos_options.clone();
             move || shell(leptos_options.clone())
@@ -51,14 +50,14 @@ pub fn shell(options: leptos::prelude::LeptosOptions) -> impl leptos::prelude::I
         <!DOCTYPE html>
         <html>
             <head>
-                <meta charset="utf-8"/>
-                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <AutoReload options=options.clone() />
-                <HydrationScripts options/>
-                <MetaTags/>
+                <HydrationScripts options />
+                <MetaTags />
             </head>
             <body>
-                <App/>
+                <App />
             </body>
         </html>
     }

@@ -80,19 +80,19 @@ impl Literal {
         match self {
             Literal::String(s, _) => s.push_str(&other.to_string()),
             Literal::Signed(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
             Literal::Unsigned(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
             Literal::Float(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
             Literal::Bool(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
         }
@@ -337,7 +337,7 @@ impl ParsedValue {
             let key = Key::new(&format!("var_{}", ident.trim()))?;
             ParsedValue::Variable { key, formatter }
         } else {
-            let key = Key::new(&format!("var_{}", ident))?;
+            let key = Key::new(&format!("var_{ident}"))?;
             ParsedValue::Variable {
                 key,
                 formatter: Formatter::None,
@@ -397,7 +397,7 @@ impl ParsedValue {
     }
 
     fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(Key, &'a str, &'a str)> {
-        let key_ident = Key::new(&format!("comp_{}", key))?;
+        let key_ident = Key::new(&format!("comp_{key}"))?;
         let mut indices = None;
         let mut depth = 0;
         let iter = value.match_indices('<').filter_map(|(i, _)| {

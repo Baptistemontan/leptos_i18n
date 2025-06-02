@@ -23,3 +23,6 @@ ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_i18n/ssr"]
 denylist = []
 skip_feature_sets = []
 always_include_features = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(erase_components)'] }

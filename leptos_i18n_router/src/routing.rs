@@ -371,27 +371,19 @@ fn maybe_redirect<L: Locale>(
     Some(new_path)
 }
 
-#[doc(hidden)]
 #[derive(Clone)]
-pub struct RedirectView(Arc<dyn Fn() -> leptos::prelude::View<()> + Send + Sync>);
+struct ViewWrapper<T, A, B>(T)
+where
+    T: Fn() -> Either<A, B> + Send + Clone + 'static,
+    A: ChooseView,
+    B: ChooseView;
 
-struct ViewWrapper<View>(Arc<dyn Fn() -> Either<View, RedirectView> + Send + Sync>);
-
-impl<View> Clone for ViewWrapper<View> {
-    fn clone(&self) -> Self {
-        ViewWrapper(self.0.clone())
-    }
-}
-
-impl ChooseView for RedirectView {
-    async fn choose(self) -> AnyView {
-        self.0().into_any()
-    }
-
-    async fn preload(&self) {}
-}
-
-impl<View: ChooseView> ChooseView for ViewWrapper<View> {
+impl<T, A, B> ChooseView for ViewWrapper<T, A, B>
+where
+    T: Fn() -> Either<A, B> + Send + Clone + 'static,
+    A: ChooseView,
+    B: ChooseView,
+{
     fn choose(self) -> impl Future<Output = AnyView> {
         let inner = self.0();
         ChooseView::choose(inner)
@@ -400,12 +392,16 @@ impl<View: ChooseView> ChooseView for ViewWrapper<View> {
     async fn preload(&self) {}
 }
 
-fn view_wrapper<L: Locale, View: ChooseView>(
+fn view_wrapper<L, View>(
     view: View,
     route_locale: Option<L>,
     base_path: &'static str,
     segments: RouteSegments<L>,
-) -> Either<View, RedirectView> {
+) -> Either<View, impl ChooseView>
+where
+    L: Locale,
+    View: ChooseView,
+{
     let i18n = use_i18n_context::<L>();
 
     let previously_resolved_locale = i18n.get_locale_untracked();
@@ -449,8 +445,8 @@ fn view_wrapper<L: Locale, View: ChooseView>(
     match redir {
         None => Either::Left(view),
         Some(path) => {
-            let view = Arc::new(move || view! { <Redirect path={ path.clone() }/> });
-            Either::Right(RedirectView(view))
+            let view = move || view! { <Redirect path=path.clone() /> };
+            Either::Right(view)
         }
     }
 }
@@ -461,10 +457,10 @@ pub fn i18n_routing<L: Locale, View, Chil>(
     children: RouteChildren<Chil>,
     ssr_mode: SsrMode,
     view: View,
-) -> impl MatchNestedRoutes + Clone + Send + 'static
+) -> impl MatchNestedRoutes + Clone
 where
-    View: ChooseView + Clone + Send + Sync,
-    Chil: MatchNestedRoutes + 'static + Send + Sync + Clone,
+    View: ChooseView + Clone,
+    Chil: MatchNestedRoutes + Clone + 'static,
 {
     let children = children.into_inner();
     let base_route = NestedRoute::new(StaticSegment(""), view)
@@ -556,7 +552,7 @@ where
     L: Locale,
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
-    View: ChooseView + Clone + Sync,
+    View: ChooseView + Clone,
 {
     type Child = <<BaseRoute<View, Chil> as MatchNestedRoutes>::Match as MatchInterface>::Child;
 
@@ -570,14 +566,14 @@ where
 
     fn into_view_and_child(self) -> (impl ChooseView, Option<Self::Child>) {
         let (view, child) = MatchInterface::into_view_and_child(self.inner_match);
-        let new_view = Arc::new(move || {
+        let new_view = move || {
             view_wrapper(
                 view.clone(),
                 self.locale,
                 self.base_path,
                 self.segments.clone(),
             )
-        });
+        };
         (ViewWrapper(new_view), child)
     }
 }
@@ -586,7 +582,7 @@ impl<L: Locale, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
 where
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
-    View: ChooseView + Clone + Sync,
+    View: ChooseView + Clone,
 {
     type Data = ();
 
@@ -673,13 +669,17 @@ where
             .chain(default_locale_routes)
             .chain(reset)
     }
+
+    fn optional(&self) -> bool {
+        false
+    }
 }
 
 impl<L: Locale, View, Chil> I18nNestedRoute<L, View, Chil>
 where
     L: Locale,
-    View: Clone + Send + ChooseView,
-    Chil: MatchNestedRoutes + 'static,
+    View: ChooseView + Clone,
+    Chil: MatchNestedRoutes + Clone + 'static,
 {
     fn generate_routes_for_each_locale(&self) -> RouteSegmentsInner<L> {
         let mut segments = RouteSegmentsInner::default();
@@ -751,13 +751,17 @@ where
     fn generate_path(&self, path: &mut Vec<PathSegment>) {
         self.get_segment().generate_path(path);
     }
+
+    fn optional(&self) -> bool {
+        false
+    }
 }
 
 #[doc(hidden)]
 pub fn make_i18n_segment<L, F>(f: F) -> I18nSegment<L, F>
 where
     L: Locale,
-    F: Fn(L) -> &'static str + 'static + Send + Sync + Clone,
+    F: Fn(L) -> &'static str + Clone + 'static,
 {
     I18nSegment {
         func: f,
