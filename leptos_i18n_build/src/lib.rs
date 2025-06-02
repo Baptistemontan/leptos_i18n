@@ -250,7 +250,7 @@ impl TranslationsInfos {
         let mut file = File::create(&mod_directory)?;
 
         use std::io::Write;
-        write!(&mut file, "{}", ts)?;
+        write!(&mut file, "{ts}")?;
 
         Ok(())
     }
