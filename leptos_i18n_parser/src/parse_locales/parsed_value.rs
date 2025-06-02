@@ -347,7 +347,7 @@ impl ParsedValue {
         } else {
             ident.trim()
         };
-        let key = Key::new(&format!("var_{}", ident))?;
+        let key = Key::new(&format!("var_{ident}"))?;
 
         dummies.push(Dummy::Variable(key));
 
