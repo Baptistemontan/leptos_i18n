@@ -100,10 +100,13 @@ fn flatten(
                 });
 
             let inner = to_token_stream(inner, strings_count);
-            let f = quote!({
-                #captured_keys
-                move || #inner
-            });
+            let f = quote!(
+                #[allow(unused_braces)]
+                {
+                    #captured_keys
+                    move || #inner
+                }
+            );
             tokens.push(quote!({
                 let __boxed_children_fn = l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f);
                 let #key = core::clone::Clone::clone(&#key);

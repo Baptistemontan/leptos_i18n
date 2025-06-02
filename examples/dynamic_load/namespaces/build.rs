@@ -14,4 +14,9 @@ fn main() {
     translations_infos
         .generate_i18n_module(i18n_mod_directory, false)
         .unwrap();
+
+    translations_infos
+        .get_translations()
+        .write_to_dir("./target/i18n")
+        .unwrap();
 }

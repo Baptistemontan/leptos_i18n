@@ -239,8 +239,10 @@ pub fn load_locales(
             mod providers {
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::reexports::leptos;
+                #[allow(unused_imports)]
                 use leptos::prelude::{IntoView, Signal};
                 use std::borrow::Cow;
+                #[allow(unused_imports)]
                 use l_i18n_crate::context::{CookieOptions, UseLocalesOptions};
 
                 #providers
@@ -302,6 +304,7 @@ fn create_locales_enum(
     let server_fn_mod = if cfg!(all(feature = "dynamic_load", not(feature = "csr"))) {
         quote! {
             mod server_fn {
+                #[allow(unused_imports)]
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn;
 
@@ -316,6 +319,7 @@ fn create_locales_enum(
     } else if cfg!(all(feature = "dynamic_load", feature = "csr")) {
         quote! {
             mod server_fn {
+                #[allow(unused_imports)]
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
 
