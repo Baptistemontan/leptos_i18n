@@ -10,12 +10,12 @@
 
 mod data_provider;
 pub(crate) mod load_locales;
+pub(crate) mod scoped;
 pub(crate) mod t_format;
 pub(crate) mod t_macro;
 pub(crate) mod t_plural;
-pub(crate) mod utils;
 
-use load_locales::plurals::PluralRuleType;
+use leptos_i18n_codegen::load_locales::plurals::PluralRuleType;
 use t_macro::{InputType, OutputType};
 
 #[proc_macro]
@@ -81,17 +81,17 @@ pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 #[proc_macro]
 pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    utils::scoped::use_i18n_scoped(tokens)
+    scoped::use_i18n_scoped(tokens)
 }
 
 #[proc_macro]
 pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    utils::scoped::scope_i18n(tokens)
+    scoped::scope_i18n(tokens)
 }
 
 #[proc_macro]
 pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    utils::scoped::scope_locale(tokens)
+    scoped::scope_locale(tokens)
 }
 
 #[proc_macro]

@@ -32,7 +32,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     let warnings = Warnings::new();
     let errors = Errors::new();
 
-    let result = super::load_locales_inner(
+    let result = leptos_i18n_codegen::load_locales(
         &crate_path,
         &cfg_file,
         locales,

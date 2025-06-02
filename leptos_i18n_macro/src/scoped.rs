@@ -1,8 +1,7 @@
+use leptos_i18n_codegen::utils::Keys;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
-
-use super::Keys;
 
 struct ScopeParsedInput {
     pub context: syn::Expr,
