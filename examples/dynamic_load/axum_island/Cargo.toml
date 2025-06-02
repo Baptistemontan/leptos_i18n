@@ -49,6 +49,9 @@ ssr = [
 default = "en"
 locales = ["en", "fr"]
 
+[build-dependencies]
+leptos_i18n_build = { path = "../../../leptos_i18n_build" }
+
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   
 output-name = "axum_island"
