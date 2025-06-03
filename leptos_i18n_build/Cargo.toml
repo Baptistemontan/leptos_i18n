@@ -23,6 +23,8 @@ icu = { workspace = true, features = ["experimental"] }
 icu_provider = { workspace = true }
 icu_locale = { workspace = true }
 leptos_i18n_codegen = { workspace = true }
+prettyplease = { version = "0.2" }
+syn = { version = "2.0" }
 
 [features]
 default = ["json_files"]
