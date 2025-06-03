@@ -5,7 +5,10 @@ use serde::{
     Deserialize,
 };
 
-use crate::utils::{formatter::Formatter, Key, KeyPath, UnwrapAt};
+use crate::{
+    parse_locales::options::Options,
+    utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
+};
 
 use super::{
     error::{Error, Errors, Result},
@@ -650,6 +653,7 @@ impl ParsedValue {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
+        options: Options,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
@@ -670,7 +674,9 @@ impl ParsedValue {
                 };
                 *this = ParsedValue::Subkeys(None);
 
-                dummy_local.merge(keys, top_locale, default_to, key_path, strings, warnings)?;
+                dummy_local.merge(
+                    keys, top_locale, default_to, key_path, strings, warnings, options,
+                )?;
                 locales.push(dummy_local);
                 Ok(())
             }
@@ -683,7 +689,9 @@ impl ParsedValue {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
-                loc.merge(keys, top_locale, default_to, key_path, strings, warnings)?;
+                loc.merge(
+                    keys, top_locale, default_to, key_path, strings, warnings, options,
+                )?;
                 locales.push(loc);
                 Ok(())
             }

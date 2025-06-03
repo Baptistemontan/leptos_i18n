@@ -1,11 +1,12 @@
 use serde::de::MapAccess;
 
+use crate::parse_locales::options::{FileFormat, Options};
 use crate::utils::formatter::Formatter;
 use crate::utils::{Key, KeyPath, UnwrapAt};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -37,49 +38,6 @@ impl std::fmt::Display for SerdeError {
             SerdeError::None => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
             SerdeError::Multiple => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
         }
-    }
-}
-
-const fn get_files_exts() -> &'static [&'static str] {
-    if cfg!(feature = "json_files") {
-        &["json"]
-    } else if cfg!(feature = "yaml_files") {
-        &["yaml", "yml"]
-    } else if cfg!(feature = "json5_files") {
-        &["json5"]
-    } else {
-        &[]
-    }
-}
-
-const FILE_EXTS: &[&str] = get_files_exts();
-
-fn de_inner_json<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
-    serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json)
-}
-
-fn de_inner_json5<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut buff = String::new();
-    Read::read_to_string(&mut locale_file, &mut buff).map_err(SerdeError::Io)?;
-    let mut deserializer = json5::Deserializer::from_str(&buff).map_err(SerdeError::Json5)?;
-    serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json5)
-}
-
-fn de_inner_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
-    serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Yaml)
-}
-
-fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    if cfg!(feature = "json_files") {
-        de_inner_json(locale_file, seed)
-    } else if cfg!(feature = "yaml_files") {
-        de_inner_yaml(locale_file, seed)
-    } else if cfg!(feature = "json5_files") {
-        de_inner_json5(locale_file, seed)
-    } else {
-        unreachable!()
     }
 }
 
@@ -237,10 +195,10 @@ impl DefaultTo<'_> {
     }
 }
 
-fn find_file(path: &mut PathBuf) -> Result<File> {
+fn find_file(path: &mut PathBuf, file_format: FileFormat) -> Result<File> {
     let mut errs = vec![];
 
-    for ext in FILE_EXTS {
+    for ext in file_format.get_files_exts() {
         path.set_extension(ext);
         #[allow(clippy::needless_borrows_for_generic_args)]
         // see https://github.com/rust-lang/rust-clippy/issues/12856
@@ -252,18 +210,7 @@ fn find_file(path: &mut PathBuf) -> Result<File> {
         };
     }
 
-    #[allow(clippy::const_is_empty)]
-    if !FILE_EXTS.is_empty() {
-        Err(Error::LocaleFileNotFound(errs).into())
-    } else if cfg!(any(
-        feature = "json_files",
-        feature = "yaml_files",
-        feature = "json5_files"
-    )) {
-        Err(Error::MultipleFilesFormats.into())
-    } else {
-        Err(Error::NoFileFormats.into())
-    }
+    Err(Error::LocaleFileNotFound(errs).into())
 }
 
 impl InterpolOrLit {
@@ -360,6 +307,7 @@ impl Namespace {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
+        options: Options,
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
@@ -367,7 +315,7 @@ impl Namespace {
             locales_dir_path.push(&*locale.name);
             locales_dir_path.push(file_path);
 
-            let locale_file = find_file(locales_dir_path)?;
+            let locale_file = find_file(locales_dir_path, options.file_format)?;
 
             let locale = Locale::new(
                 locale_file,
@@ -378,6 +326,7 @@ impl Namespace {
                 warnings,
                 errors,
                 tracked_files,
+                options,
             )?;
 
             locales.push(locale);
@@ -396,6 +345,7 @@ impl LocalesOrNamespaces {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
+        options: Options,
     ) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
         manifest_dir_path.push(&*cfg_file.locales_dir);
@@ -410,6 +360,7 @@ impl LocalesOrNamespaces {
                     warnings,
                     errors,
                     tracked_files,
+                    options,
                 )?);
             }
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
@@ -417,7 +368,7 @@ impl LocalesOrNamespaces {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&*locale.name);
-                let locale_file = find_file(manifest_dir_path)?;
+                let locale_file = find_file(manifest_dir_path, options.file_format)?;
                 let locale = Locale::new(
                     locale_file,
                     manifest_dir_path,
@@ -427,6 +378,7 @@ impl LocalesOrNamespaces {
                     warnings,
                     errors,
                     tracked_files,
+                    options,
                 )?;
                 locales.push(locale);
                 manifest_dir_path.pop();
@@ -501,6 +453,7 @@ impl Locale {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
+        options: Options,
     ) -> Result<Self> {
         track_file(tracked_files, &locale, namespace.as_ref(), path, warnings);
 
@@ -512,15 +465,23 @@ impl Locale {
             errors,
         };
 
-        Self::de(locale_file, path, seed)
+        Self::de(locale_file, path, seed, options.file_format)
     }
 
-    fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
+    fn de(
+        locale_file: File,
+        path: &mut PathBuf,
+        seed: LocaleSeed,
+        file_format: FileFormat,
+    ) -> Result<Self> {
         let reader = BufReader::new(locale_file);
-        let locale = de_inner(reader, seed).map_err(|err| Error::LocaleFileDeser {
-            path: std::mem::take(path),
-            err,
-        })?;
+        let locale =
+            file_format
+                .deserialize(reader, seed)
+                .map_err(|err| Error::LocaleFileDeser {
+                    path: std::mem::take(path),
+                    err,
+                })?;
         Ok(locale)
     }
 
@@ -649,6 +610,7 @@ impl Locale {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
+        options: Options,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             let mut pushed_key = key_path.push_key(key.clone());
@@ -672,10 +634,11 @@ impl Locale {
                 &mut pushed_key,
                 strings,
                 warnings,
+                options,
             )?;
         }
 
-        if !cfg!(feature = "suppress_key_warnings") {
+        if !options.suppress_key_warnings {
             // reverse key comparaison
             for key in self.keys.keys() {
                 if !keys.0.contains_key(key) {

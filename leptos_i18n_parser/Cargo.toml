@@ -24,13 +24,8 @@ proc-macro2 = { version = "1" }
 tinystr = { workspace = true }
 
 [features]
-default = ["json_files"]
-json_files = []
-yaml_files = []
-json5_files = []
 plurals = []
 format_datetime = []
 format_list = []
 format_nums = []
 format_currency = ["format_nums"]
-suppress_key_warnings = []
