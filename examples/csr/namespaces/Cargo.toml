@@ -19,4 +19,6 @@ locales = ["en", "fr"]
 namespaces = ["change_locale", "counter"]
 
 [build-dependencies]
-leptos_i18n_build = { path = "../../../leptos_i18n_build" }
+leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
+    "pretty_print",
+] }

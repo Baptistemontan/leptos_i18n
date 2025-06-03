@@ -20,6 +20,7 @@ leptos_i18n = { path = "../../leptos_i18n", default-features = false, features =
 [build-dependencies]
 leptos_i18n_build = { path = "../../leptos_i18n_build", default-features = false, features = [
   "json5_files",
+  "pretty_print",
 ] }
 
 

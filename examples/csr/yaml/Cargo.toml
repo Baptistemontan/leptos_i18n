@@ -25,4 +25,5 @@ locales = ["en", "fr"]
 [build-dependencies]
 leptos_i18n_build = { path = "../../../leptos_i18n_build", default-features = false, features = [
   "yaml_files",
+  "pretty_print",
 ] }
