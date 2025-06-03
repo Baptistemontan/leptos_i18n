@@ -10,6 +10,8 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_parser = { workspace = true }
+leptos_i18n_codegen = { workspace = true }
+
 icu_provider_export = { workspace = true, features = [
   "baked_exporter",
   "rayon",
@@ -22,8 +24,9 @@ icu_provider_source = { workspace = true, features = [
 icu = { workspace = true, features = ["experimental"] }
 icu_provider = { workspace = true }
 icu_locale = { workspace = true }
-leptos_i18n_codegen = { workspace = true }
-prettyplease = { version = "0.2" }
+
+
+prettyplease = { version = "0.2", features = ["verbatim"] }
 syn = { version = "2.0" }
 
 [features]
