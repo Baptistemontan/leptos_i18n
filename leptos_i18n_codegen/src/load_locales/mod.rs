@@ -214,6 +214,7 @@ pub fn load_locales(
 
     Ok(quote! {
         pub mod i18n {
+            #![allow(unused_braces)]
             use #crate_path as l_i18n_crate;
 
             #file_tracking
