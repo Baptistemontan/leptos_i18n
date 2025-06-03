@@ -34,4 +34,6 @@ default = ["json_files"]
 json_files = ["leptos_i18n_parser/json_files"]
 yaml_files = ["leptos_i18n_parser/yaml_files"]
 json5_files = ["leptos_i18n_parser/json5_files"]
+
+# This is to format the code after codegen, helpfull for debugging
 pretty_print = ["dep:prettyplease", "dep:syn"]
