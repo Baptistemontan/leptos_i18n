@@ -26,11 +26,12 @@ icu_provider = { workspace = true }
 icu_locale = { workspace = true }
 
 
-prettyplease = { version = "0.2", features = ["verbatim"] }
-syn = { version = "2.0" }
+prettyplease = { version = "0.2", features = ["verbatim"], optional = true }
+syn = { version = "2.0", optional = true }
 
 [features]
 default = ["json_files"]
 json_files = ["leptos_i18n_parser/json_files"]
 yaml_files = ["leptos_i18n_parser/yaml_files"]
 json5_files = ["leptos_i18n_parser/json5_files"]
+pretty_print = ["dep:prettyplease", "dep:syn"]

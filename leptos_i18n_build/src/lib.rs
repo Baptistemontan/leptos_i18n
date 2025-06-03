@@ -243,11 +243,10 @@ impl TranslationsInfos {
     ) -> Result<()> {
         let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, interpolate_display)?;
 
-        let ts_as_string = if cfg!(debug_assertions) {
+        #[cfg(feature = "pretty_print")]
+        let ts = {
             let as_file = syn::parse_quote!(#ts);
             prettyplease::unparse(&as_file)
-        } else {
-            ts.to_string()
         };
 
         create_dir_all(&mod_directory)?;
@@ -257,7 +256,7 @@ impl TranslationsInfos {
         let mut file = File::create(&mod_directory)?;
 
         use std::io::Write;
-        write!(&mut file, "{ts_as_string}")?;
+        write!(&mut file, "{ts}")?;
 
         Ok(())
     }
