@@ -13,10 +13,7 @@ axum = { version = "0.8", optional = true }
 leptos = { version = "0.8.2" }
 leptos_meta = { version = "0.8.2" }
 leptos_axum = { version = "0.8.2", optional = true }
-leptos_i18n = { path = "../../../leptos_i18n", features = [
-  "track_locale_files",
-  "dynamic_load",
-] }
+leptos_i18n = { path = "../../../leptos_i18n", features = ["dynamic_load"] }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
 wasm-bindgen = "0.2"
@@ -32,6 +29,7 @@ hydrate = [
   "dep:console_error_panic_hook",
   "leptos/hydrate",
   "leptos_i18n/hydrate",
+  "leptos_i18n_build/hydrate",
 ]
 ssr = [
   "dep:axum",
@@ -42,6 +40,7 @@ ssr = [
   "leptos/ssr",
   "leptos_meta/ssr",
   "leptos_i18n/axum",
+  "leptos_i18n_build/ssr",
 ]
 
 [package.metadata.leptos-i18n]
@@ -50,7 +49,7 @@ locales = ["en", "fr"]
 
 [build-dependencies.leptos_i18n_build]
 path = "../../../leptos_i18n_build"
-features = ["pretty_print", "csr"]
+features = ["pretty_print", "dynamic_load"]
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   
