@@ -20,7 +20,6 @@ leptos_router = { version = "0.8.2" }
 default = "en"
 locales = ["en", "fr"]
 
-[build-dependencies]
-leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
-    "pretty_print",
-] }
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print", "csr"]

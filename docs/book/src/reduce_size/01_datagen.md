@@ -137,7 +137,7 @@ fn main() {
 
     let mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("baked_data");
 
-    let translations_infos = TranslationsInfos::parse().unwrap();
+    let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
 
     translations_infos.rerun_if_locales_changed();
 

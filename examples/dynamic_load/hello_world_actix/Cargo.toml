@@ -42,10 +42,9 @@ ssr = [
 default = "en"
 locales = ["en", "fr"]
 
-[build-dependencies]
-leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
-  "pretty_print",
-] }
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print", "csr"]
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   

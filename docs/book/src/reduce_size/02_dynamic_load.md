@@ -75,7 +75,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=Cargo.toml");
 
-    let translations_infos = TranslationsInfos::parse().unwrap();
+    let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
 
     translations_infos.rerun_if_locales_changed();
 

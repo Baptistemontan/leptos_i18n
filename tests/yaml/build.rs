@@ -14,6 +14,6 @@ fn main() {
     translations_infos.rerun_if_locales_changed();
 
     translations_infos
-        .generate_i18n_module(i18n_mod_directory, false)
+        .generate_i18n_module(i18n_mod_directory)
         .unwrap();
 }
