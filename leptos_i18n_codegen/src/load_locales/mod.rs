@@ -5,18 +5,15 @@ pub mod locale;
 pub mod parsed_value;
 pub mod plurals;
 pub mod ranges;
-pub mod tracking;
 pub mod warning;
 
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
-        error::{Error, Result},
-        locale::{
+        error::{Error, Result}, locale::{
             BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue,
             Namespace,
-        },
-        parsed_value::ParsedValue,ParsedLocales,
+        }, options::Options, parsed_value::ParsedValue, ParsedLocales
     },
     utils::{
         key::{Key, KeyPath},
@@ -31,14 +28,13 @@ use warning::generate_warnings;
 
 pub fn load_locales(
     parsed_locales: &ParsedLocales,
-    crate_path: Option<&syn::Path>,
-    interpolate_display: bool,
+    crate_path: Option<&syn::Path>
 ) -> Result<TokenStream> {
 
     let default_crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
     let crate_path = crate_path.unwrap_or(&default_crate_path);
 
-    let ParsedLocales { cfg_file, builder_keys, warnings, errors, tracked_files } = parsed_locales;
+    let ParsedLocales { cfg_file, builder_keys, warnings, errors, tracked_files: _, options } = parsed_locales;
 
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
@@ -53,8 +49,8 @@ pub fn load_locales(
         &keys_ident,
         &enum_ident,
         &translation_unit_enum_ident,
-        interpolate_display,
         cfg_file.translations_uri.as_deref(),
+        *options
     );
     let locale_enum = create_locales_enum(
         &enum_ident,
@@ -64,8 +60,6 @@ pub fn load_locales(
     )?;
 
     let warnings = generate_warnings(warnings);
-
-    let file_tracking = tracking::generate_file_tracking(tracked_files.as_deref());
 
     let mut macros_reexport = vec![
         quote!(t),
@@ -216,8 +210,6 @@ pub fn load_locales(
         pub mod i18n {
             #![allow(unused_braces)]
             use #crate_path as l_i18n_crate;
-
-            #file_tracking
 
             #locale_enum
 
@@ -551,9 +543,9 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     locales: &[Locale],
     keys: &BTreeMap<Key, LocaleValue>,
     key_path: &mut KeyPath,
-    interpolate_display: bool,
     namespace_name: Option<&str>,
     translations_uri: Option<&str>,
+    options: Options
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
@@ -572,7 +564,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         .iter()
         .map(|(key, literal_type, defaults)| {
             let computed_defaults= defaults.compute();
-            if cfg!(feature = "show_keys_only") {
+            if options.show_keys_only {
                 let key_str = key_path.to_string_with_key(key);
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                     quote! {
@@ -714,9 +706,9 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             sk.locales,
             &sk.keys.0,
             &mut pushed_key,
-            interpolate_display,
             namespace_name,
             translations_uri,
+            options
         );
         quote! {
             pub mod #subkey_mod_ident {
@@ -767,8 +759,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
                     locales,
                     key_path,
                     type_ident,
-                    interpolate_display,
                     defaults,
+                    options
                 ),
             )),
             _ => None,
@@ -1111,8 +1103,8 @@ fn create_namespaces_types(
     translation_unit_enum_ident: &syn::Ident,
     namespaces: &[Namespace],
     keys: &BTreeMap<Key, BuildersKeysInner>,
-    interpolate_display: bool,
     translations_uri: Option<&str>,
+    options: Options
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1137,9 +1129,9 @@ fn create_namespaces_types(
                 &namespace.locales,
                 &keys.0,
                 &mut key_path,
-                interpolate_display,
                 Some(&namespace.key.name),
                 translations_uri,
+                options
             );
 
             quote! {
@@ -1338,8 +1330,8 @@ fn create_locale_type(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
-    interpolate_display: bool,
     translations_uri: Option<&str>,
+    options: Options
 ) -> TokenStream {
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
@@ -1348,8 +1340,8 @@ fn create_locale_type(
             translation_unit_enum_ident,
             namespaces,
             keys,
-            interpolate_display,
             translations_uri,
+            options
         ),
         BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
             keys_ident,
@@ -1359,9 +1351,9 @@ fn create_locale_type(
             locales,
             &keys.0,
             &mut KeyPath::new(None),
-            interpolate_display,
             None,
             translations_uri,
+            options
         ),
     }
 }

@@ -7,7 +7,6 @@ edition = "2021"
 leptos = { version = "0.8.2", features = ["csr"] }
 leptos_meta = { version = "0.8.2" }
 leptos_i18n = { path = "../../../leptos_i18n", default-features = false, features = [
-  "json_files",
   "csr",
   "plurals",
   "format_nums",
@@ -36,10 +35,9 @@ icu_pattern = "0.4.0" # for databake
 default = "en"
 locales = ["en", "fr"]
 
-[build-dependencies]
-leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
-  "pretty_print",
-] }
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print", "csr"]
 
 [profile.release]
 opt-level = "z"

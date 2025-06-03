@@ -5,46 +5,32 @@ edition = "2021"
 authors = ["Baptiste de Montangon"]
 license = "MIT"
 repository = "https://github.com/Baptistemontan/leptos_i18n"
-description = "Macros for the leptos_i18n crate"
+description = "codegen crate for the leptos_i18n crate"
 readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 
 [dependencies]
-# serde = { version = "1", features = ["rc"] }
-# serde_json = { version = "1" }
-# serde_yaml = { version = "0.9", optional = true }
 proc-macro2 = "1"
 quote = "1"
 syn = "2.0"
-# toml = "0.8"
 icu_locale = { workspace = true, features = ["compiled_data"] }
-# fixed_decimal = { workspace = true, features = ["ryu"] }
-# json5 = { version = "0.4", optional = true }
 leptos_i18n_parser = { workspace = true }
 tinystr = { workspace = true }
 
 [features]
 default = []
-nightly = []
-track_locale_files = []
 islands = []
-show_keys_only = []
 dynamic_load = []
 hydrate = []
 csr = []
 ssr = []
-suppress_key_warnings = ["leptos_i18n_parser/suppress_key_warnings"]
 plurals = ["leptos_i18n_parser/plurals"]
 format_datetime = ["leptos_i18n_parser/format_datetime"]
 format_list = ["leptos_i18n_parser/format_list"]
 format_nums = ["leptos_i18n_parser/format_nums"]
 format_currency = ["leptos_i18n_parser/format_currency", "format_nums"]
-proc_macro = []
-
-# check if they are still needed ?
-icu_compiled_data = []
 
 [package.metadata.cargo-all-features]
 # cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...

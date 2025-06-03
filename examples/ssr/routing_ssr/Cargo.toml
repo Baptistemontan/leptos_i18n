@@ -14,9 +14,7 @@ leptos = { version = "0.8.2" }
 leptos_meta = { version = "0.8.2" }
 leptos_axum = { version = "0.8.2", optional = true }
 leptos_router = { version = "0.8.2" }
-leptos_i18n = { path = "../../../leptos_i18n", features = [
-  "track_locale_files",
-] }
+leptos_i18n = { path = "../../../leptos_i18n" }
 leptos_i18n_router = { path = "../../../leptos_i18n_router" }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
@@ -33,6 +31,7 @@ hydrate = [
   "dep:console_error_panic_hook",
   "leptos/hydrate",
   "leptos_i18n/hydrate",
+  "leptos_i18n_build/hydrate",
 ]
 ssr = [
   "dep:axum",
@@ -45,16 +44,16 @@ ssr = [
   "leptos_i18n/axum",
   "leptos_router/ssr",
   "leptos_i18n_router/ssr",
+  "leptos_i18n_build/ssr",
 ]
 
 [package.metadata.leptos-i18n]
 default = "en"
 locales = ["en", "fr"]
 
-[build-dependencies]
-leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
-  "pretty_print",
-] }
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print"]
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   

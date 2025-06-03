@@ -6,6 +6,7 @@ use leptos_i18n_parser::{
         error::Errors,
         locale::{Locale, LocalesOrNamespaces},
         make_builder_keys,
+        options::Options,
         parsed_value::ParsedValue,
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
@@ -33,8 +34,10 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     let warnings = Warnings::new();
     let errors = Errors::new();
 
+    let options = Options::default().interpolate_display(interpolate_display);
+
     let builder_keys =
-        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings).unwrap();
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, options).unwrap();
 
     let parsed_locales = ParsedLocales {
         cfg_file,
@@ -42,10 +45,10 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         warnings,
         errors,
         tracked_files: None,
+        options,
     };
 
-    let result =
-        leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), interpolate_display);
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path));
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {
@@ -417,8 +420,6 @@ impl syn::parse::Parse for ParsedInput {
 
         let crate_path = crate_path
             .unwrap_or_else(|| syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site())));
-
-        let interpolate_display = interpolate_display || cfg!(feature = "interpolate_display");
 
         Ok(ParsedInput {
             cfg_file: ConfigFile {

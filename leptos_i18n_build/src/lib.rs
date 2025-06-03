@@ -12,7 +12,7 @@ use std::{
     rc::Rc,
 };
 
-pub use datamarker::Options;
+pub use datamarker::FormatterOptions;
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
 use icu_provider_export::{
@@ -20,6 +20,7 @@ use icu_provider_export::{
     DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
 };
 use icu_provider_source::SourceDataProvider;
+pub use leptos_i18n_parser::parse_locales::options::{FileFormat, Options};
 use leptos_i18n_parser::parse_locales::{
     error::Result,
     locale::{BuildersKeys, Locale},
@@ -51,21 +52,21 @@ pub struct TranslationsInfos {
 }
 
 impl TranslationsInfos {
-    fn parse_inner(dir_path: Option<PathBuf>) -> Result<Self> {
+    fn parse_inner(dir_path: Option<PathBuf>, options: Options) -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
-        let parsed_locales = parse_locales(dir_path)?;
+        let parsed_locales = parse_locales(dir_path, options)?;
 
         Ok(TranslationsInfos { parsed_locales })
     }
 
     /// Parse the translations and obtain informations about them.
-    pub fn parse() -> Result<Self> {
-        Self::parse_inner(None)
+    pub fn parse(options: Options) -> Result<Self> {
+        Self::parse_inner(None, options)
     }
 
     /// Parse the translations at the given directory and obtain informations about them.
-    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P) -> Result<Self> {
-        Self::parse_inner(Some(dir_path.into()))
+    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P, options: Options) -> Result<Self> {
+        Self::parse_inner(Some(dir_path.into()), options)
     }
 
     /// Paths to all files containing translations.
@@ -145,7 +146,7 @@ impl TranslationsInfos {
             .map(|locale| locale.parse::<DataLocaleFamily>().unwrap())
     }
 
-    fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<Options>) {
+    fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<FormatterOptions>) {
         match &self.parsed_locales.builder_keys {
             BuildersKeys::NameSpaces { keys, .. } => {
                 for builder_keys in keys.values() {
@@ -187,7 +188,7 @@ impl TranslationsInfos {
     /// This usefull if you use `t*_format!` and use formatters not used in the translations.
     pub fn build_datagen_driver_with_options(
         &self,
-        keys: impl IntoIterator<Item = Options>,
+        keys: impl IntoIterator<Item = FormatterOptions>,
     ) -> ExportDriver {
         self.build_datagen_driver_with_data_keys(datamarker::get_markers(keys))
     }
@@ -225,7 +226,7 @@ impl TranslationsInfos {
     pub fn generate_data_with_options(
         &self,
         mod_directory: PathBuf,
-        keys: impl IntoIterator<Item = Options>,
+        keys: impl IntoIterator<Item = FormatterOptions>,
     ) -> Result<ExportMetadata, DataError> {
         self.generate_data_with_data_markers(mod_directory, datamarker::get_markers(keys))
     }
@@ -236,12 +237,8 @@ impl TranslationsInfos {
     }
 
     /// Generate the `i18n` module at the given mod directory
-    pub fn generate_i18n_module(
-        &self,
-        mut mod_directory: PathBuf,
-        interpolate_display: bool,
-    ) -> Result<()> {
-        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, interpolate_display)?;
+    pub fn generate_i18n_module(&self, mut mod_directory: PathBuf) -> Result<()> {
+        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None)?;
 
         #[cfg(feature = "pretty_print")]
         let ts = {

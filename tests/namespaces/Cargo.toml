@@ -14,12 +14,7 @@ tests_common = { workspace = true }
 
 [dependencies.leptos_i18n]
 workspace = true
-features = [
-    "json_files",
-    "icu_compiled_data",
-    "interpolate_display",
-    "track_locale_files",
-]
+features = ["icu_compiled_data"]
 
 [build-dependencies]
 leptos_i18n_build = { workspace = true, features = ["pretty_print"] }

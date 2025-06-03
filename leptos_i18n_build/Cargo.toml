@@ -30,10 +30,30 @@ prettyplease = { version = "0.2", features = ["verbatim"], optional = true }
 syn = { version = "2.0", optional = true }
 
 [features]
-default = ["json_files"]
-json_files = ["leptos_i18n_parser/json_files"]
-yaml_files = ["leptos_i18n_parser/yaml_files"]
-json5_files = ["leptos_i18n_parser/json5_files"]
+default = []
+islands = ["leptos_i18n_codegen/islands"]
+dynamic_load = ["leptos_i18n_codegen/dynamic_load"]
+hydrate = ["leptos_i18n_codegen/hydrate"]
+csr = ["leptos_i18n_codegen/csr"]
+ssr = ["leptos_i18n_codegen/ssr"]
+plurals = ["leptos_i18n_parser/plurals", "leptos_i18n_codegen/plurals"]
+format_datetime = [
+  "leptos_i18n_parser/format_datetime",
+  "leptos_i18n_codegen/format_datetime",
+]
+format_list = [
+  "leptos_i18n_parser/format_list",
+  "leptos_i18n_codegen/format_list",
+]
+format_nums = [
+  "leptos_i18n_parser/format_nums",
+  "leptos_i18n_codegen/format_nums",
+]
+format_currency = [
+  "leptos_i18n_parser/format_currency",
+  "format_nums",
+  "leptos_i18n_codegen/format_currency",
+]
 
 # This is to format the code after codegen, helpfull for debugging
 pretty_print = ["dep:prettyplease", "dep:syn"]

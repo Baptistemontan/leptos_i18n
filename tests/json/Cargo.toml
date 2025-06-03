@@ -15,10 +15,7 @@ tests_common = { workspace = true }
 [dependencies.leptos_i18n]
 workspace = true
 features = [
-  "json_files",
   "icu_compiled_data",
-  "interpolate_display",
-  "track_locale_files",
   "plurals",
   "format_datetime",
   "format_nums",
