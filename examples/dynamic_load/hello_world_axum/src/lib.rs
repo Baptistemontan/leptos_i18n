@@ -4,7 +4,7 @@ pub mod app;
 #[cfg(feature = "ssr")]
 pub mod fileserv;
 
-leptos_i18n::load_locales!();
+include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]

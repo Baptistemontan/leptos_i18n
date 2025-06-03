@@ -214,6 +214,7 @@ pub fn load_locales(
 
     Ok(quote! {
         pub mod i18n {
+            #![allow(unused_braces)]
             use #crate_path as l_i18n_crate;
 
             #file_tracking
@@ -239,8 +240,10 @@ pub fn load_locales(
             mod providers {
                 use super::{l_i18n_crate, #enum_ident};
                 use l_i18n_crate::reexports::leptos;
+                #[allow(unused_imports)]
                 use leptos::prelude::{IntoView, Signal};
                 use std::borrow::Cow;
+                #[allow(unused_imports)]
                 use l_i18n_crate::context::{CookieOptions, UseLocalesOptions};
 
                 #providers
@@ -302,6 +305,7 @@ fn create_locales_enum(
     let server_fn_mod = if cfg!(all(feature = "dynamic_load", not(feature = "csr"))) {
         quote! {
             mod server_fn {
+                #[allow(unused_imports)]
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn;
 
@@ -316,6 +320,7 @@ fn create_locales_enum(
     } else if cfg!(all(feature = "dynamic_load", feature = "csr")) {
         quote! {
             mod server_fn {
+                #[allow(unused_imports)]
                 use super::{l_i18n_crate, #enum_ident, #keys_ident, #translation_unit_enum_ident};
                 use l_i18n_crate::reexports::leptos::server_fn::ServerFnError;
 
@@ -1046,6 +1051,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident(#enum_ident);
 
+        #[allow(dead_code)]
         type #translation_unit_enum_ident = ();
 
         impl #type_ident {
@@ -1225,6 +1231,7 @@ fn create_namespaces_types(
     let translation_request_fn = if cfg!(all(feature = "dynamic_load", feature = "csr")) {
         quote! {
             #[doc(hidden)]
+            #[allow(unused_variables)]
             pub async fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> Result<l_i18n_crate::__private::fetch_translations::LocaleServerFnOutput, l_i18n_crate::reexports::leptos::server_fn::ServerFnError> {
                 #get_strings_match_stmt
             }
@@ -1232,6 +1239,7 @@ fn create_namespaces_types(
     } else {
         quote! {
             #[doc(hidden)]
+            #[allow(unused_variables)]
             pub fn __i18n_request_translations__(locale: #enum_ident, translations_id: #translation_unit_enum_ident) -> &'static [&'static str] {
                 #get_strings_match_stmt
             }

@@ -243,6 +243,12 @@ impl TranslationsInfos {
     ) -> Result<()> {
         let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, interpolate_display)?;
 
+        #[cfg(feature = "pretty_print")]
+        let ts = {
+            let as_file = syn::parse_quote!(#ts);
+            prettyplease::unparse(&as_file)
+        };
+
         create_dir_all(&mod_directory)?;
 
         mod_directory.push("mod.rs");

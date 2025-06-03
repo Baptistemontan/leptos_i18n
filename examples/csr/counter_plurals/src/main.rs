@@ -1,7 +1,7 @@
 #![deny(warnings)]
 
 pub mod app;
-leptos_i18n::load_locales!();
+include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 
 fn main() {
     use app::App;

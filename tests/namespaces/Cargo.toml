@@ -21,6 +21,9 @@ features = [
     "track_locale_files",
 ]
 
+[build-dependencies]
+leptos_i18n_build = { workspace = true, features = ["pretty_print"] }
+
 
 [package.metadata.leptos-i18n]
 default = "en"

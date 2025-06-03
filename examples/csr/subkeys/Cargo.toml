@@ -16,3 +16,8 @@ wasm-bindgen = { version = "0.2" }
 [package.metadata.leptos-i18n]
 default = "en"
 locales = ["en", "fr"]
+
+[build-dependencies]
+leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
+    "pretty_print",
+] }
