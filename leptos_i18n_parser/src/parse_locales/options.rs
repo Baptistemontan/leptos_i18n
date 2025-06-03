@@ -7,6 +7,7 @@ pub struct Options {
     pub file_format: FileFormat,
     pub suppress_key_warnings: bool,
     pub interpolate_display: bool,
+    pub show_keys_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -30,26 +31,34 @@ impl Options {
             file_format: FileFormat::Json,
             suppress_key_warnings: false,
             interpolate_display: false,
+            show_keys_only: false,
         }
     }
 
-    pub const fn set_format(self, file_format: FileFormat) -> Self {
+    pub const fn file_format(self, file_format: FileFormat) -> Self {
         Self {
             file_format,
             ..self
         }
     }
 
-    pub const fn set_suppress_key_warnings(self, suppress_key_warnings: bool) -> Self {
+    pub const fn suppress_key_warnings(self, suppress_key_warnings: bool) -> Self {
         Self {
             suppress_key_warnings,
             ..self
         }
     }
 
-    pub const fn set_interpolate_display(self, interpolate_display: bool) -> Self {
+    pub const fn interpolate_display(self, interpolate_display: bool) -> Self {
         Self {
             interpolate_display,
+            ..self
+        }
+    }
+
+    pub const fn show_keys_only(self, show_keys_only: bool) -> Self {
+        Self {
+            show_keys_only,
             ..self
         }
     }

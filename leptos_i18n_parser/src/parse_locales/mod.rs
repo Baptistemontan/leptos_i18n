@@ -111,6 +111,7 @@ pub struct ParsedLocales {
     pub warnings: Warnings,
     pub errors: Errors,
     pub tracked_files: Option<Vec<String>>,
+    pub options: Options,
 }
 
 pub fn parse_locales(
@@ -135,6 +136,7 @@ pub fn parse_locales(
         warnings,
         errors,
         tracked_files: Some(tracked_files),
+        options,
     })
 }
 

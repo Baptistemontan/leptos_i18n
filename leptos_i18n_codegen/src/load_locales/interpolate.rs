@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use leptos_i18n_parser::parse_locales::locale::DefaultedLocales;
 use leptos_i18n_parser::parse_locales::locale::InterpolationKeys;
 use leptos_i18n_parser::parse_locales::locale::Locale;
+use leptos_i18n_parser::parse_locales::options::Options;
 use leptos_i18n_parser::parse_locales::parsed_value::ParsedValue;
 use leptos_i18n_parser::utils::Key;
 use leptos_i18n_parser::utils::KeyPath;
@@ -250,8 +251,8 @@ impl Interpolation {
         locales: &[Locale],
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
-        interpolate_display: bool,
         defaults: &DefaultedLocales,
+        options: Options,
     ) -> Self {
         // filter defaulted locales
         let locales = locales
@@ -297,7 +298,7 @@ impl Interpolation {
             &locale_field,
             &into_view_field,
             &fields,
-            interpolate_display,
+            options,
         );
 
         let into_view_impl = Self::into_view_impl(
@@ -310,11 +311,12 @@ impl Interpolation {
             key_path,
             locale_type_ident,
             &computed_defaults,
+            options,
         );
 
         let debug_impl = Self::debug_impl(&builder_name, &ident, &fields);
 
-        let (display_impl, builder_display) = if interpolate_display {
+        let (display_impl, builder_display) = if options.interpolate_display {
             let display_impl = Self::display_impl(
                 key,
                 &ident,
@@ -454,7 +456,7 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
-        interpolate_display: bool,
+        options: Options,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -462,7 +464,7 @@ impl Interpolation {
 
         let empty_builder_marker = fields.iter().map(|_| quote!(()));
 
-        let display_builder_fn = if interpolate_display {
+        let display_builder_fn = if options.interpolate_display {
             Self::display_builder_fn(
                 ident,
                 enum_ident,
@@ -477,7 +479,7 @@ impl Interpolation {
 
         let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
-        let string_builder_trait_impl = if interpolate_display {
+        let string_builder_trait_impl = if options.interpolate_display {
             quote! {
                 impl l_i18n_crate::__private::InterpolationStringBuilder for #dummy_ident {}
             }
@@ -698,12 +700,13 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         defaults: &BTreeMap<Key, BTreeSet<Key>>,
+        options: Options,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_right_generics);
 
-        if cfg!(feature = "show_keys_only") {
+        if options.show_keys_only {
             let key = key_path.to_string_with_key(key);
             return quote! {
                 #[allow(non_camel_case_types)]

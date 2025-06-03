@@ -13,16 +13,6 @@ fn warning_fn((index, warning): (usize, &Warning)) -> TokenStream {
     }
 }
 
-fn emit_warning(warning: &Warning) {
-    let _ = warning;
-    #[cfg(all(feature = "nightly", feature = "proc_macro"))]
-    {
-        use proc_macro::Diagnostic;
-
-        Diagnostic::new(proc_macro::Level::Warning, warning.to_string()).emit();
-    }
-}
-
 fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
     let warning_fns = warnings.iter().enumerate().map(warning_fn);
 
@@ -48,16 +38,9 @@ fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
 pub fn generate_warnings(warnings: &Warnings) -> Option<TokenStream> {
     let ws = warnings.take_inner();
 
-    if cfg!(not(feature = "nightly")) {
-        if ws.is_empty() {
-            None
-        } else {
-            Some(generate_warnings_inner(&ws))
-        }
-    } else {
-        for warning in &ws {
-            emit_warning(warning)
-        }
+    if ws.is_empty() {
         None
+    } else {
+        Some(generate_warnings_inner(&ws))
     }
 }

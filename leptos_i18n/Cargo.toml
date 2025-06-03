@@ -40,7 +40,9 @@ wasm-bindgen = "0.2.100"
 tinystr = { workspace = true, optional = true }
 
 [features]
-default = ["cookie", "json_files", "icu_compiled_data"]
+default = ["cookie", "icu_compiled_data"]
+
+
 cookie = []
 icu_compiled_data = [
   "icu_plurals?/compiled_data",
@@ -51,6 +53,9 @@ icu_compiled_data = [
   "icu_experimental?/compiled_data",
   "leptos_i18n_macro/icu_compiled_data",
 ]
+nightly = ["leptos/nightly"]
+
+# Formatting features
 plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
 format_datetime = [
   "dep:icu_datetime",
@@ -76,6 +81,9 @@ format_currency = [
   "dep:icu_provider",
   "leptos_i18n_macro/format_currency",
 ]
+
+
+# Target features
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
 hydrate = [
@@ -92,8 +100,6 @@ ssr = [
   "leptos_i18n_macro/ssr",
 ]
 islands = ["leptos/islands", "leptos_i18n_macro/islands"]
-nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
-
 dynamic_load = [
   "leptos_i18n_macro/dynamic_load",
   "dep:async-once-cell",
@@ -101,17 +107,8 @@ dynamic_load = [
 ]
 
 
-# macro features
-show_keys_only = ["leptos_i18n_macro/show_keys_only"]
-suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
-json_files = ["leptos_i18n_macro/json_files"]
-json5_files = ["leptos_i18n_macro/json5_files"]
-yaml_files = ["leptos_i18n_macro/yaml_files"]
-interpolate_display = ["leptos_i18n_macro/interpolate_display"]
-track_locale_files = ["leptos_i18n_macro/track_locale_files"]
-
-[package.metadata."docs.rs"]
 # Features needed for the doctests
+[package.metadata."docs.rs"]
 features = [
   "plurals",
   "format_datetime",
@@ -124,15 +121,7 @@ features = [
 [package.metadata.cargo-all-features]
 denylist = [
   # Always exclude:
-  "ssr",         # Should always be enabled via a server integration rather than directly
-  "yaml_files",  # See leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
-  "json5_files",
-
-  # Only passed through to `leptos_i18n_macros`, exclude to save time:
-  "serde",
-  "suppress_key_warnings",
-  "track_locale_files",
-  "show_keys_only",
+  "ssr", # Should always be enabled via a server integration rather than directly
 ]
 skip_feature_sets = [
   # Axum and Actix features are incompatible with each other
@@ -171,9 +160,8 @@ skip_feature_sets = [
     "csr",
   ],
 ]
-# see leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
+
 always_include_features = [
-  "json_files",
   "icu_compiled_data",
   "plurals",
   "format_datetime",
