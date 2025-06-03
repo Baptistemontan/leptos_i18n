@@ -16,6 +16,8 @@ leptos_i18n = { path = "../../leptos_i18n", default-features = false, features =
   "icu_compiled_data",
   "track_locale_files",
 ] }
+
+[build-dependencies]
 leptos_i18n_build = { path = "../../leptos_i18n_build", default-features = false, features = [
   "json5_files",
 ] }
