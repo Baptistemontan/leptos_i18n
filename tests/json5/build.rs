@@ -1,4 +1,4 @@
-use leptos_i18n_build::TranslationsInfos;
+use leptos_i18n_build::{FileFormat, Options, TranslationsInfos};
 use std::path::PathBuf;
 
 fn main() {
@@ -7,7 +7,9 @@ fn main() {
 
     let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
-    let translations_infos = TranslationsInfos::parse().unwrap();
+    let options = Options::default().file_format(FileFormat::Json5);
+
+    let translations_infos = TranslationsInfos::parse(options).unwrap();
 
     translations_infos.rerun_if_locales_changed();
 
