@@ -33,21 +33,12 @@ will look for:
 
 ## Other Formats
 
-JSON being the default, you can change that by first removing the default features and enabling the feature for the format you need:
+JSON is the default format, but other format are supported, we will see how to change that later, here is a list of supported formats:
 
-```toml
-# Cargo.toml
-
-[dependencies]
-leptos_i18n = {
-    default-features = false,
-    features = ["yaml_files"]
-}
-```
-
-| Format         | Feature      |
-| -------------- | ------------ |
-| JSON (default) | `json_files` |
-| YAML           | `yaml_files` |
+| Format         |
+| -------------- |
+| JSON (default) |
+| JSON5          |
+| YAML           |
 
 Other formats may be supported later.
