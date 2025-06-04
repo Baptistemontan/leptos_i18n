@@ -6,7 +6,7 @@ The context is a wrapper around a `RwSignal` of the current locale. Every getter
 
 ## Provide the context
 
-The `load_locales!` macro generates the `I18nContextProvider` component in the `i18n` module,
+The generated code contain the `I18nContextProvider` component in the `i18n` module,
 you can use this component to make the context accessible to all child components.
 
 ```rust,ignore
