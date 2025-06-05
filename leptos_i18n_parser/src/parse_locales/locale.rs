@@ -19,13 +19,13 @@ use super::warning::{Warning, Warnings};
 use super::{ForeignKeysPaths, StringIndexer};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum SerdeError {
     Json(serde_json::Error),
     Yaml(serde_yaml::Error),
     Json5(json5::Error),
+    Custom(String),
     Io(std::io::Error),
-    None,
-    Multiple,
 }
 
 impl std::fmt::Display for SerdeError {
@@ -35,11 +35,24 @@ impl std::fmt::Display for SerdeError {
             SerdeError::Yaml(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Json5(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Io(error) => std::fmt::Display::fmt(error, f),
-            SerdeError::None => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
-            SerdeError::Multiple => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
+            SerdeError::Custom(err) => std::fmt::Display::fmt(err, f),
         }
     }
 }
+
+impl SerdeError {
+    pub fn custom<T: ToString>(err: T) -> Self {
+        SerdeError::Custom(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for SerdeError {
+    fn from(value: std::io::Error) -> Self {
+        SerdeError::Io(value)
+    }
+}
+
+impl std::error::Error for SerdeError {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
@@ -477,7 +490,7 @@ impl Locale {
         let reader = BufReader::new(locale_file);
         let locale =
             file_format
-                .deserialize(reader, seed)
+                .deserialize(reader, path, seed)
                 .map_err(|err| Error::LocaleFileDeser {
                     path: std::mem::take(path),
                     err,
