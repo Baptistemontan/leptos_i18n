@@ -6,4 +6,4 @@ This crate is made to simplify Internationalization in a [Leptos](https://crates
 
 This guide does assume you know some basics about `Leptos`, but the majority of the guide is about declaring the translations and how to use them. You can find the `Leptos` book [here](https://leptos-rs.github.io/leptos/).
 
-> The source code for the book is available [here](https://github.com/Baptistemontan/leptos_i18n/tree/main/docs/book). PRs for typos or clarification are always welcome.
+> The source code for the book is available [here](https://github.com/Baptistemontan/leptos_i18n/tree/master/docs/book). PRs for typos or clarification are always welcome.

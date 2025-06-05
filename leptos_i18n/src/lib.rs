@@ -69,7 +69,7 @@
 //! #       },
 //! #   };
 //! # /*
-//! leptos_i18n::load_locales!();
+//! include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 //! # */
 //! use i18n::*; // `i18n` module created by the macro above
 //! use leptos::prelude::*;
@@ -165,6 +165,10 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use leptos_i18n_macro as macros_reexport;
+
+    /// Helper trait to make some bounds for dummy code
+    pub trait AnyBound {}
+    impl<T: ?Sized> AnyBound for T {}
 }
 
 /// This module contain utilities to create custom ICU providers.
@@ -206,7 +210,7 @@ pub mod reexports {
         ))]
         pub use icu_provider as provider;
 
-        pub use icu_locid as locid;
+        pub use icu_locale as locid;
     }
     pub use leptos;
     pub use serde;

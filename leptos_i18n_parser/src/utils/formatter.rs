@@ -1,34 +1,20 @@
-use std::cell::Cell;
-
 use tinystr::{tinystr, TinyAsciiStr};
-
-thread_local! {
-    pub(crate) static SKIP_ICU_CFG: Cell<bool> = const { Cell::new(false) };
-}
-
-pub(crate) struct SkipIcuCfgGuard(());
-
-impl SkipIcuCfgGuard {
-    pub fn new(skip_icu_cfg: bool) -> Self {
-        SKIP_ICU_CFG.set(skip_icu_cfg);
-        SkipIcuCfgGuard(())
-    }
-}
-
-impl Drop for SkipIcuCfgGuard {
-    fn drop(&mut self) {
-        SKIP_ICU_CFG.set(false);
-    }
-}
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
+    /// NOT A FORMATTER, this formatter will emit no bound, this is for dummy code to reduce errors
+    Dummy,
     #[default]
     None,
     Number(GroupingStrategy),
-    Date(DateLength),
-    Time(TimeLength),
-    DateTime(DateLength, TimeLength),
+    Date(DateTimeLength, DateTimeAlignment, DateTimeYearStyle),
+    Time(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
+    DateTime(
+        DateTimeLength,
+        DateTimeAlignment,
+        DateTimeTimePrecision,
+        DateTimeYearStyle,
+    ),
     List(ListType, ListStyle),
     Currency(CurrencyWidth, CurrencyCode),
 }
@@ -59,8 +45,7 @@ pub enum GroupingStrategy {
 }
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum DateLength {
-    Full,
+pub enum DateTimeLength {
     Long,
     #[default]
     Medium,
@@ -68,12 +53,42 @@ pub enum DateLength {
 }
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TimeLength {
-    Full,
-    Long,
-    Medium,
+pub enum DateTimeAlignment {
     #[default]
-    Short,
+    Auto,
+    Column,
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeTimePrecision {
+    Hour,
+    Minute,
+    #[default]
+    Second,
+    Subsecond(DateTimeSubsecondDigits),
+    MinuteOptional,
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeSubsecondDigits {
+    S1 = 1,
+    S2 = 2,
+    #[default]
+    S3 = 3,
+    S4 = 4,
+    S5 = 5,
+    S6 = 6,
+    S7 = 7,
+    S8 = 8,
+    S9 = 9,
+}
+
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DateTimeYearStyle {
+    #[default]
+    Auto,
+    Full,
+    WithEra,
 }
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -102,42 +117,54 @@ impl Formatter {
                 CurrencyWidth::from_args(args),
                 CurrencyCode::from_args(args),
             );
-            if cfg!(feature = "format_currency") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_currency") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "number" {
-            if cfg!(feature = "format_nums") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_nums") {
                 Ok(Some(Formatter::Number(GroupingStrategy::from_args(args))))
             } else {
                 Err(Formatter::Number(GroupingStrategy::from_args(args)))
             }
         } else if name == "datetime" {
-            let formatter =
-                Formatter::DateTime(DateLength::from_args(args), TimeLength::from_args(args));
-            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
+            let formatter = Formatter::DateTime(
+                DateTimeLength::from_args(args),
+                DateTimeAlignment::from_args(args),
+                DateTimeTimePrecision::from_args(args),
+                DateTimeYearStyle::from_args(args),
+            );
+            if cfg!(feature = "format_datetime") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "date" {
-            let formatter = Formatter::Date(DateLength::from_args(args));
-            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
+            let formatter = Formatter::Date(
+                DateTimeLength::from_args(args),
+                DateTimeAlignment::from_args(args),
+                DateTimeYearStyle::from_args(args),
+            );
+            if cfg!(feature = "format_datetime") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "time" {
-            let formatter = Formatter::Time(TimeLength::from_args(args));
-            if cfg!(feature = "format_datetime") || SKIP_ICU_CFG.get() {
+            let formatter = Formatter::Time(
+                DateTimeLength::from_args(args),
+                DateTimeAlignment::from_args(args),
+                DateTimeTimePrecision::from_args(args),
+            );
+            if cfg!(feature = "format_datetime") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
             }
         } else if name == "list" {
             let formatter = Formatter::List(ListType::from_args(args), ListStyle::from_args(args));
-            if cfg!(feature = "format_list") || SKIP_ICU_CFG.get() {
+            if cfg!(feature = "format_list") {
                 Ok(Some(formatter))
             } else {
                 Err(formatter)
@@ -150,11 +177,12 @@ impl Formatter {
     pub fn err_message(&self) -> &'static str {
         match self {
             Formatter::None => "",
+            Formatter::Dummy => "", // never used as err code
             Formatter::Number(_) => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
             Formatter::Currency(_, _) => "Formatting currencies is not enabled, enable the \"format_currency\" feature to do so",
-            Formatter::Date(_) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::Time(_) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::DateTime(_, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::Date(_, _, _) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::Time(_, _, _) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
+            Formatter::DateTime(_, _, _, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
             Formatter::List(_, _) => "Formatting lists is not enabled, enable the \"format_list\" feature to do so",
         }
     }
@@ -196,33 +224,62 @@ macro_rules! impl_from_args {
     }
 }
 
-macro_rules! impl_length {
-    ($t:ty, $arg_name:literal, $name:ident) => {
-        impl $t {
-            impl_from_args! {
-                $arg_name,
-                "full" => Self::Full,
-                "long" => Self::Long,
-                "medium" => Self::Medium,
-                "short" => Self::Short,
-            }
-        }
-    };
+impl DateTimeLength {
+    impl_from_args! {
+        "length",
+        "long" => Self::Long,
+        "medium" => Self::Medium,
+        "short" => Self::Short,
+    }
 }
 
-impl_length!(DateLength, "date_length", Date);
-impl_length!(TimeLength, "time_length", Time);
+impl DateTimeAlignment {
+    impl_from_args! {
+        "alignment",
+        "auto" => Self::Auto,
+        "column" => Self::Column,
+    }
+}
 
+impl DateTimeYearStyle {
+    impl_from_args! {
+        "alignment",
+        "auto" => Self::Auto,
+        "full" => Self::Full,
+        "with_era" => Self::WithEra,
+    }
+}
+
+impl DateTimeTimePrecision {
+    impl_from_args! {
+        "time_precision",
+        "hour" => Self::Hour,
+        "minute" => Self::Minute,
+        "second" => Self::Second,
+        "subsecond_s1" => Self::Subsecond(DateTimeSubsecondDigits::S1),
+        "subsecond_s2" => Self::Subsecond(DateTimeSubsecondDigits::S2),
+        "subsecond_s3" => Self::Subsecond(DateTimeSubsecondDigits::S3),
+        "subsecond_s4" => Self::Subsecond(DateTimeSubsecondDigits::S4),
+        "subsecond_s5" => Self::Subsecond(DateTimeSubsecondDigits::S5),
+        "subsecond_s6" => Self::Subsecond(DateTimeSubsecondDigits::S6),
+        "subsecond_s7" => Self::Subsecond(DateTimeSubsecondDigits::S7),
+        "subsecond_s8" => Self::Subsecond(DateTimeSubsecondDigits::S8),
+        "subsecond_s9" => Self::Subsecond(DateTimeSubsecondDigits::S9),
+        "minute_optional" => Self::MinuteOptional,
+    }
+}
 impl CurrencyCode {
     pub fn from_args<'a, S: PartialEq + PartialEq<&'a str> + ToString>(
         args: Option<&[(S, S)]>,
     ) -> Self {
-        from_args_helper(args, "currency_code", |arg| {
-            match TinyAsciiStr::from_str(arg.to_string().as_str()) {
+        from_args_helper(
+            args,
+            "currency_code",
+            |arg| match TinyAsciiStr::try_from_str(arg.to_string().as_str()) {
                 Err(_) => None,
                 Ok(code) => Some(Self(code)),
-            }
-        })
+            },
+        )
     }
 }
 

@@ -29,9 +29,9 @@ impl DisplayComponent for &str {
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        write!(f, "<{}>", self)?;
+        write!(f, "<{self}>")?;
         children(f)?;
-        write!(f, "</{}>", self)
+        write!(f, "</{self}>")
     }
 }
 
@@ -85,7 +85,7 @@ impl DisplayComponent for DisplayComp<'_> {
     {
         write!(f, "<{}", self.comp_name)?;
         for (attr_name, attr) in self.attrs {
-            write!(f, " {}=\"{}\"", attr_name, attr)?;
+            write!(f, " {attr_name}=\"{attr}\"")?;
         }
         f.write_str(">")?;
         children(f)?;

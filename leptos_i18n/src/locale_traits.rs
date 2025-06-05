@@ -1,4 +1,4 @@
-use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
+use icu_locale::{LanguageIdentifier, Locale as IcuLocale};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -51,7 +51,7 @@ pub trait Locale<L: Locale = Self>:
 
     /// Return a static reference to a `LanguageIdentifier`
     fn as_langid(self) -> &'static LanguageIdentifier {
-        Locale::as_icu_locale(self).as_ref()
+        &Locale::as_icu_locale(self).id
     }
 
     /// Return a static reference to an array containing all variants of this enum
@@ -135,14 +135,14 @@ impl TranslationUnitId for () {
 }
 
 /// Represents the direction of a script.
-/// This is computed at compile time with [`icu_locid_transform::LocaleDirectionality`](https://docs.rs/icu_locid_transform/1.5.0/icu_locid_transform/struct.LocaleDirectionality.html)
+/// This is computed at compile time with [`icu_locale::LocaleDirectionality`](https://docs.rs/icu_locale/2.0.0-beta2/icu_locale/struct.LocaleDirectionality.html)
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Direction {
     /// The script is left-to-right.
     LeftToRight,
     /// The script is right-to-left.
     RightToLeft,
-    /// `icu_locid_transform::LocaleDirectionality::get` return an Option, this variant represent the None case, it is unknown.
+    /// `icu_locale::LocaleDirectionality::get` return an Option, this variant represent the None case, it is unknown.
     Auto,
 }
 

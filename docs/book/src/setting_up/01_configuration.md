@@ -1,6 +1,6 @@
 # Configuration
 
-This crate is basically entirely based around one macro: the `load_locales!` macro. We will cover it in a later chapter, but for now just know that it looks at your translation files and generates code for them.
+This crate is basically entirely based around the code generated in a build script. We will cover it in a later chapter, but for now just know that it looks at your translation files and generates code for them.
 
 To load those translations it first needs to know what to look for, so you need to declare what locales you are supporting and which one is the default.
 To do that you use the `[package.metadata.leptos-i18n]` section in your `Cargo.toml`.

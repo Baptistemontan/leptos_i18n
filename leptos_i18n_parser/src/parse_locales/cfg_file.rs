@@ -220,11 +220,11 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
 
         for (k, v) in &extensions {
             if !locales.contains(k) {
-                return Err(serde::de::Error::custom(format!("unknown locale {:?}", k)));
+                return Err(serde::de::Error::custom(format!("unknown locale {k:?}")));
             }
 
             if !locales.contains(v) {
-                return Err(serde::de::Error::custom(format!("unknown locale {:?}", v)));
+                return Err(serde::de::Error::custom(format!("unknown locale {v:?}")));
             }
         }
 

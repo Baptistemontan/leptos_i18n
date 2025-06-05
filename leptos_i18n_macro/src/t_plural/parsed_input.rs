@@ -3,7 +3,7 @@ use quote::ToTokens;
 use std::{collections::BTreeMap, fmt::Display};
 use syn::{parse::ParseBuffer, spanned::Spanned, token::Comma, Expr, Ident, Token};
 
-use crate::load_locales::plurals::PluralForm;
+use leptos_i18n_codegen::load_locales::plurals::PluralForm;
 
 pub struct ParsedInput {
     pub context: Expr,
@@ -77,7 +77,7 @@ impl syn::parse::Parse for ParsedInput {
                     Some(PluralForm::Many) => "many",
                     Some(PluralForm::Other) => "other",
                 };
-                let msg = format!("Duplicate form {}.", form);
+                let msg = format!("Duplicate form {form}.");
                 return Err(syn::Error::new(span, msg));
             }
         }

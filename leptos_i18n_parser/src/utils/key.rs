@@ -2,6 +2,7 @@ use crate::parse_locales::error::{Error, Result};
 use crate::parse_locales::VAR_COUNT_KEY;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use super::UnwrapAt;
@@ -9,19 +10,10 @@ use super::UnwrapAt;
 #[derive(Clone)]
 pub struct Key {
     pub name: Rc<str>,
-    #[cfg(feature = "quote")]
     pub ident: Rc<syn::Ident>,
 }
 
 impl Key {
-    #[cfg(not(feature = "quote"))]
-    pub fn new(name: &str) -> Option<Self> {
-        Some(Key {
-            name: Rc::from(name.trim()),
-        })
-    }
-
-    #[cfg(feature = "quote")]
     pub fn new(name: &str) -> Option<Self> {
         let name = name.trim();
         let ident_repr = name.replace('-', "_");
@@ -36,7 +28,6 @@ impl Key {
         Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()).into())
     }
 
-    #[cfg(feature = "quote")]
     pub fn from_ident(ident: syn::Ident) -> Self {
         let s = ident.to_string();
         Key {
@@ -88,14 +79,12 @@ impl Ord for Key {
     }
 }
 
-#[cfg(feature = "quote")]
 impl quote::ToTokens for Key {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         quote::ToTokens::to_tokens(&*self.ident, tokens);
     }
 }
 
-#[cfg(feature = "quote")]
 impl quote::IdentFragment for Key {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         quote::IdentFragment::fmt(&*self.ident, f)
@@ -128,6 +117,35 @@ impl Display for KeyPath {
     }
 }
 
+pub struct KeyPathPushGuard<'a>(&'a mut KeyPath);
+
+impl KeyPathPushGuard<'_> {
+    pub fn pop(self) -> Option<Key> {
+        let k = self.0.path.pop();
+        core::mem::forget(self);
+        k
+    }
+}
+
+impl Drop for KeyPathPushGuard<'_> {
+    fn drop(&mut self) {
+        self.0.path.pop();
+    }
+}
+
+impl Deref for KeyPathPushGuard<'_> {
+    type Target = KeyPath;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl DerefMut for KeyPathPushGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
 impl KeyPath {
     pub const fn new(namespace: Option<Key>) -> Self {
         KeyPath {
@@ -136,12 +154,13 @@ impl KeyPath {
         }
     }
 
-    pub fn push_key(&mut self, key: Key) {
-        self.path.push(key);
+    pub fn new_from_path(namespace: Option<Key>, path: Vec<Key>) -> Self {
+        KeyPath { namespace, path }
     }
 
-    pub fn pop_key(&mut self) -> Option<Key> {
-        self.path.pop()
+    pub fn push_key(&mut self, key: Key) -> KeyPathPushGuard {
+        self.path.push(key);
+        KeyPathPushGuard(self)
     }
 
     pub fn to_string_with_key(&self, key: &Key) -> String {

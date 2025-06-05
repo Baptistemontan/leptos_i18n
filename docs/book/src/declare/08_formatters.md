@@ -5,6 +5,7 @@ For interpolation, every variables (other than `count` for ranges) are expected 
 But some values have different ways to be represented based on the locale:
 
 - Number
+- Currency
 - Date
 - Time
 - List
@@ -39,9 +40,11 @@ Here are all the formatters:
 
 Will format the number based on the locale.
 This makes the variable needed to be `impl leptos_i18n::formatting::NumberFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoFixedDecimal`.
-`IntoFixedDecimal` is a trait to turn a value into a `fixed_decimal::FixedDecimal`, which is a type used by `icu` to format numbers. That trait is currently implemented for:
+`IntoFixedDecimal` is a trait to turn a value into a `fixed_decimal::Decimal`, which is a type used by `icu` to format numbers. That trait is currently implemented for:
 
-- FixedDecimal
+- Decimal
+- UnsignedDecimal
+- Unsigned
 - usize
 - u8
 - u16
@@ -57,15 +60,15 @@ This makes the variable needed to be `impl leptos_i18n::formatting::NumberFormat
 - f32 \*
 - f64 \*
 
-> \* Is implemented for convenience, but uses [`FixedDecimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/struct.FixedDecimal.html#method.try_from_f64) with the floating precision; you may want to use your own.
+> \* Is implemented for convenience, but uses [`Decimal::try_from_f64`](https://docs.rs/fixed_decimal/latest/fixed_decimal/type.Decimal.html#method.try_from_f64) with the floating precision; you may want to use your own.
 
-The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through `FixedDecimal` before being passed to the formatter.
+The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through `Decimal` before being passed to the formatter.
 
 Enable the "format_nums" feature to use the number formatter.
 
 ### Arguments
 
-There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu_decimal/latest/icu_decimal/options/enum.GroupingStrategy.html), that can take 4 values:
+There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu/2.0.0-beta2/icu/decimal/options/enum.GroupingStrategy.html), that can take 4 values:
 
 - auto (default)
 - never
@@ -99,7 +102,7 @@ Enable the "format_currency" feature to use the number formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu_experimental::dimension::currency::options::Width`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html) and [`icu_experimental::dimension::currency::formatter::CurrencyCode`](https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/formatter/struct.CurrencyCode.html).
+There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu::experimental::dimension::currency::options::Width`](https://docs.rs/icu/2.0.0-beta2/icu/experimental/dimension/currency/options/enum.Width.html) and [`icu::experimental::dimension::currency::CurrencyCode`](https://docs.rs/icu/2.0.0-beta2/icu/experimental/dimension/currency/struct.CurrencyCode.html).
 
 `width` values:
 
@@ -130,23 +133,49 @@ t!(i18n, currency_formatter, num);
 
 Will format the date based on the locale.
 This makes the variable needed to be `impl leptos_i18n::formatting::DateFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDate`.
-`IntoIcuDate` is a trait to turn a value into a `impl icu::datetime::input::DateInput`, which is a trait used by `icu` to format dates. The `IntoIcuDate` trait is currently implemented for `T: DateInput<Calendar = AnyCalendar>`.
-You can use `icu::datetime::{Date, DateTime}`, or implement that trait for anything you want.
+`IntoIcuDate` is a trait to turn a value into a `impl icu::datetime::input::Date`, which is a trait used by `icu` to format dates. The `IntoIcuDate` trait is currently implemented for `T: ConvertCalendar<Converted<'a> = Date<Ref<'a, AnyCalendar>>>`.
+You can use `icu::datetime::input::{Date, DateTime}`, or implement that trait for anything you want.
 
 Enable the "format_datetime" feature to use the date formatter.
 
 ### Arguments
 
-There is one argument at the moment for the date formatter: `date_length`, which is based on [`icu::datetime::options::length::Date`](https://docs.rs/icu/latest/icu/datetime/options/length/enum.Date.html), that can take 4 values:
+`length`, which is based on [`icu::datetime::options::Length`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Length.html), that can take 3 values:
 
-- full
 - long
 - medium (default)
 - short
 
+`alignment`, which is based on [`icu::datetime::options::Alignment`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Alignment.html), that can take 2 values:
+
+- auto (default)
+- column
+
+`time_precision`, which is based on [`icu::datetime::options::TimePrecision`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.TimePrecision.html), that can take 13 values:
+
+- hour
+- minute
+- second (default)
+- subsecond_s1,
+- subsecond_s2,
+- subsecond_s3,
+- subsecond_s4,
+- subsecond_s5,
+- subsecond_s6,
+- subsecond_s7,
+- subsecond_s8,
+- subsecond_s9,
+- minute_optional,
+
+`year_style`, which is based on [`icu::datetime::options::YearStyle`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.YearStyle.html), that can take 3 values:
+
+- auto
+- full
+- with_era
+
 ```json
 {
-  "short_date_formatter": "{{ date_var, date(date_length: short) }}"
+  "short_date_formatter": "{{ date_var, date(length: short) }}"
 }
 ```
 
@@ -154,11 +183,11 @@ There is one argument at the moment for the date formatter: `date_length`, which
 
 ```rust,ignore
 use crate::i18n::*;
-use leptos_i18n::reexports::icu::calendar::Date;
+use leptos_i18n::reexports::icu::datetime::input::Date;
 
 let i18n = use_i18n();
 
-let date_var = move || Date::try_new_iso_date(1970, 1, 2).unwrap().to_any();
+let date_var = move || Date::try_new_iso(1970, 1, 2).unwrap().to_any();
 
 t!(i18n, date_formatter, date_var);
 ```
@@ -173,23 +202,43 @@ t!(i18n, date_formatter, date_var);
 
 Will format the time based on the locale.
 This makes the variable needed to be `impl leptos_i18n::formatting::TimeFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuTime`.
-`IntoIcuTime` is a trait to turn a value into a `impl icu::datetime::input::TimeInput`, which is a trait used by `icu` to format time. The `IntoIcuTime` trait is currently implemented for `T: IsoTimeInput`.
-You can use `icu::datetime::{Time, DateTime}`, or implement that trait for anything you want.
+`IntoIcuTime` is a trait to turn a value into a `impl icu::datetime::input::Time`, which is a trait used by `icu` to format time. The `IntoIcuTime` trait is currently implemented for `T: ConvertCalendar<Converted<'a> = Time> + InFixedCalendar<()> + AllInputMarkers<fieldsets::T>`.
+You can use `icu::datetime::input::{Time, DateTime}`, or implement that trait for anything you want.
 
 Enable the "format_datetime" feature to use the time formatter.
 
 ### Arguments
 
-There is one argument at the moment for the time formatter: `time_length`, which is based on [`icu::datetime::options::length::Time`](https://docs.rs/icu/latest/icu/datetime/options/length/enum.Time.html), that can take 4 values:
+`length`, which is based on [`icu::datetime::options::Length`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Length.html), that can take 3 values:
 
-- full
 - long
-- medium
-- short (default)
+- medium (default)
+- short
+
+`alignment`, which is based on [`icu::datetime::options::Alignment`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Alignment.html), that can take 2 values:
+
+- auto (default)
+- column
+
+`time_precision`, which is based on [`icu::datetime::options::TimePrecision`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.TimePrecision.html), that can take 13 values:
+
+- hour
+- minute
+- second (default)
+- subsecond_s1,
+- subsecond_s2,
+- subsecond_s3,
+- subsecond_s4,
+- subsecond_s5,
+- subsecond_s6,
+- subsecond_s7,
+- subsecond_s8,
+- subsecond_s9,
+- minute_optional,
 
 ```json
 {
-  "full_time_formatter": "{{ time_var, time(time_length: full) }}"
+  "full_time_formatter": "{{ time_var, time(length: long) }}"
 }
 ```
 
@@ -197,7 +246,7 @@ There is one argument at the moment for the time formatter: `time_length`, which
 
 ```rust,ignore
 use crate::i18n::*;
-use leptos_i18n::reexports::icu::calendar::Date;
+use leptos_i18n::reexports::icu::datetime::input::Time;
 
 let i18n = use_i18n();
 
@@ -216,18 +265,18 @@ t!(i18n, time_formatter, time_var);
 
 Will format the datetime based on the locale.
 This makes the variable needed to be `impl leptos_i18n::formatting::DateTimeFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDateTime`.
-`IntoIcuDateTime` is a trait to turn a value into a `impl icu::datetime::input::DateTimeInput` which is a trait used by `icu` to format datetimes. The `IntoIcuDateTime` trait is currently implemented for `T: DateTimeInput<Calendar = AnyCalendar>`.
-You can use `icu::datetime::DateTime`, or implement that trait for anything you want.
+`IntoIcuDateTime` is a trait to turn a value into a `impl icu::datetime::input::DateTime` which is a trait used by `icu` to format datetimes. The `IntoIcuDateTime` trait is currently implemented for `T: ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>`.
+You can use `icu::datetime::input::DateTime`, or implement that trait for anything you want.
 
 Enable the "format_datetime" feature to use the datetime formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the datetime formatter: `date_length` and `time_length` that behave exactly the same as the one above.
+There are two arguments at the moment for the datetime formatter: `length`, `alignment`, `time_presision` and `year_style` that behave exactly the same as the one above.
 
 ```json
 {
-  "short_date_long_time_formatter": "{{ datetime_var, datetime(date_length: short; time_length: full) }}"
+  "short_date_long_time_formatter": "{{ datetime_var, datetime(length: short; time_precision: minute) }}"
 }
 ```
 
@@ -235,12 +284,12 @@ There are two arguments at the moment for the datetime formatter: `date_length` 
 
 ```rust,ignore
 use crate::i18n::*;
-use leptos_i18n::reexports::icu::calendar::DateTime;
+use leptos_i18n::reexports::icu::datetime::input::{Date, DateTime, Time};
 
 let i18n = use_i18n();
 
 let datetime_var = move || {
-    let date = Date::try_new_iso_date(1970, 1, 2).unwrap().to_any();
+    let date = Date::try_new_iso(1970, 1, 2).unwrap().to_any();
     let time = Time::try_new(14, 34, 28, 0).unwrap();
     DateTime::new(date, time)
 };

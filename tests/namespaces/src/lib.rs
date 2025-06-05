@@ -1,5 +1,5 @@
 #![deny(warnings)]
-leptos_i18n::load_locales!();
+include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 
 #[cfg(test)]
 mod first_ns;
