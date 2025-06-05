@@ -2,6 +2,8 @@ use std::{fmt::Debug, io::Read, path::Path, sync::Arc};
 
 use crate::parse_locales::locale::{Locale, LocaleSeed, SerdeError};
 
+use parser::Parser;
+
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Options {
@@ -127,13 +129,19 @@ fn de_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeErr
     serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Yaml)
 }
 
-pub trait Parser: 'static {
-    fn deserialize(
-        &self,
-        reader: &mut dyn Read,
-        path: &Path,
-        seed: LocaleSeed,
-    ) -> Result<Locale, SerdeError>;
+pub mod parser {
+    use std::{io::Read, path::Path};
 
-    fn file_extensions(&self) -> &'static [&'static str];
+    pub use crate::parse_locales::locale::{Locale, LocaleSeed, SerdeError};
+
+    pub trait Parser: 'static {
+        fn deserialize(
+            &self,
+            reader: &mut dyn Read,
+            path: &Path,
+            seed: LocaleSeed,
+        ) -> Result<Locale, SerdeError>;
+
+        fn file_extensions(&self) -> &'static [&'static str];
+    }
 }
