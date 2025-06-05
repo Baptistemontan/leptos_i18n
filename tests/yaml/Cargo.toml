@@ -1,5 +1,5 @@
 [package]
-name = "yaml"
+name = "test_yaml"
 version = "0.1.0"
 edition = "2021"
 
