@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 leptos = { version = "0.8.2", features = ["csr"] }
 leptos_meta = { version = "0.8.2" }
-leptos_i18n = { path = "../../../leptos_i18n", default-features = false, features = [
+leptos_i18n = { workspace = true, default-features = false, features = [
   "csr",
   "plurals",
   "format_nums",
@@ -36,7 +36,7 @@ default = "en"
 locales = ["en", "fr"]
 
 [build-dependencies.leptos_i18n_build]
-path = "../../../leptos_i18n_build"
+workspace = true
 features = ["pretty_print", "csr"]
 
 [profile.release]
