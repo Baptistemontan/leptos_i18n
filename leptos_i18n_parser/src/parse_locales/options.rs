@@ -2,7 +2,8 @@ use std::io::Read;
 
 use crate::parse_locales::locale::{Locale, LocaleSeed, SerdeError};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Options {
     pub file_format: FileFormat,
     pub suppress_key_warnings: bool,
@@ -10,7 +11,8 @@ pub struct Options {
     pub show_keys_only: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub enum FileFormat {
     #[default]
     Json,
@@ -65,7 +67,7 @@ impl Options {
 }
 
 impl FileFormat {
-    pub const fn get_files_exts(self) -> &'static [&'static str] {
+    pub const fn get_files_exts(&self) -> &'static [&'static str] {
         match self {
             FileFormat::Json => &["json"],
             FileFormat::Json5 => &["json5"],
@@ -74,7 +76,7 @@ impl FileFormat {
     }
 
     pub fn deserialize<R: Read>(
-        self,
+        &self,
         locale_file: R,
         seed: LocaleSeed,
     ) -> Result<Locale, SerdeError> {

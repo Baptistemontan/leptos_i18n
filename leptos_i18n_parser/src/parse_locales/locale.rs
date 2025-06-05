@@ -195,7 +195,7 @@ impl DefaultTo<'_> {
     }
 }
 
-fn find_file(path: &mut PathBuf, file_format: FileFormat) -> Result<File> {
+fn find_file(path: &mut PathBuf, file_format: &FileFormat) -> Result<File> {
     let mut errs = vec![];
 
     for ext in file_format.get_files_exts() {
@@ -307,7 +307,7 @@ impl Namespace {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
@@ -315,7 +315,7 @@ impl Namespace {
             locales_dir_path.push(&*locale.name);
             locales_dir_path.push(file_path);
 
-            let locale_file = find_file(locales_dir_path, options.file_format)?;
+            let locale_file = find_file(locales_dir_path, &options.file_format)?;
 
             let locale = Locale::new(
                 locale_file,
@@ -345,7 +345,7 @@ impl LocalesOrNamespaces {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
         manifest_dir_path.push(&*cfg_file.locales_dir);
@@ -368,7 +368,7 @@ impl LocalesOrNamespaces {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&*locale.name);
-                let locale_file = find_file(manifest_dir_path, options.file_format)?;
+                let locale_file = find_file(manifest_dir_path, &options.file_format)?;
                 let locale = Locale::new(
                     locale_file,
                     manifest_dir_path,
@@ -453,7 +453,7 @@ impl Locale {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         track_file(tracked_files, &locale, namespace.as_ref(), path, warnings);
 
@@ -465,14 +465,14 @@ impl Locale {
             errors,
         };
 
-        Self::de(locale_file, path, seed, options.file_format)
+        Self::de(locale_file, path, seed, &options.file_format)
     }
 
     fn de(
         locale_file: File,
         path: &mut PathBuf,
         seed: LocaleSeed,
-        file_format: FileFormat,
+        file_format: &FileFormat,
     ) -> Result<Self> {
         let reader = BufReader::new(locale_file);
         let locale =
@@ -610,7 +610,7 @@ impl Locale {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
-        options: Options,
+        options: &Options,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             let mut pushed_key = key_path.push_key(key.clone());

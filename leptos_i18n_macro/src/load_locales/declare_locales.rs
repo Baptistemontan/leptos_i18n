@@ -37,7 +37,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     let options = Options::default().interpolate_display(interpolate_display);
 
     let builder_keys =
-        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, options).unwrap();
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, &options).unwrap();
 
     let parsed_locales = ParsedLocales {
         cfg_file,
