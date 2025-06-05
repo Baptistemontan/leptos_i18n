@@ -7,11 +7,13 @@ members = [
   "leptos_i18n_build",
   "leptos_i18n_codegen",
   "tests/json",
+  "tests/yaml",
+  "tests/json5",
   "tests/common",
   "tests/namespaces",
   "leptos_i18n_router",
 ]
-exclude = ["examples", "tests"]
+exclude = ["examples"]
 
 [workspace.package]
 version = "0.6.0-rc.1"
