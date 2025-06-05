@@ -14,17 +14,17 @@ members = [
 exclude = ["examples", "tests"]
 
 [workspace.package]
-version = "0.5.11"
+version = "0.6.0-rc.1"
 
 [workspace.dependencies]
 # pin macro, codegen and parser version, those don't follow semver internally so a version missmatch with the main crate can cause problems.
-leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.5.11" }
-leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.5.11" }
-leptos_i18n_codegen = { path = "./leptos_i18n_codegen", default-features = false, version = "=0.5.11" }
+leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.6.0-rc.1" }
+leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.6.0-rc.1" }
+leptos_i18n_codegen = { path = "./leptos_i18n_codegen", default-features = false, version = "=0.6.0-rc.1" }
 
-leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.5.11" }
-leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.5.11" }
-leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.5.11" }
+leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.6.0-rc.1" }
+leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.6.0-rc.1" }
+leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.6.0-rc.1" }
 
 # leptos
 leptos = { version = "0.8.2", default-features = false }
