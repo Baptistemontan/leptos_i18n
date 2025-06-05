@@ -3,16 +3,9 @@
 #![deny(warnings)]
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
-use std::{
-    collections::HashSet,
-    fmt::{Display, Write},
-    fs::{create_dir_all, File},
-    io::BufWriter,
-    path::PathBuf,
-    rc::Rc,
-};
-
 pub use datamarker::FormatterOptions;
+pub use leptos_i18n_parser::parse_locales::options::{parser, FileFormat, Options};
+
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
 use icu_provider_export::{
@@ -20,11 +13,18 @@ use icu_provider_export::{
     DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
 };
 use icu_provider_source::SourceDataProvider;
-pub use leptos_i18n_parser::parse_locales::options::{FileFormat, Options};
 use leptos_i18n_parser::parse_locales::{
     error::Result,
     locale::{BuildersKeys, Locale},
     parse_locales, ParsedLocales,
+};
+use std::{
+    collections::HashSet,
+    fmt::{Display, Write},
+    fs::{create_dir_all, File},
+    io::BufWriter,
+    path::PathBuf,
+    rc::Rc,
 };
 
 mod datamarker;

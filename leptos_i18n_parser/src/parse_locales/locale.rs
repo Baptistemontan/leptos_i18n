@@ -19,13 +19,13 @@ use super::warning::{Warning, Warnings};
 use super::{ForeignKeysPaths, StringIndexer};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum SerdeError {
     Json(serde_json::Error),
     Yaml(serde_yaml::Error),
     Json5(json5::Error),
+    Custom(String),
     Io(std::io::Error),
-    None,
-    Multiple,
 }
 
 impl std::fmt::Display for SerdeError {
@@ -35,11 +35,24 @@ impl std::fmt::Display for SerdeError {
             SerdeError::Yaml(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Json5(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Io(error) => std::fmt::Display::fmt(error, f),
-            SerdeError::None => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
-            SerdeError::Multiple => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
+            SerdeError::Custom(err) => std::fmt::Display::fmt(err, f),
         }
     }
 }
+
+impl SerdeError {
+    pub fn custom<T: ToString>(err: T) -> Self {
+        SerdeError::Custom(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for SerdeError {
+    fn from(value: std::io::Error) -> Self {
+        SerdeError::Io(value)
+    }
+}
+
+impl std::error::Error for SerdeError {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
@@ -195,7 +208,7 @@ impl DefaultTo<'_> {
     }
 }
 
-fn find_file(path: &mut PathBuf, file_format: FileFormat) -> Result<File> {
+fn find_file(path: &mut PathBuf, file_format: &FileFormat) -> Result<File> {
     let mut errs = vec![];
 
     for ext in file_format.get_files_exts() {
@@ -307,7 +320,7 @@ impl Namespace {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
@@ -315,7 +328,7 @@ impl Namespace {
             locales_dir_path.push(&*locale.name);
             locales_dir_path.push(file_path);
 
-            let locale_file = find_file(locales_dir_path, options.file_format)?;
+            let locale_file = find_file(locales_dir_path, &options.file_format)?;
 
             let locale = Locale::new(
                 locale_file,
@@ -345,7 +358,7 @@ impl LocalesOrNamespaces {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
         manifest_dir_path.push(&*cfg_file.locales_dir);
@@ -368,7 +381,7 @@ impl LocalesOrNamespaces {
             let mut locales = Vec::with_capacity(locale_keys.len());
             for locale in locale_keys.iter().cloned() {
                 manifest_dir_path.push(&*locale.name);
-                let locale_file = find_file(manifest_dir_path, options.file_format)?;
+                let locale_file = find_file(manifest_dir_path, &options.file_format)?;
                 let locale = Locale::new(
                     locale_file,
                     manifest_dir_path,
@@ -453,7 +466,7 @@ impl Locale {
         warnings: &Warnings,
         errors: &Errors,
         tracked_files: &mut Vec<String>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         track_file(tracked_files, &locale, namespace.as_ref(), path, warnings);
 
@@ -465,19 +478,19 @@ impl Locale {
             errors,
         };
 
-        Self::de(locale_file, path, seed, options.file_format)
+        Self::de(locale_file, path, seed, &options.file_format)
     }
 
     fn de(
         locale_file: File,
         path: &mut PathBuf,
         seed: LocaleSeed,
-        file_format: FileFormat,
+        file_format: &FileFormat,
     ) -> Result<Self> {
         let reader = BufReader::new(locale_file);
         let locale =
             file_format
-                .deserialize(reader, seed)
+                .deserialize(reader, path, seed)
                 .map_err(|err| Error::LocaleFileDeser {
                     path: std::mem::take(path),
                     err,
@@ -610,7 +623,7 @@ impl Locale {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
-        options: Options,
+        options: &Options,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             let mut pushed_key = key_path.push_key(key.clone());

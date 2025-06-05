@@ -653,7 +653,7 @@ impl ParsedValue {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
-        options: Options,
+        options: &Options,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {

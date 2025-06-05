@@ -53,7 +53,7 @@ pub struct RawParsedLocales {
 
 pub fn parse_locales_raw(
     cargo_manifest_dir: Option<PathBuf>,
-    options: Options,
+    options: &Options,
 ) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
@@ -96,7 +96,7 @@ pub fn make_builder_keys(
     cfg_file: &ConfigFile,
     foreign_keys_paths: ForeignKeysPaths,
     warnings: &Warnings,
-    options: Options,
+    options: &Options,
 ) -> Result<BuildersKeys> {
     locales.merge_plurals(warnings)?;
 
@@ -125,10 +125,10 @@ pub fn parse_locales(
         warnings,
         tracked_files,
         errors,
-    } = parse_locales_raw(cargo_manifest_dir, options)?;
+    } = parse_locales_raw(cargo_manifest_dir, &options)?;
 
     let builder_keys =
-        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, options)?;
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, &options)?;
 
     Ok(ParsedLocales {
         cfg_file,
@@ -158,7 +158,7 @@ fn check_locales(
     locales: LocalesOrNamespaces,
     extensions: &BTreeMap<Key, Key>,
     warnings: &Warnings,
-    options: Options,
+    options: &Options,
 ) -> Result<BuildersKeys> {
     match locales {
         LocalesOrNamespaces::NameSpaces(mut namespaces) => {
@@ -187,7 +187,7 @@ fn check_locales_inner(
     namespace: Option<Key>,
     extensions: &BTreeMap<Key, Key>,
     warnings: &Warnings,
-    options: Options,
+    options: &Options,
 ) -> Result<BuildersKeysInner> {
     let mut locales_iter = locales.iter_mut();
     let default_locale = locales_iter.next().unwrap_at("check_locales_inner_1");

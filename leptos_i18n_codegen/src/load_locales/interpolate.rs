@@ -252,7 +252,7 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         defaults: &DefaultedLocales,
-        options: Options,
+        options: &Options,
     ) -> Self {
         // filter defaulted locales
         let locales = locales
@@ -456,7 +456,7 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
-        options: Options,
+        options: &Options,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -700,7 +700,7 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         defaults: &BTreeMap<Key, BTreeSet<Key>>,
-        options: Options,
+        options: &Options,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
