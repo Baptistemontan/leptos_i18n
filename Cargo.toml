@@ -46,7 +46,7 @@ leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, ve
 leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.6.0-rc.1" }
 leptos_i18n_codegen = { path = "./leptos_i18n_codegen", default-features = false, version = "=0.6.0-rc.1" }
 
-leptos_i18n = { path = "./leptos_i18n", default-features = false, version = "0.6.0-rc.1" }
+leptos_i18n = { path = "./leptos_i18n", version = "0.6.0-rc.1" }
 leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.6.0-rc.1" }
 leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.6.0-rc.1" }
 
