@@ -99,7 +99,7 @@ impl FileFormat {
 
     pub fn deserialize<R: Read>(
         &self,
-        mut locale_file: R,
+        locale_file: R,
         path: &Path,
         seed: LocaleSeed,
     ) -> Result<Locale, SerdeError> {
@@ -107,7 +107,7 @@ impl FileFormat {
             FileFormat::Json => de_json(locale_file, seed),
             FileFormat::Json5 => de_json5(locale_file, seed),
             FileFormat::Yaml => de_yaml(locale_file, seed),
-            FileFormat::Custom(parser) => parser.deserialize(&mut locale_file, path, seed),
+            FileFormat::Custom(parser) => parser::de_custom(&**parser, locale_file, path, seed),
         }
     }
 }
@@ -130,18 +130,44 @@ fn de_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeErr
 }
 
 pub mod parser {
+    use crate::parse_locales::locale::{Locale, LocaleSeed};
     use std::{io::Read, path::Path};
 
-    pub use crate::parse_locales::locale::{Locale, LocaleSeed, SerdeError};
+    pub use crate::parse_locales::locale::SerdeError;
+
+    pub struct Seed<'a>(LocaleSeed<'a>);
+
+    impl<'de> serde::de::DeserializeSeed<'de> for Seed<'_> {
+        type Value = Value;
+        fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            serde::de::DeserializeSeed::deserialize(self.0, deserializer).map(Value)
+        }
+    }
+
+    pub struct Value(Locale);
 
     pub trait Parser: 'static {
         fn deserialize(
             &self,
             reader: &mut dyn Read,
             path: &Path,
-            seed: LocaleSeed,
-        ) -> Result<Locale, SerdeError>;
+            seed: Seed,
+        ) -> Result<Value, SerdeError>;
 
         fn file_extensions(&self) -> &'static [&'static str];
+    }
+
+    pub(crate) fn de_custom<R: Read>(
+        parser: &dyn Parser,
+        mut reader: R,
+        path: &Path,
+        seed: LocaleSeed,
+    ) -> Result<Locale, SerdeError> {
+        let seed = Seed(seed);
+        let value = parser.deserialize(&mut reader, path, seed)?;
+        Ok(value.0)
     }
 }
