@@ -12,7 +12,7 @@ Great, we lost a lot of size, but now instead of having too much information, we
 
 ## 1. Datagen
 
-First, generate the information; you can use [`icu_datagen`](https://docs.rs/crate/icu4x-datagen/2.0.0-beta2) for that, either as a [CLI](https://github.com/unicode-org/icu4x/blob/main/tutorials/data-management.md#2-generating-data) or with a [build.rs](https://github.com/unicode-org/icu4x/blob/main/tutorials/cargo.md) (we will come back to it later).
+First, generate the information; you can use [`icu_datagen`](https://docs.rs/crate/icu4x-datagen/2.0.0) for that, either as a [CLI](https://github.com/unicode-org/icu4x/blob/main/tutorials/data-management.md#2-generating-data) or with a [build.rs](https://github.com/unicode-org/icu4x/blob/main/tutorials/cargo.md) (we will come back to it later).
 
 ## 2. Load
 
@@ -30,8 +30,8 @@ you will also need some depedencies:
 ```toml
 [dependencies]
 # "default-features = false" to turn off compiled_data
-icu_provider_baked = "2.0.0-beta2" # for databake
-icu_provider = "2.0.0-beta2" # for databake
+icu_provider_baked = "2.0.0" # for databake
+icu_provider = "2.0.0" # for databake
 zerovec = "0.11" # for databake
 ```
 

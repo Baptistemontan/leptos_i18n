@@ -135,7 +135,7 @@ impl TranslationUnitId for () {
 }
 
 /// Represents the direction of a script.
-/// This is computed at compile time with [`icu_locale::LocaleDirectionality`](https://docs.rs/icu_locale/2.0.0-beta2/icu_locale/struct.LocaleDirectionality.html)
+/// This is computed at compile time with [`icu_locale::LocaleDirectionality`](https://docs.rs/icu_locale/2.0.0/icu_locale/struct.LocaleDirectionality.html)
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Direction {
     /// The script is left-to-right.
