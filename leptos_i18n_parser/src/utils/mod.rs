@@ -19,7 +19,7 @@ impl<T> UnwrapAt for Option<T> {
 
     #[track_caller]
     fn unwrap_at(self, location: &str) -> Self::Value {
-        let msg = format!("Unexpected None value at {}. If you got this error please open an issue on the leptos_i18n github repo.", location);
+        let msg = format!("Unexpected None value at {location}. If you got this error please open an issue on the leptos_i18n github repo.");
         self.expect(&msg)
     }
 }
@@ -29,7 +29,7 @@ impl<T, E: Debug> UnwrapAt for Result<T, E> {
 
     #[track_caller]
     fn unwrap_at(self, location: &str) -> Self::Value {
-        let msg = format!("Unexpected Err value at {}. If you got this error please open an issue on the leptos_i18n github repo.", location);
+        let msg = format!("Unexpected Err value at {location}. If you got this error please open an issue on the leptos_i18n github repo.");
         self.expect(&msg)
     }
 }

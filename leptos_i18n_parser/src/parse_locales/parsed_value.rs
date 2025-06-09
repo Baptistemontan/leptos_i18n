@@ -5,10 +5,13 @@ use serde::{
     Deserialize,
 };
 
-use crate::utils::{formatter::Formatter, Key, KeyPath, UnwrapAt};
+use crate::{
+    parse_locales::options::Options,
+    utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
+};
 
 use super::{
-    error::{Error, Result},
+    error::{Error, Errors, Result},
     locale::{
         DefaultTo, DefaultedLocales, InterpolOrLit, InterpolationKeys, LiteralType, Locale,
         LocaleSeed, LocaleValue, LocalesOrNamespaces, RangeOrPlural,
@@ -18,6 +21,12 @@ use super::{
     warning::Warnings,
     ForeignKeysPaths, StringIndexer,
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Dummy {
+    Variable(Key),
+    Component(Key),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
@@ -30,6 +39,7 @@ pub enum ParsedValue {
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
     Plurals(Plurals),
+    Dummy(Vec<Dummy>),
 }
 
 impl Default for ParsedValue {
@@ -80,19 +90,19 @@ impl Literal {
         match self {
             Literal::String(s, _) => s.push_str(&other.to_string()),
             Literal::Signed(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
             Literal::Unsigned(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
             Literal::Float(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
             Literal::Bool(v) => {
-                let s = format!("{}{}", v, other);
+                let s = format!("{v}{other}");
                 *self = Literal::String(s, usize::MAX);
             }
         }
@@ -129,19 +139,31 @@ impl ParsedValue {
         foreign_keys_paths: &ForeignKeysPaths,
     ) -> Result<Self> {
         let parsed_value = [
-            Self::find_foreign_key,
             Self::find_component,
+            Self::find_foreign_key,
             Self::find_variable,
         ]
         .into_iter()
         .find_map(|f| f(value, key_path, locale, foreign_keys_paths));
-        if let Some(parsed_value) = parsed_value {
-            parsed_value
-        } else {
-            Ok(ParsedValue::Literal(Literal::String(
+        match parsed_value {
+            Some(Ok(value)) => Ok(value),
+            None => Ok(ParsedValue::Literal(Literal::String(
                 value.to_string(),
                 usize::MAX,
-            )))
+            ))),
+            Some(Err(err)) => Err(err),
+        }
+    }
+
+    pub fn new_dummy(value: &str) -> Self {
+        let mut dummies = Vec::new();
+        Self::make_dummy_inner(value, &mut dummies);
+        ParsedValue::Dummy(dummies)
+    }
+
+    fn make_dummy_inner(value: &str, dummies: &mut Vec<Dummy>) {
+        if Self::find_dummy_component(value, dummies).is_none() {
+            Self::find_dummy_var(value, dummies);
         }
     }
 
@@ -184,20 +206,20 @@ impl ParsedValue {
     }
 
     fn parse_key_path(path: &str) -> Option<KeyPath> {
-        let (mut key_path, path) = if let Some((namespace, rest)) = path.split_once(':') {
+        let (ns, path) = if let Some((namespace, rest)) = path.split_once(':') {
             let namespace = Key::new(namespace)?;
 
-            (KeyPath::new(Some(namespace)), rest)
+            (Some(namespace), rest)
         } else {
-            (KeyPath::new(None), path)
+            (None, path)
         };
-
+        let mut key_path = Vec::new();
         for key in path.split('.') {
             let key = Key::new(key)?;
-            key_path.push_key(key);
+            key_path.push(key);
         }
 
-        Some(key_path)
+        Some(KeyPath::new_from_path(ns, key_path))
     }
 
     fn parse_foreign_key_args_inner(
@@ -299,7 +321,7 @@ impl ParsedValue {
                 after,
                 key_path,
                 locale,
-                foreign_keys_paths
+                foreign_keys_paths,
             ))
         } else {
             (BTreeMap::new(), after)
@@ -312,10 +334,55 @@ impl ParsedValue {
             locale,
             foreign_keys_paths,
         )));
-        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths));
-        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths));
+
+        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths,));
+        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths,));
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
+    }
+
+    fn find_dummy_var(value: &str, dummies: &mut Vec<Dummy>) -> Option<()> {
+        let (before, rest) = value.split_once("{{")?;
+        let (ident, after) = rest.split_once("}}")?;
+
+        let ident = if let Some((ident, _)) = ident.split_once(',') {
+            ident.trim()
+        } else {
+            ident.trim()
+        };
+        let key = Key::new(&format!("var_{ident}"))?;
+
+        dummies.push(Dummy::Variable(key));
+
+        Self::make_dummy_inner(before, dummies);
+        Self::make_dummy_inner(after, dummies);
+
+        Some(())
+    }
+
+    fn find_valid_variable<'a>(
+        value: &'a str,
+        key_path: &KeyPath,
+        locale: &Key,
+    ) -> Option<Result<(&'a str, Self, &'a str)>> {
+        let (before, rest) = value.split_once("{{")?;
+        let (ident, after) = rest.split_once("}}")?;
+
+        let ident = ident.trim();
+
+        let this = if let Some((ident, formatter)) = ident.split_once(',') {
+            let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
+            let key = Key::new(&format!("var_{}", ident.trim()))?;
+            ParsedValue::Variable { key, formatter }
+        } else {
+            let key = Key::new(&format!("var_{ident}"))?;
+            ParsedValue::Variable {
+                key,
+                formatter: Formatter::None,
+            }
+        };
+
+        Some(Ok((before, this, after)))
     }
 
     fn find_variable(
@@ -324,27 +391,23 @@ impl ParsedValue {
         locale: &Key,
         foreign_keys_paths: &ForeignKeysPaths,
     ) -> Option<Result<Self>> {
-        let (before, rest) = value.split_once("{{")?;
-        let (ident, after) = rest.split_once("}}")?;
+        let (before, this, after) =
+            nested_result_try!(Self::find_valid_variable(value, key_path, locale)?);
 
-        let ident = ident.trim();
-
-        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths));
-        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths));
-
-        let this = if let Some((ident, formatter)) = ident.split_once(',') {
-            let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
-            let key = Key::new(&format!("var_{}", ident.trim()))?;
-            ParsedValue::Variable { key, formatter }
-        } else {
-            let key = Key::new(&format!("var_{}", ident))?;
-            ParsedValue::Variable {
-                key,
-                formatter: Formatter::None,
-            }
-        };
+        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths,));
+        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths,));
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
+    }
+
+    fn find_dummy_component(value: &str, dummies: &mut Vec<Dummy>) -> Option<()> {
+        let (key, before, beetween, after) = Self::find_valid_component(value)?;
+        dummies.push(Dummy::Component(key));
+        Self::make_dummy_inner(before, dummies);
+        Self::make_dummy_inner(beetween, dummies);
+        Self::make_dummy_inner(after, dummies);
+
+        Some(())
     }
 
     fn find_valid_component(value: &str) -> Option<(Key, &str, &str, &str)> {
@@ -373,19 +436,19 @@ impl ParsedValue {
             before,
             key_path,
             locale,
-            foreign_keys_paths
+            foreign_keys_paths,
         ));
         let beetween = nested_result_try!(ParsedValue::new(
             beetween,
             key_path,
             locale,
-            foreign_keys_paths
+            foreign_keys_paths,
         ));
         let after = nested_result_try!(ParsedValue::new(
             after,
             key_path,
             locale,
-            foreign_keys_paths
+            foreign_keys_paths,
         ));
 
         let this = ParsedValue::Component {
@@ -397,7 +460,7 @@ impl ParsedValue {
     }
 
     fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(Key, &'a str, &'a str)> {
-        let key_ident = Key::new(&format!("comp_{}", key))?;
+        let key_ident = Key::new(&format!("comp_{key}"))?;
         let mut indices = None;
         let mut depth = 0;
         let iter = value.match_indices('<').filter_map(|(i, _)| {
@@ -500,7 +563,10 @@ impl ParsedValue {
         path: &KeyPath,
     ) -> Result<()> {
         match self {
-            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => Ok(()),
+            ParsedValue::Variable { .. }
+            | ParsedValue::Literal(_)
+            | ParsedValue::Default
+            | ParsedValue::Dummy(_) => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
             ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
@@ -548,9 +614,10 @@ impl ParsedValue {
         key_path: &KeyPath,
     ) -> Result<Self> {
         match self {
-            ParsedValue::Default | ParsedValue::ForeignKey(_) | ParsedValue::Literal(_) => {
-                Ok(self.clone())
-            }
+            ParsedValue::Default
+            | ParsedValue::ForeignKey(_)
+            | ParsedValue::Literal(_)
+            | ParsedValue::Dummy(_) => Ok(self.clone()),
             ParsedValue::Variable { key, formatter } => match args.get(&*key.name) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
@@ -578,7 +645,6 @@ impl ParsedValue {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn merge(
         &mut self,
         keys: &mut LocaleValue,
@@ -587,6 +653,7 @@ impl ParsedValue {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
+        options: &Options,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
@@ -607,7 +674,9 @@ impl ParsedValue {
                 };
                 *this = ParsedValue::Subkeys(None);
 
-                dummy_local.merge(keys, top_locale, default_to, key_path, strings, warnings)?;
+                dummy_local.merge(
+                    keys, top_locale, default_to, key_path, strings, warnings, options,
+                )?;
                 locales.push(dummy_local);
                 Ok(())
             }
@@ -620,7 +689,9 @@ impl ParsedValue {
                 let Some(mut loc) = loc.take() else {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
-                loc.merge(keys, top_locale, default_to, key_path, strings, warnings)?;
+                loc.merge(
+                    keys, top_locale, default_to, key_path, strings, warnings, options,
+                )?;
                 locales.push(loc);
                 Ok(())
             }
@@ -650,7 +721,8 @@ impl ParsedValue {
                 | ParsedValue::Ranges(_)
                 | ParsedValue::Variable { .. }
                 | ParsedValue::Plurals(_)
-                | ParsedValue::ForeignKey(_),
+                | ParsedValue::ForeignKey(_)
+                | ParsedValue::Dummy(_),
                 LocaleValue::Value {
                     value: interpol_or_lit,
                     ..
@@ -663,7 +735,7 @@ impl ParsedValue {
             // not compatible
             _ => Err(Error::SubKeyMissmatch {
                 locale: top_locale,
-                key_path: std::mem::take(key_path),
+                key_path: key_path.clone(),
             }
             .into()),
         }
@@ -674,7 +746,10 @@ impl ParsedValue {
             ParsedValue::Literal(Literal::String(s, _)) if s.is_empty() => {
                 // skip empty strings
             }
-            ParsedValue::Variable { .. } | ParsedValue::Literal(_) | ParsedValue::Default => {}
+            ParsedValue::Variable { .. }
+            | ParsedValue::Literal(_)
+            | ParsedValue::Default
+            | ParsedValue::Dummy(_) => {}
             ParsedValue::ForeignKey(foreign_key) => {
                 let value = foreign_key.get_mut().as_inner_mut("reduce");
                 value.reduce();
@@ -721,6 +796,7 @@ impl ParsedValue {
         match self {
             ParsedValue::Default => {}    // default in a bloc ? skip
             ParsedValue::Subkeys(_) => {} // same for subkeys
+            ParsedValue::Dummy(_) => {}   // Dummies are already reduced
             mut plurals_like @ (ParsedValue::Ranges(_) | ParsedValue::Plurals(_)) => {
                 plurals_like.reduce();
                 bloc.push(plurals_like);
@@ -773,9 +849,7 @@ impl ParsedValue {
                     locales: vec![locale],
                 })
             }
-            ParsedValue::Default => {
-                Err(Error::ExplicitDefaultInDefault(std::mem::take(key_path)).into())
-            }
+            ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(key_path.clone()).into()),
             this => {
                 this.index_strings(strings);
                 this.get_keys(key_path).map(|value| LocaleValue::Value {
@@ -804,6 +878,19 @@ impl ParsedValue {
             ParsedValue::Component { key, inner } => {
                 keys.get_interpol_keys_mut().push_comp(key.clone());
                 inner.get_keys_inner(key_path, keys, false)?;
+            }
+            ParsedValue::Dummy(dummies) => {
+                let interpol_keys = keys.get_interpol_keys_mut();
+                for dummy in dummies {
+                    match dummy {
+                        Dummy::Variable(key) => {
+                            interpol_keys.push_var(key.clone(), Formatter::Dummy);
+                        }
+                        Dummy::Component(key) => {
+                            interpol_keys.push_comp(key.clone());
+                        }
+                    }
+                }
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
@@ -870,7 +957,8 @@ impl ParsedValue {
             ParsedValue::Default
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
-            | ParsedValue::Subkeys(_) => {}
+            | ParsedValue::Subkeys(_)
+            | ParsedValue::Dummy(_) => {}
         }
     }
 
@@ -915,13 +1003,14 @@ impl ForeignKey {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct ParsedValueSeed<'a> {
     pub top_locale_name: &'a Key,
     pub in_range: bool,
     pub key_path: &'a KeyPath,
     pub key: &'a Key,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
+    pub errors: &'a Errors,
 }
 
 impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
@@ -942,13 +1031,22 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         E: serde::de::Error,
     {
-        ParsedValue::new(
+        let pv = ParsedValue::new(
             v,
             self.key_path,
             self.top_locale_name,
             self.foreign_keys_paths,
-        )
-        .map_err(|err| serde::de::Error::custom(err))
+        );
+
+        let pv = match pv {
+            Ok(pv) => pv,
+            Err(err) => {
+                self.errors.emit_error(err.into_inner());
+                ParsedValue::new_dummy(v)
+            }
+        };
+
+        Ok(pv)
     }
 
     fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>
@@ -994,6 +1092,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             top_locale_name: self.top_locale_name.clone(),
             key_path: self.key_path.to_owned(),
             foreign_keys_paths: self.foreign_keys_paths,
+            errors: self.errors,
         };
 
         seed.deserialize(map_de).map(Some).map(ParsedValue::Subkeys)

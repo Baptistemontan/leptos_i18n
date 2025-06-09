@@ -5,18 +5,24 @@ First thing we need is a `Leptos` project, you can find documentation on how to 
 Once you have set one up, you can add this crate to your project with
 
 ```bash
-cargo add leptos_i18n
+cargo add leptos_i18n leptos_i18n_build
 ```
 
-Or by adding this line to your `Cargo.toml` under `[dependencies]`:
+Or by adding this line to your `Cargo.toml`:
 
 ```toml
-leptos_i18n = "0.4"
+[dependencies]
+leptos_i18n = "0.6"
+
+[build-dependencies]
+leptos_i18n_build = "0.6"
 ```
+
+We actually need 2 crates, we will talk about the second one later
 
 ## `actix-web` Backend
 
-When compiling for the backend using `actix-web`, enable the `actix` feature:
+When compiling for the backend using `actix-web`, enable the `actix` feature for the `leptos_i18n` crate:
 
 ```toml
 # Cargo.toml
@@ -24,12 +30,13 @@ When compiling for the backend using `actix-web`, enable the `actix` feature:
 [features]
 ssr = [
     "leptos_i18n/actix",
+    "leptos_i18n_build/ssr",
 ]
 ```
 
 ## `axum` Backend
 
-When compiling for the backend using `axum`, enable the `axum` feature:
+When compiling for the backend using `axum`, enable the `axum` feature for the `leptos_i18n` crate:
 
 ```toml
 # Cargo.toml
@@ -37,6 +44,7 @@ When compiling for the backend using `axum`, enable the `axum` feature:
 [features]
 ssr = [
     "leptos_i18n/axum",
+    "leptos_i18n_build/ssr",
 ]
 ```
 
@@ -50,6 +58,7 @@ When compiling for the client, enable the `hydrate` feature:
 [features]
 hydrate = [
     "leptos_i18n/hydrate",
+    "leptos_i18n_build/hydrate",
 ]
 ```
 
@@ -61,6 +70,10 @@ When compiling for the client, enable the `csr` feature:
 # Cargo.toml
 
 [dependencies.leptos_i18n]
+features = ["csr"]
+
+
+[build-dependencies.leptos_i18n_build]
 features = ["csr"]
 ```
 

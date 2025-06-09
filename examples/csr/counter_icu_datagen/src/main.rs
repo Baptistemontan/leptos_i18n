@@ -1,9 +1,9 @@
 #![deny(warnings)]
 
 pub mod app;
-leptos_i18n::load_locales!();
 
 include!(concat!(env!("OUT_DIR"), "/baked_data/mod.rs"));
+include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 
 // only needed for experimental features (e.g "format_currency")
 extern crate alloc;

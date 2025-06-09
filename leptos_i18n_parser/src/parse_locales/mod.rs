@@ -11,23 +11,28 @@ use locale::{BuildersKeys, BuildersKeysInner, DefaultTo, Locale, LocalesOrNamesp
 pub mod cfg_file;
 pub mod error;
 pub mod locale;
+pub mod options;
 pub mod parsed_value;
 pub mod plurals;
 pub mod ranges;
 pub mod warning;
 
-use error::{Error, Result};
+use error::{Error, Errors, Result};
 use warning::Warnings;
 
-use crate::utils::{formatter::SkipIcuCfgGuard, Key, KeyPath, UnwrapAt};
+use crate::{
+    parse_locales::options::Options,
+    utils::{Key, KeyPath, UnwrapAt},
+};
 
 pub const VAR_COUNT_KEY: &str = "var_count";
 
 fn get_manifest_dir() -> Result<PathBuf> {
-    std::env::var("CARGO_MANIFEST_DIR")
+    let path = std::env::var("CARGO_MANIFEST_DIR")
         .map(Into::into)
-        .map_err(Error::CargoDirEnvNotPresent)
-        .map_err(Box::new)
+        .map_err(Error::CargoDirEnvNotPresent)?;
+
+    Ok(path)
 }
 
 fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {
@@ -37,21 +42,24 @@ fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {
     }
 }
 
-pub fn parse_locales_raw(
-    skip_icu_cfg: bool,
-    cargo_manifest_dir: Option<PathBuf>,
-) -> Result<(
-    LocalesOrNamespaces,
-    ConfigFile,
-    ForeignKeysPaths,
-    Warnings,
-    Vec<String>,
-)> {
-    let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
+pub struct RawParsedLocales {
+    pub locales: LocalesOrNamespaces,
+    pub cfg_file: ConfigFile,
+    pub foreign_keys_paths: ForeignKeysPaths,
+    pub warnings: Warnings,
+    pub errors: Errors,
+    pub tracked_files: Vec<String>,
+}
 
+pub fn parse_locales_raw(
+    cargo_manifest_dir: Option<PathBuf>,
+    options: &Options,
+) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
     let foreign_keys_paths = ForeignKeysPaths::new();
+
+    let errors = Errors::new();
 
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
 
@@ -66,16 +74,21 @@ pub fn parse_locales_raw(
         &cfg_file,
         &foreign_keys_paths,
         &warnings,
+        &errors,
         &mut tracked_files,
+        options,
     )?;
 
-    Ok((
+    let raw_parsed_locales = RawParsedLocales {
         locales,
         cfg_file,
         foreign_keys_paths,
         warnings,
+        errors,
         tracked_files,
-    ))
+    };
+
+    Ok(raw_parsed_locales)
 }
 
 pub fn make_builder_keys(
@@ -83,33 +96,48 @@ pub fn make_builder_keys(
     cfg_file: &ConfigFile,
     foreign_keys_paths: ForeignKeysPaths,
     warnings: &Warnings,
-    skip_icu_cfg: bool,
+    options: &Options,
 ) -> Result<BuildersKeys> {
-    let _guard = SkipIcuCfgGuard::new(skip_icu_cfg);
-
     locales.merge_plurals(warnings)?;
 
     resolve_foreign_keys(&locales, &cfg_file.default, foreign_keys_paths.into_inner())?;
 
-    check_locales(locales, &cfg_file.extensions, warnings)
+    check_locales(locales, &cfg_file.extensions, warnings, options)
+}
+
+pub struct ParsedLocales {
+    pub cfg_file: ConfigFile,
+    pub builder_keys: BuildersKeys,
+    pub warnings: Warnings,
+    pub errors: Errors,
+    pub tracked_files: Option<Vec<String>>,
+    pub options: Options,
 }
 
 pub fn parse_locales(
-    skip_icu_cfg: bool,
     cargo_manifest_dir: Option<PathBuf>,
-) -> Result<(BuildersKeys, Warnings, Vec<String>)> {
-    let (locales, cfg_file, foreign_keys_paths, warnings, tracked_files) =
-        parse_locales_raw(skip_icu_cfg, cargo_manifest_dir)?;
-
-    let builder_keys = make_builder_keys(
+    options: Options,
+) -> Result<ParsedLocales> {
+    let RawParsedLocales {
         locales,
-        &cfg_file,
+        cfg_file,
         foreign_keys_paths,
-        &warnings,
-        skip_icu_cfg,
-    )?;
+        warnings,
+        tracked_files,
+        errors,
+    } = parse_locales_raw(cargo_manifest_dir, &options)?;
 
-    Ok((builder_keys, warnings, tracked_files))
+    let builder_keys =
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, &options)?;
+
+    Ok(ParsedLocales {
+        cfg_file,
+        builder_keys,
+        warnings,
+        errors,
+        tracked_files: Some(tracked_files),
+        options,
+    })
 }
 
 fn resolve_foreign_keys(
@@ -130,6 +158,7 @@ fn check_locales(
     locales: LocalesOrNamespaces,
     extensions: &BTreeMap<Key, Key>,
     warnings: &Warnings,
+    options: &Options,
 ) -> Result<BuildersKeys> {
     match locales {
         LocalesOrNamespaces::NameSpaces(mut namespaces) => {
@@ -140,13 +169,14 @@ fn check_locales(
                     Some(namespace.key.clone()),
                     extensions,
                     warnings,
+                    options,
                 )?;
                 keys.insert(namespace.key.clone(), k);
             }
             Ok(BuildersKeys::NameSpaces { namespaces, keys })
         }
         LocalesOrNamespaces::Locales(mut locales) => {
-            let keys = check_locales_inner(&mut locales, None, extensions, warnings)?;
+            let keys = check_locales_inner(&mut locales, None, extensions, warnings, options)?;
             Ok(BuildersKeys::Locales { locales, keys })
         }
     }
@@ -157,6 +187,7 @@ fn check_locales_inner(
     namespace: Option<Key>,
     extensions: &BTreeMap<Key, Key>,
     warnings: &Warnings,
+    options: &Options,
 ) -> Result<BuildersKeysInner> {
     let mut locales_iter = locales.iter_mut();
     let default_locale = locales_iter.next().unwrap_at("check_locales_inner_1");
@@ -174,7 +205,7 @@ fn check_locales_inner(
         let default_to = match extensions.get(&top_locale) {
             Some(default_to) => DefaultTo::Explicit(default_to),
             None => {
-                if cfg!(feature = "suppress_key_warnings") {
+                if options.suppress_key_warnings {
                     DefaultTo::Explicit(&default_locale.top_locale_name)
                 } else {
                     DefaultTo::Implicit(&default_locale.top_locale_name)
@@ -189,6 +220,7 @@ fn check_locales_inner(
             &mut key_path,
             &mut string_indexer,
             warnings,
+            options,
         )?;
         locale.strings = string_indexer.get_strings();
         locale.top_locale_string_count = locale.strings.len();

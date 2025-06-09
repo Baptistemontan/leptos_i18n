@@ -3,13 +3,16 @@ use std::{collections::BTreeMap, fmt::Display};
 use leptos_i18n_parser::{
     parse_locales::{
         cfg_file::ConfigFile,
+        error::Errors,
         locale::{Locale, LocalesOrNamespaces},
+        make_builder_keys,
+        options::Options,
         parsed_value::ParsedValue,
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
         warning::Warnings,
-        ForeignKeysPaths,
+        ForeignKeysPaths, ParsedLocales,
     },
     utils::{Key, KeyPath},
 };
@@ -29,16 +32,23 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
     let warnings = Warnings::new();
+    let errors = Errors::new();
 
-    let result = super::load_locales_inner(
-        &crate_path,
-        &cfg_file,
-        locales,
-        foreign_keys_paths,
+    let options = Options::default().interpolate_display(interpolate_display);
+
+    let builder_keys =
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, &options).unwrap();
+
+    let parsed_locales = ParsedLocales {
+        cfg_file,
+        builder_keys,
         warnings,
-        None,
-        interpolate_display,
-    );
+        errors,
+        tracked_files: None,
+        options,
+    };
+
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path));
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {
@@ -88,9 +98,11 @@ fn parse_str_value(
     }
     let lit_str = input.parse::<LitStr>()?;
     let value = lit_str.value();
-    ParsedValue::new(&value, key_path, locale, foreign_keys_paths)
-        .map(Some)
-        .map_err(|_| syn::Error::new_spanned(lit_str, "unknown formatter."))
+
+    match ParsedValue::new(&value, key_path, locale, foreign_keys_paths) {
+        Ok(pv) => Ok(Some(pv)),
+        Err(err) => Err(syn::Error::new_spanned(lit_str, err.to_string())),
+    }
 }
 
 fn parse_map_values(
@@ -256,26 +268,25 @@ fn parse_values(
 ) -> syn::Result<(Key, ParsedValue)> {
     let ident: Ident = input.parse()?;
     let key = Key::from_ident(ident);
-    key_path.push_key(key.clone());
+    let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    if let Some(parsed_value) = parse_str_value(input, key_path, locale, foreign_keys_paths)? {
-        key_path.pop_key();
+    if let Some(parsed_value) = parse_str_value(input, &mut pushed_key, locale, foreign_keys_paths)?
+    {
         return Ok((key, parsed_value));
     }
-    if let Some(parsed_value) = parse_map_values(input, &key, key_path, locale, foreign_keys_paths)?
+    if let Some(parsed_value) =
+        parse_map_values(input, &key, &mut pushed_key, locale, foreign_keys_paths)?
     {
-        key_path.pop_key();
         return Ok((key, parsed_value));
     }
 
     let seed = ParseRangeSeed {
-        key_path,
+        key_path: &mut pushed_key,
         locale,
         foreign_keys_paths,
     };
 
     if let Some(parsed_value) = parse_ranges(input, seed, foreign_keys_paths)? {
-        key_path.pop_key();
         return Ok((key, parsed_value));
     }
 
@@ -409,8 +420,6 @@ impl syn::parse::Parse for ParsedInput {
 
         let crate_path = crate_path
             .unwrap_or_else(|| syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site())));
-
-        let interpolate_display = interpolate_display || cfg!(feature = "interpolate_display");
 
         Ok(ParsedInput {
             cfg_file: ConfigFile {

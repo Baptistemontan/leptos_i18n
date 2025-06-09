@@ -16,7 +16,7 @@ Key names must be [valid Rust identifiers](https://doc.rust-lang.org/reference/i
 
 ## Same keys across files
 
-The keys must be the same across all files, else the `load_locales!` macro will emit warnings. The difference in keys is based on the default locale.
+The keys must be the same across all files, else the codegen will emit warnings. The difference in keys is based on the default locale.
 
 ### Missing key
 

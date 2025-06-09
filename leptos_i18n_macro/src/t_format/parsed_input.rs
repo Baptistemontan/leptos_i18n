@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::utils::formatter::Formatter;
+use leptos_i18n_codegen::utils::formatter::Formatter;
 use quote::ToTokens;
 use syn::{
     parse::{ParseBuffer, ParseStream},

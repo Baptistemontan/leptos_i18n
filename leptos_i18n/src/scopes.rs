@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use icu_locid::{LanguageIdentifier, Locale as IcuLocale};
+use icu_locale::{LanguageIdentifier, Locale as IcuLocale};
 
 use crate::{Direction, I18nContext, Locale, LocaleKeys};
 
