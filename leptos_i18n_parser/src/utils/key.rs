@@ -158,7 +158,7 @@ impl KeyPath {
         KeyPath { namespace, path }
     }
 
-    pub fn push_key(&mut self, key: Key) -> KeyPathPushGuard {
+    pub fn push_key(&mut self, key: Key) -> KeyPathPushGuard<'_> {
         self.path.push(key);
         KeyPathPushGuard(self)
     }
