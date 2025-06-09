@@ -18,6 +18,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     IoError(io::Error),
     InvalidLocale {

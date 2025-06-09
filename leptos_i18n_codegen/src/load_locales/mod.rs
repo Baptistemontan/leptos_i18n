@@ -50,7 +50,7 @@ pub fn load_locales(
         &enum_ident,
         &translation_unit_enum_ident,
         cfg_file.translations_uri.as_deref(),
-        *options
+        options
     );
     let locale_enum = create_locales_enum(
         &enum_ident,
@@ -545,7 +545,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     key_path: &mut KeyPath,
     namespace_name: Option<&str>,
     translations_uri: Option<&str>,
-    options: Options
+    options: &Options
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
@@ -1104,7 +1104,7 @@ fn create_namespaces_types(
     namespaces: &[Namespace],
     keys: &BTreeMap<Key, BuildersKeysInner>,
     translations_uri: Option<&str>,
-    options: Options
+    options: &Options
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1331,7 +1331,7 @@ fn create_locale_type(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     translations_uri: Option<&str>,
-    options: Options
+    options: &Options
 ) -> TokenStream {
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(
