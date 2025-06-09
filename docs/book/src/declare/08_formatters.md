@@ -68,7 +68,7 @@ Enable the "format_nums" feature to use the number formatter.
 
 ### Arguments
 
-There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu/2.0.0-beta2/icu/decimal/options/enum.GroupingStrategy.html), that can take 4 values:
+There is one argument at the moment for the number formatter: `grouping_strategy`, which is based on [`icu::decimal::options::GroupingStrategy`](https://docs.rs/icu/2.0.0/icu/decimal/options/enum.GroupingStrategy.html), that can take 4 values:
 
 - auto (default)
 - never
@@ -102,7 +102,7 @@ Enable the "format_currency" feature to use the number formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu::experimental::dimension::currency::options::Width`](https://docs.rs/icu/2.0.0-beta2/icu/experimental/dimension/currency/options/enum.Width.html) and [`icu::experimental::dimension::currency::CurrencyCode`](https://docs.rs/icu/2.0.0-beta2/icu/experimental/dimension/currency/struct.CurrencyCode.html).
+There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu::experimental::dimension::currency::options::Width`](https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/options/enum.Width.html) and [`icu::experimental::dimension::currency::CurrencyCode`](https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/struct.CurrencyCode.html).
 
 `width` values:
 
@@ -140,18 +140,18 @@ Enable the "format_datetime" feature to use the date formatter.
 
 ### Arguments
 
-`length`, which is based on [`icu::datetime::options::Length`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Length.html), that can take 3 values:
+`length`, which is based on [`icu::datetime::options::Length`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Length.html), that can take 3 values:
 
 - long
 - medium (default)
 - short
 
-`alignment`, which is based on [`icu::datetime::options::Alignment`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Alignment.html), that can take 2 values:
+`alignment`, which is based on [`icu::datetime::options::Alignment`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Alignment.html), that can take 2 values:
 
 - auto (default)
 - column
 
-`time_precision`, which is based on [`icu::datetime::options::TimePrecision`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.TimePrecision.html), that can take 13 values:
+`time_precision`, which is based on [`icu::datetime::options::TimePrecision`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.TimePrecision.html), that can take 13 values:
 
 - hour
 - minute
@@ -167,7 +167,7 @@ Enable the "format_datetime" feature to use the date formatter.
 - subsecond_s9,
 - minute_optional,
 
-`year_style`, which is based on [`icu::datetime::options::YearStyle`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.YearStyle.html), that can take 3 values:
+`year_style`, which is based on [`icu::datetime::options::YearStyle`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.YearStyle.html), that can take 3 values:
 
 - auto
 - full
@@ -209,18 +209,18 @@ Enable the "format_datetime" feature to use the time formatter.
 
 ### Arguments
 
-`length`, which is based on [`icu::datetime::options::Length`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Length.html), that can take 3 values:
+`length`, which is based on [`icu::datetime::options::Length`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Length.html), that can take 3 values:
 
 - long
 - medium (default)
 - short
 
-`alignment`, which is based on [`icu::datetime::options::Alignment`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.Alignment.html), that can take 2 values:
+`alignment`, which is based on [`icu::datetime::options::Alignment`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Alignment.html), that can take 2 values:
 
 - auto (default)
 - column
 
-`time_precision`, which is based on [`icu::datetime::options::TimePrecision`](https://docs.rs/icu/2.0.0-beta2/icu/datetime/options/enum.TimePrecision.html), that can take 13 values:
+`time_precision`, which is based on [`icu::datetime::options::TimePrecision`](https://docs.rs/icu/2.0.0/icu/datetime/options/enum.TimePrecision.html), that can take 13 values:
 
 - hour
 - minute
