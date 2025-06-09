@@ -209,6 +209,9 @@ pub fn load_locales(
     Ok(quote! {
         pub mod i18n {
             #![allow(unused_braces)]
+            #![allow(clippy::type_complexity)]
+            #![allow(clippy::let_and_return)]
+            
             use #crate_path as l_i18n_crate;
 
             #locale_enum
@@ -291,7 +294,7 @@ fn create_locales_enum(
 
     let as_icu_locale_match_arms = constant_names_ident
         .iter()
-        .map(|(variant, constant)| quote!(#enum_ident::#variant => &*#constant))
+        .map(|(variant, constant)| quote!(#enum_ident::#variant => &#constant))
         .collect::<Vec<_>>();
 
     let server_fn_mod = if cfg!(all(feature = "dynamic_load", not(feature = "csr"))) {
@@ -1318,7 +1321,7 @@ fn create_namespaces_types(
                     #(
                         #deserialize_match_arms,
                     )*
-                    _ => Err(<D::Error as leptos_i18n::reexports::serde::de::Error>::custom(format!("invalid translation unit id: {}", s)))
+                    _ => Err(<D::Error as leptos_i18n::reexports::serde::de::Error>::custom(format!("invalid translation unit id: {s}")))
                 }
             }
         }
