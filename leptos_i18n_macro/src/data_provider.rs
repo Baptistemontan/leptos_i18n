@@ -2,14 +2,6 @@ use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
 pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    if cfg!(feature = "icu_compiled_data") {
-        let ts = quote! {
-            std::compile_error!("Implementing this trait is useless with the \"icu_compiled_data\" feature enabled.");
-        };
-
-        return proc_macro::TokenStream::from(ts);
-    }
-
     let input = parse_macro_input!(input as DeriveInput);
 
     let name = input.ident;
