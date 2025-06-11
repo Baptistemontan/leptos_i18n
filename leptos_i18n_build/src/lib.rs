@@ -264,11 +264,11 @@ impl TranslationsInfos {
         let (errors, warnings) = self.parsed_locales.diag.borrow();
 
         for warning in warnings.iter() {
-            println!("cargo:warning={}", warning);
+            println!("cargo:warning={warning}");
         }
 
         for error in errors.iter() {
-            println!("cargo:error={}", error)
+            println!("cargo:error={error}")
         }
     }
 }
