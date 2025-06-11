@@ -3,7 +3,7 @@ use icu_provider::DataError as IcuDataError;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell},
     collections::BTreeSet,
     fmt::{Debug, Display},
     io,
@@ -339,17 +339,25 @@ impl Diagnostics {
         self.warnings.borrow_mut().push(warning);
     }
 
-    pub fn into_inner(self) -> (Vec<Error>, Vec<Warning>) {
-        // self..into_inner()
-        todo!()
+    pub fn errors(&self) -> Ref<'_, [Error]> {
+        let errors = self.errors.borrow();
+        Ref::map(errors, Vec::as_slice)
+    }
+
+    pub fn warnings(&self) -> Ref<'_, [Warning]> {
+        let warnings = self.warnings.borrow();
+        Ref::map(warnings, Vec::as_slice)
+    }
+
+    pub fn borrow(&self) -> (Ref<'_, [Error]>, Ref<'_, [Warning]>) {
+        (self.errors(), self.warnings())
     }
 }
 
 impl ToTokens for Diagnostics {
     fn to_token_stream(&self) -> proc_macro2::TokenStream {
-        let errors = self.errors.borrow();
-        let warnings = self.warnings.borrow();
-        let iter = errors.iter().map(|err| err.to_string());
+        let (errors, warnings) = self.borrow();
+        let iter = errors.iter().map(ToString::to_string);
         let warnings = generate_warnings(&warnings);
 
         quote! {

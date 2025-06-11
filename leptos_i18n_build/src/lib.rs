@@ -61,7 +61,8 @@ impl TranslationsInfos {
 
     /// Parse the translations and obtain informations about them.
     pub fn parse(options: Options) -> Result<Self> {
-        Self::parse_inner(None, options)
+        let this = Self::parse_inner(None, options)?;
+        Ok(this)
     }
 
     /// Parse the translations at the given directory and obtain informations about them.
@@ -256,6 +257,19 @@ impl TranslationsInfos {
         write!(&mut file, "{ts}")?;
 
         Ok(())
+    }
+
+    /// Emit the diagnostics generated when parsing the translations
+    pub fn emit_diagnostics(&self) {
+        let (errors, warnings) = self.parsed_locales.diag.borrow();
+
+        for warning in warnings.iter() {
+            println!("cargo:warning={}", warning);
+        }
+
+        for error in errors.iter() {
+            println!("cargo:error={}", error)
+        }
     }
 }
 
