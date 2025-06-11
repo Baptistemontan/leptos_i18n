@@ -321,12 +321,12 @@ impl Display for Warning {
 }
 
 #[derive(Default)]
-pub struct Errors {
+pub struct Diagnostics {
     errors: RefCell<Vec<Error>>,
     warnings: RefCell<Vec<Warning>>,
 }
 
-impl Errors {
+impl Diagnostics {
     pub fn new() -> Self {
         Default::default()
     }
@@ -345,7 +345,7 @@ impl Errors {
     }
 }
 
-impl ToTokens for Errors {
+impl ToTokens for Diagnostics {
     fn to_token_stream(&self) -> proc_macro2::TokenStream {
         let errors = self.errors.borrow();
         let warnings = self.warnings.borrow();

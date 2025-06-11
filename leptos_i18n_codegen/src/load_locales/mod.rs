@@ -37,11 +37,11 @@ pub fn load_locales(
         cfg_file,
         builder_keys,
         options,
-        errors,
+        diag,
         ..
     } = parsed_locales;
 
-    let errors = emit_diagnostics.then_some(errors);
+    let diag = emit_diagnostics.then_some(diag);
 
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
@@ -254,7 +254,7 @@ pub fn load_locales(
 
             #macros_reexport
 
-            #errors
+            #diag
         }
     })
 }
