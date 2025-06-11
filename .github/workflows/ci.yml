@@ -78,7 +78,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos
+        run: cargo install cargo-leptos --locked
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: cargo leptos build
@@ -121,7 +121,7 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos
+        run: cargo install cargo-leptos --locked
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: cargo leptos build
