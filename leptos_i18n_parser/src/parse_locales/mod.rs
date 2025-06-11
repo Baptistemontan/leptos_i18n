@@ -6,6 +6,7 @@ use std::{
 };
 
 use cfg_file::ConfigFile;
+use icu_locale::LanguageIdentifier;
 use locale::{BuildersKeys, BuildersKeysInner, DefaultTo, Locale, LocalesOrNamespaces};
 
 pub mod cfg_file;
@@ -182,49 +183,88 @@ fn check_locales(
     }
 }
 
-fn find_base_default(name: &Key, default_locale: &Locale, locales: &[Locale]) -> Option<Key> {
-    // the "robust way" would be to parse into ICU4X LanguageIdentifier and check the language field, but
-    // valid Unicode language identifier starts with the language and the only valid sepertors are "-" and "_", so just check that:
+fn find_base_default(icu_locales: &BTreeMap<Key, icu_locale::Locale>, locale: &Key) -> Option<Key> {
+    let icu_locale = icu_locales.get(locale).unwrap();
 
-    // if None, already base language
-    let (language, _) = name.name.split_once(['-', '_'])?;
+    // if just language, default to default.
+    if icu_locale.extensions.is_empty()
+        && icu_locale.id.variants.is_empty()
+        && icu_locale.id.script.is_none()
+        && icu_locale.id.region.is_none()
+    {
+        return None;
+    }
 
-    // check if any locale is just the base language
+    let mut looking_for = icu_locale::Locale {
+        extensions: Default::default(),
+        id: LanguageIdentifier {
+            language: icu_locale.id.language,
+            region: icu_locale.id.region,
+            script: None,
+            variants: Default::default(),
+        },
+    };
 
-    // technically we check on itself if it matches but it is'nt a problem,
-    // if it could match it would have returned previous step
-    // and it's more work to filter it out than just try the impossible
-    locales
-        .iter()
-        .chain(Some(default_locale))
-        .map(|locale| &locale.top_locale_name)
-        .find(|locale| locale.name.as_ref() == language)
-        .cloned()
+    // if has extensions, variants or script, find locale with same language and region but no script, variants nor extensions
+    if !icu_locale.extensions.is_empty()
+        || !icu_locale.id.variants.is_empty()
+        || icu_locale.id.script.is_some()
+    {
+        for (key, loc) in icu_locales {
+            if loc == &looking_for {
+                return Some(key.clone());
+            }
+        }
+    }
+
+    // if not found, relax region bound
+    looking_for.id.region = None;
+
+    for (key, loc) in icu_locales {
+        if loc == &looking_for {
+            return Some(key.clone());
+        }
+    }
+
+    None
 }
 
-fn get_locale_with_default<'a>(
+fn get_locale_fallback(
     extensions: &BTreeMap<Key, Key>,
-    default_locale: &Locale,
-    locales: &'a mut [Locale],
-    locale_idx: usize,
+    icu_locales: &BTreeMap<Key, icu_locale::Locale>,
+    default_locale: &Key,
+    locale: &Key,
     suppress_key_warnings: bool,
-) -> (&'a mut Locale, DefaultTo) {
-    let locale_name = locales[locale_idx].name.clone();
-
-    let default = extensions
-        .get(&locale_name)
+) -> DefaultTo {
+    extensions
+        .get(&locale)
         .cloned()
-        .or_else(|| find_base_default(&locale_name, default_locale, locales))
+        .or_else(|| find_base_default(icu_locales, locale))
         .map(DefaultTo::Explicit)
         .unwrap_or_else(|| {
             if suppress_key_warnings {
-                DefaultTo::Explicit(default_locale.top_locale_name.clone())
+                DefaultTo::Explicit(default_locale.clone())
             } else {
-                DefaultTo::Implicit(default_locale.top_locale_name.clone())
+                DefaultTo::Implicit(default_locale.clone())
             }
-        });
+        })
+}
 
-    (&mut locales[locale_idx], default)
+fn locales_to_icu(locales: &[Locale]) -> Result<BTreeMap<Key, icu_locale::Locale>> {
+    locales
+        .iter()
+        .map(|locale| locale.top_locale_name.clone())
+        .map(
+            |locale| match icu_locale::Locale::try_from_str(&locale.name) {
+                Ok(icu_locale) => Ok((locale, icu_locale)),
+                Err(err) => Err(Error::InvalidLocale {
+                    locale: locale.name,
+                    err,
+                }
+                .into()),
+            },
+        )
+        .collect()
 }
 
 fn check_locales_inner(
@@ -234,6 +274,7 @@ fn check_locales_inner(
     warnings: &Warnings,
     options: &Options,
 ) -> Result<BuildersKeysInner> {
+    let icu_locales = locales_to_icu(locales)?;
     let (default_locale, other_locales) =
         locales.split_first_mut().unwrap_at("check_locales_inner_1");
     let mut key_path = KeyPath::new(namespace);
@@ -243,16 +284,17 @@ fn check_locales_inner(
     default_locale.strings = string_indexer.get_strings();
     default_locale.top_locale_string_count = default_locale.strings.len();
 
-    for locale_idx in 0..other_locales.len() {
-        let (locale, default_to) = get_locale_with_default(
+    for locale in other_locales {
+        let top_locale = locale.top_locale_name.clone();
+
+        let default_to = get_locale_fallback(
             extensions,
-            default_locale,
-            other_locales,
-            locale_idx,
+            &icu_locales,
+            &default_locale.top_locale_name,
+            &top_locale,
             options.suppress_key_warnings,
         );
 
-        let top_locale = locale.name.clone();
         let mut string_indexer = StringIndexer::default();
 
         locale.merge(
