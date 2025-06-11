@@ -18,7 +18,6 @@ use super::{
     },
     plurals::Plurals,
     ranges::Ranges,
-    warning::Warnings,
     ForeignKeysPaths, StringIndexer,
 };
 
@@ -652,7 +651,7 @@ impl ParsedValue {
         default_to: DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
-        warnings: &Warnings,
+        errors: &Errors,
         options: &Options,
     ) -> Result<()> {
         self.reduce();
@@ -675,7 +674,7 @@ impl ParsedValue {
                 *this = ParsedValue::Subkeys(None);
 
                 dummy_local.merge(
-                    keys, top_locale, default_to, key_path, strings, warnings, options,
+                    keys, top_locale, default_to, key_path, strings, errors, options,
                 )?;
                 locales.push(dummy_local);
                 Ok(())
@@ -690,7 +689,7 @@ impl ParsedValue {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
                 loc.merge(
-                    keys, top_locale, default_to, key_path, strings, warnings, options,
+                    keys, top_locale, default_to, key_path, strings, errors, options,
                 )?;
                 locales.push(loc);
                 Ok(())

@@ -10,12 +10,14 @@ use icu_plurals::{
 };
 
 use super::{
-    error::{Error, Result},
+    error::{Error, Result, Warning},
     parsed_value::Literal,
-    warning::{Warning, Warnings},
     StringIndexer,
 };
-use crate::utils::{Key, KeyPath, UnwrapAt};
+use crate::{
+    parse_locales::error::Errors,
+    utils::{Key, KeyPath, UnwrapAt},
+};
 
 use super::parsed_value::ParsedValue;
 
@@ -102,7 +104,7 @@ impl Plurals {
         Ok(plural_rules)
     }
 
-    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) -> Result<()> {
+    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, errors: &Errors) -> Result<()> {
         let plural_rules = self.get_plural_rules(locale)?;
         let forms = self.forms.keys().copied().collect::<BTreeSet<_>>();
         let used_forms = plural_rules
@@ -110,7 +112,7 @@ impl Plurals {
             .map(PluralForm::from_icu_category)
             .collect::<BTreeSet<_>>();
         for form in forms.difference(&used_forms).copied() {
-            warnings.emit_warning(Warning::UnusedForm {
+            errors.emit_warning(Warning::UnusedForm {
                 locale: locale.clone(),
                 key_path: key_path.to_owned(),
                 form,

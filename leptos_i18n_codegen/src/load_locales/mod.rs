@@ -5,7 +5,6 @@ pub mod locale;
 pub mod parsed_value;
 pub mod plurals;
 pub mod ranges;
-pub mod warning;
 
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
@@ -24,17 +23,19 @@ use locale::LiteralType;
 use parsed_value::TRANSLATIONS_KEY;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use warning::generate_warnings;
 
 pub fn load_locales(
     parsed_locales: &ParsedLocales,
-    crate_path: Option<&syn::Path>
+    crate_path: Option<&syn::Path>,
+    emit_diagnostics: bool
 ) -> Result<TokenStream> {
 
     let default_crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
     let crate_path = crate_path.unwrap_or(&default_crate_path);
 
-    let ParsedLocales { cfg_file, builder_keys, warnings, errors, tracked_files: _, options } = parsed_locales;
+    let ParsedLocales { cfg_file, builder_keys, options, errors, .. } = parsed_locales;
+
+    let errors = emit_diagnostics.then_some(errors);
 
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
@@ -58,8 +59,6 @@ pub fn load_locales(
         &translation_unit_enum_ident,
         &cfg_file.locales,
     )?;
-
-    let warnings = generate_warnings(warnings);
 
     let mut macros_reexport = vec![
         quote!(t),
@@ -248,8 +247,6 @@ pub fn load_locales(
             pub use l_i18n_crate::Locale as I18nLocaleTrait;
 
             #macros_reexport
-
-            #warnings
 
             #errors
         }
