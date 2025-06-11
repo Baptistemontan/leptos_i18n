@@ -187,7 +187,7 @@ fn find_base_default(name: &Key, default_locale: &Locale, locales: &[Locale]) ->
     // valid Unicode language identifier starts with the language and the only valid sepertors are "-" and "_", so just check that:
 
     // if None, already base language
-    let (language, _) = name.name.split_once(&['-', '_'])?;
+    let (language, _) = name.name.split_once(['-', '_'])?;
 
     // check if any locale is just the base language
 
