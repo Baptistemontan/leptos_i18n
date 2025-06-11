@@ -237,10 +237,13 @@ fn get_locale_fallback(
     suppress_key_warnings: bool,
 ) -> DefaultTo {
     extensions
-        .get(&locale)
+        .get(locale)
         .cloned()
+        // if some it has an explicit default
+        // if none then try to find a base locale
         .or_else(|| find_base_default(icu_locales, locale))
         .map(DefaultTo::Explicit)
+        // if neither, fallback to default locale.
         .unwrap_or_else(|| {
             if suppress_key_warnings {
                 DefaultTo::Explicit(default_locale.clone())
