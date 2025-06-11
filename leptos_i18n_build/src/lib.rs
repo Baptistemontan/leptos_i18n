@@ -238,7 +238,7 @@ impl TranslationsInfos {
 
     /// Generate the `i18n` module at the given mod directory
     pub fn generate_i18n_module(&self, mut mod_directory: PathBuf) -> Result<()> {
-        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None)?;
+        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, false)?;
 
         #[cfg(feature = "pretty_print")]
         let ts = {

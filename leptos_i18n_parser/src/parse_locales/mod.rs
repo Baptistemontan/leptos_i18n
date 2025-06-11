@@ -15,10 +15,10 @@ pub mod options;
 pub mod parsed_value;
 pub mod plurals;
 pub mod ranges;
-pub mod warning;
+// pub mod warning;
 
 use error::{Error, Errors, Result};
-use warning::Warnings;
+// use warning::Warnings;
 
 use crate::{
     parse_locales::options::Options,
@@ -46,7 +46,6 @@ pub struct RawParsedLocales {
     pub locales: LocalesOrNamespaces,
     pub cfg_file: ConfigFile,
     pub foreign_keys_paths: ForeignKeysPaths,
-    pub warnings: Warnings,
     pub errors: Errors,
     pub tracked_files: Vec<String>,
 }
@@ -63,8 +62,6 @@ pub fn parse_locales_raw(
 
     let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
 
-    let warnings = Warnings::new();
-
     let mut tracked_files = Vec::with_capacity(
         cfg_file.locales.len() * cfg_file.name_spaces.as_ref().map(Vec::len).unwrap_or(1),
     );
@@ -73,7 +70,6 @@ pub fn parse_locales_raw(
         &mut cargo_manifest_dir,
         &cfg_file,
         &foreign_keys_paths,
-        &warnings,
         &errors,
         &mut tracked_files,
         options,
@@ -83,7 +79,6 @@ pub fn parse_locales_raw(
         locales,
         cfg_file,
         foreign_keys_paths,
-        warnings,
         errors,
         tracked_files,
     };
@@ -95,20 +90,19 @@ pub fn make_builder_keys(
     mut locales: LocalesOrNamespaces,
     cfg_file: &ConfigFile,
     foreign_keys_paths: ForeignKeysPaths,
-    warnings: &Warnings,
+    errors: &Errors,
     options: &Options,
 ) -> Result<BuildersKeys> {
-    locales.merge_plurals(warnings)?;
+    locales.merge_plurals(errors)?;
 
     resolve_foreign_keys(&locales, &cfg_file.default, foreign_keys_paths.into_inner())?;
 
-    check_locales(locales, &cfg_file.extensions, warnings, options)
+    check_locales(locales, &cfg_file.extensions, errors, options)
 }
 
 pub struct ParsedLocales {
     pub cfg_file: ConfigFile,
     pub builder_keys: BuildersKeys,
-    pub warnings: Warnings,
     pub errors: Errors,
     pub tracked_files: Option<Vec<String>>,
     pub options: Options,
@@ -122,18 +116,16 @@ pub fn parse_locales(
         locales,
         cfg_file,
         foreign_keys_paths,
-        warnings,
         tracked_files,
         errors,
     } = parse_locales_raw(cargo_manifest_dir, &options)?;
 
     let builder_keys =
-        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, &options)?;
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &errors, &options)?;
 
     Ok(ParsedLocales {
         cfg_file,
         builder_keys,
-        warnings,
         errors,
         tracked_files: Some(tracked_files),
         options,
@@ -157,7 +149,7 @@ fn resolve_foreign_keys(
 fn check_locales(
     locales: LocalesOrNamespaces,
     extensions: &BTreeMap<Key, Key>,
-    warnings: &Warnings,
+    errors: &Errors,
     options: &Options,
 ) -> Result<BuildersKeys> {
     match locales {
@@ -168,7 +160,7 @@ fn check_locales(
                     &mut namespace.locales,
                     Some(namespace.key.clone()),
                     extensions,
-                    warnings,
+                    errors,
                     options,
                 )?;
                 keys.insert(namespace.key.clone(), k);
@@ -176,7 +168,7 @@ fn check_locales(
             Ok(BuildersKeys::NameSpaces { namespaces, keys })
         }
         LocalesOrNamespaces::Locales(mut locales) => {
-            let keys = check_locales_inner(&mut locales, None, extensions, warnings, options)?;
+            let keys = check_locales_inner(&mut locales, None, extensions, errors, options)?;
             Ok(BuildersKeys::Locales { locales, keys })
         }
     }
@@ -186,7 +178,7 @@ fn check_locales_inner(
     locales: &mut [Locale],
     namespace: Option<Key>,
     extensions: &BTreeMap<Key, Key>,
-    warnings: &Warnings,
+    errors: &Errors,
     options: &Options,
 ) -> Result<BuildersKeysInner> {
     let mut locales_iter = locales.iter_mut();
@@ -219,7 +211,7 @@ fn check_locales_inner(
             default_to,
             &mut key_path,
             &mut string_indexer,
-            warnings,
+            errors,
             options,
         )?;
         locale.strings = string_indexer.get_strings();

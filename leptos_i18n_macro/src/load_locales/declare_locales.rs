@@ -11,7 +11,6 @@ use leptos_i18n_parser::{
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
-        warning::Warnings,
         ForeignKeysPaths, ParsedLocales,
     },
     utils::{Key, KeyPath},
@@ -31,24 +30,22 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         foreign_keys_paths,
         interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
-    let warnings = Warnings::new();
     let errors = Errors::new();
 
     let options = Options::default().interpolate_display(interpolate_display);
 
     let builder_keys =
-        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &warnings, &options).unwrap();
+        make_builder_keys(locales, &cfg_file, foreign_keys_paths, &errors, &options).unwrap();
 
     let parsed_locales = ParsedLocales {
         cfg_file,
         builder_keys,
-        warnings,
         errors,
         tracked_files: None,
         options,
     };
 
-    let result = leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path));
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), true);
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {
