@@ -182,6 +182,51 @@ fn check_locales(
     }
 }
 
+fn find_base_default(name: &Key, default_locale: &Locale, locales: &[Locale]) -> Option<Key> {
+    // the "robust way" would be to parse into ICU4X LanguageIdentifier and check the language field, but
+    // valid Unicode language identifier starts with the language and the only valid sepertors are "-" and "_", so just check that:
+
+    // if None, already base language
+    let (language, _) = name.name.split_once(&['-', '_'])?;
+
+    // check if any locale is just the base language
+
+    // technically we check on itself if it matches but it is'nt a problem,
+    // if it could match it would have returned previous step
+    // and it's more work to filter it out than just try the impossible
+    locales
+        .iter()
+        .chain(Some(default_locale))
+        .map(|locale| &locale.top_locale_name)
+        .find(|locale| locale.name.as_ref() == language)
+        .cloned()
+}
+
+fn get_locale_with_default<'a>(
+    extensions: &BTreeMap<Key, Key>,
+    default_locale: &Locale,
+    locales: &'a mut [Locale],
+    locale_idx: usize,
+    suppress_key_warnings: bool,
+) -> (&'a mut Locale, DefaultTo) {
+    let locale_name = locales[locale_idx].name.clone();
+
+    let default = extensions
+        .get(&locale_name)
+        .cloned()
+        .or_else(|| find_base_default(&locale_name, default_locale, locales))
+        .map(DefaultTo::Explicit)
+        .unwrap_or_else(|| {
+            if suppress_key_warnings {
+                DefaultTo::Explicit(default_locale.top_locale_name.clone())
+            } else {
+                DefaultTo::Implicit(default_locale.top_locale_name.clone())
+            }
+        });
+
+    (&mut locales[locale_idx], default)
+}
+
 fn check_locales_inner(
     locales: &mut [Locale],
     namespace: Option<Key>,
@@ -189,8 +234,8 @@ fn check_locales_inner(
     warnings: &Warnings,
     options: &Options,
 ) -> Result<BuildersKeysInner> {
-    let mut locales_iter = locales.iter_mut();
-    let default_locale = locales_iter.next().unwrap_at("check_locales_inner_1");
+    let (default_locale, other_locales) =
+        locales.split_first_mut().unwrap_at("check_locales_inner_1");
     let mut key_path = KeyPath::new(namespace);
 
     let mut string_indexer = StringIndexer::default();
@@ -198,25 +243,22 @@ fn check_locales_inner(
     default_locale.strings = string_indexer.get_strings();
     default_locale.top_locale_string_count = default_locale.strings.len();
 
-    for locale in locales_iter {
+    for locale_idx in 0..other_locales.len() {
+        let (locale, default_to) = get_locale_with_default(
+            extensions,
+            default_locale,
+            other_locales,
+            locale_idx,
+            options.suppress_key_warnings,
+        );
+
         let top_locale = locale.name.clone();
         let mut string_indexer = StringIndexer::default();
-
-        let default_to = match extensions.get(&top_locale) {
-            Some(default_to) => DefaultTo::Explicit(default_to),
-            None => {
-                if options.suppress_key_warnings {
-                    DefaultTo::Explicit(&default_locale.top_locale_name)
-                } else {
-                    DefaultTo::Implicit(&default_locale.top_locale_name)
-                }
-            }
-        };
 
         locale.merge(
             &mut default_keys,
             top_locale,
-            default_to,
+            &default_to,
             &mut key_path,
             &mut string_indexer,
             warnings,
