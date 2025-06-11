@@ -15,7 +15,7 @@ use super::{
     StringIndexer,
 };
 use crate::{
-    parse_locales::error::Errors,
+    parse_locales::error::Diagnostics,
     utils::{Key, KeyPath, UnwrapAt},
 };
 
@@ -104,7 +104,7 @@ impl Plurals {
         Ok(plural_rules)
     }
 
-    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, errors: &Errors) -> Result<()> {
+    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, diag: &Diagnostics) -> Result<()> {
         let plural_rules = self.get_plural_rules(locale)?;
         let forms = self.forms.keys().copied().collect::<BTreeSet<_>>();
         let used_forms = plural_rules
@@ -112,7 +112,7 @@ impl Plurals {
             .map(PluralForm::from_icu_category)
             .collect::<BTreeSet<_>>();
         for form in forms.difference(&used_forms).copied() {
-            errors.emit_warning(Warning::UnusedForm {
+            diag.emit_warning(Warning::UnusedForm {
                 locale: locale.clone(),
                 key_path: key_path.to_owned(),
                 form,

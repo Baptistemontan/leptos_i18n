@@ -33,9 +33,9 @@ pub fn load_locales(
     let default_crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
     let crate_path = crate_path.unwrap_or(&default_crate_path);
 
-    let ParsedLocales { cfg_file, builder_keys, options, errors, .. } = parsed_locales;
+    let ParsedLocales { cfg_file, builder_keys, options, diag, .. } = parsed_locales;
 
-    let errors = emit_diagnostics.then_some(errors);
+    let diag = emit_diagnostics.then_some(diag);
 
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
@@ -248,7 +248,7 @@ pub fn load_locales(
 
             #macros_reexport
 
-            #errors
+            #diag
         }
     })
 }

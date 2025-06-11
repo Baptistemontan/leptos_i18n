@@ -11,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    error::{Error, Errors, Result},
+    error::{Diagnostics, Error, Result},
     locale::{
         DefaultTo, DefaultedLocales, InterpolOrLit, InterpolationKeys, LiteralType, Locale,
         LocaleSeed, LocaleValue, LocalesOrNamespaces, RangeOrPlural,
@@ -651,7 +651,7 @@ impl ParsedValue {
         default_to: DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
-        errors: &Errors,
+        diag: &Diagnostics,
         options: &Options,
     ) -> Result<()> {
         self.reduce();
@@ -674,7 +674,7 @@ impl ParsedValue {
                 *this = ParsedValue::Subkeys(None);
 
                 dummy_local.merge(
-                    keys, top_locale, default_to, key_path, strings, errors, options,
+                    keys, top_locale, default_to, key_path, strings, diag, options,
                 )?;
                 locales.push(dummy_local);
                 Ok(())
@@ -689,7 +689,7 @@ impl ParsedValue {
                     unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
                 };
                 loc.merge(
-                    keys, top_locale, default_to, key_path, strings, errors, options,
+                    keys, top_locale, default_to, key_path, strings, diag, options,
                 )?;
                 locales.push(loc);
                 Ok(())
@@ -1009,7 +1009,7 @@ pub struct ParsedValueSeed<'a> {
     pub key_path: &'a KeyPath,
     pub key: &'a Key,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
-    pub errors: &'a Errors,
+    pub diag: &'a Diagnostics,
 }
 
 impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
@@ -1040,7 +1040,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
         let pv = match pv {
             Ok(pv) => pv,
             Err(err) => {
-                self.errors.emit_error(err.into_inner());
+                self.diag.emit_error(err.into_inner());
                 ParsedValue::new_dummy(v)
             }
         };
@@ -1091,7 +1091,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             top_locale_name: self.top_locale_name.clone(),
             key_path: self.key_path.to_owned(),
             foreign_keys_paths: self.foreign_keys_paths,
-            errors: self.errors,
+            diag: self.diag,
         };
 
         seed.deserialize(map_de).map(Some).map(ParsedValue::Subkeys)
