@@ -61,7 +61,8 @@ impl TranslationsInfos {
 
     /// Parse the translations and obtain informations about them.
     pub fn parse(options: Options) -> Result<Self> {
-        Self::parse_inner(None, options)
+        let this = Self::parse_inner(None, options)?;
+        Ok(this)
     }
 
     /// Parse the translations at the given directory and obtain informations about them.
@@ -238,7 +239,7 @@ impl TranslationsInfos {
 
     /// Generate the `i18n` module at the given mod directory
     pub fn generate_i18n_module(&self, mut mod_directory: PathBuf) -> Result<()> {
-        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None)?;
+        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, false)?;
 
         #[cfg(feature = "pretty_print")]
         let ts = {
@@ -256,6 +257,30 @@ impl TranslationsInfos {
         write!(&mut file, "{ts}")?;
 
         Ok(())
+    }
+
+    /// Emit the warnings generated when parsing the translations
+    pub fn emit_warnings(&self) {
+        let warnings = self.parsed_locales.diag.warnings();
+
+        for warning in warnings.iter() {
+            println!("cargo:warning={warning}");
+        }
+    }
+
+    /// emit the errors generated when parsing the translations
+    pub fn emit_errors(&self) {
+        let errors = self.parsed_locales.diag.errors();
+
+        for error in errors.iter() {
+            println!("cargo:error={error}");
+        }
+    }
+
+    /// Emit the diagnostics generated when parsing the translations
+    pub fn emit_diagnostics(&self) {
+        self.emit_warnings();
+        self.emit_errors();
     }
 }
 

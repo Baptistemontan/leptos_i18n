@@ -15,6 +15,7 @@ pub mod utils;
 pub fn gen_code(
     parsed_locales: &ParsedLocales,
     crate_path: Option<&syn::Path>,
+    emit_diagnostics: bool,
 ) -> Result<proc_macro2::TokenStream> {
-    load_locales::load_locales(parsed_locales, crate_path)
+    load_locales::load_locales(parsed_locales, crate_path, emit_diagnostics)
 }
