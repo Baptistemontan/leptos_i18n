@@ -259,17 +259,28 @@ impl TranslationsInfos {
         Ok(())
     }
 
-    /// Emit the diagnostics generated when parsing the translations
-    pub fn emit_diagnostics(&self) {
-        let (errors, warnings) = self.parsed_locales.diag.borrow();
+    /// Emit the warnings generated when parsing the translations
+    pub fn emit_warnings(&self) {
+        let warnings = self.parsed_locales.diag.warnings();
 
         for warning in warnings.iter() {
             println!("cargo:warning={warning}");
         }
+    }
+
+    /// emit the errors generated when parsing the translations
+    pub fn emit_errors(&self) {
+        let errors = self.parsed_locales.diag.errors();
 
         for error in errors.iter() {
-            println!("cargo:error={error}")
+            println!("cargo:error={error}");
         }
+    }
+
+    /// Emit the diagnostics generated when parsing the translations
+    pub fn emit_diagnostics(&self) {
+        self.emit_warnings();
+        self.emit_errors();
     }
 }
 
