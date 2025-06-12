@@ -6,6 +6,7 @@ use std::{
 };
 
 use cfg_file::ConfigFile;
+use icu_locale::LanguageIdentifier;
 use locale::{BuildersKeys, BuildersKeysInner, DefaultTo, Locale, LocalesOrNamespaces};
 
 pub mod cfg_file;
@@ -182,6 +183,93 @@ fn check_locales(
     }
 }
 
+fn find_base_default(icu_locales: &BTreeMap<Key, icu_locale::Locale>, locale: &Key) -> Option<Key> {
+    let icu_locale = icu_locales.get(locale).unwrap();
+
+    // if just language, default to default.
+    if icu_locale.extensions.is_empty()
+        && icu_locale.id.variants.is_empty()
+        && icu_locale.id.script.is_none()
+        && icu_locale.id.region.is_none()
+    {
+        return None;
+    }
+
+    let mut looking_for = icu_locale::Locale {
+        extensions: Default::default(),
+        id: LanguageIdentifier {
+            language: icu_locale.id.language,
+            region: icu_locale.id.region,
+            script: None,
+            variants: Default::default(),
+        },
+    };
+
+    // if has extensions, variants or script, find locale with same language and region but no script, variants nor extensions
+    if !icu_locale.extensions.is_empty()
+        || !icu_locale.id.variants.is_empty()
+        || icu_locale.id.script.is_some()
+    {
+        for (key, loc) in icu_locales {
+            if loc == &looking_for {
+                return Some(key.clone());
+            }
+        }
+    }
+
+    // if not found, relax region bound
+    looking_for.id.region = None;
+
+    for (key, loc) in icu_locales {
+        if loc == &looking_for {
+            return Some(key.clone());
+        }
+    }
+
+    None
+}
+
+fn get_locale_fallback(
+    extensions: &BTreeMap<Key, Key>,
+    icu_locales: &BTreeMap<Key, icu_locale::Locale>,
+    default_locale: &Key,
+    locale: &Key,
+    suppress_key_warnings: bool,
+) -> DefaultTo {
+    extensions
+        .get(locale)
+        .cloned()
+        // if some it has an explicit default
+        // if none then try to find a base locale
+        .or_else(|| find_base_default(icu_locales, locale))
+        .map(DefaultTo::Explicit)
+        // if neither, fallback to default locale.
+        .unwrap_or_else(|| {
+            if suppress_key_warnings {
+                DefaultTo::Explicit(default_locale.clone())
+            } else {
+                DefaultTo::Implicit(default_locale.clone())
+            }
+        })
+}
+
+fn locales_to_icu(locales: &[Locale]) -> Result<BTreeMap<Key, icu_locale::Locale>> {
+    locales
+        .iter()
+        .map(|locale| locale.top_locale_name.clone())
+        .map(
+            |locale| match icu_locale::Locale::try_from_str(&locale.name) {
+                Ok(icu_locale) => Ok((locale, icu_locale)),
+                Err(err) => Err(Error::InvalidLocale {
+                    locale: locale.name,
+                    err,
+                }
+                .into()),
+            },
+        )
+        .collect()
+}
+
 fn check_locales_inner(
     locales: &mut [Locale],
     namespace: Option<Key>,
@@ -189,8 +277,9 @@ fn check_locales_inner(
     warnings: &Warnings,
     options: &Options,
 ) -> Result<BuildersKeysInner> {
-    let mut locales_iter = locales.iter_mut();
-    let default_locale = locales_iter.next().unwrap_at("check_locales_inner_1");
+    let icu_locales = locales_to_icu(locales)?;
+    let (default_locale, other_locales) =
+        locales.split_first_mut().unwrap_at("check_locales_inner_1");
     let mut key_path = KeyPath::new(namespace);
 
     let mut string_indexer = StringIndexer::default();
@@ -198,25 +287,23 @@ fn check_locales_inner(
     default_locale.strings = string_indexer.get_strings();
     default_locale.top_locale_string_count = default_locale.strings.len();
 
-    for locale in locales_iter {
-        let top_locale = locale.name.clone();
-        let mut string_indexer = StringIndexer::default();
+    for locale in other_locales {
+        let top_locale = locale.top_locale_name.clone();
 
-        let default_to = match extensions.get(&top_locale) {
-            Some(default_to) => DefaultTo::Explicit(default_to),
-            None => {
-                if options.suppress_key_warnings {
-                    DefaultTo::Explicit(&default_locale.top_locale_name)
-                } else {
-                    DefaultTo::Implicit(&default_locale.top_locale_name)
-                }
-            }
-        };
+        let default_to = get_locale_fallback(
+            extensions,
+            &icu_locales,
+            &default_locale.top_locale_name,
+            &top_locale,
+            options.suppress_key_warnings,
+        );
+
+        let mut string_indexer = StringIndexer::default();
 
         locale.merge(
             &mut default_keys,
             top_locale,
-            default_to,
+            &default_to,
             &mut key_path,
             &mut string_indexer,
             warnings,
@@ -269,5 +356,77 @@ impl ForeignKeysPaths {
 
     pub fn into_inner(self) -> BTreeSet<(Key, KeyPath)> {
         self.0.into_inner()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! make_icu_locale {
+        ($val: literal) => {
+            (Key::new($val).unwrap(), icu_locale::locale!($val))
+        };
+    }
+
+    macro_rules! check_fallback {
+        ($locales: ident, $val: literal) => {{
+            let name = Key::new($val).unwrap();
+            let found = find_base_default(&$locales, &name);
+            assert!(found.is_none());
+        }};
+        ($locales: ident, $val: literal, $expected: literal) => {{
+            let name = Key::new($val).unwrap();
+            let expected = Key::new($expected).unwrap();
+            let found = find_base_default(&$locales, &name).unwrap();
+            assert_eq!(found, expected);
+        }};
+    }
+
+    fn get_icu_locales() -> BTreeMap<Key, icu_locale::Locale> {
+        BTreeMap::from_iter([
+            // default
+            make_icu_locale!("en"),
+            // base
+            make_icu_locale!("en"),
+            make_icu_locale!("fr"),
+            // base with region
+            make_icu_locale!("en-US"),
+            make_icu_locale!("fr-FR"),
+            // locales with extension/script/variants
+            make_icu_locale!("fr-FR-u-ca-buddhist"),
+            make_icu_locale!("fr-u-ca-buddhist"),
+            make_icu_locale!("en-Latn-US-Valencia"),
+            make_icu_locale!("en-Latn-US-Valencia-u-ca-buddhist"),
+            make_icu_locale!("en-Latn-US-u-ca-buddhist"),
+            make_icu_locale!("en-Valencia"),
+            make_icu_locale!("en-Latn"),
+        ])
+    }
+
+    #[test]
+    fn test_locale_defaulting() {
+        // fr-FR-u-ca-buddhist => fr-FR => fr => en (default)
+        // fr-u-ca-buddhist => fr => en (default)
+        // fr-FR => fr => en (default)
+        // fr => en (default)
+        // en-Latn-US-Valencia => en-US => en
+        // en-Latn-US-Valencia-u-ca-buddhist => en-US => en
+        // en-Latn-US-u-ca-buddhist => en-US => en
+        // en-Valencia => en
+        // en-Latn => en
+        // en => en
+        let icu_locales = get_icu_locales();
+        check_fallback!(icu_locales, "fr-FR-u-ca-buddhist", "fr-FR");
+        check_fallback!(icu_locales, "fr-u-ca-buddhist", "fr");
+        check_fallback!(icu_locales, "fr-FR", "fr");
+        check_fallback!(icu_locales, "fr"); // default
+        check_fallback!(icu_locales, "en-Latn-US-Valencia", "en-US");
+        check_fallback!(icu_locales, "en-Latn-US-Valencia-u-ca-buddhist", "en-US");
+        check_fallback!(icu_locales, "en-Latn-US-u-ca-buddhist", "en-US");
+        check_fallback!(icu_locales, "en-Valencia", "en");
+        check_fallback!(icu_locales, "en-Latn", "en");
+        check_fallback!(icu_locales, "en-US", "en");
+        check_fallback!(icu_locales, "en"); // default
     }
 }

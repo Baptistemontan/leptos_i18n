@@ -649,7 +649,7 @@ impl ParsedValue {
         &mut self,
         keys: &mut LocaleValue,
         top_locale: Key,
-        default_to: DefaultTo,
+        default_to: &DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
@@ -681,7 +681,7 @@ impl ParsedValue {
                 Ok(())
             }
             (ParsedValue::Default, LocaleValue::Value { defaults, .. }) => {
-                defaults.push(top_locale, default_to.get_key());
+                defaults.push(top_locale, default_to.get_key().clone());
                 Ok(())
             }
             // Both subkeys
