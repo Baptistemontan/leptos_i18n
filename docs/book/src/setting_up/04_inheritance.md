@@ -2,13 +2,13 @@
 
 This crate support the extension of locales, which allow to override keys of a locale. 
 For example you have setup the "en" locale, and now you want to setup the "en-US" locale, but only a few keys need to be overriden,
-so what you would want is that locale "en-US" use it's key when present, but "en" key when absent.
+so what you would want is that locale "en-US" use its keys when present, but "en" keys when absent.
 This is what inheritance allow.
 
 # Implicit Inheritance
 
-The default behavior is that a locale will automically extend a more "general" locale if it exists for example,
-we have the following locales:
+The default behavior is that a locale will automically extend a more "general" locale if it exists, 
+for example with the following locales:
 
  - fr-FR-u-ca-buddhist
  - fr-u-ca-buddhist
@@ -22,7 +22,7 @@ we have the following locales:
  - en-US
  - en (default)
 
-By default, the resulting inheritance tree will be:
+the resulting default inheritance tree will be:
 
 en
 ├── en-US
@@ -38,7 +38,7 @@ en
 
 If you look closely, you would think that "en-Latn-US-Valencia-u-ca-buddhist" should extend "en-Latn-US-Valencia",
 while this make sense, we decided to keep the default behavior simple and do a match only on the language and region,
-making `lang[-region][-*]` only match with `lang\[-region]`, scripts/variants/extensions are ignored.
+making `lang[-region][-*]` only match with `lang[-region]`, scripts/variants/extensions are ignored.
 If you need more control, you can manually specify the inheritance of some locales:
 
 # Explicit Inheritance
