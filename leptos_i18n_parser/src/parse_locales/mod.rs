@@ -358,3 +358,75 @@ impl ForeignKeysPaths {
         self.0.into_inner()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! make_icu_locale {
+        ($val: literal) => {
+            (Key::new($val).unwrap(), icu_locale::locale!($val))
+        };
+    }
+
+    macro_rules! check_fallback {
+        ($locales: ident, $val: literal) => {{
+            let name = Key::new($val).unwrap();
+            let found = find_base_default(&$locales, &name);
+            assert!(found.is_none());
+        }};
+        ($locales: ident, $val: literal, $expected: literal) => {{
+            let name = Key::new($val).unwrap();
+            let expected = Key::new($expected).unwrap();
+            let found = find_base_default(&$locales, &name).unwrap();
+            assert_eq!(found, expected);
+        }};
+    }
+
+    fn get_icu_locales() -> BTreeMap<Key, icu_locale::Locale> {
+        BTreeMap::from_iter([
+            // default
+            make_icu_locale!("en"),
+            // base
+            make_icu_locale!("en"),
+            make_icu_locale!("fr"),
+            // base with region
+            make_icu_locale!("en-US"),
+            make_icu_locale!("fr-FR"),
+            // locales with extension/script/variants
+            make_icu_locale!("fr-FR-u-ca-buddhist"),
+            make_icu_locale!("fr-u-ca-buddhist"),
+            make_icu_locale!("en-Latn-US-Valencia"),
+            make_icu_locale!("en-Latn-US-Valencia-u-ca-buddhist"),
+            make_icu_locale!("en-Latn-US-u-ca-buddhist"),
+            make_icu_locale!("en-Valencia"),
+            make_icu_locale!("en-Latn"),
+        ])
+    }
+
+    #[test]
+    fn test_locale_defaulting() {
+        // fr-FR-u-ca-buddhist => fr-FR => fr => en (default)
+        // fr-u-ca-buddhist => fr => en (default)
+        // fr-FR => fr => en (default)
+        // fr => en (default)
+        // en-Latn-US-Valencia => en-US => en
+        // en-Latn-US-Valencia-u-ca-buddhist => en-US => en
+        // en-Latn-US-u-ca-buddhist => en-US => en
+        // en-Valencia => en
+        // en-Latn => en
+        // en => en
+        let icu_locales = get_icu_locales();
+        check_fallback!(icu_locales, "fr-FR-u-ca-buddhist", "fr-FR");
+        check_fallback!(icu_locales, "fr-u-ca-buddhist", "fr");
+        check_fallback!(icu_locales, "fr-FR", "fr");
+        check_fallback!(icu_locales, "fr"); // default
+        check_fallback!(icu_locales, "en-Latn-US-Valencia", "en-US");
+        check_fallback!(icu_locales, "en-Latn-US-Valencia-u-ca-buddhist", "en-US");
+        check_fallback!(icu_locales, "en-Latn-US-u-ca-buddhist", "en-US");
+        check_fallback!(icu_locales, "en-Valencia", "en");
+        check_fallback!(icu_locales, "en-Latn", "en");
+        check_fallback!(icu_locales, "en-US", "en");
+        check_fallback!(icu_locales, "en"); // default
+    }
+}
