@@ -33,10 +33,10 @@ icu_locale = { version = "2.0.0", default-features = false }
 icu_provider = { version = "2.0.0", default-features = false }
 fixed_decimal = { version = "0.7.0", default-features = false }
 icu_provider_export = { version = "2.0.0", default-features = false }
-icu_provider_source = { version = "2.0.0", default-features = false }
+icu_provider_source = { version = "2.0.1", default-features = false }
 icu_plurals = { version = "2.0.0", default-features = false }
 icu_datetime = { version = "2.0.0", default-features = false }
-icu_calendar = { version = "2.0.0", default-features = false }
+icu_calendar = { version = "2.0.2", default-features = false }
 icu_list = { version = "2.0.0", default-features = false }
 icu_decimal = { version = "2.0.0", default-features = false }
 icu_experimental = { version = "0.3.0", default-features = false }

@@ -11,14 +11,14 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos-use = { version = "0.16.0-beta", default-features = false, features = [
+leptos-use = { version = "0.16.2", default-features = false, features = [
   "use_locales",
   "use_cookie",
 ] }
 leptos_i18n_macro = { workspace = true }
 leptos = { workspace = true }
 leptos_meta = { workspace = true }
-codee = "0.3.0"
+codee = "0.3.2"
 icu_locale = { workspace = true }
 icu_provider = { workspace = true, optional = true, features = ["sync"] }
 icu_plurals = { workspace = true, optional = true }
