@@ -17,54 +17,28 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-      - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: wasm32-unknown-unknown
+          components: clippy,rustfmt
       - name: "Install cargo-all-features"
-        run: cargo install cargo-all-features --locked
-      - name: "Install clippy"
-        run: rustup component add clippy
+        run: cargo install --git https://github.com/sabify/cargo-all-features --branch arbitrary-command-support
       - name: "Run clippy"
-        run: cargo clippy --package leptos_i18n
+        run: cargo all-features clippy
       - name: "Test all features"
         working-directory: "leptos_i18n"
-        run: cargo test-all-features
-  subcrates_test:
-    # Why not also use cargo-all-features with the parser and macros packages ?
-    # Because all features are forwarded from leptos_i18n,
-    # so if some features mix creates a problem they will appear in leptos_i18n tests.
-    # All leptos_i18n_macro tests don't require any feature flag, so no need to test each feature and matchup
-    # just run once with default, this speeds up CI
-    name: Test ${{ matrix.packages }} package
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        packages: [leptos_i18n_macro, leptos_i18n_parser, leptos_i18n_build, leptos_i18n_codegen]
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-      - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@nightly
-        with:
-          components: "clippy"
-      - name: "Run tests"
-        run: cargo test --package ${{ matrix.packages }}
-      - name: "Run clippy"
-        run: cargo clippy --package ${{ matrix.packages }}
+        run: cargo all-features test
+      - name: Check format
+        run: cargo fmt --check
   test_ssr_examples:
     name: Test ${{ matrix.examples }} SSR example
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        examples:
-          [
-            hello_world_actix,
-            hello_world_axum,
-            workspace,
-            axum_island,
-            routing_ssr,
-          ]
+        examples: [hello_world_actix, hello_world_axum, workspace, axum_island, routing_ssr]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -199,19 +173,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples:
-          [
-            counter,
-            counter_icu_datagen,
-            counter_plurals,
-            counter_ranges,
-            interpolation,
-            namespaces,
-            subkeys,
-            yaml,
-            routing_csr,
-            subcontext,
-          ]
+        examples: [counter, counter_icu_datagen, counter_plurals, counter_ranges, interpolation, namespaces, subkeys, yaml, routing_csr, subcontext]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -258,10 +220,11 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-      - name: "Install wasm32-unknown-unknown"
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "stable"
+          toolchain: stable
+          targets: wasm32-unknown-unknown
       - name: Running test suite ${{ matrix.tests_suites }}
         working-directory: tests/${{ matrix.tests_suites }}
         run: cargo test
