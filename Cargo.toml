@@ -41,6 +41,3 @@ icu_list = { version = "2.0.0", default-features = false }
 icu_decimal = { version = "2.0.0", default-features = false }
 icu_experimental = { version = "0.3.0", default-features = false }
 tinystr = "0.8.1"
-
-# internal use
-# tests_common = { path = "./tests/common", version = "0.1.0" }
