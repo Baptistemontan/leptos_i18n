@@ -10,11 +10,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 leptos = { version = "0.8.2", features = ["ssr"] }
-tests_common = { workspace = true }
-leptos_i18n = { workspace = true }
+tests_common = { path = "../common" }
+leptos_i18n = { path = "../../leptos_i18n" }
 
 [build-dependencies]
-leptos_i18n_build = { workspace = true, features = ["pretty_print"] }
+leptos_i18n_build = { path = "../../leptos_i18n", features = ["pretty_print"] }
 
 
 [package.metadata.leptos-i18n]

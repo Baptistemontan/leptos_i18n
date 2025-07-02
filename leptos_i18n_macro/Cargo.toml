@@ -24,7 +24,7 @@ icu_locale = { workspace = true, features = ["compiled_data"] }
 fixed_decimal = { workspace = true, features = ["ryu"] }
 leptos_i18n_parser = { workspace = true }
 tinystr = { workspace = true }
-leptos_i18n_codegen = { workspace = true }
+leptos_i18n_codegen = { workspace = true, default-features = true }
 
 [features]
 default = []
@@ -36,21 +36,21 @@ csr = ["leptos_i18n_codegen/csr"]
 ssr = ["leptos_i18n_codegen/ssr"]
 plurals = ["leptos_i18n_parser/plurals", "leptos_i18n_codegen/plurals"]
 format_datetime = [
-    "leptos_i18n_parser/format_datetime",
-    "leptos_i18n_codegen/format_datetime",
+  "leptos_i18n_parser/format_datetime",
+  "leptos_i18n_codegen/format_datetime",
 ]
 format_list = [
-    "leptos_i18n_parser/format_list",
-    "leptos_i18n_codegen/format_list",
+  "leptos_i18n_parser/format_list",
+  "leptos_i18n_codegen/format_list",
 ]
 format_nums = [
-    "leptos_i18n_parser/format_nums",
-    "leptos_i18n_codegen/format_nums",
+  "leptos_i18n_parser/format_nums",
+  "leptos_i18n_codegen/format_nums",
 ]
 format_currency = [
-    "leptos_i18n_parser/format_currency",
-    "format_nums",
-    "leptos_i18n_codegen/format_currency",
+  "leptos_i18n_parser/format_currency",
+  "format_nums",
+  "leptos_i18n_codegen/format_currency",
 ]
 icu_compiled_data = []
 

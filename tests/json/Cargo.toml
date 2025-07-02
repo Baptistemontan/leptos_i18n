@@ -9,11 +9,11 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { workspace = true, features = ["ssr"] }
-tests_common = { workspace = true }
+leptos = { version = "0.8.2", features = ["ssr"] }
+tests_common = { path = "../common" }
 
 [dependencies.leptos_i18n]
-workspace = true
+path = "../../leptos_i18n"
 features = [
   "plurals",
   "format_datetime",
@@ -23,7 +23,9 @@ features = [
 ]
 
 [build-dependencies]
-leptos_i18n_build = { workspace = true, features = ["pretty_print"] }
+leptos_i18n_build = { path = "../../leptos_i18n_build", features = [
+  "pretty_print",
+] }
 
 
 [package.metadata.leptos-i18n]

@@ -13,7 +13,7 @@ axum = { version = "0.8", optional = true }
 leptos = { version = "0.8.2" }
 leptos_meta = { version = "0.8.2" }
 leptos_axum = { version = "0.8.2", optional = true }
-leptos_i18n = { workspace = true }
+leptos_i18n = { path = "../../../leptos_i18n" }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
 wasm-bindgen = "0.2"
@@ -48,7 +48,7 @@ default = "en"
 locales = ["en", "fr"]
 
 [build-dependencies.leptos_i18n_build]
-workspace = true
+path = "../../../leptos_i18n_build"
 features = ["pretty_print"]
 
 [package.metadata.leptos]

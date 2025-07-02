@@ -447,6 +447,7 @@ pub(crate) mod data_provider {
     }
 
     #[cfg(feature = "icu_compiled_data")]
+    #[allow(dead_code)]
     #[derive(Default)]
     pub struct BakedDataProvider;
 

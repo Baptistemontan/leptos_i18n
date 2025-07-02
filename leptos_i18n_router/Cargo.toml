@@ -11,7 +11,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos_i18n = { workspace = true, default-features = false }
+leptos_i18n = { workspace = true }
 leptos = { workspace = true }
 leptos_router = { workspace = true }
 
