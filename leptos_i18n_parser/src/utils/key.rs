@@ -1,9 +1,13 @@
-use crate::parse_locales::error::{Error, Result};
-use crate::parse_locales::VAR_COUNT_KEY;
-use std::fmt::{Debug, Display};
-use std::hash::Hash;
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use crate::parse_locales::{
+    error::{Error, Result},
+    VAR_COUNT_KEY,
+};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+};
 
 use super::UnwrapAt;
 

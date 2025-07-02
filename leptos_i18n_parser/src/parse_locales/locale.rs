@@ -1,22 +1,26 @@
 use serde::de::MapAccess;
 
-use crate::parse_locales::options::{FileFormat, Options};
-use crate::utils::formatter::Formatter;
-use crate::utils::{Key, KeyPath, UnwrapAt};
-use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::fs::File;
-use std::io::BufReader;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use crate::{
+    parse_locales::options::{FileFormat, Options},
+    utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
+};
+use std::{
+    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashSet},
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
-use super::cfg_file::ConfigFile;
-use super::error::{Error, Errors, Result};
-use super::parsed_value::{ParsedValue, ParsedValueSeed};
-use super::plurals::{PluralForm, PluralRuleType, Plurals};
-use super::ranges::RangeType;
-use super::warning::{Warning, Warnings};
-use super::{ForeignKeysPaths, StringIndexer};
+use super::{
+    cfg_file::ConfigFile,
+    error::{Error, Errors, Result},
+    parsed_value::{ParsedValue, ParsedValueSeed},
+    plurals::{PluralForm, PluralRuleType, Plurals},
+    ranges::RangeType,
+    warning::{Warning, Warnings},
+    ForeignKeysPaths, StringIndexer,
+};
 
 #[derive(Debug)]
 #[non_exhaustive]
