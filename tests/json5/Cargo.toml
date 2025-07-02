@@ -14,7 +14,9 @@ tests_common = { path = "../common" }
 leptos_i18n = { path = "../../leptos_i18n" }
 
 [build-dependencies]
-leptos_i18n_build = { path = "../../leptos_i18n", features = ["pretty_print"] }
+leptos_i18n_build = { path = "../../leptos_i18n_build", features = [
+  "pretty_print",
+] }
 
 
 [package.metadata.leptos-i18n]
