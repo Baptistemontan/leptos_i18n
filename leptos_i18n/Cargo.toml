@@ -128,7 +128,13 @@ features = [
 [package.metadata.cargo-all-features]
 denylist = [
   # Always exclude:
-  "ssr", # Should always be enabled via a server integration rather than directly
+  "ssr", # Should always be enabled via a server integration rather than directly,
+  # formats, already enabled by the "all_formats" feature
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
+  "format_currency",
 ]
 skip_feature_sets = [
   # Axum and Actix features are incompatible with each other
