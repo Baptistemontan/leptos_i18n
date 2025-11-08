@@ -10,9 +10,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 actix-web = { version = "4.4", optional = true, features = ["macros"] }
-leptos = { version = "0.8.2" }
-leptos_meta = { version = "0.8.2" }
-leptos_actix = { version = "0.8.2", optional = true }
+leptos = { version = "0.8.12" }
+leptos_meta = { version = "0.8.5" }
+leptos_actix = { version = "0.8.12", optional = true }
 leptos_i18n = { path = "../../../../leptos_i18n" }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
