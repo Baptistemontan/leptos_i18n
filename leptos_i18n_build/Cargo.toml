@@ -10,7 +10,7 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n_parser = { workspace = true }
-leptos_i18n_codegen = { workspace = true }
+leptos_i18n_codegen = { workspace = true, default-features = true }
 
 icu_provider_export = { workspace = true, features = [
   "baked_exporter",

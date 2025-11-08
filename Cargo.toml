@@ -1,41 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-  # libs
   "leptos_i18n",
   "leptos_i18n_macro",
   "leptos_i18n_parser",
   "leptos_i18n_build",
   "leptos_i18n_codegen",
   "leptos_i18n_router",
-  # tests
-  "tests/json",
-  "tests/yaml",
-  "tests/json5",
-  "tests/common",
-  "tests/namespaces",
-  # CSR examples
-  "examples/csr/counter",
-  "examples/csr/counter_icu_datagen",
-  "examples/csr/counter_plurals",
-  "examples/csr/counter_ranges",
-  "examples/csr/interpolation",
-  "examples/csr/namespaces",
-  "examples/csr/routing_csr",
-  "examples/csr/subcontext",
-  "examples/csr/subkeys",
-  "examples/csr/yaml",
-  # SSR examples
-  # "examples/ssr/axum_island", # skip to not enable "island" for whole workspace
-  # "examples/ssr/workspace", # can't have workspace be a member of a workspace
-  # "examples/ssr/hello_world_actix" # skip to not enable conflicting "axum" and "actix" features
-  "examples/ssr/hello_world_axum",
-  "examples/ssr/routing_ssr",
-  # Dynamic load examples
-  # Dyn load are skipped to not enable "dynamic_load" globaly.
-
 ]
-exclude = ["examples"]
+exclude = ["examples", "tests"]
 
 [workspace.package]
 version = "0.6.0-rc.2"
@@ -45,10 +18,9 @@ version = "0.6.0-rc.2"
 leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.6.0-rc.2" }
 leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.6.0-rc.2" }
 leptos_i18n_codegen = { path = "./leptos_i18n_codegen", default-features = false, version = "=0.6.0-rc.2" }
-
-leptos_i18n = { path = "./leptos_i18n", version = "0.6.0-rc.2" }
-leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.6.0-rc.2" }
-leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.6.0-rc.2" }
+leptos_i18n = { path = "./leptos_i18n", version = "0.6.0-rc.2", default-features = false }
+leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.6.0-rc.2", default-features = false }
+leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.6.0-rc.2", default-features = false }
 
 # leptos
 leptos = { version = "0.8.2", default-features = false }
@@ -69,6 +41,3 @@ icu_list = { version = "2.0.0", default-features = false }
 icu_decimal = { version = "2.0.0", default-features = false }
 icu_experimental = { version = "0.3.0", default-features = false }
 tinystr = "0.8.1"
-
-# internal use
-tests_common = { path = "./tests/common", version = "0.1.0" }
