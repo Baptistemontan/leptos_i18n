@@ -24,8 +24,9 @@ jobs:
           targets: wasm32-unknown-unknown
           components: clippy,rustfmt
       - name: "Install cargo-all-features"
-        run: cargo install --git https://github.com/sabify/cargo-all-features --branch arbitrary-command-support
+        run: cargo install cargo-all-features
       - name: "Run clippy"
+        working-directory: "leptos_i18n"
         run: cargo all-features clippy
       - name: "Test all features"
         working-directory: "leptos_i18n"
