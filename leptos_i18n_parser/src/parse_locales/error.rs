@@ -1,8 +1,9 @@
 use icu_locale::ParseError as LocidError;
 use icu_provider::DataError as IcuDataError;
-use quote::{quote, ToTokens};
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote, ToTokens};
 use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell},
     collections::BTreeSet,
     fmt::{Debug, Display},
     io,
@@ -275,36 +276,141 @@ pub type Result<T, E = BoxedError> = core::result::Result<T, E>;
 
 impl std::error::Error for Error {}
 
-#[derive(Default)]
-pub struct Errors(RefCell<Vec<Error>>);
+use super::plurals::{PluralForm, PluralRuleType};
 
-impl Errors {
+#[derive(Debug)]
+pub enum Warning {
+    MissingKey {
+        locale: Key,
+        key_path: KeyPath,
+    },
+    SurplusKey {
+        locale: Key,
+        key_path: KeyPath,
+    },
+    UnusedForm {
+        locale: Key,
+        key_path: KeyPath,
+        form: PluralForm,
+        rule_type: PluralRuleType,
+    },
+    NonUnicodePath {
+        locale: Key,
+        namespace: Option<Key>,
+        path: std::path::PathBuf,
+    },
+}
+
+impl Display for Warning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Warning::MissingKey { locale, key_path } => {
+                write!(f, "Missing key \"{key_path}\" in locale {locale:?}")
+            }
+            Warning::SurplusKey { locale, key_path } => write!(
+                f,
+                "Key \"{key_path}\" is present in locale {locale:?} but not in default locale, it is ignored"
+            ),
+            Warning::UnusedForm { locale, key_path, form, rule_type } => {
+                write!(f, "At key \"{key_path}\", locale {locale:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless.")
+            },
+            Warning::NonUnicodePath { locale, namespace: None, path } => write!(f, "File path for locale {locale:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"),
+            Warning::NonUnicodePath { locale, namespace: Some(ns), path } => write!(f, "File path for locale {locale:?} in namespace {ns:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"),
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct Diagnostics {
+    errors: RefCell<Vec<Error>>,
+    warnings: RefCell<Vec<Warning>>,
+}
+
+impl Diagnostics {
     pub fn new() -> Self {
         Default::default()
     }
 
     pub fn emit_error(&self, error: Error) {
-        self.0.borrow_mut().push(error);
+        self.errors.borrow_mut().push(error);
     }
 
-    pub fn into_inner(self) -> Vec<Error> {
-        self.0.into_inner()
+    pub fn emit_warning(&self, warning: Warning) {
+        self.warnings.borrow_mut().push(warning);
+    }
+
+    pub fn errors(&self) -> Ref<'_, [Error]> {
+        let errors = self.errors.borrow();
+        Ref::map(errors, Vec::as_slice)
+    }
+
+    pub fn warnings(&self) -> Ref<'_, [Warning]> {
+        let warnings = self.warnings.borrow();
+        Ref::map(warnings, Vec::as_slice)
+    }
+
+    pub fn borrow(&self) -> (Ref<'_, [Error]>, Ref<'_, [Warning]>) {
+        (self.errors(), self.warnings())
     }
 }
 
-impl ToTokens for Errors {
+impl ToTokens for Diagnostics {
     fn to_token_stream(&self) -> proc_macro2::TokenStream {
-        let errors = self.0.borrow();
-        let iter = errors.iter().map(|err| err.to_string());
+        let (errors, warnings) = self.borrow();
+        let iter = errors.iter().map(ToString::to_string);
+        let warnings = generate_warnings(&warnings);
 
         quote! {
             #(
                 compile_error!(#iter);
             )*
+
+            #warnings
         }
     }
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ts = Self::to_token_stream(self);
         tokens.extend(ts);
+    }
+}
+
+fn warning_fn((index, warning): (usize, &Warning)) -> TokenStream {
+    let msg = warning.to_string();
+    let fn_name = format_ident!("w{}", index);
+    quote! {
+        #[deprecated(note = #msg)]
+        fn #fn_name() {
+            unimplemented!()
+        }
+    }
+}
+
+fn generate_warnings_inner(warnings: &[Warning]) -> TokenStream {
+    let warning_fns = warnings.iter().enumerate().map(warning_fn);
+
+    let fn_calls = (0..warnings.len()).map(|i| {
+        let fn_name = format_ident!("w{}", i);
+        quote!(#fn_name();)
+    });
+
+    quote! {
+        #[allow(unused)]
+        fn warnings() {
+            #(
+                #warning_fns
+            )*
+
+            #(
+                #fn_calls
+            )*
+        }
+    }
+}
+
+pub fn generate_warnings(warnings: &[Warning]) -> Option<TokenStream> {
+    if warnings.is_empty() {
+        None
+    } else {
+        Some(generate_warnings_inner(warnings))
     }
 }

@@ -12,15 +12,13 @@ use std::{
     rc::Rc,
 };
 
-use super::{
-    cfg_file::ConfigFile,
-    error::{Error, Errors, Result},
-    parsed_value::{ParsedValue, ParsedValueSeed},
-    plurals::{PluralForm, PluralRuleType, Plurals},
-    ranges::RangeType,
-    warning::{Warning, Warnings},
-    ForeignKeysPaths, StringIndexer,
-};
+use super::cfg_file::ConfigFile;
+use super::error::{Diagnostics, Error, Result, Warning};
+use super::parsed_value::{ParsedValue, ParsedValueSeed};
+use super::plurals::{PluralForm, PluralRuleType, Plurals};
+use super::ranges::RangeType;
+// use super::warning::{Warning, Warnings};
+use super::{ForeignKeysPaths, StringIndexer};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -195,7 +193,7 @@ pub struct LocaleSeed<'a> {
     pub top_locale_name: Key,
     pub key_path: KeyPath,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
-    pub errors: &'a Errors,
+    pub diag: &'a Diagnostics,
 }
 
 #[derive(Debug, Clone)]
@@ -321,8 +319,7 @@ impl Namespace {
         key: Key,
         locale_keys: &[Key],
         foreign_keys_paths: &ForeignKeysPaths,
-        warnings: &Warnings,
-        errors: &Errors,
+        diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
         options: &Options,
     ) -> Result<Self> {
@@ -340,8 +337,7 @@ impl Namespace {
                 locale,
                 Some(key.clone()),
                 foreign_keys_paths,
-                warnings,
-                errors,
+                diag,
                 tracked_files,
                 options,
             )?;
@@ -359,8 +355,7 @@ impl LocalesOrNamespaces {
         manifest_dir_path: &mut PathBuf,
         cfg_file: &ConfigFile,
         foreign_keys_paths: &ForeignKeysPaths,
-        warnings: &Warnings,
-        errors: &Errors,
+        diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
         options: &Options,
     ) -> Result<Self> {
@@ -374,8 +369,7 @@ impl LocalesOrNamespaces {
                     namespace.clone(),
                     locale_keys,
                     foreign_keys_paths,
-                    warnings,
-                    errors,
+                    diag,
                     tracked_files,
                     options,
                 )?);
@@ -392,8 +386,7 @@ impl LocalesOrNamespaces {
                     locale,
                     None,
                     foreign_keys_paths,
-                    warnings,
-                    errors,
+                    diag,
                     tracked_files,
                     options,
                 )?;
@@ -407,13 +400,13 @@ impl LocalesOrNamespaces {
     pub fn merge_plurals_inner(
         locales: &mut [Locale],
         namespace: Option<Key>,
-        warnings: &Warnings,
+        diag: &Diagnostics,
     ) -> Result<()> {
         let mut key_path = KeyPath::new(namespace);
 
         for locale in locales {
             let top_locale = locale.name.clone();
-            locale.merge_plurals(top_locale.clone(), &mut key_path, warnings)?;
+            locale.merge_plurals(top_locale.clone(), &mut key_path, diag)?;
         }
 
         Ok(())
@@ -421,20 +414,20 @@ impl LocalesOrNamespaces {
 
     // this step would be more optimized to be done during `check_locales` but plurals merging need to be done before foreign key resolution,
     // which also need to be done before `check_locales`.
-    pub fn merge_plurals(&mut self, warnings: &Warnings) -> Result<()> {
+    pub fn merge_plurals(&mut self, diag: &Diagnostics) -> Result<()> {
         match self {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
                 for namespace in namespaces {
                     Self::merge_plurals_inner(
                         &mut namespace.locales,
                         Some(namespace.key.clone()),
-                        warnings,
+                        diag,
                     )?;
                 }
                 Ok(())
             }
             LocalesOrNamespaces::Locales(locales) => {
-                Self::merge_plurals_inner(&mut *locales, None, warnings)
+                Self::merge_plurals_inner(&mut *locales, None, diag)
             }
         }
     }
@@ -467,19 +460,18 @@ impl Locale {
         locale: Key,
         namespace: Option<Key>,
         foreign_keys_paths: &ForeignKeysPaths,
-        warnings: &Warnings,
-        errors: &Errors,
+        diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
         options: &Options,
     ) -> Result<Self> {
-        track_file(tracked_files, &locale, namespace.as_ref(), path, warnings);
+        track_file(tracked_files, &locale, namespace.as_ref(), path, diag);
 
         let seed = LocaleSeed {
             name: locale.clone(),
             top_locale_name: locale,
             key_path: KeyPath::new(namespace),
             foreign_keys_paths,
-            errors,
+            diag,
         };
 
         Self::de(locale_file, path, seed, &options.file_format)
@@ -539,7 +531,7 @@ impl Locale {
         &mut self,
         locale: Key,
         key_path: &mut KeyPath,
-        warnings: &Warnings,
+        diag: &Diagnostics,
     ) -> Result<()> {
         let keys = std::mem::take(&mut self.keys);
         #[allow(clippy::type_complexity)]
@@ -550,7 +542,7 @@ impl Locale {
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
                 let mut pushed_key = key_path.push_key(key.clone());
-                subkeys.merge_plurals(locale.clone(), &mut pushed_key, warnings)?;
+                subkeys.merge_plurals(locale.clone(), &mut pushed_key, diag)?;
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
@@ -603,7 +595,7 @@ impl Locale {
                 count_key: Key::count(),
                 other: Box::new(other),
             };
-            plural.check_forms(&locale, &pushed_key, warnings)?;
+            plural.check_forms(&locale, &pushed_key, diag)?;
             let value = ParsedValue::Plurals(plural);
             let key = pushed_key.pop().unwrap_at("merge_plurals_3");
             if self.keys.insert(key.clone(), value).is_some() {
@@ -626,7 +618,7 @@ impl Locale {
         default_to: &DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
-        warnings: &Warnings,
+        diag: &Diagnostics,
         options: &Options,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
@@ -635,7 +627,7 @@ impl Locale {
             let value = match entry {
                 Entry::Vacant(entry) => {
                     if matches!(default_to, DefaultTo::Implicit(_)) {
-                        warnings.emit_warning(Warning::MissingKey {
+                        diag.emit_warning(Warning::MissingKey {
                             locale: top_locale.clone(),
                             key_path: pushed_key.clone(),
                         });
@@ -650,7 +642,7 @@ impl Locale {
                 default_to,
                 &mut pushed_key,
                 strings,
-                warnings,
+                diag,
                 options,
             )?;
         }
@@ -660,7 +652,7 @@ impl Locale {
             for key in self.keys.keys() {
                 if !keys.0.contains_key(key) {
                     let pushed_key = key_path.push_key(key.clone());
-                    warnings.emit_warning(Warning::SurplusKey {
+                    diag.emit_warning(Warning::SurplusKey {
                         locale: top_locale.clone(),
                         key_path: pushed_key.clone(),
                     });
@@ -742,7 +734,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
                 key_path: &pushed_key,
                 in_range: false,
                 foreign_keys_paths: self.foreign_keys_paths,
-                errors: self.errors,
+                diag: self.diag,
             })?;
             keys.insert(locale_key, value);
         }
@@ -763,12 +755,12 @@ fn track_file(
     locale: &Key,
     namespace: Option<&Key>,
     path: &Path,
-    warnings: &Warnings,
+    diag: &Diagnostics,
 ) {
     if let Some(path) = path.as_os_str().to_str().map(ToOwned::to_owned) {
         tracked_files.push(path);
     } else {
-        warnings.emit_warning(Warning::NonUnicodePath {
+        diag.emit_warning(Warning::NonUnicodePath {
             locale: locale.clone(),
             namespace: namespace.cloned(),
             path: path.to_owned(),
