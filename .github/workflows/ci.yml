@@ -38,7 +38,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, hello_world_axum, workspace, axum_island, routing_ssr]
+        examples:
+          [
+            hello_world_actix,
+            hello_world_axum,
+            workspace,
+            axum_island,
+            routing_ssr,
+          ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -58,11 +65,11 @@ jobs:
         run: cargo leptos build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -101,11 +108,11 @@ jobs:
         run: cargo leptos build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -150,11 +157,11 @@ jobs:
         run: trunk build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -173,7 +180,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples: [counter, counter_icu_datagen, counter_plurals, counter_ranges, interpolation, namespaces, subkeys, yaml, routing_csr, subcontext]
+        examples:
+          [
+            counter,
+            counter_icu_datagen,
+            counter_plurals,
+            counter_ranges,
+            interpolation,
+            namespaces,
+            subkeys,
+            yaml,
+            routing_csr,
+            subcontext,
+          ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -193,11 +212,11 @@ jobs:
         run: trunk build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/csr/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
