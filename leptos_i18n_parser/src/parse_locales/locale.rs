@@ -198,16 +198,16 @@ pub struct LocaleSeed<'a> {
     pub errors: &'a Errors,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum DefaultTo<'a> {
-    Explicit(&'a Key),
-    Implicit(&'a Key),
+#[derive(Debug, Clone)]
+pub enum DefaultTo {
+    Explicit(Key),
+    Implicit(Key),
 }
 
-impl DefaultTo<'_> {
-    pub fn get_key(self) -> Key {
+impl DefaultTo {
+    pub fn get_key(&self) -> &Key {
         match self {
-            DefaultTo::Explicit(key) | DefaultTo::Implicit(key) => key.clone(),
+            DefaultTo::Explicit(key) | DefaultTo::Implicit(key) => key,
         }
     }
 }
@@ -623,7 +623,7 @@ impl Locale {
         &mut self,
         keys: &mut BuildersKeysInner,
         top_locale: Key,
-        default_to: DefaultTo,
+        default_to: &DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         warnings: &Warnings,
