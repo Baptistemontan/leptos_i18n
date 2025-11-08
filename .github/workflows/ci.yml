@@ -108,11 +108,11 @@ jobs:
         run: cargo leptos build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -157,11 +157,11 @@ jobs:
         run: trunk build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -212,11 +212,11 @@ jobs:
         run: trunk build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/csr/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
