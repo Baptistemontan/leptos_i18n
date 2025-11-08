@@ -174,4 +174,4 @@ skip_feature_sets = [
   ],
 ]
 
-always_include_features = ["icu_compiled_data", "all_formats", "pretty_print"]
+always_include_features = ["icu_compiled_data", "all_formats"]
