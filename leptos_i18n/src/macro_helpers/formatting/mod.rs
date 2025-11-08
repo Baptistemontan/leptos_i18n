@@ -348,7 +348,6 @@ pub(crate) mod data_provider {
 
     #[cfg(any(
         feature = "format_nums",
-        feature = "format_datetime",
         feature = "format_list",
         feature = "plurals",
         feature = "format_currency",
