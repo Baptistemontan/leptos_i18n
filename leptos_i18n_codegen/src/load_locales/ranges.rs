@@ -13,10 +13,11 @@ use quote::{quote, ToTokens};
 
 use crate::{load_locales::parsed_value, utils::EitherOfWrapper};
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub enum RangeType {
     I8,
     I16,
+    #[default]
     I32,
     I64,
     U8,
@@ -25,12 +26,6 @@ pub enum RangeType {
     U64,
     F32,
     F64,
-}
-
-impl Default for RangeType {
-    fn default() -> Self {
-        Self::I32
-    }
 }
 
 impl From<leptos_i18n_parser::parse_locales::ranges::RangeType> for RangeType {
