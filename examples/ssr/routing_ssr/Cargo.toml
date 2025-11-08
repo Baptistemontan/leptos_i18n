@@ -10,10 +10,10 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 axum = { version = "0.8.1", optional = true }
-leptos = { version = "0.8.2" }
-leptos_meta = { version = "0.8.2" }
-leptos_axum = { version = "0.8.2", optional = true }
-leptos_router = { version = "0.8.2" }
+leptos = { version = "0.8.12" }
+leptos_meta = { version = "0.8.5" }
+leptos_axum = { version = "0.8.12", optional = true }
+leptos_router = { version = "0.8.9" }
 leptos_i18n = { path = "../../../leptos_i18n" }
 leptos_i18n_router = { path = "../../../leptos_i18n_router" }
 serde = { version = "1", features = ["derive"] }
