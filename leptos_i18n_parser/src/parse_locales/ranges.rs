@@ -48,10 +48,11 @@ pub enum Range<T> {
     Fallback,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub enum RangeType {
     I8,
     I16,
+    #[default]
     I32,
     I64,
     U8,
@@ -214,12 +215,6 @@ impl<T: RangeNumber> Range<T> {
             let exact_value = parse(s)?;
             Ok(Self::Exact(exact_value))
         }
-    }
-}
-
-impl Default for RangeType {
-    fn default() -> Self {
-        Self::I32
     }
 }
 
