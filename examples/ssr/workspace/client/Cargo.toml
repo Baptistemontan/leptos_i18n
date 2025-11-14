@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = { version = "4.4", optional = true, features = ["macros"] }
+actix-web = { version = "4.11", optional = true, features = ["macros"] }
 leptos = { version = "0.8.12" }
 leptos_meta = { version = "0.8.5" }
 leptos_actix = { version = "0.8.6", optional = true }

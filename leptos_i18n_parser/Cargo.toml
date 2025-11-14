@@ -15,7 +15,7 @@ icu_plurals = { workspace = true, features = ["compiled_data"] }
 serde = { version = "1", features = ["rc"] }
 serde_json = { version = "1" }
 serde_yaml = { version = "0.9" }
-toml = "0.8"
+toml = "0.9"
 fixed_decimal = { workspace = true, features = ["ryu"] }
 json5 = { version = "0.4" }
 quote = { version = "1" }
