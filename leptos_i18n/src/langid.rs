@@ -76,31 +76,7 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
         }
     }
 
-    supported_locales.sort_by(|x, y| {
-        let x_specificity = into_specificity(x.as_ref());
-        let y_specificity = into_specificity(y.as_ref());
-        x_specificity.cmp(&y_specificity).reverse()
-    });
-
     supported_locales
-}
-
-fn into_specificity(lang: &LanguageIdentifier) -> usize {
-    // let parts = lang.into_parts();
-    let mut specificity = 0;
-    // Script
-    if lang.script.is_some() {
-        specificity += 1;
-    }
-    // Region
-    if lang.region.is_some() {
-        specificity += 1;
-    }
-
-    // variant
-    specificity += lang.variants.len();
-
-    specificity
 }
 
 pub fn find_match<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
@@ -166,5 +142,14 @@ mod test {
             &[Locale::de_DE, Locale::de, Locale::en_US, Locale::de_CH],
         );
         assert_eq!(res, Locale::de_DE);
+
+        let res = find_match(&[langid!("de-DE")], &[Locale::de, Locale::de_DE]);
+        assert_eq!(res, Locale::de_DE);
+
+        let res = find_match(
+            &[langid!("en"), langid!("de-DE")],
+            &[Locale::en, Locale::de_DE],
+        );
+        assert_eq!(res, Locale::en);
     }
 }
