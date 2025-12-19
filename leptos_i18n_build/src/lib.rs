@@ -4,7 +4,7 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 pub use datamarker::FormatterOptions;
-pub use leptos_i18n_parser::parse_locales::options::{parser, FileFormat, Options};
+pub use leptos_i18n_parser::parse_locales::options::{parser, FileFormat, ParseOptions};
 
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
@@ -28,6 +28,9 @@ use std::{
 };
 
 mod datamarker;
+pub mod options;
+
+use crate::options::CodegenOptions;
 
 #[derive(Clone)]
 enum EitherIter<A, B> {
@@ -52,7 +55,7 @@ pub struct TranslationsInfos {
 }
 
 impl TranslationsInfos {
-    fn parse_inner(dir_path: Option<PathBuf>, options: Options) -> Result<Self> {
+    fn parse_inner(dir_path: Option<PathBuf>, options: ParseOptions) -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
         let parsed_locales = parse_locales(dir_path, options)?;
 
@@ -60,13 +63,13 @@ impl TranslationsInfos {
     }
 
     /// Parse the translations and obtain informations about them.
-    pub fn parse(options: Options) -> Result<Self> {
+    pub fn parse(options: ParseOptions) -> Result<Self> {
         let this = Self::parse_inner(None, options)?;
         Ok(this)
     }
 
     /// Parse the translations at the given directory and obtain informations about them.
-    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P, options: Options) -> Result<Self> {
+    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P, options: ParseOptions) -> Result<Self> {
         Self::parse_inner(Some(dir_path.into()), options)
     }
 
@@ -238,8 +241,22 @@ impl TranslationsInfos {
     }
 
     /// Generate the `i18n` module at the given mod directory
-    pub fn generate_i18n_module(&self, mut mod_directory: PathBuf) -> Result<()> {
-        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, None, false)?;
+    pub fn generate_i18n_module(&self, mod_directory: PathBuf) -> Result<()> {
+        self.generate_i18n_module_with_options(mod_directory, CodegenOptions::default())
+    }
+
+    /// Generate the `i18n` module at the given mod directory with options
+    pub fn generate_i18n_module_with_options(
+        &self,
+        mut mod_directory: PathBuf,
+        options: CodegenOptions,
+    ) -> Result<()> {
+        let ts = leptos_i18n_codegen::gen_code(
+            &self.parsed_locales,
+            options.crate_path.as_ref(),
+            false,
+            options.top_level_attributes.as_ref(),
+        )?;
 
         #[cfg(feature = "pretty_print")]
         let ts = {
@@ -249,7 +266,7 @@ impl TranslationsInfos {
 
         create_dir_all(&mod_directory)?;
 
-        mod_directory.push("mod.rs");
+        mod_directory.push(options.module_file_name);
 
         let mut file = File::create(&mod_directory)?;
 

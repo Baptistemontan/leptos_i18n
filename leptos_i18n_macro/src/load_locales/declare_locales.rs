@@ -6,7 +6,7 @@ use leptos_i18n_parser::{
         error::Diagnostics,
         locale::{Locale, LocalesOrNamespaces},
         make_builder_keys,
-        options::Options,
+        options::ParseOptions,
         parsed_value::ParsedValue,
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
@@ -32,7 +32,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     } = parse_macro_input!(tokens as ParsedInput);
     let diag = Diagnostics::new();
 
-    let options = Options::default().interpolate_display(interpolate_display);
+    let options = ParseOptions::default().interpolate_display(interpolate_display);
 
     let builder_keys =
         make_builder_keys(locales, &cfg_file, foreign_keys_paths, &diag, &options).unwrap();
@@ -45,7 +45,7 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         options,
     };
 
-    let result = leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), true);
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), true, None);
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {

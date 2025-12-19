@@ -1,12 +1,10 @@
-use std::{fmt::Debug, io::Read, path::Path, sync::Arc};
-
 use crate::parse_locales::locale::{Locale, LocaleSeed, SerdeError};
-
 use parser::Parser;
+use std::{fmt::Debug, io::Read, path::Path, sync::Arc};
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct Options {
+pub struct ParseOptions {
     pub file_format: FileFormat,
     pub suppress_key_warnings: bool,
     pub interpolate_display: bool,
@@ -34,16 +32,15 @@ impl Debug for FileFormat {
     }
 }
 
-impl Default for Options {
+impl Default for ParseOptions {
     fn default() -> Self {
-        Self::default()
+        Self::new()
     }
 }
 
-impl Options {
-    /// const-friendly version of default.
-    pub const fn default() -> Self {
-        Options {
+impl ParseOptions {
+    pub fn new() -> Self {
+        ParseOptions {
             file_format: FileFormat::Json,
             suppress_key_warnings: false,
             interpolate_display: false,

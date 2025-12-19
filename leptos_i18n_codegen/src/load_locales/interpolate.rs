@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use leptos_i18n_parser::{
     parse_locales::{
         locale::{DefaultedLocales, InterpolationKeys, Locale},
-        options::Options,
+        options::ParseOptions,
         parsed_value::ParsedValue,
     },
     utils::{Key, KeyPath, UnwrapAt},
@@ -246,7 +246,7 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         defaults: &DefaultedLocales,
-        options: &Options,
+        options: &ParseOptions,
     ) -> Self {
         // filter defaulted locales
         let locales = locales
@@ -450,7 +450,7 @@ impl Interpolation {
         locale_field: &Key,
         into_view_field: &Key,
         fields: &[Field],
-        options: &Options,
+        options: &ParseOptions,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 
@@ -694,7 +694,7 @@ impl Interpolation {
         key_path: &KeyPath,
         locale_type_ident: &syn::Ident,
         defaults: &BTreeMap<Key, BTreeSet<Key>>,
-        options: &Options,
+        options: &ParseOptions,
     ) -> TokenStream {
         let left_generics = fields.iter().flat_map(Field::as_bounded_generic);
 

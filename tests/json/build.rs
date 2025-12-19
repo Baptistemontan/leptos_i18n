@@ -1,4 +1,4 @@
-use leptos_i18n_build::{Options, TranslationsInfos};
+use leptos_i18n_build::{ParseOptions, TranslationsInfos};
 use std::path::PathBuf;
 
 fn main() {
@@ -7,7 +7,7 @@ fn main() {
 
     let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
-    let options = Options::default().interpolate_display(true);
+    let options = ParseOptions::default().interpolate_display(true);
 
     let translations_infos = TranslationsInfos::parse(options).unwrap();
 
