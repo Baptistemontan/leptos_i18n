@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-leptos = { version = "0.8.12", features = ["csr"] }
+leptos = { version = "0.8.15", features = ["csr"] }
 leptos_meta = { version = "0.8.5" }
 leptos_i18n = { path = "../../../leptos_i18n", features = ["csr", "plurals"] }
 serde = { version = "1", features = ["derive"] }

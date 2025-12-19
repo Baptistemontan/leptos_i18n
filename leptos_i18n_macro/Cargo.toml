@@ -19,7 +19,7 @@ serde_json = { version = "1" }
 proc-macro2 = "1"
 quote = "1"
 syn = "2.0"
-toml = "0.8"
+toml = "0.9"
 icu_locale = { workspace = true, features = ["compiled_data"] }
 fixed_decimal = { workspace = true, features = ["ryu"] }
 leptos_i18n_parser = { workspace = true }
