@@ -266,7 +266,7 @@ impl TranslationsInfos {
 
         create_dir_all(&mod_directory)?;
 
-        mod_directory.push(&options.module_file_name);
+        mod_directory.push(options.module_file_name);
 
         let mut file = File::create(&mod_directory)?;
 

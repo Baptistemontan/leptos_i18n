@@ -1,37 +1,36 @@
 //! Codegen options
 
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use proc_macro2::TokenStream;
 
 /// Options for the leptos_i18n codegen
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct CodegenOptions {
+pub struct CodegenOptions<'a> {
     /// Attributes for the generated module,
     /// usefull to supress some warnings with for exemple `#![allow(missing_docs)]`
     pub top_level_attributes: Option<TokenStream>,
     /// Allow to customize the name of generated .rs file,
     /// "mod.rs" by default.
-    pub module_file_name: Cow<'static, Path>,
+    pub module_file_name: &'a Path,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for CodegenOptions {
+impl<'a> Default for CodegenOptions<'a> {
     fn default() -> Self {
         CodegenOptions::new()
     }
 }
 
-impl CodegenOptions {
+const DEFAULT_FILE_NAME: &str = "mod.rs";
+
+impl<'a> CodegenOptions<'a> {
     /// Create the default Options for the codegen
     pub fn new() -> Self {
         CodegenOptions {
             top_level_attributes: None,
-            module_file_name: "mod.rs".to_cow_path(),
+            module_file_name: DEFAULT_FILE_NAME.as_ref(),
         }
     }
 
@@ -54,34 +53,10 @@ impl CodegenOptions {
 
     /// Allow to customize the name of generated .rs file,
     /// "mod.rs" by default.
-    pub fn module_file_name(self, module_file_name: impl ToPath) -> Self {
+    pub fn module_file_name(self, module_file_name: &'a impl AsRef<Path>) -> Self {
         Self {
-            module_file_name: module_file_name.to_cow_path(),
+            module_file_name: module_file_name.as_ref(),
             ..self
         }
-    }
-}
-
-/// Helper trait to create a `Cow<'static, Path>`.
-pub trait ToPath {
-    /// Convert Self to a `Cow<'static, Path>`
-    fn to_cow_path(self) -> Cow<'static, Path>;
-}
-
-impl<T: AsRef<Path>> ToPath for &'static T {
-    fn to_cow_path(self) -> Cow<'static, Path> {
-        Cow::Borrowed(self.as_ref())
-    }
-}
-
-impl ToPath for PathBuf {
-    fn to_cow_path(self) -> Cow<'static, Path> {
-        Cow::Owned(self)
-    }
-}
-
-impl ToPath for String {
-    fn to_cow_path(self) -> Cow<'static, Path> {
-        Cow::Owned(self.into())
     }
 }
