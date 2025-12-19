@@ -120,7 +120,7 @@ fn de_json<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeErr
 fn de_json5<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
     let mut buff = String::new();
     Read::read_to_string(&mut locale_file, &mut buff).map_err(SerdeError::Io)?;
-    let mut deserializer = json5::Deserializer::from_str(&buff).map_err(SerdeError::Json5)?;
+    let mut deserializer = json5::Deserializer::from_str(&buff);
     serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json5)
 }
 
