@@ -1,7 +1,7 @@
 use serde::de::MapAccess;
 
 use crate::{
-    parse_locales::options::{FileFormat, Options},
+    parse_locales::options::{FileFormat, ParseOptions},
     utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
 };
 use std::{
@@ -321,7 +321,7 @@ impl Namespace {
         foreign_keys_paths: &ForeignKeysPaths,
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
-        options: &Options,
+        options: &ParseOptions,
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
@@ -357,7 +357,7 @@ impl LocalesOrNamespaces {
         foreign_keys_paths: &ForeignKeysPaths,
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
-        options: &Options,
+        options: &ParseOptions,
     ) -> Result<Self> {
         let locale_keys = &cfg_file.locales;
         manifest_dir_path.push(&*cfg_file.locales_dir);
@@ -462,7 +462,7 @@ impl Locale {
         foreign_keys_paths: &ForeignKeysPaths,
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
-        options: &Options,
+        options: &ParseOptions,
     ) -> Result<Self> {
         track_file(tracked_files, &locale, namespace.as_ref(), path, diag);
 
@@ -619,7 +619,7 @@ impl Locale {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         diag: &Diagnostics,
-        options: &Options,
+        options: &ParseOptions,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
             let mut pushed_key = key_path.push_key(key.clone());

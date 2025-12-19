@@ -9,6 +9,7 @@ description = "build.rs utilities for the leptos_i18n crate"
 readme = "../README.md"
 
 [dependencies]
+proc-macro2 = "1"
 leptos_i18n_parser = { workspace = true }
 leptos_i18n_codegen = { workspace = true, default-features = true }
 

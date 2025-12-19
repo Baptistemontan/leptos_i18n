@@ -22,7 +22,7 @@ use error::{Diagnostics, Error, Result};
 // use warning::Warnings;
 
 use crate::{
-    parse_locales::options::Options,
+    parse_locales::options::ParseOptions,
     utils::{Key, KeyPath, UnwrapAt},
 };
 
@@ -53,7 +53,7 @@ pub struct RawParsedLocales {
 
 pub fn parse_locales_raw(
     cargo_manifest_dir: Option<PathBuf>,
-    options: &Options,
+    options: &ParseOptions,
 ) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
@@ -92,7 +92,7 @@ pub fn make_builder_keys(
     cfg_file: &ConfigFile,
     foreign_keys_paths: ForeignKeysPaths,
     diag: &Diagnostics,
-    options: &Options,
+    options: &ParseOptions,
 ) -> Result<BuildersKeys> {
     locales.merge_plurals(diag)?;
 
@@ -106,12 +106,12 @@ pub struct ParsedLocales {
     pub builder_keys: BuildersKeys,
     pub diag: Diagnostics,
     pub tracked_files: Option<Vec<String>>,
-    pub options: Options,
+    pub options: ParseOptions,
 }
 
 pub fn parse_locales(
     cargo_manifest_dir: Option<PathBuf>,
-    options: Options,
+    options: ParseOptions,
 ) -> Result<ParsedLocales> {
     let RawParsedLocales {
         locales,
@@ -150,7 +150,7 @@ fn check_locales(
     locales: LocalesOrNamespaces,
     extensions: &BTreeMap<Key, Key>,
     diag: &Diagnostics,
-    options: &Options,
+    options: &ParseOptions,
 ) -> Result<BuildersKeys> {
     match locales {
         LocalesOrNamespaces::NameSpaces(mut namespaces) => {
@@ -266,7 +266,7 @@ fn check_locales_inner(
     namespace: Option<Key>,
     extensions: &BTreeMap<Key, Key>,
     diag: &Diagnostics,
-    options: &Options,
+    options: &ParseOptions,
 ) -> Result<BuildersKeysInner> {
     let icu_locales = locales_to_icu(locales)?;
     let (default_locale, other_locales) =

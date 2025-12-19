@@ -11,7 +11,7 @@ use leptos_i18n_parser::{
     parse_locales::{
         error::{Error, Result},
         locale::{BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue, Namespace},
-        options::Options,
+        options::ParseOptions,
         parsed_value::ParsedValue,
         ParsedLocales,
     },
@@ -29,6 +29,7 @@ pub fn load_locales(
     parsed_locales: &ParsedLocales,
     crate_path: Option<&syn::Path>,
     emit_diagnostics: bool,
+    top_level_attributes: Option<&TokenStream>,
 ) -> Result<TokenStream> {
     let default_crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
     let crate_path = crate_path.unwrap_or(&default_crate_path);
@@ -216,6 +217,7 @@ pub fn load_locales(
             #![allow(unused_braces)]
             #![allow(clippy::type_complexity)]
             #![allow(clippy::let_and_return)]
+            #top_level_attributes
 
             use #crate_path as l_i18n_crate;
 
@@ -551,7 +553,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     key_path: &mut KeyPath,
     namespace_name: Option<&str>,
     translations_uri: Option<&str>,
-    options: &Options,
+    options: &ParseOptions,
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
@@ -1103,7 +1105,7 @@ fn create_namespaces_types(
     namespaces: &[Namespace],
     keys: &BTreeMap<Key, BuildersKeysInner>,
     translations_uri: Option<&str>,
-    options: &Options,
+    options: &ParseOptions,
 ) -> TokenStream {
     let namespaces = namespaces
         .iter()
@@ -1330,7 +1332,7 @@ fn create_locale_type(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     translations_uri: Option<&str>,
-    options: &Options,
+    options: &ParseOptions,
 ) -> TokenStream {
     match keys {
         BuildersKeys::NameSpaces { namespaces, keys } => create_namespaces_types(

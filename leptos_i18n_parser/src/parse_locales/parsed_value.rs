@@ -6,7 +6,7 @@ use serde::{
 };
 
 use crate::{
-    parse_locales::options::Options,
+    parse_locales::options::ParseOptions,
     utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
 };
 
@@ -652,7 +652,7 @@ impl ParsedValue {
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
         diag: &Diagnostics,
-        options: &Options,
+        options: &ParseOptions,
     ) -> Result<()> {
         self.reduce();
         match (&mut *self, &mut *keys) {
