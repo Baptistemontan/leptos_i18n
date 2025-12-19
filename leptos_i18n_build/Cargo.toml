@@ -10,6 +10,7 @@ readme = "../README.md"
 
 [dependencies]
 proc-macro2 = "1"
+
 leptos_i18n_parser = { workspace = true }
 leptos_i18n_codegen = { workspace = true, default-features = true }
 
@@ -28,7 +29,7 @@ icu_locale = { workspace = true }
 
 
 prettyplease = { version = "0.2", features = ["verbatim"], optional = true }
-syn = { version = "2.0", optional = true }
+syn = { version = "2.0" }
 
 [features]
 default = []
@@ -57,4 +58,4 @@ format_currency = [
 ]
 
 # This is to format the code after codegen, helpfull for debugging
-pretty_print = ["dep:prettyplease", "dep:syn"]
+pretty_print = ["dep:prettyplease"]

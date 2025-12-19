@@ -253,7 +253,7 @@ impl TranslationsInfos {
     ) -> Result<()> {
         let ts = leptos_i18n_codegen::gen_code(
             &self.parsed_locales,
-            None,
+            options.crate_path.as_ref(),
             false,
             options.top_level_attributes.as_ref(),
         )?;

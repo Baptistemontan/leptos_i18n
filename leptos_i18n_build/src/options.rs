@@ -14,6 +14,8 @@ pub struct CodegenOptions<'a> {
     /// Allow to customize the name of generated .rs file,
     /// "mod.rs" by default.
     pub module_file_name: &'a Path,
+    /// Path to the `leptos_i18n` crate, usefull if the crate is not a direct depedency of the pacakage and is behind a reexport.
+    pub crate_path: Option<syn::Path>,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -31,6 +33,7 @@ impl<'a> CodegenOptions<'a> {
         CodegenOptions {
             top_level_attributes: None,
             module_file_name: DEFAULT_FILE_NAME.as_ref(),
+            crate_path: None,
         }
     }
 
@@ -58,5 +61,10 @@ impl<'a> CodegenOptions<'a> {
             module_file_name: module_file_name.as_ref(),
             ..self
         }
+    }
+
+    /// Path to the `leptos_i18n` crate, usefull if the crate is not a direct depedency of the pacakage and is behind a reexport.
+    pub fn crate_path(self, crate_path: Option<syn::Path>) -> Self {
+        Self { crate_path, ..self }
     }
 }
