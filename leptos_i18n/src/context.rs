@@ -526,6 +526,7 @@ fn embed_translations_fn<L: Locale>(
 }
 
 #[track_caller]
+#[allow(clippy::too_many_arguments)]
 fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
     set_dir_attr_on_html: Option<bool>,
@@ -570,6 +571,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
 }
 
 #[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
 #[track_caller]
 pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
