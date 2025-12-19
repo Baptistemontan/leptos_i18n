@@ -9,10 +9,10 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.8.6", optional = true }
-leptos = { version = "0.8.12", features = ["islands"] }
+axum = { version = "0.8.7", optional = true }
+leptos = { version = "0.8.15", features = ["islands"] }
 leptos_meta = { version = "0.8.5" }
-leptos_axum = { version = "0.8.6", optional = true }
+leptos_axum = { version = "0.8.7", optional = true }
 leptos_i18n = { path = "../../../leptos_i18n", features = [
   "islands",
   "dynamic_load",
@@ -24,7 +24,7 @@ simple_logger = "4"
 tokio = { version = "1.48", features = ["rt-multi-thread"], optional = true }
 log = "0.4"
 tower = { version = "0.5.2", optional = true }
-tower-http = { version = "0.6.6", features = ["fs"], optional = true }
+tower-http = { version = "0.6.8", features = ["fs"], optional = true }
 
 [features]
 default = ["hydrate", "ssr"]
