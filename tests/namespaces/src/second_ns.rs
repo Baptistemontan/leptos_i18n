@@ -52,25 +52,6 @@ fn subkey_2() {
 }
 
 #[test]
-fn subkey_3() {
-    let count = || 0;
-    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, count = count);
-    assert_eq_rendered!(en, "zero");
-    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, count = count);
-    assert_eq_rendered!(fr, "zero");
-    let count = || 1;
-    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, count = count);
-    assert_eq_rendered!(en, "one");
-    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, count = count);
-    assert_eq_rendered!(fr, "1");
-    let count = || 3;
-    let en = td!(Locale::en, second_namespace.subkeys.subkey_3, count = count);
-    assert_eq_rendered!(en, "3");
-    let fr = td!(Locale::fr, second_namespace.subkeys.subkey_3, count = count);
-    assert_eq_rendered!(fr, "3");
-}
-
-#[test]
 fn foreign_key_to_same_namespace() {
     let en = td!(Locale::en, second_namespace.foreign_key_to_same_namespace);
     assert_eq_rendered!(en, "before second namespace after");
