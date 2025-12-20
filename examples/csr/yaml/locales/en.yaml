@@ -1,10 +1,6 @@
 click_to_change_lang: "Click to change language"
+click_count: "You clicked {{ count }} times"
 click_to_inc: "Click to increment the counter"
-click_count:
-  - "u64"
-  - ["You did not clicked yet", 0]
-  - ["You clicked once", 1]
-  - ["You clicked {{ count }} times"]
 subkeys:
   subkey: "subkey"
   sub_subkeys:
