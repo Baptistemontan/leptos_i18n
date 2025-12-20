@@ -1108,6 +1108,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         A: serde::de::SeqAccess<'de>,
     {
+        self.diag.set_has_ranges();
         // nested ranges are not allowed, the code technically supports it,
         // but it's pointless and probably nobody will ever needs it.
         if std::mem::replace(&mut self.in_range, true) {
