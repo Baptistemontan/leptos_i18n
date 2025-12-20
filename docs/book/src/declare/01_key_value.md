@@ -42,7 +42,6 @@ You can specify multiple kinds of values:
 
 - Literals (String, Numbers, Boolean)
 - Interpolated String
-- Ranges
 - Plurals
 
 The next chapters of this section will cover them, apart from literals, those are self-explanatory.

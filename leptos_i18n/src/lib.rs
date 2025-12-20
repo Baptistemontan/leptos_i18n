@@ -169,6 +169,9 @@ pub mod __private {
     /// Helper trait to make some bounds for dummy code
     pub trait AnyBound {}
     impl<T: ?Sized> AnyBound for T {}
+
+    #[deprecated(since = "0.6.0", note = "Ranges are deprecated, use plurals instead.")]
+    pub fn warn_deprecated_ranges() {}
 }
 
 /// This module contain utilities to create custom ICU providers.

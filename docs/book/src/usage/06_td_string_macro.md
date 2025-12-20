@@ -23,7 +23,7 @@ assert_eq!(
 
 Variables expect anything that implements `Display`.
 
-If the key uses ranges, it expects the type of the count. If you set the type to `f32`, it expects a `f32`.
+If the key uses plurals, it expects the type of the count. If you set the type to `f32`, it expects a `f32`.
 
 Components expect a value that implements `leptos_i18::display::DisplayComponent`. You can find some types made to help with formatting in the `display` module,
 such as `DisplayComp`.

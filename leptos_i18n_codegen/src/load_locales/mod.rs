@@ -42,11 +42,24 @@ pub fn load_locales(
         ..
     } = parsed_locales;
 
-    let diag = emit_diagnostics.then_some(diag);
-
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
     }
+
+    let deprecated_ranges = if diag.has_ranges() {
+        Some(quote! {
+            mod __warn_deprecated_ranges {
+                fn __warn_deprecated_ranges_() {
+                    use super::l_i18n_crate::__private::warn_deprecated_ranges;
+                    warn_deprecated_ranges();
+                }
+            }
+        })
+    } else {
+        None
+    };
+
+    let diag = emit_diagnostics.then_some(diag);
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
@@ -257,6 +270,8 @@ pub fn load_locales(
             #macros_reexport
 
             #diag
+
+            #deprecated_ranges
         }
     })
 }

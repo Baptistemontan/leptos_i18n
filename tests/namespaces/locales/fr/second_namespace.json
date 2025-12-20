@@ -5,10 +5,7 @@
   "subkeys": {
     "subkey_1": "subkey_1",
     "subkey_2": "<b>subkey_2</b>",
-    "subkey_3": [
-      ["zero", 0],
-      ["{{ count }}", "_"]
-    ]
+    "subkey_3": "{{ count }}"
   },
   "foreign_key_to_same_namespace": "before $t(second_namespace:common_key) after",
   "foreign_key_to_another_namespace": "before $t(first_namespace:common_key) after"

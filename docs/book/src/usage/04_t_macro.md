@@ -151,14 +151,6 @@ t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, cou
 
 Basically `<name .../>` expands to `move |children| view! { <name ...>{children}</name> }`
 
-## Ranges
-
-Ranges expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
-
-```rust,ignore
-t!(i18n, key_to_range, count = count);
-```
-
 ## Plurals
 
 Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralsOperands>` ([`PluralsOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `FixedDecimal`.

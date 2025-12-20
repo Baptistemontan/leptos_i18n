@@ -11,8 +11,6 @@ mod formatting;
 #[cfg(test)]
 mod plurals;
 #[cfg(test)]
-mod ranges;
-#[cfg(test)]
 mod scoped;
 #[cfg(test)]
 mod subkeys;

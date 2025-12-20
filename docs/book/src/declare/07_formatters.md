@@ -1,6 +1,6 @@
 # Formatters
 
-For interpolation, every variables (other than `count` for ranges) are expected to be of type `impl IntoView + Clone + 'static`.
+For interpolation, every variables (other than `count` for plurals) are expected to be of type `impl IntoView + Clone + 'static`.
 
 But some values have different ways to be represented based on the locale:
 

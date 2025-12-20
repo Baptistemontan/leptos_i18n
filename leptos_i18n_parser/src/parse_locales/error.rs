@@ -3,7 +3,7 @@ use icu_provider::DataError as IcuDataError;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use std::{
-    cell::{Ref, RefCell},
+    cell::{Cell, Ref, RefCell},
     collections::BTreeSet,
     fmt::{Debug, Display},
     io,
@@ -324,6 +324,7 @@ impl Display for Warning {
 pub struct Diagnostics {
     errors: RefCell<Vec<Error>>,
     warnings: RefCell<Vec<Warning>>,
+    has_ranges: Cell<bool>,
 }
 
 impl Diagnostics {
@@ -351,6 +352,14 @@ impl Diagnostics {
 
     pub fn borrow(&self) -> (Ref<'_, [Error]>, Ref<'_, [Warning]>) {
         (self.errors(), self.warnings())
+    }
+
+    pub fn has_ranges(&self) -> bool {
+        self.has_ranges.get()
+    }
+
+    pub fn set_has_ranges(&self) {
+        self.has_ranges.set(true);
     }
 }
 
