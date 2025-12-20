@@ -11,7 +11,7 @@ Foreign keys let you re-use already declared translations:
 
 This will replace `$t(hello_world)` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
 
-You can point to any key other than ranges and keys containing subkeys.
+You can point to any key other than keys containing subkeys.
 
 To point to subkeys, you give the path by separating the key by `.`: `$t(key.subkey.subsubkey)`.
 
@@ -57,7 +57,7 @@ t!(i18n, interpolated_arg, new_arg = "a value"); // -> "value: a value"
 t!(i18n, foreign_key_arg, new_arg = "a value"); // -> "value: value: a value"
 ```
 
-## `"count"` arg for plurals/ranges
+## `"count"` arg for plurals
 
 If you have a plural like
 
@@ -83,7 +83,7 @@ t!(i18n, new_key, new_count = move || 1); // -> "one item"
 t!(i18n, new_key, new_count = move || 2); // -> "2 items"
 ```
 
-> **note**: for the `count` arg to plurals/ranges, the value provided must be a single variable (whitespaces around are supported though).
+> **note**: for the `count` arg to plurals, the value provided must be a single variable (whitespaces around are supported though).
 
 Or by an actual value:
 
@@ -101,9 +101,9 @@ t!(i18n, multiple_key); // -> "6 items"
 
 > **note**: while floats are supported, they don't carry all the information once deserialized such as leading 0, so some truncation may occur.
 
-## Multiple counts ranges or plurals
+## Multi counts plurals
 
-If you need multiple counts for a plural or a range, for example:
+If you need multiple counts for a plural, like for example:
 
 ```json
 {
@@ -111,7 +111,7 @@ If you need multiple counts for a plural or a range, for example:
 }
 ```
 
-You can use `Foreign keys` to construct a single key from multiple plurals/ranges by overriding their `"count"` variable:
+You can use `Foreign keys` to construct a single key from multiple plurals by overriding their `"count"` variable:
 
 ```json
 {
