@@ -4,12 +4,12 @@ use quote::{quote, ToTokens};
 use tinystr::TinyAsciiStr;
 
 macro_rules! impl_from {
-    ($t: ident, $($variant:ident),*) => {
+    ($t: ident, $($variant:ident $(( $($inner:ident),+ ))? ),*) => {
         impl From<leptos_i18n_parser::utils::formatter::$t> for $t {
             fn from(value: leptos_i18n_parser::utils::formatter::$t) -> Self {
                 match value {
                     $(
-                        leptos_i18n_parser::utils::formatter::$t::$variant => Self::$variant,
+                        leptos_i18n_parser::utils::formatter::$t::$variant $(( $($inner),+ ))? => Self::$variant $(( $(From::from($inner)),+ ))?,
                     )*
                 }
             }
@@ -21,14 +21,14 @@ macro_rules! impl_to_tokens {
     (
         $type_name:ident,
         $path_prefix:expr,
-        { $($variant:ident),+ $(,)? }
+        { $($variant:ident $(( $($inner:ident),+ ))?),+ $(,)? }
     ) => {
         impl ToTokens for $type_name {
             fn to_token_stream(&self) -> TokenStream {
                 match self {
                     $(
-                        $type_name::$variant => {
-                            quote!($path_prefix::$variant)
+                        $type_name::$variant $(( $($inner),+ ))? => {
+                            quote!($path_prefix::$variant $(( $(#$inner),+ ))?)
                         },
                     )+
                 }
@@ -42,6 +42,17 @@ macro_rules! impl_to_tokens {
     };
 }
 
+macro_rules! impl_to_tokens_and_from {
+    (
+        $type_name:ident,
+        $path_prefix:expr,
+        { $($variant:ident $(( $($inner:ident),+ ))?),+ $(,)? }
+    ) => {
+        impl_to_tokens!($type_name, $path_prefix, { $($variant $(( $($inner),+ ))?),+ });
+        impl_from!($type_name, $($variant $(( $($inner),+ ))?),+);
+    };
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum GroupingStrategy {
     Auto,
@@ -50,7 +61,7 @@ pub enum GroupingStrategy {
     Min2,
 }
 
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     GroupingStrategy,
     l_i18n_crate::reexports::icu::decimal::options::GroupingStrategy,
     {
@@ -61,15 +72,13 @@ impl_to_tokens!(
     }
 );
 
-impl_from!(GroupingStrategy, Auto, Never, Always, Min2);
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CurrencyWidth {
     Short,
     Narrow,
 }
 
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     CurrencyWidth,
     l_i18n_crate::reexports::icu::currency::options::Width,
     {
@@ -77,8 +86,6 @@ impl_to_tokens!(
         Narrow
     }
 );
-
-impl_from!(CurrencyWidth, Short, Narrow);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CurrencyCode(pub TinyAsciiStr<3>);
@@ -145,7 +152,7 @@ pub enum DateTimeSubsecondDigits {
     S9 = 9,
 }
 
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     DateTimeLength,
     l_i18n_crate::reexports::icu::datetime::options::Length,
     {
@@ -155,9 +162,7 @@ impl_to_tokens!(
     }
 );
 
-impl_from!(DateTimeLength, Long, Medium, Short);
-
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     DateTimeAlignment,
     l_i18n_crate::reexports::icu::datetime::options::Alignment,
     {
@@ -166,9 +171,7 @@ impl_to_tokens!(
     }
 );
 
-impl_from!(DateTimeAlignment, Auto, Column);
-
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     DateTimeYearStyle,
     l_i18n_crate::reexports::icu::datetime::options::YearStyle,
     {
@@ -178,108 +181,25 @@ impl_to_tokens!(
     }
 );
 
-impl_from!(DateTimeYearStyle, Auto, Full, WithEra);
-
-impl ToTokens for DateTimeTimePrecision {
-    fn to_token_stream(&self) -> TokenStream {
-        match self {
-            DateTimeTimePrecision::Hour => {
-                quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Hour)
-            }
-            DateTimeTimePrecision::Minute => {
-                quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Minute)
-            }
-            DateTimeTimePrecision::Second => {
-                quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Second)
-            }
-            DateTimeTimePrecision::Subsecond(subsecond) => {
-                match subsecond {
-                    DateTimeSubsecondDigits::S1 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S1))
-                    }
-                    DateTimeSubsecondDigits::S2 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S2))
-                    }
-                    DateTimeSubsecondDigits::S3 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S3))
-                    }
-                    DateTimeSubsecondDigits::S4 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S4))
-                    }
-                    DateTimeSubsecondDigits::S5 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S5))
-                    }
-                    DateTimeSubsecondDigits::S6 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S6))
-                    }
-                    DateTimeSubsecondDigits::S7 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S7))
-                    }
-                    DateTimeSubsecondDigits::S8 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S8))
-                    }
-                    DateTimeSubsecondDigits::S9 => {
-                        quote!(l_i18n_crate::reexports::icu::datetime::options::TimePrecision::Subsecond(l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits::S9))
-                    }
-                }
-            }
-            DateTimeTimePrecision::MinuteOptional => {
-                quote!(
-                    l_i18n_crate::reexports::icu::datetime::options::TimePrecision::MinuteOptional
-                )
-            }
-        }
+impl_to_tokens_and_from!(
+    DateTimeSubsecondDigits,
+    l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits,
+    {
+        S1, S2, S3, S4, S5, S6, S7, S8, S9,
     }
+);
 
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ts = Self::to_token_stream(self);
-        tokens.extend(ts);
+impl_to_tokens_and_from!(
+    DateTimeTimePrecision,
+    l_i18n_crate::reexports::icu::datetime::options::TimePrecision,
+    {
+        Hour,
+        Minute,
+        Second,
+        Subsecond(subsecond),
+        MinuteOptional
     }
-}
-
-impl From<leptos_i18n_parser::utils::formatter::DateTimeTimePrecision> for DateTimeTimePrecision {
-    fn from(value: leptos_i18n_parser::utils::formatter::DateTimeTimePrecision) -> Self {
-        match value {
-            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Hour => Self::Hour,
-            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Minute => Self::Minute,
-            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Second => Self::Second,
-            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::Subsecond(subsecond) => {
-                match subsecond {
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S1 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S1)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S2 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S2)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S3 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S3)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S4 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S4)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S5 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S5)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S6 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S6)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S7 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S7)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S8 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S8)
-                    }
-                    leptos_i18n_parser::utils::formatter::DateTimeSubsecondDigits::S9 => {
-                        Self::Subsecond(DateTimeSubsecondDigits::S9)
-                    }
-                }
-            }
-            leptos_i18n_parser::utils::formatter::DateTimeTimePrecision::MinuteOptional => {
-                Self::MinuteOptional
-            }
-        }
-    }
-}
+);
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListType {
@@ -288,7 +208,7 @@ pub enum ListType {
     Unit,
 }
 
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     ListType,
     l_i18n_crate::__private::ListType,
     {
@@ -298,8 +218,6 @@ impl_to_tokens!(
     }
 );
 
-impl_from!(ListType, And, Or, Unit);
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ListStyle {
     Wide,
@@ -307,7 +225,7 @@ pub enum ListStyle {
     Narrow,
 }
 
-impl_to_tokens!(
+impl_to_tokens_and_from!(
     ListStyle,
     l_i18n_crate::reexports::icu::list::options::ListLength,
     {
@@ -316,8 +234,6 @@ impl_to_tokens!(
         Narrow
     }
 );
-
-impl_from!(ListStyle, Wide, Short, Narrow);
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
@@ -338,42 +254,17 @@ pub enum Formatter {
     List(ListType, ListStyle),
 }
 
-impl From<leptos_i18n_parser::utils::formatter::Formatter> for Formatter {
-    fn from(value: leptos_i18n_parser::utils::formatter::Formatter) -> Self {
-        match value {
-            leptos_i18n_parser::utils::formatter::Formatter::None => Self::None,
-            leptos_i18n_parser::utils::formatter::Formatter::Dummy => Self::Dummy,
-            leptos_i18n_parser::utils::formatter::Formatter::Currency(width, code) => {
-                Self::Currency(width.into(), code.into())
-            }
-            leptos_i18n_parser::utils::formatter::Formatter::Number(grouping_strategy) => {
-                Self::Number(grouping_strategy.into())
-            }
-            leptos_i18n_parser::utils::formatter::Formatter::Date(length, aligment, year_style) => {
-                Self::Date(length.into(), aligment.into(), year_style.into())
-            }
-            leptos_i18n_parser::utils::formatter::Formatter::Time(
-                length,
-                alignment,
-                time_precision,
-            ) => Self::Time(length.into(), alignment.into(), time_precision.into()),
-            leptos_i18n_parser::utils::formatter::Formatter::DateTime(
-                length,
-                alignment,
-                time_precision,
-                year_style,
-            ) => Self::DateTime(
-                length.into(),
-                alignment.into(),
-                time_precision.into(),
-                year_style.into(),
-            ),
-            leptos_i18n_parser::utils::formatter::Formatter::List(list_type, list_style) => {
-                Self::List(list_type.into(), list_style.into())
-            }
-        }
-    }
-}
+impl_from!(
+    Formatter,
+    Dummy,
+    None,
+    Currency(width, code),
+    Number(strat),
+    Date(len, align, style),
+    Time(len, align, precision),
+    DateTime(len, align, precision, style),
+    List(list_type, style)
+);
 
 impl Formatter {
     pub fn var_to_view(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
