@@ -186,7 +186,6 @@ jobs:
             counter,
             counter_icu_datagen,
             counter_plurals,
-            counter_ranges,
             interpolation,
             namespaces,
             subkeys,
