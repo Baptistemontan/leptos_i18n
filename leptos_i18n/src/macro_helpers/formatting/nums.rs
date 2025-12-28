@@ -28,7 +28,9 @@ pub trait IntoFixedDecimal: Clone {
 }
 
 // T: Into<Decimal>
-impl_into_fixed_decimal!(usize, u8, u16, u32, u64, u128, isize, i8, i16, i32, i64, i128, Decimal);
+impl_into_fixed_decimal!(
+    usize, u8, u16, u32, u64, u128, isize, i8, i16, i32, i64, i128, Decimal
+);
 
 impl IntoFixedDecimal for f32 {
     fn to_fixed_decimal(self) -> Decimal {

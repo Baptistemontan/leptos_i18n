@@ -36,11 +36,7 @@ pub fn signal_once_then<T: Clone + PartialEq + Send + Sync + 'static>(
 ) -> Memo<T> {
     Memo::new(move |init| {
         let then = then.get();
-        if init.is_none() {
-            start.clone()
-        } else {
-            then
-        }
+        if init.is_none() { start.clone() } else { then }
     })
 }
 

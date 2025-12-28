@@ -9,14 +9,14 @@ use std::{
 
 use leptos::{either::Either, ev, prelude::*};
 use leptos_router::{
+    ChooseView, MatchInterface, MatchNestedRoutes, MatchParams, NavigateOptions, NestedRoute,
+    PathSegment, PossibleRouteMatch, SsrMode, StaticSegment,
     components::*,
     hooks::{use_location, use_navigate},
     location::Location,
-    ChooseView, MatchInterface, MatchNestedRoutes, MatchParams, NavigateOptions, NestedRoute,
-    PathSegment, PossibleRouteMatch, SsrMode, StaticSegment,
 };
 
-use leptos_i18n::{use_i18n_context, I18nContext, Locale};
+use leptos_i18n::{I18nContext, Locale, use_i18n_context};
 
 // this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
 
@@ -43,11 +43,7 @@ impl<'a> PathBuilder<'a> {
 
     pub fn build(&self) -> String {
         let s = self.0.join("/");
-        if s.is_empty() {
-            "/".to_owned()
-        } else {
-            s
-        }
+        if s.is_empty() { "/".to_owned() } else { s }
     }
 }
 

@@ -2,7 +2,7 @@ use leptos::component;
 use leptos_i18n::Locale;
 #[cfg(erase_components)]
 use leptos_router::any_nested_route::IntoAnyNestedRoute;
-use leptos_router::{components::RouteChildren, ChooseView, MatchNestedRoutes, SsrMode};
+use leptos_router::{ChooseView, MatchNestedRoutes, SsrMode, components::RouteChildren};
 use std::marker::PhantomData;
 
 #[component(transparent)]

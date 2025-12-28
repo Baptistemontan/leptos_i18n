@@ -4,24 +4,25 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 pub use datamarker::FormatterOptions;
-pub use leptos_i18n_parser::parse_locales::options::{parser, FileFormat, ParseOptions};
+pub use leptos_i18n_parser::parse_locales::options::{FileFormat, ParseOptions, parser};
 
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
 use icu_provider_export::{
-    baked_exporter::{self, BakedExporter},
     DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
+    baked_exporter::{self, BakedExporter},
 };
 use icu_provider_source::SourceDataProvider;
 use leptos_i18n_parser::parse_locales::{
+    ParsedLocales,
     error::Result,
     locale::{BuildersKeys, Locale},
-    parse_locales, ParsedLocales,
+    parse_locales,
 };
 use std::{
     collections::HashSet,
     fmt::{Display, Write},
-    fs::{create_dir_all, File},
+    fs::{File, create_dir_all},
     io::BufWriter,
     path::PathBuf,
     rc::Rc,
@@ -360,11 +361,11 @@ fn write_locales_to_dir<'a>(
 }
 
 impl<
-        'a,
-        N: Iterator<Item = NamespaceTranslations<'a, NL>>,
-        NL: Iterator<Item = LocaleTranslations<'a>>,
-        L: Iterator<Item = LocaleTranslations<'a>>,
-    > TranslationsType<N, L>
+    'a,
+    N: Iterator<Item = NamespaceTranslations<'a, NL>>,
+    NL: Iterator<Item = LocaleTranslations<'a>>,
+    L: Iterator<Item = LocaleTranslations<'a>>,
+> TranslationsType<N, L>
 {
     /// Write the translations in the given directory
     pub fn write_to_dir<P: Into<PathBuf>>(self, path: P) -> std::io::Result<()> {

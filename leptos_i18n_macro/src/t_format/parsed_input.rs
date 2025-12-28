@@ -3,9 +3,9 @@ use std::fmt::Display;
 use leptos_i18n_codegen::utils::formatter::Formatter;
 use quote::ToTokens;
 use syn::{
+    Expr, Ident, Token,
     parse::{ParseBuffer, ParseStream},
     token::Comma,
-    Expr, Ident, Token,
 };
 
 pub struct ParsedInput {

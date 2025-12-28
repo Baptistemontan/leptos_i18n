@@ -9,21 +9,21 @@ pub mod ranges;
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
     parse_locales::{
+        ParsedLocales,
         error::{Error, Result},
         locale::{BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue, Namespace},
         options::ParseOptions,
         parsed_value::ParsedValue,
-        ParsedLocales,
     },
     utils::{
-        key::{Key, KeyPath},
         UnwrapAt,
+        key::{Key, KeyPath},
     },
 };
 use locale::LiteralType;
 use parsed_value::TRANSLATIONS_KEY;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
 pub fn load_locales(
     parsed_locales: &ParsedLocales,

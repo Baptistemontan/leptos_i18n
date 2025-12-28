@@ -1,4 +1,4 @@
-use tinystr::{tinystr, TinyAsciiStr};
+use tinystr::{TinyAsciiStr, tinystr};
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Formatter {
@@ -178,12 +178,24 @@ impl Formatter {
         match self {
             Formatter::None => "",
             Formatter::Dummy => "", // never used as err code
-            Formatter::Number(_) => "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so",
-            Formatter::Currency(_, _) => "Formatting currencies is not enabled, enable the \"format_currency\" feature to do so",
-            Formatter::Date(_, _, _) => "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::Time(_, _, _) => "Formatting time is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::DateTime(_, _, _, _) => "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so",
-            Formatter::List(_, _) => "Formatting lists is not enabled, enable the \"format_list\" feature to do so",
+            Formatter::Number(_) => {
+                "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so"
+            }
+            Formatter::Currency(_, _) => {
+                "Formatting currencies is not enabled, enable the \"format_currency\" feature to do so"
+            }
+            Formatter::Date(_, _, _) => {
+                "Formatting dates is not enabled, enable the \"format_datetime\" feature to do so"
+            }
+            Formatter::Time(_, _, _) => {
+                "Formatting time is not enabled, enable the \"format_datetime\" feature to do so"
+            }
+            Formatter::DateTime(_, _, _, _) => {
+                "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so"
+            }
+            Formatter::List(_, _) => {
+                "Formatting lists is not enabled, enable the \"format_list\" feature to do so"
+            }
         }
     }
 }

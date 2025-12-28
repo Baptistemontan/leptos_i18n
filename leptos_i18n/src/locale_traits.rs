@@ -101,8 +101,8 @@ pub trait Locale<L: Locale = Self>:
             leptos::prelude::ServerFnError,
         >,
     > + Send
-           + Sync
-           + 'static;
+    + Sync
+    + 'static;
 
     /// Init the translation unit of the given ID with the given values
     #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]

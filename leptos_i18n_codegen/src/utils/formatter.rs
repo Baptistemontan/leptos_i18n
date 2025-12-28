@@ -1,6 +1,6 @@
 use leptos_i18n_parser::utils::Key;
 use proc_macro2::{Literal, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use tinystr::TinyAsciiStr;
 
 macro_rules! impl_from {

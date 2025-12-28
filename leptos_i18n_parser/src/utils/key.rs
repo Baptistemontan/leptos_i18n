@@ -1,6 +1,6 @@
 use crate::parse_locales::{
-    error::{Error, Result},
     VAR_COUNT_KEY,
+    error::{Error, Result},
 };
 use std::{
     fmt::{Debug, Display},

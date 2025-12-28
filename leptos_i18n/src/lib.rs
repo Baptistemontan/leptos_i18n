@@ -139,7 +139,7 @@ pub use macro_helpers::formatting;
 
 pub use locale_traits::{Direction, Locale, LocaleKeys};
 
-pub use context::{use_i18n_context, I18nContext};
+pub use context::{I18nContext, use_i18n_context};
 
 #[allow(deprecated)]
 pub use context::provide_i18n_context;

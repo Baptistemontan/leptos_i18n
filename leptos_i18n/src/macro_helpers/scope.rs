@@ -1,4 +1,4 @@
-use crate::{scopes::ScopedLocale, ConstScope, I18nContext, Locale, Scope};
+use crate::{ConstScope, I18nContext, Locale, Scope, scopes::ScopedLocale};
 
 #[doc(hidden)]
 pub const fn scope_ctx_util<L: Locale, OS: Scope<L>, NS: Scope<L>>(

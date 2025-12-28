@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use super::data_provider::IcuDataProvider;
-use icu_list::{options::ListLength, ListFormatter};
+use icu_list::{ListFormatter, options::ListLength};
 use leptos::IntoView;
 use writeable::Writeable;
 

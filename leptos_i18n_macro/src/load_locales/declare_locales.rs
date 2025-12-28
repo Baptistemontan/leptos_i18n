@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, fmt::Display};
 
 use leptos_i18n_parser::{
     parse_locales::{
+        ForeignKeysPaths, ParsedLocales,
         cfg_file::ConfigFile,
         error::Diagnostics,
         locale::{Locale, LocalesOrNamespaces},
@@ -11,15 +12,14 @@ use leptos_i18n_parser::{
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
-        ForeignKeysPaths, ParsedLocales,
     },
     utils::{Key, KeyPath},
 };
 use proc_macro2::Span;
 use quote::ToTokens;
 use syn::{
-    parse::ParseBuffer, parse_macro_input, punctuated::Punctuated, token::Comma, Ident, Lit,
-    LitStr, Token,
+    Ident, Lit, LitStr, Token, parse::ParseBuffer, parse_macro_input, punctuated::Punctuated,
+    token::Comma,
 };
 
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -392,7 +392,7 @@ impl syn::parse::Parse for ParsedInput {
         match locales_iter.next() {
             None => return emit_err(loc_ident, "missing locales."),
             Some(l) if Key::new(&l.value()).as_ref() != Some(&default) => {
-                return emit_err(l, "first locale should be the same as the default.")
+                return emit_err(l, "first locale should be the same as the default.");
             }
             _ => {}
         }
