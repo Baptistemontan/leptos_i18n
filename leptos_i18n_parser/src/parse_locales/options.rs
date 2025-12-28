@@ -18,6 +18,7 @@ pub enum FileFormat {
     Json,
     Json5,
     Yaml,
+    Toml,
     Custom(Arc<dyn Parser>),
 }
 
@@ -27,6 +28,7 @@ impl Debug for FileFormat {
             FileFormat::Json => f.write_str("Json"),
             FileFormat::Json5 => f.write_str("Json5"),
             FileFormat::Yaml => f.write_str("Yaml"),
+            FileFormat::Toml => f.write_str("Toml"),
             FileFormat::Custom(..) => f.debug_tuple("Custom").finish(),
         }
     }
@@ -90,6 +92,7 @@ impl FileFormat {
             FileFormat::Json => &["json"],
             FileFormat::Json5 => &["json5"],
             FileFormat::Yaml => &["yaml", "yml"],
+            FileFormat::Toml => &["toml"],
             FileFormat::Custom(parser) => parser.file_extensions(),
         }
     }
@@ -104,6 +107,7 @@ impl FileFormat {
             FileFormat::Json => de_json(locale_file, seed),
             FileFormat::Json5 => de_json5(locale_file, seed),
             FileFormat::Yaml => de_yaml(locale_file, seed),
+            FileFormat::Toml => de_toml(locale_file, seed),
             FileFormat::Custom(parser) => parser::de_custom(&**parser, locale_file, path, seed),
         }
     }
@@ -124,6 +128,15 @@ fn de_json5<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, Ser
 fn de_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
     let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
     serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Yaml)
+}
+
+fn de_toml<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let mut buf = String::new();
+    locale_file
+        .read_to_string(&mut buf)
+        .map_err(SerdeError::Io)?;
+    let deserializer = toml::Deserializer::parse(&buf).map_err(SerdeError::Toml)?;
+    serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Toml)
 }
 
 pub mod parser {

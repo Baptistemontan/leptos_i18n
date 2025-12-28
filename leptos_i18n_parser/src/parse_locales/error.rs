@@ -222,8 +222,8 @@ impl Display for Error {
             Error::PluralsAtNormalKey { key_path, locale } => write!(f, "In locale {locale:?} at key \"{key_path}\", Found plurals but a key of that name is already present."),
             Error::DisabledFormatter { locale, key_path, formatter } => write!(f, "{}, at key \"{}\" in locale {:?}", formatter.err_message(), key_path, locale),
             Error::DisabledPlurals { locale, key_path } => write!(f, "Plurals are not enabled, enable the \"plurals\" feature to use them, at key \"{key_path}\" in locale {locale:?}"),
-            Error::NoFileFormats => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
-            Error::MultipleFilesFormats => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
+            Error::NoFileFormats => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5, yaml and toml."),
+            Error::MultipleFilesFormats => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5, yaml and toml."),
             Error::InvalidLocale {
                 locale,
                 err

@@ -12,19 +12,22 @@ use std::{
     rc::Rc,
 };
 
-use super::cfg_file::ConfigFile;
-use super::error::{Diagnostics, Error, Result, Warning};
-use super::parsed_value::{ParsedValue, ParsedValueSeed};
-use super::plurals::{PluralForm, PluralRuleType, Plurals};
-use super::ranges::RangeType;
+use super::{
+    cfg_file::ConfigFile,
+    error::{Diagnostics, Error, Result, Warning},
+    parsed_value::{ParsedValue, ParsedValueSeed},
+    plurals::{PluralForm, PluralRuleType, Plurals},
+    ranges::RangeType,
+    ForeignKeysPaths, StringIndexer,
+};
 // use super::warning::{Warning, Warnings};
-use super::{ForeignKeysPaths, StringIndexer};
 
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum SerdeError {
     Json(serde_json::Error),
     Yaml(serde_yaml::Error),
+    Toml(toml::de::Error),
     Json5(json5::Error),
     Custom(String),
     Io(std::io::Error),
@@ -35,6 +38,7 @@ impl std::fmt::Display for SerdeError {
         match self {
             SerdeError::Json(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Yaml(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Toml(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Json5(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Io(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Custom(err) => std::fmt::Display::fmt(err, f),
