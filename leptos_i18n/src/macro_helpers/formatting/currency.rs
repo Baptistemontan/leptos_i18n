@@ -1,7 +1,7 @@
 use super::{IntoFixedDecimal, NumberFormatterInputFn};
 use crate::Locale;
 use core::fmt::{self, Display};
-use icu_experimental::dimension::currency::{options::Width as CurrencyWidth, CurrencyCode};
+use icu_experimental::dimension::currency::{CurrencyCode, options::Width as CurrencyWidth};
 use leptos::IntoView;
 
 use serde::{Deserialize, Serialize};

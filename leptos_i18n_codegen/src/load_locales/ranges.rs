@@ -9,7 +9,7 @@ use leptos_i18n_parser::{
     utils::{Key, KeyPath, UnwrapAt},
 };
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::{load_locales::parsed_value, utils::EitherOfWrapper};
 

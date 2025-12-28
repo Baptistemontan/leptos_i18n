@@ -7,15 +7,15 @@ use leptos::{
     prelude::*,
     tachys::{html::directive::IntoDirective, reactive_graph::OwnedView},
 };
-use leptos_meta::{provide_meta_context, Html};
+use leptos_meta::{Html, provide_meta_context};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
 
 use crate::{
+    Scope,
     fetch_locale::{self, signal_maybe_once_then},
     locale_traits::*,
     scopes::ConstScope,
-    Scope,
 };
 
 pub use leptos_use::UseLocalesOptions;

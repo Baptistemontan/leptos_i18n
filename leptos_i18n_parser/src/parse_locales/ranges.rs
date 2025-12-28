@@ -12,10 +12,10 @@ use crate::{
 };
 
 use super::{
+    StringIndexer,
     error::{Error, Result},
     locale::{InterpolOrLit, LocalesOrNamespaces},
     parsed_value::{ParsedValue, ParsedValueSeed},
-    StringIndexer,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -201,10 +201,10 @@ impl<T: RangeNumber> Range<T> {
             if let Some(start) = start {
                 match end {
                     Bound::Excluded(end) if end <= start => {
-                        return Err(Error::ImpossibleRange(s.to_string()).into())
+                        return Err(Error::ImpossibleRange(s.to_string()).into());
                     }
                     Bound::Included(end) if end < start => {
-                        return Err(Error::ImpossibleRange(s.to_string()).into())
+                        return Err(Error::ImpossibleRange(s.to_string()).into());
                     }
                     _ => {}
                 }

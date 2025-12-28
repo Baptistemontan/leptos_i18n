@@ -1,4 +1,4 @@
-use syn::{token::Comma, Expr};
+use syn::{Expr, token::Comma};
 
 use leptos_i18n_codegen::utils::Keys;
 

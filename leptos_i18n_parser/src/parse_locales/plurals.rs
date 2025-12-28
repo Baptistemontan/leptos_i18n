@@ -10,9 +10,9 @@ use icu_plurals::{
 };
 
 use super::{
+    StringIndexer,
     error::{Error, Result, Warning},
     parsed_value::Literal,
-    StringIndexer,
 };
 use crate::{
     parse_locales::error::Diagnostics,
@@ -164,7 +164,7 @@ impl Plurals {
                         key_path: key_path.to_owned(),
                         foreign_key: foreign_key.to_owned(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }
@@ -186,7 +186,7 @@ impl Plurals {
                         key_path: key_path.to_owned(),
                         foreign_key: foreign_key.to_owned(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }
@@ -225,7 +225,13 @@ impl Plurals {
                 return self.populate_with_new_key(new_key, args, foreign_key, locale, key_path);
             }
             ParsedValue::Variable { key, .. } => {
-                return self.populate_with_new_key(key.clone(), args, foreign_key, locale, key_path)
+                return self.populate_with_new_key(
+                    key.clone(),
+                    args,
+                    foreign_key,
+                    locale,
+                    key_path,
+                );
             }
             _ => {
                 return Err(Error::InvalidCountArg {
@@ -233,7 +239,7 @@ impl Plurals {
                     key_path: key_path.to_owned(),
                     foreign_key: foreign_key.to_owned(),
                 }
-                .into())
+                .into());
             }
         };
 

@@ -1,6 +1,6 @@
 use crate::utils::{fit_in_leptos_tuple, formatter::Formatter};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use leptos_i18n_parser::{
     parse_locales::parsed_value::ParsedValue,

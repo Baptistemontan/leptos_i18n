@@ -12,9 +12,9 @@ pub trait InterpolateComp<O: IntoView + 'static>:
 }
 
 impl<
-        O: IntoView + 'static,
-        T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync,
-    > InterpolateComp<O> for T
+    O: IntoView + 'static,
+    T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync,
+> InterpolateComp<O> for T
 {
 }
 

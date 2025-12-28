@@ -1,4 +1,4 @@
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralType {

@@ -3,8 +3,8 @@
 //!
 //! I then specialized it for the use case of this crate.
 use icu_locale::{
-    subtags::{Language, Variant},
     LanguageIdentifier,
+    subtags::{Language, Variant},
 };
 
 use crate::Locale;

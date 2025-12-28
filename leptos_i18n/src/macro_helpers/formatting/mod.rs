@@ -22,12 +22,11 @@ pub use date::*;
 pub use datetime::*;
 #[cfg(feature = "format_datetime")]
 use icu_datetime::{
-    fieldsets,
+    DateTimeFormatter, DateTimeFormatterLoadError, NoCalendarFormatter, fieldsets,
     options::{Alignment, Length, TimePrecision, YearStyle},
-    DateTimeFormatter, DateTimeFormatterLoadError, NoCalendarFormatter,
 };
 #[cfg(feature = "format_list")]
-use icu_list::{options::ListLength, ListFormatter};
+use icu_list::{ListFormatter, options::ListLength};
 #[cfg(feature = "plurals")]
 use icu_plurals::{PluralRuleType, PluralRules};
 #[cfg(feature = "format_list")]
@@ -46,11 +45,11 @@ pub use time::*;
 ))]
 use crate::Locale;
 #[cfg(feature = "format_nums")]
+use icu_decimal::DecimalFormatter;
+#[cfg(feature = "format_nums")]
 use icu_decimal::options::DecimalFormatterOptions;
 #[cfg(feature = "format_nums")]
 use icu_decimal::options::GroupingStrategy;
-#[cfg(feature = "format_nums")]
-use icu_decimal::DecimalFormatter;
 #[cfg(feature = "format_currency")]
 use icu_experimental::dimension::currency::formatter::CurrencyFormatter;
 #[cfg(feature = "format_currency")]

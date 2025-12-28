@@ -1,6 +1,6 @@
 use proc_macro2::{TokenStream, TokenTree};
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use syn::{buffer::Cursor, parse::ParseBuffer, Expr, Ident, Token};
+use quote::{ToTokens, TokenStreamExt, format_ident, quote};
+use syn::{Expr, Ident, Token, buffer::Cursor, parse::ParseBuffer};
 
 pub enum InterpolatedValue {
     // form t!(i18n, key, count)

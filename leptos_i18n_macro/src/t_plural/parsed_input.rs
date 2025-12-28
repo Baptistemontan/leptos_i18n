@@ -1,7 +1,7 @@
 use proc_macro2::Span;
 use quote::ToTokens;
 use std::{collections::BTreeMap, fmt::Display};
-use syn::{parse::ParseBuffer, spanned::Spanned, token::Comma, Expr, Ident, Token};
+use syn::{Expr, Ident, Token, parse::ParseBuffer, spanned::Spanned, token::Comma};
 
 use leptos_i18n_codegen::load_locales::plurals::PluralForm;
 
@@ -41,7 +41,10 @@ fn parse_plural_form(input: &ParseBuffer) -> syn::Result<(Option<PluralForm>, Ex
     } else if ident == "other" {
         PluralForm::Other
     } else {
-        return emit_err(ident, "Unknown form. Allowed forms are \"zero\", \"one\", \"two\", \"few\", \"many\", \"other\" and \"_\" fallback.");
+        return emit_err(
+            ident,
+            "Unknown form. Allowed forms are \"zero\", \"one\", \"two\", \"few\", \"many\", \"other\" and \"_\" fallback.",
+        );
     };
     Ok((Some(form), block, ident.span()))
 }

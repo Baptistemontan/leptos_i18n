@@ -9,13 +9,13 @@ use leptos_i18n_parser::{
     utils::{Key, KeyPath, UnwrapAt},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 
 use super::parsed_value;
 // use super::parsed_value::InterpolationKeys;
 // use super::parsed_value::RangeOrPlural;
 use super::{parsed_value::TRANSLATIONS_KEY, ranges::RangeType, strings_accessor_method_name};
-use crate::utils::{formatter::Formatter, EitherOfWrapper};
+use crate::utils::{EitherOfWrapper, formatter::Formatter};
 
 pub const LOCALE_FIELD_KEY: &str = "_locale";
 

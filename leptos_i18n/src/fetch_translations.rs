@@ -19,8 +19,8 @@ pub trait TranslationUnit: Sized {
     fn get_strings_lock() -> &'static OnceCell<Box<Self::Strings>>;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn request_strings(
-    ) -> impl std::future::Future<Output = &'static Self::Strings> + Send + Sync + 'static {
+    fn request_strings()
+    -> impl std::future::Future<Output = &'static Self::Strings> + Send + Sync + 'static {
         let string_lock = Self::get_strings_lock();
         let fut = string_lock.get_or_init(async {
             let translations = Locale::request_translations(Self::LOCALE, Self::ID)

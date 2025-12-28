@@ -2,10 +2,10 @@ use serde::de::MapAccess;
 
 use crate::{
     parse_locales::options::{FileFormat, ParseOptions},
-    utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
+    utils::{Key, KeyPath, UnwrapAt, formatter::Formatter},
 };
 use std::{
-    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet, btree_map::Entry},
     fs::File,
     io::BufReader,
     path::{Path, PathBuf},
@@ -13,12 +13,12 @@ use std::{
 };
 
 use super::{
+    ForeignKeysPaths, StringIndexer,
     cfg_file::ConfigFile,
     error::{Diagnostics, Error, Result, Warning},
     parsed_value::{ParsedValue, ParsedValueSeed},
     plurals::{PluralForm, PluralRuleType, Plurals},
     ranges::RangeType,
-    ForeignKeysPaths, StringIndexer,
 };
 // use super::warning::{Warning, Warnings};
 
@@ -508,8 +508,10 @@ impl Locale {
                     return None;
                 };
                 match subkeys {
-                    None => unreachable!("called get_value_at on empty subkeys. If you got this error please open an issue on github."),
-                    Some(subkeys) => subkeys.get_value_at(path)
+                    None => unreachable!(
+                        "called get_value_at on empty subkeys. If you got this error please open an issue on github."
+                    ),
+                    Some(subkeys) => subkeys.get_value_at(path),
                 }
             }
         }

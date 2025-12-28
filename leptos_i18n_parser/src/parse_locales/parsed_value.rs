@@ -1,16 +1,17 @@
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display};
 
 use serde::{
-    de::{value::MapAccessDeserializer, DeserializeSeed, Visitor},
     Deserialize,
+    de::{DeserializeSeed, Visitor, value::MapAccessDeserializer},
 };
 
 use crate::{
     parse_locales::options::ParseOptions,
-    utils::{formatter::Formatter, Key, KeyPath, UnwrapAt},
+    utils::{Key, KeyPath, UnwrapAt, formatter::Formatter},
 };
 
 use super::{
+    ForeignKeysPaths, StringIndexer,
     error::{Diagnostics, Error, Result},
     locale::{
         DefaultTo, DefaultedLocales, InterpolOrLit, InterpolationKeys, LiteralType, Locale,
@@ -18,7 +19,6 @@ use super::{
     },
     plurals::Plurals,
     ranges::Ranges,
-    ForeignKeysPaths, StringIndexer,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -235,7 +235,7 @@ impl ParsedValue {
                     key_path: key_path.clone(),
                     err,
                 }
-                .into())
+                .into());
             }
         };
         let mut parsed_args = BTreeMap::new();
@@ -273,7 +273,7 @@ impl ParsedValue {
                                 key_path: key_path.clone(),
                                 message: "malformed foreign key".to_string(),
                             }
-                            .into())
+                            .into());
                         }
                     };
                     if depth == 0 {
@@ -686,7 +686,9 @@ impl ParsedValue {
             // Both subkeys
             (ParsedValue::Subkeys(loc), LocaleValue::Subkeys { locales, keys }) => {
                 let Some(mut loc) = loc.take() else {
-                    unreachable!("merge called twice on Subkeys. If you got this error please open a issue on github.");
+                    unreachable!(
+                        "merge called twice on Subkeys. If you got this error please open a issue on github."
+                    );
                 };
                 loc.merge(
                     keys, top_locale, default_to, key_path, strings, diag, options,
@@ -770,7 +772,9 @@ impl ParsedValue {
                 }
             }
             ParsedValue::Subkeys(None) => {
-                unreachable!("called reduce on empty subkeys. If you got this error please open an issue on github.")
+                unreachable!(
+                    "called reduce on empty subkeys. If you got this error please open an issue on github."
+                )
             }
             ParsedValue::Bloc(values) => {
                 for value in std::mem::take(values) {
@@ -840,7 +844,9 @@ impl ParsedValue {
         match self {
             ParsedValue::Subkeys(locale) => {
                 let Some(mut locale) = locale.take() else {
-                    unreachable!("make_locale_value called twice on Subkeys. If you got this error please open a issue on github.")
+                    unreachable!(
+                        "make_locale_value called twice on Subkeys. If you got this error please open a issue on github."
+                    )
                 };
                 let keys = locale.make_builder_keys(key_path, strings)?;
                 Ok(LocaleValue::Subkeys {
@@ -982,21 +988,30 @@ impl ForeignKey {
 
     pub fn into_inner(self, call_site: &str) -> ParsedValue {
         match self {
-            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (into_inner).", call_site),
+            ForeignKey::NotSet(_, _) => unreachable!(
+                "called {} on unresolved foreign key. If you got this error please open an issue on github (into_inner).",
+                call_site
+            ),
             ForeignKey::Set(inner) => *inner,
         }
     }
 
     pub fn as_inner(&self, call_site: &str) -> &ParsedValue {
         match self {
-            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner).", call_site),
+            ForeignKey::NotSet(_, _) => unreachable!(
+                "called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner).",
+                call_site
+            ),
             ForeignKey::Set(inner) => inner,
         }
     }
 
     pub fn as_inner_mut(&mut self, call_site: &str) -> &mut ParsedValue {
         match self {
-            ForeignKey::NotSet(_, _) => unreachable!("called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner_mut).", call_site),
+            ForeignKey::NotSet(_, _) => unreachable!(
+                "called {} on unresolved foreign key. If you got this error please open an issue on github (as_inner_mut).",
+                call_site
+            ),
             ForeignKey::Set(inner) => inner,
         }
     }
