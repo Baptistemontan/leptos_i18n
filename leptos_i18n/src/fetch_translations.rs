@@ -172,7 +172,7 @@ mod register {
                 .iter()
                 .map(|((locale, id), values)| TranslationOut {
                     locale: locale.as_str(),
-                    id: TranslationUnitId::to_str(*id),
+                    id: id.to_str(),
                     values,
                 })
                 .collect();
@@ -193,6 +193,7 @@ pub use register::RegisterCtx;
 
 #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
 pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
+    use crate::locale_traits::TranslationUnitId;
     use leptos::{html::InnerHtmlAttribute, view, web_sys};
     use wasm_bindgen::UnwrapThrowExt;
 
@@ -223,10 +224,14 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     let json = {
         let entries: Vec<TranslationOut<'_>> = translations
             .iter()
-            .map(|t| TranslationOut {
-                locale: t.locale.as_str(),
-                id: crate::locale_traits::TranslationUnitId::to_str(t.id),
-                values: &t.values,
+            .map(|TranslationIn { locale, id, values }| {
+                L::init_translations(*locale, *id, values.clone());
+
+                TranslationOut {
+                    locale: locale.as_str(),
+                    id: id.to_str(),
+                    values,
+                }
             })
             .collect();
         serde_json::to_string(&entries).unwrap_throw()
@@ -236,10 +241,6 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     buf.push_str(JS_PREFIX);
     buf.push_str(&json);
     buf.push(';');
-
-    for TranslationIn { locale, id, values } in translations {
-        L::init_translations(locale, id, values);
-    }
 
     view! { <script inner_html=buf /> }
 }
