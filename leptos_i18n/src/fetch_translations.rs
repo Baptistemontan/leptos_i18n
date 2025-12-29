@@ -157,35 +157,28 @@ mod register {
         }
 
         pub fn to_array(&self) -> String {
-            let mut buff = String::from("window.__LEPTOS_I18N_TRANSLATIONS = [");
-            let inner_guard = self.0.lock().unwrap();
-            let mut first = true;
-            for ((locale, id), values) in &*inner_guard {
-                if !std::mem::replace(&mut first, false) {
-                    buff.push(',');
-                }
-                buff.push_str("{\"locale\":\"");
-                buff.push_str(locale.as_str());
-                if let Some(id_str) = TranslationUnitId::to_str(*id) {
-                    buff.push_str("\",\"id\":\"");
-                    buff.push_str(id_str);
-                    buff.push_str("\",\"values\":[");
-                } else {
-                    buff.push_str("\",\"id\":null,\"values\":[");
-                }
-                let mut first = true;
-                for value in *values {
-                    if !std::mem::replace(&mut first, false) {
-                        buff.push(',');
-                    }
-                    buff.push('\"');
-                    buff.push_str(value);
-                    buff.push('\"');
-                }
-                buff.push_str("]}");
+            #[derive(serde::Serialize)]
+            struct TranslationEntry<'a> {
+                locale: &'a str,
+                id: Option<&'a str>,
+                values: &'a [&'a str],
             }
-            buff.push_str("];");
-            buff
+
+            let inner_guard = self.0.lock().unwrap();
+
+            let entries: Vec<TranslationEntry<'_>> = inner_guard
+                .iter()
+                .map(|((locale, id), values)| TranslationEntry {
+                    locale: locale.as_str(),
+                    id: TranslationUnitId::to_str(*id),
+                    values,
+                })
+                .collect();
+
+            let mut result = String::from("window.__LEPTOS_I18N_TRANSLATIONS = ");
+            result.push_str(&serde_json::to_string(&entries).unwrap());
+            result.push(';');
+            result
         }
     }
 }
@@ -245,7 +238,5 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
 
     buff.push_str("];");
 
-    view! {
-        <script inner_html = buff />
-    }
+    view! { <script inner_html=buff /> }
 }
