@@ -127,24 +127,8 @@ impl<'de> serde::Deserialize<'de> for LocaleServerFnOutputClient {
     }
 }
 
-#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+#[cfg(all(feature = "dynamic_load", any(feature = "hydrate", feature = "ssr")))]
 const JS_PREFIX: &str = "window.__LEPTOS_I18N_TRANSLATIONS=";
-
-#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
-#[derive(serde::Serialize)]
-struct TranslationOut<'a> {
-    locale: &'a str,
-    id: Option<&'a str>,
-    values: &'a [&'a str],
-}
-
-#[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-#[derive(Deserialize)]
-struct TranslationIn<L, Id> {
-    locale: L,
-    id: Id,
-    values: Vec<Box<str>>,
-}
 
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
 mod register {
@@ -176,6 +160,12 @@ mod register {
         }
 
         pub fn to_array(&self) -> String {
+            #[derive(serde::Serialize)]
+            struct TranslationOut<'a> {
+                locale: &'a str,
+                id: Option<&'a str>,
+                values: &'a [&'a str],
+            }
             let inner_guard = self.0.lock().unwrap();
 
             let entries: Vec<TranslationOut<'_>> = inner_guard
@@ -202,7 +192,24 @@ mod register {
 pub use register::RegisterCtx;
 
 #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-pub fn init_translations<L: Locale>() -> impl IntoView {
+pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
+    use leptos::{html::InnerHtmlAttribute, view, web_sys};
+    use wasm_bindgen::UnwrapThrowExt;
+
+    #[derive(serde::Serialize)]
+    struct TranslationOut<'a> {
+        locale: &'a str,
+        id: Option<&'a str>,
+        values: &'a [Box<str>],
+    }
+
+    #[derive(serde::Deserialize)]
+    struct TranslationIn<L, Id> {
+        locale: L,
+        id: Id,
+        values: Vec<Box<str>>,
+    }
+
     let translations = js_sys::Reflect::get(
         &web_sys::window().unwrap_throw(),
         &wasm_bindgen::JsValue::from_str("__LEPTOS_I18N_TRANSLATIONS"),
@@ -230,8 +237,8 @@ pub fn init_translations<L: Locale>() -> impl IntoView {
     buf.push_str(&json);
     buf.push(';');
 
-    for TranslationIn { locale, id, values } in translations.into_vec() {
-        L::init_translations(locale, id, values.into_vec());
+    for TranslationIn { locale, id, values } in translations {
+        L::init_translations(locale, id, values);
     }
 
     view! { <script inner_html=buf /> }
