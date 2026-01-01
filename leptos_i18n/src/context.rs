@@ -132,18 +132,10 @@ fn init_context_inner<L: Locale>(
 ) -> I18nContext<L> {
     let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
-    // FIXME: RenderEffect is a work around, see https://github.com/leptos-rs/leptos/pull/3475
-    // Effect::new(move |_| {
-    //     let l = initial_locale.get();
-    //     locale_signal.set(l);
-    // });
-
-    let re = RenderEffect::new(move |_| {
+    Effect::new(move |_| {
         let l = initial_locale.get();
         locale_signal.set(l);
     });
-
-    on_cleanup(move || drop(re));
 
     Effect::new_isomorphic(move |_| {
         let new_lang = locale_signal.get();
