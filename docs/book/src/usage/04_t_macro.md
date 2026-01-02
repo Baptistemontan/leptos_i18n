@@ -102,11 +102,13 @@ pub fn Foo() -> impl IntoView {
     let count = move || counter.get();
 
     view! {
-        {/* "click_count": "you clicked <b>{{ count }}</b> times" */}
-        <p>{t!(i18n, click_count, count, <b> = |children| view!{ <b>{children}</b> })}</p>
+        {/* "click_count": "you clicked <b>{{ count }}</b> times<br/>Keep going!" */}
+        <p>{t!(i18n, click_count, count, <br/> = <br/>, <b> = |children| view!{ <b>{children}</b> })}</p>
     }
 }
 ```
+
+Please note usage of self-closed tags.
 
 If your variable has the same name as the component, you can pass it directly:
 
