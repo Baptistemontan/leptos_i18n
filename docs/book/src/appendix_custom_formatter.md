@@ -98,8 +98,8 @@ struct PaddingFormatterBuilder {
 // The direction to pas
 #[derive(Debug, Clone, Copy, Default)]
 enum PadDirection {
-    Left,
     #[default]
+    Left,
     Right,
 }
 
