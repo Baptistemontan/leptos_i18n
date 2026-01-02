@@ -27,8 +27,10 @@ pub fn Component() -> impl IntoView {
     };
 
     view! {
-        <div style="white-space: pre-wrap">
-            {t!(i18n, custom_formatter, var = || "test")}
+        <div>
+            <span style="white-space: pre-wrap">
+                {t!(i18n, custom_formatter, var = || "test")}
+            </span>
             <br/>
             <button on:click=on_switch>{t!(i18n, click_to_change_lang)}</button>
         </div>
