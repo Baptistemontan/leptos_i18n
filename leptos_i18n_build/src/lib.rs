@@ -33,6 +33,12 @@ pub mod options;
 
 use crate::options::CodegenOptions;
 
+/// Module for custom formatters.
+pub mod formatter {
+    pub use leptos_i18n_parser::formatters::{Formatter, FormatterToTokens};
+    pub use leptos_i18n_parser::utils::Key;
+}
+
 #[derive(Clone)]
 enum EitherIter<A, B> {
     Iter1(A),
@@ -282,7 +288,7 @@ impl TranslationsInfos {
         let warnings = self.parsed_locales.diag.warnings();
 
         for warning in warnings.iter() {
-            println!("cargo:warning={warning}");
+            println!("cargo::warning={warning}");
         }
     }
 
@@ -291,7 +297,7 @@ impl TranslationsInfos {
         let errors = self.parsed_locales.diag.errors();
 
         for error in errors.iter() {
-            println!("cargo:error={error}");
+            println!("cargo::error={error}");
         }
     }
 

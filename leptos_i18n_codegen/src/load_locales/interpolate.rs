@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use leptos_i18n_parser::{
+    formatters::ValueFormatter,
     parse_locales::{
         locale::{DefaultedLocales, InterpolationKeys, Locale},
         options::ParseOptions,
@@ -15,7 +16,7 @@ use super::parsed_value;
 // use super::parsed_value::InterpolationKeys;
 // use super::parsed_value::RangeOrPlural;
 use super::{parsed_value::TRANSLATIONS_KEY, ranges::RangeType, strings_accessor_method_name};
-use crate::utils::{EitherOfWrapper, formatter::Formatter};
+use crate::utils::EitherOfWrapper;
 
 pub const LOCALE_FIELD_KEY: &str = "_locale";
 
@@ -75,7 +76,7 @@ impl RangeOrPlural {
 
 enum VarOrComp {
     Var {
-        formatters: Vec<Formatter>,
+        formatters: Vec<ValueFormatter>,
         plural: Option<RangeOrPlural>,
     },
     Comp {
@@ -93,29 +94,29 @@ struct Field {
 impl Field {
     fn get_var_generics(
         generic: &syn::Ident,
-        formatters: &[Formatter],
+        formatters: &[ValueFormatter],
         plural: Option<RangeOrPlural>,
     ) -> TokenStream {
-        let bounds = formatters.iter().copied().map(Formatter::to_bound);
+        let bounds = formatters.iter().map(ValueFormatter::view_bounds);
         let plural_bound = plural.map(RangeOrPlural::to_bound);
         let bounds = bounds.chain(plural_bound);
 
         quote!(#generic: 'static + ::core::clone::Clone #(+ #bounds)*)
     }
 
-    fn get_string_var_generics(
+    fn get_fmt_var_generics(
         generic: &syn::Ident,
-        formatters: &[Formatter],
+        formatters: &[ValueFormatter],
         range: Option<RangeOrPlural>,
     ) -> Option<TokenStream> {
         match range {
             None => {
-                let bounds = formatters.iter().copied().map(Formatter::to_string_bound);
+                let bounds = formatters.iter().map(ValueFormatter::fmt_bounds);
                 Some(quote!(#generic: #(#bounds +)*))
             }
             Some(RangeOrPlural::Range(_)) => None,
             Some(RangeOrPlural::Plural) => {
-                let bounds = formatters.iter().copied().map(Formatter::to_string_bound);
+                let bounds = formatters.iter().map(ValueFormatter::fmt_bounds);
                 Some(
                     quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>),
                 )
@@ -150,13 +151,13 @@ impl Field {
         }
     }
 
-    pub fn as_string_bounded_generic(&self) -> Option<TokenStream> {
+    pub fn as_fmt_bounded_generic(&self) -> Option<TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
             VarOrComp::Var {
                 formatters,
                 plural: range,
-            } => Self::get_string_var_generics(generic, formatters, *range),
+            } => Self::get_fmt_var_generics(generic, formatters, *range),
             VarOrComp::Comp { .. } => {
                 Some(quote!(#generic: l_i18n_crate::display::DisplayComponent))
             }
@@ -209,12 +210,7 @@ impl Field {
 impl Interpolation {
     fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
         let vars = keys.iter_vars().map(|(key, infos)| {
-            let mut formatters = infos
-                .formatters
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect::<Vec<_>>();
+            let mut formatters = infos.formatters.iter().cloned().collect::<Vec<_>>();
             formatters.sort_unstable();
             let var_or_comp = VarOrComp::Var {
                 formatters,
@@ -384,7 +380,7 @@ impl Interpolation {
         display_struct_ident: &syn::Ident,
         fields: &[Field],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
+        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
         let marker = fields.iter().map(Field::as_string_builder_marker);
@@ -451,7 +447,7 @@ impl Interpolation {
         into_view_field: &Key,
         fields: &[Field],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
+        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
         let builder_marker = fields.iter().map(|_| quote!(()));
         let into_views = fields
@@ -591,7 +587,7 @@ impl Interpolation {
         locale_type_ident: &syn::Ident,
         defaults: &BTreeMap<Key, BTreeSet<Key>>,
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_string_bounded_generic);
+        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
 

@@ -1,8 +1,9 @@
 use serde::de::MapAccess;
 
 use crate::{
+    formatters::{Formatters, ValueFormatter},
     parse_locales::options::{FileFormat, ParseOptions},
-    utils::{Key, KeyPath, UnwrapAt, formatter::Formatter},
+    utils::{Key, KeyPath, UnwrapAt},
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet, btree_map::Entry},
@@ -89,7 +90,7 @@ pub enum LocalesOrNamespaces {
 
 #[derive(Debug, Default)]
 pub struct VarInfo {
-    pub formatters: BTreeSet<Formatter>,
+    pub formatters: BTreeSet<ValueFormatter>,
     pub range_count: Option<RangeOrPlural>,
 }
 
@@ -199,6 +200,7 @@ pub struct LocaleSeed<'a> {
     pub key_path: KeyPath,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
     pub diag: &'a Diagnostics,
+    pub formatters: &'a Formatters,
 }
 
 #[derive(Debug, Clone)]
@@ -253,7 +255,7 @@ impl InterpolOrLit {
 }
 
 impl InterpolationKeys {
-    pub fn push_var(&mut self, key: Key, formatter: Formatter) {
+    pub fn push_var(&mut self, key: Key, formatter: ValueFormatter) {
         let var_infos = self.variables.entry(key).or_default();
         var_infos.formatters.insert(formatter);
     }
@@ -485,6 +487,7 @@ impl Locale {
             key_path: KeyPath::new(namespace),
             foreign_keys_paths,
             diag,
+            formatters: &options.formatters,
         };
 
         Self::de(locale_file, path, seed, &options.file_format)
@@ -750,6 +753,7 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
                 in_range: false,
                 foreign_keys_paths: self.foreign_keys_paths,
                 diag: self.diag,
+                formatters: self.formatters,
             })?;
             keys.insert(locale_key, value);
         }

@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display};
 
 use leptos_i18n_parser::{
+    formatters::Formatters,
     parse_locales::{
         ForeignKeysPaths, ParsedLocales,
         cfg_file::ConfigFile,
@@ -8,7 +9,7 @@ use leptos_i18n_parser::{
         locale::{Locale, LocalesOrNamespaces},
         make_builder_keys,
         options::ParseOptions,
-        parsed_value::ParsedValue,
+        parsed_value::{Context, ParsedValue},
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
@@ -88,6 +89,7 @@ fn parse_str_value(
     input: syn::parse::ParseStream,
     key_path: &mut KeyPath,
     locale: &Key,
+    formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<Option<ParsedValue>> {
     if !input.peek(LitStr) {
@@ -96,8 +98,27 @@ fn parse_str_value(
     let lit_str = input.parse::<LitStr>()?;
     let value = lit_str.value();
 
-    match ParsedValue::new(&value, key_path, locale, foreign_keys_paths) {
-        Ok(pv) => Ok(Some(pv)),
+    let diag = Diagnostics::new();
+
+    let ctx = Context {
+        locale,
+        key_path,
+        foreign_keys_paths,
+        formatters,
+        diag: &diag,
+    };
+
+    match ParsedValue::new(&value, &ctx) {
+        Ok(pv) => {
+            if let Some(err) = diag.errors().first() {
+                return Err(syn::Error::new_spanned(lit_str, err.to_string()));
+            }
+            if let Some(warn) = diag.warnings().first() {
+                // TODO: warn instead of error
+                return Err(syn::Error::new_spanned(lit_str, warn.to_string()));
+            }
+            Ok(Some(pv))
+        }
         Err(err) => Err(syn::Error::new_spanned(lit_str, err.to_string())),
     }
 }
@@ -107,6 +128,7 @@ fn parse_map_values(
     name: &Key,
     key_path: &mut KeyPath,
     locale: &Key,
+    formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<Option<ParsedValue>> {
     fn inner(input: syn::parse::ParseStream) -> syn::Result<ParseBuffer> {
@@ -118,7 +140,7 @@ fn parse_map_values(
         return Ok(None);
     };
 
-    let keys = parse_block_inner(content, key_path, locale, foreign_keys_paths)?;
+    let keys = parse_block_inner(content, key_path, locale, formatters, foreign_keys_paths)?;
 
     Ok(Some(ParsedValue::Subkeys(Some(Locale {
         top_locale_name: locale.clone(),
@@ -132,6 +154,7 @@ fn parse_map_values(
 pub struct ParseRangeSeed<'a> {
     pub key_path: &'a mut KeyPath,
     pub locale: &'a Key,
+    pub formatters: &'a Formatters,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
 }
 
@@ -172,8 +195,13 @@ fn parse_range_pair<T: RangeNumber>(
     let content;
     syn::bracketed!(content in input);
 
-    let Some(parsed_value) =
-        parse_str_value(&content, seed.key_path, seed.locale, foreign_keys_paths)?
+    let Some(parsed_value) = parse_str_value(
+        &content,
+        seed.key_path,
+        seed.locale,
+        seed.formatters,
+        foreign_keys_paths,
+    )?
     else {
         return Err(content.error("only strings are accepted here."));
     };
@@ -261,25 +289,37 @@ fn parse_values(
     input: syn::parse::ParseStream,
     key_path: &mut KeyPath,
     locale: &Key,
+    formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<(Key, ParsedValue)> {
     let ident: Ident = input.parse()?;
     let key = Key::from_ident(ident);
     let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    if let Some(parsed_value) = parse_str_value(input, &mut pushed_key, locale, foreign_keys_paths)?
-    {
+    if let Some(parsed_value) = parse_str_value(
+        input,
+        &mut pushed_key,
+        locale,
+        formatters,
+        foreign_keys_paths,
+    )? {
         return Ok((key, parsed_value));
     }
-    if let Some(parsed_value) =
-        parse_map_values(input, &key, &mut pushed_key, locale, foreign_keys_paths)?
-    {
+    if let Some(parsed_value) = parse_map_values(
+        input,
+        &key,
+        &mut pushed_key,
+        locale,
+        formatters,
+        foreign_keys_paths,
+    )? {
         return Ok((key, parsed_value));
     }
 
     let seed = ParseRangeSeed {
         key_path: &mut pushed_key,
         locale,
+        formatters,
         foreign_keys_paths,
     };
 
@@ -294,11 +334,13 @@ fn parse_block_inner(
     content: ParseBuffer,
     key_path: &mut KeyPath,
     locale: &Key,
+    formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<BTreeMap<Key, ParsedValue>> {
     let mut values = BTreeMap::new();
     while !content.is_empty() {
-        let (key, value) = parse_values(&content, key_path, locale, foreign_keys_paths)?;
+        let (key, value) =
+            parse_values(&content, key_path, locale, formatters, foreign_keys_paths)?;
         values.insert(key, value);
         if !content.is_empty() {
             content.parse::<Comma>()?;
@@ -311,16 +353,18 @@ fn parse_block(
     input: syn::parse::ParseStream,
     key_path: &mut KeyPath,
     locale: &Key,
+    formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<BTreeMap<Key, ParsedValue>> {
     let content;
     syn::braced!(content in input);
-    parse_block_inner(content, key_path, locale, foreign_keys_paths)
+    parse_block_inner(content, key_path, locale, formatters, foreign_keys_paths)
 }
 
 fn parse_locale(
     input: syn::parse::ParseStream,
     locale_key: Key,
+    formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<Locale> {
     let loc_name_ident: Ident = input.parse()?;
@@ -332,7 +376,13 @@ fn parse_locale(
 
     let mut key_path = KeyPath::new(None);
 
-    let keys = parse_block(input, &mut key_path, &locale_key, foreign_keys_paths)?;
+    let keys = parse_block(
+        input,
+        &mut key_path,
+        &locale_key,
+        formatters,
+        foreign_keys_paths,
+    )?;
 
     if !input.is_empty() {
         input.parse::<Comma>()?;
@@ -404,11 +454,12 @@ impl syn::parse::Parse for ParsedInput {
         // loc: { .. }
 
         let foreign_keys_paths = ForeignKeysPaths::new();
+        let formatters = Formatters::new();
 
         let locales = locales_key
             .iter()
             .cloned()
-            .map(|k| parse_locale(input, k, &foreign_keys_paths))
+            .map(|k| parse_locale(input, k, &formatters, &foreign_keys_paths))
             .collect::<syn::Result<Vec<_>>>()?;
 
         if !input.is_empty() {

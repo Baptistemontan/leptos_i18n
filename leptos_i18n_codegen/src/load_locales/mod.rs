@@ -230,6 +230,7 @@ pub fn load_locales(
             #![allow(unused_braces)]
             #![allow(clippy::type_complexity)]
             #![allow(clippy::let_and_return)]
+            #![allow(clippy::unit_arg)]
             #top_level_attributes
 
             use #crate_path as l_i18n_crate;

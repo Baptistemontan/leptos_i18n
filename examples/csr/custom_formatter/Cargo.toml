@@ -1,0 +1,27 @@
+[package]
+name = "custom_formatter"
+version = "0.1.0"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+leptos = { version = "0.8.15", features = ["csr"] }
+leptos_meta = { version = "0.8.5" }
+leptos_i18n = { path = "../../../leptos_i18n", features = ["csr"] }
+serde = { version = "1", features = ["derive"] }
+console_error_panic_hook = { version = "0.1" }
+wasm-bindgen = { version = "0.2" }
+
+[build-dependencies]
+syn = { version = "2.0" }
+proc-macro2 = { version = "1" }
+quote = { version = "1" }
+
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en", "fr"]
+
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print", "csr"]

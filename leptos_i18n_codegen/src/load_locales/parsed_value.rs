@@ -1,4 +1,4 @@
-use crate::utils::{fit_in_leptos_tuple, formatter::Formatter};
+use crate::utils::fit_in_leptos_tuple;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 
@@ -80,7 +80,7 @@ fn flatten(
         ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream(strings_count)),
         ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges, strings_count)),
         ParsedValue::Variable { key, formatter } => {
-            let ts = Formatter::from(*formatter).var_to_view(&key.ident, &locale_field.ident);
+            let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
             tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
                     #ts
@@ -153,7 +153,7 @@ fn flatten_string(
         }
         ParsedValue::Ranges(ranges) => tokens.push(ranges::as_string_impl(ranges, strings_count)),
         ParsedValue::Variable { key, formatter } => {
-            let ts = Formatter::from(*formatter).var_fmt(key, locale_field);
+            let ts = formatter.var_fmt(key, locale_field);
             tokens.push(ts);
         }
         ParsedValue::Component { key, inner } => {

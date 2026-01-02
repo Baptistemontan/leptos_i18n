@@ -134,5 +134,5 @@ where
     let datetime_formatter =
         super::get_datetime_formatter(locale, length, alignment, time_precision, year_style);
     let datetime = datetime.as_icu_datetime();
-    datetime_formatter.format(datetime).to_string()
+    datetime_formatter.format(datetime)
 }

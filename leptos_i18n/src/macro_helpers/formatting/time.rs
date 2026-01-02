@@ -130,5 +130,5 @@ where
 {
     let time_formatter = super::get_time_formatter(locale, length, alignment, time_precision);
     let time = time.as_icu_time();
-    time_formatter.format(time).to_string()
+    time_formatter.format(time)
 }

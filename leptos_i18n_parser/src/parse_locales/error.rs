@@ -130,7 +130,7 @@ pub enum Error {
     DisabledFormatter {
         locale: Key,
         key_path: KeyPath,
-        formatter: crate::utils::formatter::Formatter,
+        formatter_err: &'static str,
     },
     DisabledPlurals {
         locale: Key,
@@ -139,6 +139,26 @@ pub enum Error {
     NoFileFormats,
     MultipleFilesFormats,
     MissingTranslationsURI,
+    InvalidFormatterArgName {
+        locale: Key,
+        key_path: KeyPath,
+        name: String,
+        err: String,
+    },
+    InvalidFormatterArg {
+        locale: Key,
+        key_path: KeyPath,
+        arg_name: String,
+        arg: Option<String>,
+        err: String,
+    },
+    InvalidFormatter {
+        locale: Key,
+        key_path: KeyPath,
+        err: String,
+    },
+
+    Custom(String),
 }
 
 impl Display for Error {
@@ -320,13 +340,11 @@ impl Display for Error {
             Error::DisabledFormatter {
                 locale,
                 key_path,
-                formatter,
+                formatter_err,
             } => write!(
                 f,
                 "{}, at key \"{}\" in locale {:?}",
-                formatter.err_message(),
-                key_path,
-                locale
+                formatter_err, key_path, locale
             ),
             Error::DisabledPlurals { locale, key_path } => write!(
                 f,
@@ -354,7 +372,45 @@ impl Display for Error {
                     cfg_file::Field::TRANSLATIONS_URI
                 )
             }
+            Error::Custom(err) => {
+                write!(f, "{err}")
+            }
+            Error::InvalidFormatterArgName {
+                locale,
+                key_path,
+                name,
+                err,
+            } => write!(
+                f,
+                "Formatter argument name {name:?} is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+            ),
+            Error::InvalidFormatterArg {
+                locale,
+                key_path,
+                arg_name,
+                arg,
+                err,
+            } => write!(
+                f,
+                "Formatter argument value {arg:?} for argument name {arg_name:?} is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+            ),
+            Error::InvalidFormatter {
+                locale,
+                key_path,
+                err,
+            } => {
+                write!(
+                    f,
+                    "Formatter is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+                )
+            }
         }
+    }
+}
+
+impl Error {
+    pub fn custom(err: impl ToString) -> Self {
+        Self::Custom(err.to_string())
     }
 }
 
@@ -369,6 +425,12 @@ pub struct BoxedError(Box<Error>);
 impl<T: Into<Error>> From<T> for BoxedError {
     fn from(value: T) -> Self {
         BoxedError(Box::new(value.into()))
+    }
+}
+
+impl From<Box<Error>> for BoxedError {
+    fn from(value: Box<Error>) -> Self {
+        BoxedError(value)
     }
 }
 
@@ -421,6 +483,13 @@ pub enum Warning {
         namespace: Option<Key>,
         path: std::path::PathBuf,
     },
+    Custom(String),
+}
+
+impl Warning {
+    pub fn custom(err: impl ToString) -> Self {
+        Warning::Custom(err.to_string())
+    }
 }
 
 impl Display for Warning {
@@ -460,6 +529,7 @@ impl Display for Warning {
                 f,
                 "File path for locale {locale:?} in namespace {ns:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"
             ),
+            Warning::Custom(warn) => write!(f, "{warn}"),
         }
     }
 }
@@ -478,6 +548,14 @@ impl Diagnostics {
 
     pub fn emit_error(&self, error: Error) {
         self.errors.borrow_mut().push(error);
+    }
+
+    pub fn emit_custom_error(&self, err: impl ToString) {
+        self.emit_error(Error::custom(err));
+    }
+
+    pub fn emit_custom_warning(&self, err: impl ToString) {
+        self.emit_warning(Warning::custom(err));
     }
 
     pub fn emit_warning(&self, warning: Warning) {

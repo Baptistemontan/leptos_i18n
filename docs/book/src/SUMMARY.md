@@ -35,3 +35,4 @@
   - [Lazy Load The Translations](./reduce_size/02_dynamic_load.md)
 - [Features](./06_features.md)
 - [Appendix: `i18n Ally` extension for VSC](./appendix_i18n_ally.md)
+- [Appendix: Custom formatters](./appendix_custom_formatter)
