@@ -1,12 +1,8 @@
-use super::{impl_formatter, impl_from_args, impl_to_tokens};
 use super::{Formatter, FormatterToTokens};
-use crate::{
-    parse_locales::error::Diagnostics,
-    utils::{Key, KeyPath},
-    Error,
-};
+use super::{impl_formatter, impl_from_arg, impl_to_tokens};
+use crate::utils::Key;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 pub struct DateTimeFormatterParser;
 
@@ -21,11 +17,12 @@ pub struct DateTimeFormatter(
 impl_formatter!(
     DateTimeFormatterParser,
     "datetime",
+    DateTimeFormatterBuilder,
     DateTimeFormatter(
-        DateTimeLength,
-        DateTimeAlignment,
-        DateTimeTimePrecision,
-        DateTimeYearStyle
+        length => DateTimeLength,
+        alignment => DateTimeAlignment,
+        time_precision => DateTimeTimePrecision,
+        year_style => DateTimeYearStyle
     ),
     "format_datetime",
     "Formatting datetime is not enabled, enable the \"format_datetime\" feature to do so"
@@ -63,7 +60,8 @@ pub struct DateFormatter(DateTimeLength, DateTimeAlignment, DateTimeYearStyle);
 impl_formatter!(
     DateFormatterParser,
     "date",
-    DateFormatter(DateTimeLength, DateTimeAlignment, DateTimeYearStyle),
+    DateFormatterBuilder,
+    DateFormatter(length => DateTimeLength, alignment => DateTimeAlignment, year_style => DateTimeYearStyle),
     "format_datetime",
     "Formatting date is not enabled, enable the \"format_datetime\" feature to do so"
 );
@@ -100,7 +98,8 @@ pub struct TimeFormatter(DateTimeLength, DateTimeAlignment, DateTimeTimePrecisio
 impl_formatter!(
     TimeFormatterParser,
     "time",
-    TimeFormatter(DateTimeLength, DateTimeAlignment, DateTimeTimePrecision),
+    TimeFormatterBuilder,
+    TimeFormatter(length => DateTimeLength, alignment => DateTimeAlignment, time_precision => DateTimeTimePrecision),
     "format_datetime",
     "Formatting time is not enabled, enable the \"format_datetime\" feature to do so"
 );
@@ -177,8 +176,7 @@ enum DateTimeYearStyle {
 }
 
 impl DateTimeLength {
-    impl_from_args! {
-        "length",
+    impl_from_arg! {
         "long" => Self::Long,
         "medium" => Self::Medium,
         "short" => Self::Short,
@@ -186,16 +184,14 @@ impl DateTimeLength {
 }
 
 impl DateTimeAlignment {
-    impl_from_args! {
-        "alignment",
+    impl_from_arg! {
         "auto" => Self::Auto,
         "column" => Self::Column,
     }
 }
 
 impl DateTimeYearStyle {
-    impl_from_args! {
-        "alignment",
+    impl_from_arg! {
         "auto" => Self::Auto,
         "full" => Self::Full,
         "with_era" => Self::WithEra,
@@ -203,8 +199,7 @@ impl DateTimeYearStyle {
 }
 
 impl DateTimeTimePrecision {
-    impl_from_args! {
-        "time_precision",
+    impl_from_arg! {
         "hour" => Self::Hour,
         "minute" => Self::Minute,
         "second" => Self::Second,

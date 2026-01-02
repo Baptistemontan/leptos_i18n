@@ -139,6 +139,25 @@ pub enum Error {
     NoFileFormats,
     MultipleFilesFormats,
     MissingTranslationsURI,
+    InvalidFormatterArgName {
+        locale: Key,
+        key_path: KeyPath,
+        name: String,
+        err: String,
+    },
+    InvalidFormatterArg {
+        locale: Key,
+        key_path: KeyPath,
+        arg_name: String,
+        arg: Option<String>,
+        err: String,
+    },
+    InvalidFormatter {
+        locale: Key,
+        key_path: KeyPath,
+        err: String,
+    },
+
     Custom {
         locale: Key,
         key_path: KeyPath,
@@ -361,10 +380,36 @@ impl Display for Error {
                 locale,
                 key_path,
                 err,
+            } => write!(f, "Error in locale {locale:?} at key \"{key_path}\": {err}"),
+            Error::InvalidFormatterArgName {
+                locale,
+                key_path,
+                name,
+                err,
             } => write!(
                 f,
-                "Error in locale {locale:?} at key \"{key_path}\": {err:?}"
+                "Formatter argument name {name:?} is invalid in locale {locale:?} at key \"{key_path}\": {err}"
             ),
+            Error::InvalidFormatterArg {
+                locale,
+                key_path,
+                arg_name,
+                arg,
+                err,
+            } => write!(
+                f,
+                "Formatter argument value {arg:?} for argument name {arg_name:?} is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+            ),
+            Error::InvalidFormatter {
+                locale,
+                key_path,
+                err,
+            } => {
+                write!(
+                    f,
+                    "Formatter is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+                )
+            }
         }
     }
 }

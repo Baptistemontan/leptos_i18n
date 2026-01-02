@@ -1,12 +1,8 @@
-use super::{impl_formatter, impl_from_args, impl_to_tokens};
 use super::{Formatter, FormatterToTokens};
-use crate::{
-    parse_locales::error::Diagnostics,
-    utils::{Key, KeyPath},
-    Error,
-};
+use super::{impl_formatter, impl_from_arg, impl_to_tokens};
+use crate::utils::Key;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 pub struct ListFormatterParser;
 
@@ -16,7 +12,8 @@ pub struct ListFormatter(ListType, ListStyle);
 impl_formatter!(
     ListFormatterParser,
     "list",
-    ListFormatter(ListType, ListStyle),
+    ListFormatterBuilder,
+    ListFormatter(list_type => ListType, list_style => ListStyle),
     "format_list",
     "Formatting lists is not enabled, enable the \"format_list\" feature to do so"
 );
@@ -61,8 +58,7 @@ enum ListStyle {
     Narrow,
 }
 impl ListType {
-    impl_from_args! {
-        "list_type",
+    impl_from_arg! {
         "and" => Self::And,
         "or" => Self::Or,
         "unit" => Self::Unit,
@@ -70,8 +66,7 @@ impl ListType {
 }
 
 impl ListStyle {
-    impl_from_args! {
-        "list_style",
+    impl_from_arg! {
         "wide" => Self::Wide,
         "short" => Self::Short,
         "narrow" => Self::Narrow,

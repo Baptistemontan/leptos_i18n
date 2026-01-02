@@ -1,12 +1,8 @@
-use super::{impl_formatter, impl_from_args, impl_to_tokens};
 use super::{Formatter, FormatterToTokens};
-use crate::{
-    parse_locales::error::Diagnostics,
-    utils::{Key, KeyPath},
-    Error,
-};
+use super::{impl_formatter, impl_from_arg, impl_to_tokens};
+use crate::utils::Key;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 pub struct NumberFormatterParser;
 
@@ -16,7 +12,8 @@ pub struct NumberFormatter(GroupingStrategy);
 impl_formatter!(
     NumberFormatterParser,
     "number",
-    NumberFormatter(GroupingStrategy),
+    NumberFormatterBuilder,
+    NumberFormatter(grouping_strategy => GroupingStrategy),
     "format_nums",
     "Formatting numbers is not enabled, enable the \"format_nums\" feature to do so"
 );
@@ -55,8 +52,7 @@ enum GroupingStrategy {
 }
 
 impl GroupingStrategy {
-    impl_from_args! {
-        "grouping_strategy",
+    impl_from_arg! {
         "auto" => Self::Auto,
         "never" => Self::Never,
         "always" => Self::Always,

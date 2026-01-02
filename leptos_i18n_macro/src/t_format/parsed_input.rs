@@ -35,31 +35,13 @@ fn is_parenthesized(input: ParseStream) -> syn::Result<ParseBuffer> {
     Ok(content)
 }
 
-fn convert_formatter_result(
-    res: Option<Result<ValueFormatter, &'static str>>,
-    span: proc_macro2::Span,
-    err: syn::Error,
-) -> syn::Result<ValueFormatter> {
-    match res {
-        Some(Ok(formatter)) => Ok(formatter),
-        None => Err(err),
-        Some(Err(err)) => Err(syn::Error::new(span, err)),
-    }
-}
-
 fn parse_formatter(
     input: ParseBuffer,
     formatter_name: Ident,
     formatters: &Formatters,
-    err: syn::Error,
 ) -> syn::Result<ValueFormatter> {
     let args = input.parse_terminated(parse_arg, Token![;])?;
-    let args: Vec<_> = args.into_iter().collect();
-    let n = formatter_name.to_string();
-
-    let span = formatter_name.span();
-    let res = formatters.parse_from_tt(&n, &args);
-    convert_formatter_result(res, span, err)
+    formatters.parse_from_tt(formatter_name, Some(args))
 }
 
 impl syn::parse::Parse for ParsedInput {
@@ -74,15 +56,11 @@ impl syn::parse::Parse for ParsedInput {
         }
         input.parse::<Token![:]>()?;
         let formatter_name = input.parse::<Ident>()?;
-        let formatter_name_err = syn::Error::new(formatter_name.span(), "unknown formatter name.");
         let formatters = Formatters::new();
         let formatter = if let Ok(args) = is_parenthesized(input) {
-            parse_formatter(args, formatter_name, &formatters, formatter_name_err)?
+            parse_formatter(args, formatter_name, &formatters)?
         } else {
-            let span = formatter_name.span();
-            let n = formatter_name.to_string();
-            let res = formatters.parse_from_tt(&n, &[]);
-            convert_formatter_result(res, span, formatter_name_err)?
+            formatters.parse_from_tt(formatter_name, None)?
         };
 
         Ok(ParsedInput {

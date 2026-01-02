@@ -7,6 +7,7 @@ use std::{
     fmt::{Debug, Display},
     rc::Rc,
 };
+use syn::{Ident, Token, punctuated::Punctuated, spanned::Spanned};
 
 use crate::{
     parse_locales::error::{Diagnostics, Error},
@@ -93,11 +94,14 @@ impl Formatters {
     #[doc(hidden)]
     pub fn parse_from_tt(
         &self,
-        name: &str,
-        args: &[(syn::Ident, Option<syn::Ident>)],
-    ) -> Option<Result<ValueFormatter, &'static str>> {
-        let f = self.formatters.get(name)?;
-        Some(f.parse_from_tt(args))
+        formatter_name: syn::Ident,
+        args: Option<Punctuated<(Ident, Option<Ident>), Token![;]>>,
+    ) -> syn::Result<ValueFormatter> {
+        let name = formatter_name.to_string();
+        let Some(f) = self.formatters.get(&*name) else {
+            return Err(syn::Error::new(formatter_name.span(), "unknown formatter"));
+        };
+        f.parse_from_tt(formatter_name.span(), args)
     }
 }
 
@@ -108,10 +112,13 @@ impl Debug for Formatters {
 }
 
 pub trait Formatter: 'static {
+    const DISABLED: Option<&str> = None;
     const NAME: &str;
 
+    type Builder;
+    type Field<'a>;
     type ToTokens: FormatterToTokens;
-    type ParseError: ToString;
+    type ParseError: Display;
 
     fn parse_with_diagnostics(
         &self,
@@ -120,25 +127,74 @@ pub trait Formatter: 'static {
         args: &[(&str, Option<&str>)],
         diag: &Diagnostics,
     ) -> Option<Self::ToTokens> {
-        match Self::parse_args(self, args) {
-            Ok(v) => Some(v),
-            Err(err) => {
-                diag.emit_error(Error::custom(locale.clone(), key_path.clone(), err));
-                None
+        if let Some(formatter_err) = Self::DISABLED {
+            diag.emit_error(Error::DisabledFormatter {
+                locale: locale.clone(),
+                key_path: key_path.clone(),
+                formatter_err,
+            });
+        }
+        let mut builder = self.builder();
+        let mut errored = false;
+        for (arg_name, arg) in args {
+            let field = match self.parse_field(arg_name) {
+                Ok(field) => field,
+                Err(err) => {
+                    diag.emit_error(Error::InvalidFormatterArgName {
+                        locale: locale.clone(),
+                        key_path: key_path.clone(),
+                        name: arg_name.to_string(),
+                        err: err.to_string(),
+                    });
+                    errored = true;
+                    continue;
+                }
+            };
+            match self.parse_arg(builder, field, *arg) {
+                Err(err) => {
+                    diag.emit_error(Error::InvalidFormatterArg {
+                        locale: locale.clone(),
+                        key_path: key_path.clone(),
+                        arg_name: arg_name.to_string(),
+                        arg: arg.map(str::to_string),
+                        err: err.to_string(),
+                    });
+                    builder = self.builder();
+                }
+                Ok(updated_builder) => {
+                    builder = updated_builder;
+                }
+            }
+        }
+        if errored {
+            None
+        } else {
+            match self.build(builder) {
+                Ok(tt) => Some(tt),
+                Err(err) => {
+                    diag.emit_error(Error::InvalidFormatter {
+                        locale: locale.clone(),
+                        key_path: key_path.clone(),
+                        err: err.to_string(),
+                    });
+                    None
+                }
             }
         }
     }
 
-    fn parse_args(&self, args: &[(&str, Option<&str>)])
-        -> Result<Self::ToTokens, Self::ParseError>;
+    fn builder(&self) -> Self::Builder;
 
-    #[doc(hidden)]
-    fn parse_from_tt<'a, S>(&self, _args: &[(S, Option<S>)]) -> Result<Self::ToTokens, &'static str>
-    where
-        S: PartialEq + PartialEq<&'a str>,
-    {
-        unimplemented!()
-    }
+    fn parse_field<'a>(&self, field_name: &'a str) -> Result<Self::Field<'a>, Self::ParseError>;
+
+    fn parse_arg(
+        &self,
+        builder: Self::Builder,
+        field: Self::Field<'_>,
+        arg: Option<&str>,
+    ) -> Result<Self::Builder, Self::ParseError>;
+
+    fn build(&self, builder: Self::Builder) -> Result<Self::ToTokens, Self::ParseError>;
 }
 
 trait DynFormatter {
@@ -152,8 +208,9 @@ trait DynFormatter {
 
     fn parse_from_tt(
         &self,
-        args: &[(syn::Ident, Option<syn::Ident>)],
-    ) -> Result<ValueFormatter, &'static str>;
+        formatter_span: proc_macro2::Span,
+        args: Option<Punctuated<(Ident, Option<Ident>), Token![;]>>,
+    ) -> syn::Result<ValueFormatter>;
 }
 
 impl<T: Formatter + ?Sized> DynFormatter for T {
@@ -175,13 +232,43 @@ impl<T: Formatter + ?Sized> DynFormatter for T {
 
     fn parse_from_tt(
         &self,
-        args: &[(syn::Ident, Option<syn::Ident>)],
-    ) -> Result<ValueFormatter, &'static str> {
-        let f = T::parse_from_tt(self, args)?;
-        Ok(ValueFormatter::Formatted {
-            formatter_name: T::NAME,
-            to_tokens: Rc::new(f),
-        })
+        formatter_span: proc_macro2::Span,
+        args: Option<Punctuated<(Ident, Option<Ident>), Token![;]>>,
+    ) -> syn::Result<ValueFormatter> {
+        if let Some(formatter_err) = Self::DISABLED {
+            return Err(syn::Error::new(formatter_span, formatter_err));
+        }
+        let mut builder = self.builder();
+        if let Some(args) = args {
+            for (arg_name, arg) in args {
+                let arg_name_str = arg_name.to_string();
+                let field = match self.parse_field(&arg_name_str) {
+                    Ok(field) => field,
+                    Err(err) => {
+                        return Err(syn::Error::new(arg_name.span(), err));
+                    }
+                };
+                let arg_str = arg.as_ref().map(|i| i.to_string());
+                match self.parse_arg(builder, field, arg_str.as_deref()) {
+                    Err(err) => {
+                        return Err(syn::Error::new(
+                            arg.as_ref().unwrap_or(&arg_name).span(),
+                            err,
+                        ));
+                    }
+                    Ok(updated_builder) => {
+                        builder = updated_builder;
+                    }
+                }
+            }
+        }
+        match self.build(builder) {
+            Ok(f) => Ok(ValueFormatter::Formatted {
+                formatter_name: "",
+                to_tokens: Rc::new(f),
+            }),
+            Err(err) => Err(syn::Error::new(formatter_span.span(), err)),
+        }
     }
 }
 
@@ -263,7 +350,7 @@ impl ValueFormatter {
                     "var_to_display function should not have been called on a dummy formatter"
                 )
             }
-            Self::Formatted { to_tokens, .. } => to_tokens.to_display(key, locale_field)
+            Self::Formatted { to_tokens, .. } => to_tokens.to_display(key, locale_field),
         }
     }
 }
@@ -340,36 +427,17 @@ impl Display for DuplicateFormatterErr {
     }
 }
 
-pub(crate) fn from_args_helper<'a, T: Default, S: PartialEq + PartialEq<&'a str>>(
-    args: &[(S, Option<S>)],
-    name: &'a str,
-    f: impl Fn(Option<&S>) -> Option<T>,
-) -> T {
-    for (arg_name, value) in args {
-        if arg_name != &name {
-            continue;
-        }
-        if let Some(v) = f(value.as_ref()) {
-            return v;
-        }
-    }
-    Default::default()
-}
-
-macro_rules! impl_from_args {
-    ($name:literal, $($arg_name:literal => $value:expr,)*) => {
-        pub fn from_args<'a, S: PartialEq + PartialEq<&'a str>>(args: &[(S, Option<S>)]) -> Self {
-        $crate::formatters::from_args_helper(args, $name, |arg| {
-            $(
-                if arg.is_some_and(|arg| arg == &$arg_name) {
-                    Some($value)
-                } else
-            )*
-            {
-                None
+macro_rules! impl_from_arg {
+    ($($arg_name:literal => $value:expr,)*) => {
+        pub fn from_arg(arg: Option<&str>) -> Result<Self, &'static str> {
+            match arg {
+                $(
+                    Some($arg_name) => Ok($value),
+                )*
+                Some(_) => Err("unknown argument value"),
+                None => Err("missing value for argument"),
             }
-        })
-    }
+        }
     }
 }
 
@@ -399,43 +467,68 @@ macro_rules! impl_to_tokens {
 }
 
 macro_rules! impl_formatter {
-    ($t: ident, $name: literal, $f:ident  $( ( $($s: ident),* $(,)?) )?, $feature: literal, $err: literal) => {
-        impl Formatter for $t {
-            const NAME: &str = $name;
-            type ParseError = std::convert::Infallible;
-            type ToTokens = $f;
-            fn parse_with_diagnostics(
-                &self,
-                locale: &Key,
-                key_path: &KeyPath,
-                args: &[(&str, Option<&str>)],
-                diag: &Diagnostics,
-            ) -> Option<Self::ToTokens> {
-                if cfg!(not(feature = $feature)) {
-                    diag.emit_error(Error::DisabledFormatter {
-                        locale: locale.clone(),
-                        key_path: key_path.clone(),
-                        formatter_err: $err,
-                    });
-                    return None;
-                }
+    ($t: ident, $name: literal, $builder_name: ident, $f:ident  $( ( $($arg_name:ident => $s: ident),* $(,)?) )?, $feature: literal, $err: literal) => {
 
-                Self::parse_args(self, args).ok()
+        pub struct $builder_name {
+            $($($arg_name: Option<$s>),*)?
+        }
+
+        impl Formatter for $t {
+            const DISABLED: Option<&str> = const {
+                if cfg!(not(feature = $feature)) {
+                    Some($err)
+                } else {
+                    None
+                }
+            };
+
+            const NAME: &str = $name;
+            type Builder = $builder_name;
+            type Field<'a> = &'a str;
+            type ParseError = std::borrow::Cow<'static, str>;
+            type ToTokens = $f;
+
+            fn builder(&self) -> Self::Builder {
+                $builder_name {
+                    $($($arg_name: Option::<$s>::None),*)?
+                }
             }
-            fn parse_args(
-                &self,
-                args: &[(&str, Option<&str>)],
-            ) -> Result<Self::ToTokens, Self::ParseError> {
-                Ok($f
-                    $( (
-                        $( $s::from_args(args) ),*
-                    ) )?
-                )
+
+            fn parse_field<'a>(&self, field_name: &'a str) -> Result<Self::Field<'a>, Self::ParseError> {
+                match field_name {
+                    $(
+                        $(stringify!($arg_name) => Ok(field_name)),*
+                    )?,
+                    _ => Err(std::borrow::Cow::Borrowed("unknown argument name")),
+                }
+            }
+
+            fn parse_arg(&self, builder: Self::Builder, field: Self::Field<'_>, arg: Option<&str>) -> Result<Self::Builder, Self::ParseError> {
+                match field {
+                    $(
+                        $(stringify!($arg_name) => {
+                            let value = $s::from_arg(arg)?;
+                            #[allow(clippy::needless_update)]
+                            Ok($builder_name {
+                                $arg_name: Some(value),
+                                ..builder
+                            })
+                        }),*
+                    )?
+                    _ => unreachable!()
+                }
+            }
+
+            fn build(&self, builder: Self::Builder) -> Result<Self::ToTokens, Self::ParseError> {
+                let $builder_name {
+                    $($($arg_name),*)?
+                } = builder;
+                Ok($f $( ( $( $arg_name.unwrap_or_default() ),*  ) )?)
             }
         }
     };
 }
 
 pub(crate) use impl_formatter;
-pub(crate) use impl_from_args;
+pub(crate) use impl_from_arg;
 pub(crate) use impl_to_tokens;

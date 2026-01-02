@@ -1,13 +1,11 @@
-use super::{from_args_helper, impl_formatter, impl_from_args, impl_to_tokens};
+use std::borrow::Cow;
+
 use super::{Formatter, FormatterToTokens};
-use crate::{
-    parse_locales::error::Diagnostics,
-    utils::{Key, KeyPath},
-    Error,
-};
+use super::{impl_formatter, impl_from_arg, impl_to_tokens};
+use crate::utils::Key;
 use proc_macro2::{Literal, TokenStream};
-use quote::{quote, ToTokens};
-use tinystr::{tinystr, TinyAsciiStr};
+use quote::{ToTokens, quote};
+use tinystr::{TinyAsciiStr, tinystr};
 
 pub struct CurrencyFormatterParser;
 
@@ -17,7 +15,8 @@ pub struct CurrencyFormatter(CurrencyWidth, CurrencyCode);
 impl_formatter!(
     CurrencyFormatterParser,
     "currency",
-    CurrencyFormatter(CurrencyWidth, CurrencyCode),
+    CurrencyFormatterBuilder,
+    CurrencyFormatter(width => CurrencyWidth, currency_code => CurrencyCode),
     "format_currency",
     "Formatting currencies is not enabled, enable the \"format_currency\" feature to do so"
 );
@@ -63,17 +62,17 @@ enum CurrencyWidth {
 }
 
 impl CurrencyCode {
-    pub fn from_args<'a, S: PartialEq + PartialEq<&'a str> + ToString>(
-        args: &[(S, Option<S>)],
-    ) -> Self {
-        from_args_helper(
-            args,
-            "currency_code",
-            |arg| match TinyAsciiStr::try_from_str(arg?.to_string().as_str()) {
-                Err(_) => None,
-                Ok(code) => Some(Self(code)),
+    pub fn from_arg(arg: Option<&str>) -> Result<Self, Cow<'static, str>> {
+        match arg {
+            Some(v) => match TinyAsciiStr::try_from_str(v) {
+                Ok(code) => Ok(Self(code)),
+                Err(err) => {
+                    let err = format!("Invalid code: {err}");
+                    Err(Cow::Owned(err))
+                }
             },
-        )
+            None => Err(Cow::Borrowed("missing currency code")),
+        }
     }
 }
 
@@ -92,8 +91,7 @@ impl ToTokens for CurrencyCode {
 }
 
 impl CurrencyWidth {
-    impl_from_args! {
-        "width",
+    impl_from_arg! {
         "short" => Self::Short,
         "narrow" => Self::Narrow,
     }
