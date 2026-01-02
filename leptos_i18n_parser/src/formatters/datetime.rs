@@ -110,7 +110,7 @@ impl FormatterToTokens for TimeFormatter {
     }
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment, #precision))
+        quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length, #alignment, #precision))
     }
 
     fn display_bounds(&self) -> TokenStream {
@@ -119,12 +119,12 @@ impl FormatterToTokens for TimeFormatter {
 
     fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment, #precision))
+        quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length, #alignment, #precision))
     }
 
     fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #precision))
+        quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #precision))
     }
 }
 
