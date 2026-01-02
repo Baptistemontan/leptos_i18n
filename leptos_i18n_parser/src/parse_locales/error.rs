@@ -438,6 +438,12 @@ impl<T: Into<Error>> From<T> for BoxedError {
     }
 }
 
+impl From<Box<Error>> for BoxedError {
+    fn from(value: Box<Error>) -> Self {
+        BoxedError(value)
+    }
+}
+
 impl BoxedError {
     pub fn into_inner(self) -> Error {
         *self.0

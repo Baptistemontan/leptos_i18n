@@ -161,9 +161,11 @@ impl<T: RangeNumber> Range<T> {
 
     pub fn new(s: &str) -> Result<Self> {
         let parse = |s: &str| {
-            s.parse::<T>().map_err(|_| Error::RangeParse {
-                range: s.to_string(),
-                range_type: T::TYPE,
+            s.parse::<T>().map_err(|_| {
+                Box::new(Error::RangeParse {
+                    range: s.to_string(),
+                    range_type: T::TYPE,
+                })
             })
         };
         let s = s.trim();
