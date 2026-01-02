@@ -110,12 +110,12 @@ fn flatten(
                 tokens.push(quote!({
                     let __boxed_children_fn = l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f);
                     let #key = core::clone::Clone::clone(&#key);
-                    move || #key(core::clone::Clone::clone(&__boxed_children_fn))
+                    move || l_i18n_crate::__private::InterpolateComp::to_view(&#key, core::clone::Clone::clone(&__boxed_children_fn), ())
                 }));
             } else {
                 tokens.push(quote!({
                     let #key = core::clone::Clone::clone(&#key);
-                    move || #key()
+                    move || l_i18n_crate::__private::InterpolateCompSelfClosed::to_view(&#key, ())
                 }));
             }
         }
