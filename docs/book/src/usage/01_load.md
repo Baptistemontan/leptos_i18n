@@ -92,6 +92,8 @@ let options = ParseOptions::default()
   .show_keys_only(true);
 ```
 
+There is also a way to inject your own formatter, this need it's own chapter that you can find in an appendix.
+
 ## Codegen Options
 
 `TranslationsInfos::generate_i18n_module_with_options` can take a `CodegenOptions` argument that let you:
