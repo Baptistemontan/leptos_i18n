@@ -79,11 +79,11 @@ impl TranslationsInfos {
         self.parsed_locales.tracked_files.as_deref()
     }
 
-    /// Output "cargo:rerun-if-changed" for all locales files.
+    /// Output "cargo::rerun-if-changed" for all locales files.
     pub fn rerun_if_locales_changed(&self) {
         if let Some(paths) = self.files_paths() {
             for path in paths {
-                println!("cargo:rerun-if-changed={path}");
+                println!("cargo::rerun-if-changed={path}");
             }
         }
     }

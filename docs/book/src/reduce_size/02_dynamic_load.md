@@ -72,8 +72,8 @@ leptos_i18n_build = "0.5.0"
 use leptos_i18n_build::TranslationsInfos;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=Cargo.toml");
 
     let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
 

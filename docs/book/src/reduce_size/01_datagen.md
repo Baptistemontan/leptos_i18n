@@ -92,7 +92,7 @@ use icu_provider_export::{
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=build.rs");
 
     let mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("baked_data");
 
@@ -132,8 +132,8 @@ use leptos_i18n_build::TranslationsInfos;
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=Cargo.toml");
 
     let mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("baked_data");
 
