@@ -640,6 +640,7 @@ impl ParsedValue {
     ) -> Result<()> {
         match self {
             ParsedValue::Variable { .. }
+            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::Literal(_)
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => Ok(()),
@@ -647,13 +648,9 @@ impl ParsedValue {
             ParsedValue::Ranges(inner) => {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
             }
-            ParsedValue::Component { inner, .. } => {
-                if let Some(inner) = inner {
-                    inner.resolve_foreign_key(values, top_locale, default_locale, path)
-                } else {
-                    Ok(())
-                }
-            }
+            ParsedValue::Component {
+                inner: Some(inner), ..
+            } => inner.resolve_foreign_key(values, top_locale, default_locale, path),
             ParsedValue::Bloc(bloc) => {
                 for value in bloc {
                     value.resolve_foreign_key(values, top_locale, default_locale, path)?;
@@ -840,6 +837,7 @@ impl ParsedValue {
                 // skip empty strings
             }
             ParsedValue::Variable { .. }
+            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::Literal(_)
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => {}
@@ -857,10 +855,10 @@ impl ParsedValue {
                     })
                     .unwrap_at("reduce_1");
             }
-            ParsedValue::Component { inner, .. } => {
-                if let Some(inner) = inner {
-                    inner.reduce();
-                }
+            ParsedValue::Component {
+                inner: Some(inner), ..
+            } => {
+                inner.reduce();
             }
             ParsedValue::Subkeys(Some(subkeys)) => {
                 for value in subkeys.keys.values_mut() {
@@ -1053,10 +1051,10 @@ impl ParsedValue {
                 lit.index_strings(strings);
             }
             ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
-            ParsedValue::Component { inner, .. } => {
-                if let Some(inner) = inner {
-                    inner.index_strings(strings);
-                }
+            ParsedValue::Component {
+                inner: Some(inner), ..
+            } => {
+                inner.index_strings(strings);
             }
             ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
             ParsedValue::Bloc(vec) => {
@@ -1065,6 +1063,7 @@ impl ParsedValue {
                 }
             }
             ParsedValue::Default
+            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
             | ParsedValue::Subkeys(_)
