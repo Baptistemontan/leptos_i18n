@@ -1,4 +1,3 @@
-pub mod formatter;
 pub mod key;
 
 use std::fmt::Debug;

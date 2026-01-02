@@ -2,8 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, TokenStreamExt, format_ident, quote};
 use syn::Token;
 
-pub mod formatter;
-
 pub enum Keys {
     SingleKey(syn::Ident),
     Subkeys(Vec<syn::Ident>),

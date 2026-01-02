@@ -1,7 +1,6 @@
-use std::fmt::Display;
-
-use leptos_i18n_codegen::utils::formatter::Formatter;
+use leptos_i18n_parser::formatters::{Formatters, ValueFormatter};
 use quote::ToTokens;
+use std::fmt::Display;
 use syn::{
     Expr, Ident, Token,
     parse::{ParseBuffer, ParseStream},
@@ -11,17 +10,22 @@ use syn::{
 pub struct ParsedInput {
     pub context: Expr,
     pub value: Expr,
-    pub formatter: Formatter,
+    pub formatter: ValueFormatter,
 }
 
 fn emit_err<A, T: ToTokens, U: Display>(tokens: T, message: U) -> syn::Result<A> {
     Err(syn::Error::new_spanned(tokens, message))
 }
 
-fn parse_arg(input: ParseStream) -> syn::Result<(Ident, Ident)> {
+fn parse_arg(input: ParseStream) -> syn::Result<(Ident, Option<Ident>)> {
     let arg_name = input.parse::<Ident>()?;
-    input.parse::<Token![:]>()?;
-    let arg_value = input.parse::<Ident>()?;
+    let arg_value = if input.peek(Token![:]) {
+        input.parse::<Token![:]>()?;
+        let arg_value = input.parse::<Ident>()?;
+        Some(arg_value)
+    } else {
+        None
+    };
     Ok((arg_name, arg_value))
 }
 
@@ -32,33 +36,29 @@ fn is_parenthesized(input: ParseStream) -> syn::Result<ParseBuffer> {
 }
 
 fn convert_formatter_result(
-    res: Result<
-        Option<leptos_i18n_parser::utils::formatter::Formatter>,
-        leptos_i18n_parser::utils::formatter::Formatter,
-    >,
+    res: Option<Result<ValueFormatter, &'static str>>,
     span: proc_macro2::Span,
     err: syn::Error,
-) -> syn::Result<Formatter> {
+) -> syn::Result<ValueFormatter> {
     match res {
-        Ok(Some(formatter)) => Ok(formatter.into()),
-        Ok(None) => Err(err),
-        Err(formatter) => Err(syn::Error::new(span, formatter.err_message())),
+        Some(Ok(formatter)) => Ok(formatter),
+        None => Err(err),
+        Some(Err(err)) => Err(syn::Error::new(span, err)),
     }
 }
 
 fn parse_formatter(
     input: ParseBuffer,
     formatter_name: Ident,
+    formatters: &Formatters,
     err: syn::Error,
-) -> syn::Result<Formatter> {
+) -> syn::Result<ValueFormatter> {
     let args = input.parse_terminated(parse_arg, Token![;])?;
     let args: Vec<_> = args.into_iter().collect();
+    let n = formatter_name.to_string();
 
     let span = formatter_name.span();
-    let res = leptos_i18n_parser::utils::formatter::Formatter::from_name_and_args(
-        formatter_name,
-        Some(&args),
-    );
+    let res = formatters.parse_from_tt(&n, &args);
     convert_formatter_result(res, span, err)
 }
 
@@ -75,14 +75,13 @@ impl syn::parse::Parse for ParsedInput {
         input.parse::<Token![:]>()?;
         let formatter_name = input.parse::<Ident>()?;
         let formatter_name_err = syn::Error::new(formatter_name.span(), "unknown formatter name.");
+        let formatters = Formatters::new();
         let formatter = if let Ok(args) = is_parenthesized(input) {
-            parse_formatter(args, formatter_name, formatter_name_err)?
+            parse_formatter(args, formatter_name, &formatters, formatter_name_err)?
         } else {
             let span = formatter_name.span();
-            let res = leptos_i18n_parser::utils::formatter::Formatter::from_name_and_args(
-                formatter_name,
-                None,
-            );
+            let n = formatter_name.to_string();
+            let res = formatters.parse_from_tt(&n, &[]);
             convert_formatter_result(res, span, formatter_name_err)?
         };
 

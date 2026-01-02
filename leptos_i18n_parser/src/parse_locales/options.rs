@@ -1,14 +1,18 @@
-use crate::parse_locales::locale::{Locale, LocaleSeed, SerdeError};
+use crate::{
+    formatters::{Formatter, Formatters},
+    parse_locales::locale::{Locale, LocaleSeed, SerdeError},
+};
 use parser::Parser;
 use std::{fmt::Debug, io::Read, path::Path, sync::Arc};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct ParseOptions {
     pub file_format: FileFormat,
     pub suppress_key_warnings: bool,
     pub interpolate_display: bool,
     pub show_keys_only: bool,
+    pub formatters: Formatters,
 }
 
 #[derive(Clone, Default)]
@@ -47,6 +51,7 @@ impl ParseOptions {
             suppress_key_warnings: false,
             interpolate_display: false,
             show_keys_only: false,
+            formatters: Formatters::new(),
         }
     }
 
@@ -83,6 +88,13 @@ impl ParseOptions {
             file_format: FileFormat::Custom(Arc::new(parser)),
             ..self
         }
+    }
+
+    pub fn add_formatter<F: Formatter>(mut self, formatter: F) -> Self {
+        self.formatters
+            .insert_formatter(formatter)
+            .expect("tried to overwrite an existing formatter.");
+        self
     }
 }
 

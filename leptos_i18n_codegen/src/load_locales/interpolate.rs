@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use leptos_i18n_parser::{
+    formatters::ValueFormatter,
     parse_locales::{
         locale::{DefaultedLocales, InterpolationKeys, Locale},
         options::ParseOptions,
@@ -15,7 +16,7 @@ use super::parsed_value;
 // use super::parsed_value::InterpolationKeys;
 // use super::parsed_value::RangeOrPlural;
 use super::{parsed_value::TRANSLATIONS_KEY, ranges::RangeType, strings_accessor_method_name};
-use crate::utils::{EitherOfWrapper, formatter::Formatter};
+use crate::utils::EitherOfWrapper;
 
 pub const LOCALE_FIELD_KEY: &str = "_locale";
 
@@ -75,7 +76,7 @@ impl RangeOrPlural {
 
 enum VarOrComp {
     Var {
-        formatters: Vec<Formatter>,
+        formatters: Vec<ValueFormatter>,
         plural: Option<RangeOrPlural>,
     },
     Comp {
@@ -93,10 +94,10 @@ struct Field {
 impl Field {
     fn get_var_generics(
         generic: &syn::Ident,
-        formatters: &[Formatter],
+        formatters: &[ValueFormatter],
         plural: Option<RangeOrPlural>,
     ) -> TokenStream {
-        let bounds = formatters.iter().copied().map(Formatter::to_bound);
+        let bounds = formatters.iter().map(ValueFormatter::to_bound);
         let plural_bound = plural.map(RangeOrPlural::to_bound);
         let bounds = bounds.chain(plural_bound);
 
@@ -105,17 +106,17 @@ impl Field {
 
     fn get_string_var_generics(
         generic: &syn::Ident,
-        formatters: &[Formatter],
+        formatters: &[ValueFormatter],
         range: Option<RangeOrPlural>,
     ) -> Option<TokenStream> {
         match range {
             None => {
-                let bounds = formatters.iter().copied().map(Formatter::to_string_bound);
+                let bounds = formatters.iter().map(ValueFormatter::to_string_bound);
                 Some(quote!(#generic: #(#bounds +)*))
             }
             Some(RangeOrPlural::Range(_)) => None,
             Some(RangeOrPlural::Plural) => {
-                let bounds = formatters.iter().copied().map(Formatter::to_string_bound);
+                let bounds = formatters.iter().map(ValueFormatter::to_string_bound);
                 Some(
                     quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>),
                 )
@@ -209,12 +210,7 @@ impl Field {
 impl Interpolation {
     fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
         let vars = keys.iter_vars().map(|(key, infos)| {
-            let mut formatters = infos
-                .formatters
-                .iter()
-                .copied()
-                .map(Into::into)
-                .collect::<Vec<_>>();
+            let mut formatters = infos.formatters.iter().cloned().collect::<Vec<_>>();
             formatters.sort_unstable();
             let var_or_comp = VarOrComp::Var {
                 formatters,

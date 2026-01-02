@@ -1,7 +1,7 @@
 use icu_provider::{DataMarker, DataMarkerInfo};
-use leptos_i18n_parser::{
-    parse_locales::locale::{BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural},
-    utils::formatter::Formatter,
+use leptos_i18n_parser::formatters;
+use leptos_i18n_parser::parse_locales::locale::{
+    BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural,
 };
 use std::collections::HashSet;
 
@@ -42,14 +42,19 @@ pub fn find_used_datamarker(
                     }
 
                     for formatter in &var_infos.formatters {
-                        let dk = match formatter {
-                            Formatter::None | Formatter::Dummy => continue,
-                            Formatter::Number(_) => FormatterOptions::FormatNums,
-                            Formatter::Date(..) | Formatter::Time(..) | Formatter::DateTime(..) => {
-                                FormatterOptions::FormatDateTime
-                            }
-                            Formatter::List(..) => FormatterOptions::FormatList,
-                            Formatter::Currency(..) => FormatterOptions::FormatCurrency,
+                        let dk = if formatter.is::<formatters::currency::CurrencyFormatter>() {
+                            FormatterOptions::FormatCurrency
+                        } else if formatter.is::<formatters::nums::NumberFormatter>() {
+                            FormatterOptions::FormatNums
+                        } else if formatter.is::<formatters::datetime::DateFormatter>()
+                            || formatter.is::<formatters::datetime::DateTimeFormatter>()
+                            || formatter.is::<formatters::datetime::TimeFormatter>()
+                        {
+                            FormatterOptions::FormatDateTime
+                        } else if formatter.is::<formatters::list::ListFormatter>() {
+                            FormatterOptions::FormatList
+                        } else {
+                            continue;
                         };
                         used_icu_markers.insert(dk);
                     }

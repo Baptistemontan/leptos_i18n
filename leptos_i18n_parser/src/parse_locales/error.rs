@@ -130,7 +130,7 @@ pub enum Error {
     DisabledFormatter {
         locale: Key,
         key_path: KeyPath,
-        formatter: crate::utils::formatter::Formatter,
+        formatter_err: &'static str,
     },
     DisabledPlurals {
         locale: Key,
@@ -139,6 +139,11 @@ pub enum Error {
     NoFileFormats,
     MultipleFilesFormats,
     MissingTranslationsURI,
+    Custom {
+        locale: Key,
+        key_path: KeyPath,
+        err: String,
+    },
 }
 
 impl Display for Error {
@@ -320,13 +325,11 @@ impl Display for Error {
             Error::DisabledFormatter {
                 locale,
                 key_path,
-                formatter,
+                formatter_err,
             } => write!(
                 f,
                 "{}, at key \"{}\" in locale {:?}",
-                formatter.err_message(),
-                key_path,
-                locale
+                formatter_err, key_path, locale
             ),
             Error::DisabledPlurals { locale, key_path } => write!(
                 f,
@@ -354,6 +357,24 @@ impl Display for Error {
                     cfg_file::Field::TRANSLATIONS_URI
                 )
             }
+            Error::Custom {
+                locale,
+                key_path,
+                err,
+            } => write!(
+                f,
+                "Error in locale {locale:?} at key \"{key_path}\": {err:?}"
+            ),
+        }
+    }
+}
+
+impl Error {
+    pub fn custom(locale: Key, key_path: KeyPath, err: impl ToString) -> Self {
+        Self::Custom {
+            locale,
+            key_path,
+            err: err.to_string(),
         }
     }
 }

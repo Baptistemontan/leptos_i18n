@@ -6,8 +6,9 @@ use serde::{
 };
 
 use crate::{
+    formatters::{Formatters, ValueFormatter},
     parse_locales::options::ParseOptions,
-    utils::{Key, KeyPath, UnwrapAt, formatter::Formatter},
+    utils::{Key, KeyPath, UnwrapAt},
 };
 
 use super::{
@@ -33,7 +34,7 @@ pub enum ParsedValue {
     ForeignKey(RefCell<ForeignKey>),
     Ranges(Ranges),
     Literal(Literal),
-    Variable { key: Key, formatter: Formatter },
+    Variable { key: Key, formatter: ValueFormatter },
     Component { key: Key, inner: Option<Box<Self>> },
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
@@ -130,20 +131,23 @@ impl Display for Literal {
     }
 }
 
+pub struct Context<'a> {
+    pub key_path: &'a KeyPath,
+    pub locale: &'a Key,
+    pub foreign_keys_paths: &'a ForeignKeysPaths,
+    pub formatters: &'a Formatters,
+    pub diag: &'a Diagnostics,
+}
+
 impl ParsedValue {
-    pub fn new(
-        value: &str,
-        key_path: &KeyPath,
-        locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
-    ) -> Result<Self> {
+    pub fn new(value: &str, ctx: &Context) -> Result<Self> {
         let parsed_value = [
             Self::find_component,
             Self::find_foreign_key,
             Self::find_variable,
         ]
         .into_iter()
-        .find_map(|f| f(value, key_path, locale, foreign_keys_paths));
+        .find_map(|f| f(value, ctx));
         match parsed_value {
             Some(Ok(value)) => Ok(value),
             None => Ok(ParsedValue::Literal(Literal::String(
@@ -166,42 +170,45 @@ impl ParsedValue {
         }
     }
 
-    fn parse_formatter_args(s: &str) -> (&str, Option<Vec<(&str, &str)>>) {
+    fn parse_formatter_args(s: &str) -> (&str, Vec<(&str, Option<&str>)>) {
         let Some((name, rest)) = s.split_once('(') else {
-            return (s.trim(), None);
+            return (s.trim(), vec![]);
         };
         let Some((args, rest)) = rest.rsplit_once(')') else {
-            return (s.trim(), None);
+            return (s.trim(), vec![]);
         };
 
         // TODO: what should we do with it ?
         let _ = rest;
 
-        let args = args
-            .split(';')
-            .filter_map(|s| s.split_once(':'))
-            .map(|(a, b)| (a.trim(), b.trim()));
+        let args = args.split(';').map(|s| {
+            s.split_once(':')
+                .map(|(a, b)| (a.trim(), Some(b.trim())))
+                .unwrap_or((s.trim(), None))
+        });
 
-        (name.trim(), Some(args.collect()))
+        (name.trim(), args.collect())
     }
 
-    fn parse_formatter(s: &str, locale: &Key, key_path: &KeyPath) -> Result<Formatter> {
+    fn parse_formatter(s: &str, ctx: &Context) -> ValueFormatter {
         let (name, args) = Self::parse_formatter_args(s);
-        match Formatter::from_name_and_args(name, args.as_deref()) {
-            Ok(Some(formatter)) => Ok(formatter),
-            Ok(None) => Err(Error::UnknownFormatter {
-                name: name.to_string(),
-                locale: locale.clone(),
-                key_path: key_path.clone(),
-            }
-            .into()),
-            Err(formatter) => Err(Error::DisabledFormatter {
-                formatter,
-                locale: locale.clone(),
-                key_path: key_path.clone(),
-            }
-            .into()),
-        }
+        ctx.formatters
+            .parse(ctx.locale, ctx.key_path, name, &args, ctx.diag)
+        // match ValueFormatter::from_name_and_args(name, &args) {
+        //     Ok(Some(formatter)) => Ok(formatter),
+        //     Ok(None) => Err(Error::UnknownFormatter {
+        //         name: name.to_string(),
+        //         locale: locale.clone(),
+        //         key_path: key_path.clone(),
+        //     }
+        //     .into()),
+        //     Err(formatter) => Err(Error::DisabledFormatter {
+        //         formatter,
+        //         locale: locale.clone(),
+        //         key_path: key_path.clone(),
+        //     }
+        //     .into()),
+        // }
     }
 
     fn parse_key_path(path: &str) -> Option<KeyPath> {
@@ -223,16 +230,14 @@ impl ParsedValue {
 
     fn parse_foreign_key_args_inner(
         s: &str,
-        key_path: &KeyPath,
-        locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
+        ctx: &Context,
     ) -> Result<BTreeMap<String, ParsedValue>> {
         let args = match serde_json::from_str::<BTreeMap<String, Literal>>(s) {
             Ok(args) => args,
             Err(err) => {
                 return Err(Error::InvalidForeignKeyArgs {
-                    locale: locale.clone(),
-                    key_path: key_path.clone(),
+                    locale: ctx.locale.clone(),
+                    key_path: ctx.key_path.clone(),
                     err,
                 }
                 .into());
@@ -242,7 +247,7 @@ impl ParsedValue {
 
         for (key, arg) in args {
             let parsed_value = match arg {
-                Literal::String(s, _) => Self::new(&s, key_path, locale, foreign_keys_paths)?,
+                Literal::String(s, _) => Self::new(&s, ctx)?,
                 other => ParsedValue::Literal(other),
             };
             let key = format!("var_{}", key.trim());
@@ -254,9 +259,7 @@ impl ParsedValue {
 
     fn parse_foreign_key_args<'a>(
         s: &'a str,
-        key_path: &KeyPath,
-        locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
+        ctx: &Context,
     ) -> Result<(BTreeMap<String, ParsedValue>, &'a str)> {
         let mut depth = 0usize;
         let mut index = 0usize;
@@ -269,8 +272,8 @@ impl ParsedValue {
                         Some(v) => v,
                         None => {
                             return Err(Error::UnexpectedToken {
-                                locale: locale.clone(),
-                                key_path: key_path.clone(),
+                                locale: ctx.locale.clone(),
+                                key_path: ctx.key_path.clone(),
                                 message: "malformed foreign key".to_string(),
                             }
                             .into());
@@ -289,25 +292,19 @@ impl ParsedValue {
 
         let Some(after) = after.trim_start().strip_prefix(')') else {
             return Err(Error::UnexpectedToken {
-                locale: locale.clone(),
-                key_path: key_path.clone(),
+                locale: ctx.locale.clone(),
+                key_path: ctx.key_path.clone(),
                 message: "malformed foreign key".to_string(),
             }
             .into());
         };
 
-        let args =
-            Self::parse_foreign_key_args_inner(before, key_path, locale, foreign_keys_paths)?;
+        let args = Self::parse_foreign_key_args_inner(before, ctx)?;
 
         Ok((args, after))
     }
 
-    fn find_foreign_key(
-        value: &str,
-        key_path: &KeyPath,
-        locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
-    ) -> Option<Result<Self>> {
+    fn find_foreign_key(value: &str, ctx: &Context) -> Option<Result<Self>> {
         let (before, rest) = value.split_once("$t(")?;
         let next_split = rest.find([',', ')'])?;
         let keypath = rest.get(..next_split)?;
@@ -316,26 +313,21 @@ impl ParsedValue {
         let target_key_path = Self::parse_key_path(keypath)?;
 
         let (args, after) = if sep == ',' {
-            nested_result_try!(Self::parse_foreign_key_args(
-                after,
-                key_path,
-                locale,
-                foreign_keys_paths,
-            ))
+            nested_result_try!(Self::parse_foreign_key_args(after, ctx))
         } else {
             (BTreeMap::new(), after)
         };
 
         let this = ParsedValue::ForeignKey(RefCell::new(ForeignKey::new(
-            key_path.clone(),
+            ctx.key_path.clone(),
             target_key_path,
             args,
-            locale,
-            foreign_keys_paths,
+            ctx.locale,
+            ctx.foreign_keys_paths,
         )));
 
-        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths,));
-        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths,));
+        let before = nested_result_try!(Self::new(before, ctx));
+        let after = nested_result_try!(Self::new(after, ctx));
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
@@ -361,40 +353,33 @@ impl ParsedValue {
 
     fn find_valid_variable<'a>(
         value: &'a str,
-        key_path: &KeyPath,
-        locale: &Key,
+        ctx: &Context,
     ) -> Option<Result<(&'a str, Self, &'a str)>> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
 
         let ident = ident.trim();
 
-        let this = if let Some((ident, formatter)) = ident.split_once(',') {
-            let formatter = nested_result_try!(Self::parse_formatter(formatter, locale, key_path));
+        let this = if let Some((ident, s)) = ident.split_once(',') {
+            let formatter = Self::parse_formatter(s, ctx);
             let key = Key::new(&format!("var_{}", ident.trim()))?;
             ParsedValue::Variable { key, formatter }
         } else {
             let key = Key::new(&format!("var_{ident}"))?;
             ParsedValue::Variable {
                 key,
-                formatter: Formatter::None,
+                formatter: ValueFormatter::None,
             }
         };
 
         Some(Ok((before, this, after)))
     }
 
-    fn find_variable(
-        value: &str,
-        key_path: &KeyPath,
-        locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
-    ) -> Option<Result<Self>> {
-        let (before, this, after) =
-            nested_result_try!(Self::find_valid_variable(value, key_path, locale)?);
+    fn find_variable(value: &str, ctx: &Context) -> Option<Result<Self>> {
+        let (before, this, after) = nested_result_try!(Self::find_valid_variable(value, ctx)?);
 
-        let before = nested_result_try!(Self::new(before, key_path, locale, foreign_keys_paths,));
-        let after = nested_result_try!(Self::new(after, key_path, locale, foreign_keys_paths,));
+        let before = nested_result_try!(Self::new(before, ctx));
+        let after = nested_result_try!(Self::new(after, ctx));
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
@@ -468,14 +453,8 @@ impl ParsedValue {
         }
     }
 
-    fn find_component(
-        value: &str,
-        key_path: &KeyPath,
-        locale: &Key,
-        foreign_keys_paths: &ForeignKeysPaths,
-    ) -> Option<Result<Self>> {
+    fn find_component(value: &str, ctx: &Context) -> Option<Result<Self>> {
         let (key, before, between, after) = Self::find_valid_component(value)?;
-
         let mut values = Vec::new();
 
         // `before` is literal text only (no components) - just add as literal if non-empty
@@ -489,12 +468,7 @@ impl ParsedValue {
         }
 
         let inner = match between {
-            Some(between) => Some(Box::new(nested_result_try!(ParsedValue::new(
-                between,
-                key_path,
-                locale,
-                foreign_keys_paths,
-            )))),
+            Some(between) => Some(Box::new(nested_result_try!(ParsedValue::new(between, ctx)))),
             None => None,
         };
 
@@ -503,12 +477,7 @@ impl ParsedValue {
         if let Some(after) = after
             && !after.is_empty()
         {
-            let after_parsed = nested_result_try!(ParsedValue::new(
-                after,
-                key_path,
-                locale,
-                foreign_keys_paths,
-            ));
+            let after_parsed = nested_result_try!(ParsedValue::new(after, ctx));
             // Flatten if after_parsed is a Bloc
             match after_parsed {
                 ParsedValue::Bloc(mut after_values) => values.append(&mut after_values),
@@ -699,7 +668,7 @@ impl ParsedValue {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
                     key: key.clone(),
-                    formatter: *formatter,
+                    formatter: formatter.clone(),
                 }),
             },
             ParsedValue::Component { key, inner } => {
@@ -974,7 +943,7 @@ impl ParsedValue {
             ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable { key, formatter } => {
                 keys.get_interpol_keys_mut()
-                    .push_var(key.clone(), *formatter);
+                    .push_var(key.clone(), formatter.clone());
             }
             ParsedValue::Component { key, inner } => {
                 if let Some(inner) = inner {
@@ -990,7 +959,7 @@ impl ParsedValue {
                 for dummy in dummies {
                     match dummy {
                         Dummy::Variable(key) => {
-                            interpol_keys.push_var(key.clone(), Formatter::Dummy);
+                            interpol_keys.push_var(key.clone(), ValueFormatter::Dummy);
                         }
                         Dummy::Component(key) => {
                             interpol_keys.push_comp(key.clone());
@@ -1129,6 +1098,7 @@ pub struct ParsedValueSeed<'a> {
     pub key: &'a Key,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
     pub diag: &'a Diagnostics,
+    pub formatters: &'a Formatters,
 }
 
 impl<'de> serde::de::DeserializeSeed<'de> for ParsedValueSeed<'_> {
@@ -1149,12 +1119,14 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         E: serde::de::Error,
     {
-        let pv = ParsedValue::new(
-            v,
-            self.key_path,
-            self.top_locale_name,
-            self.foreign_keys_paths,
-        );
+        let ctx = Context {
+            locale: self.top_locale_name,
+            key_path: self.key_path,
+            foreign_keys_paths: self.foreign_keys_paths,
+            diag: self.diag,
+            formatters: self.formatters,
+        };
+        let pv = ParsedValue::new(v, &ctx);
 
         let pv = match pv {
             Ok(pv) => pv,
@@ -1211,6 +1183,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             key_path: self.key_path.to_owned(),
             foreign_keys_paths: self.foreign_keys_paths,
             diag: self.diag,
+            formatters: self.formatters,
         };
 
         seed.deserialize(map_de).map(Some).map(ParsedValue::Subkeys)
@@ -1331,8 +1304,25 @@ mod tests {
         let key_path = KeyPath::new(None);
         let locale = new_key("locale_key");
         let foreign_keys_paths = ForeignKeysPaths::new();
+        let diag = Diagnostics::new();
+        let formatters = Formatters::new();
 
-        ParsedValue::new(value, &key_path, &locale, &foreign_keys_paths).unwrap()
+        let ctx = Context {
+            key_path: &key_path,
+            locale: &locale,
+            foreign_keys_paths: &foreign_keys_paths,
+            diag: &diag,
+            formatters: &formatters,
+        };
+
+        let p = ParsedValue::new(value, &ctx).unwrap();
+        if let Some(err) = diag.errors().first() {
+            panic!("{err}");
+        }
+        if let Some(warning) = diag.warnings().first() {
+            panic!("{warning}");
+        }
+        p
     }
 
     fn new_key(key: &str) -> Key {
@@ -1359,7 +1349,7 @@ mod tests {
                 ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
-                    formatter: Formatter::None
+                    formatter: ValueFormatter::None
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
