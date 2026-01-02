@@ -503,6 +503,7 @@ macro_rules! impl_formatter {
                 }
             }
 
+            #[allow(unused_variables)]
             fn parse_arg(&self, builder: Self::Builder, field: Self::Field<'_>, arg: Option<&str>) -> Result<Self::Builder, Self::ParseError> {
                 match field {
                     $(
