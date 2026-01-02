@@ -217,7 +217,7 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     )
     .expect_throw("No __LEPTOS_I18N_TRANSLATIONS found in the JS global scope");
 
-    let translations: Vec<[TranslationIn<L, L::TranslationUnitId>]> =
+    let translations: Vec<TranslationIn<L, L::TranslationUnitId>> =
         serde_wasm_bindgen::from_value(translations)
             .expect_throw("Failed parsing the translations.");
 
