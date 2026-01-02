@@ -1,14 +1,14 @@
 use leptos_i18n_build::{
-    ParseOptions, TranslationsInfos,
     formatter::{Formatter, FormatterToTokens, Key},
+    ParseOptions, TranslationsInfos,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=Cargo.toml");
 
     let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
