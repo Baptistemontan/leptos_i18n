@@ -127,6 +127,9 @@ impl<'de> serde::Deserialize<'de> for LocaleServerFnOutputClient {
     }
 }
 
+#[cfg(all(feature = "dynamic_load", any(feature = "hydrate", feature = "ssr")))]
+const JS_PREFIX: &str = "window.__LEPTOS_I18N_TRANSLATIONS=";
+
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
 mod register {
     use super::*;
@@ -157,35 +160,30 @@ mod register {
         }
 
         pub fn to_array(&self) -> String {
-            let mut buff = String::from("window.__LEPTOS_I18N_TRANSLATIONS = [");
-            let inner_guard = self.0.lock().unwrap();
-            let mut first = true;
-            for ((locale, id), values) in &*inner_guard {
-                if !std::mem::replace(&mut first, false) {
-                    buff.push(',');
-                }
-                buff.push_str("{\"locale\":\"");
-                buff.push_str(locale.as_str());
-                if let Some(id_str) = TranslationUnitId::to_str(*id) {
-                    buff.push_str("\",\"id\":\"");
-                    buff.push_str(id_str);
-                    buff.push_str("\",\"values\":[");
-                } else {
-                    buff.push_str("\",\"id\":null,\"values\":[");
-                }
-                let mut first = true;
-                for value in *values {
-                    if !std::mem::replace(&mut first, false) {
-                        buff.push(',');
-                    }
-                    buff.push('\"');
-                    buff.push_str(value);
-                    buff.push('\"');
-                }
-                buff.push_str("]}");
+            #[derive(serde::Serialize)]
+            struct TranslationOut<'a> {
+                locale: &'a str,
+                id: Option<&'a str>,
+                values: &'a [&'a str],
             }
-            buff.push_str("];");
-            buff
+            let inner_guard = self.0.lock().unwrap();
+
+            let entries: Vec<TranslationOut<'_>> = inner_guard
+                .iter()
+                .map(|((locale, id), values)| TranslationOut {
+                    locale: locale.as_str(),
+                    id: id.to_str(),
+                    values,
+                })
+                .collect();
+
+            let json = serde_json::to_string(&entries).unwrap();
+
+            let mut result = String::with_capacity(JS_PREFIX.len() + json.len() + 1);
+            result.push_str(JS_PREFIX);
+            result.push_str(&json);
+            result.push(';');
+            result
         }
     }
 }
@@ -195,10 +193,19 @@ pub use register::RegisterCtx;
 
 #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
 pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
+    use crate::locale_traits::TranslationUnitId;
     use leptos::{html::InnerHtmlAttribute, view, web_sys};
     use wasm_bindgen::UnwrapThrowExt;
+
+    #[derive(serde::Serialize)]
+    struct TranslationOut<'a> {
+        locale: &'a str,
+        id: Option<&'a str>,
+        values: &'a [Box<str>],
+    }
+
     #[derive(serde::Deserialize)]
-    struct Trans<L, Id> {
+    struct TranslationIn<L, Id> {
         locale: L,
         id: Id,
         values: Vec<Box<str>>,
@@ -210,42 +217,30 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     )
     .expect_throw("No __LEPTOS_I18N_TRANSLATIONS found in the JS global scope");
 
-    let translations: Vec<Trans<L, L::TranslationUnitId>> =
+    let translations: Vec<TranslationIn<L, L::TranslationUnitId>> =
         serde_wasm_bindgen::from_value(translations)
             .expect_throw("Failed parsing the translations.");
 
-    let mut buff = String::from("window.__LEPTOS_I18N_TRANSLATIONS = [");
+    let json = {
+        let entries: Vec<TranslationOut<'_>> = translations
+            .iter()
+            .map(|TranslationIn { locale, id, values }| {
+                L::init_translations(*locale, *id, values.clone());
 
-    for Trans { locale, id, values } in translations {
-        let mut first = true;
-        if !std::mem::replace(&mut first, false) {
-            buff.push(',');
-        }
-        buff.push_str("{\"locale\":\"");
-        buff.push_str(locale.as_str());
-        if let Some(id_str) = crate::locale_traits::TranslationUnitId::to_str(id) {
-            buff.push_str("\",\"id\":\"");
-            buff.push_str(id_str);
-            buff.push_str("\",\"values\":[");
-        } else {
-            buff.push_str("\",\"id\":null,\"values\":[");
-        }
-        let mut first = true;
-        for value in &values {
-            if !std::mem::replace(&mut first, false) {
-                buff.push(',');
-            }
-            buff.push('\"');
-            buff.push_str(value);
-            buff.push('\"');
-        }
-        buff.push_str("]}");
-        L::init_translations(locale, id, values);
-    }
+                TranslationOut {
+                    locale: locale.as_str(),
+                    id: id.to_str(),
+                    values,
+                }
+            })
+            .collect();
+        serde_json::to_string(&entries).unwrap_throw()
+    };
 
-    buff.push_str("];");
+    let mut buf = String::with_capacity(JS_PREFIX.len() + json.len() + 1);
+    buf.push_str(JS_PREFIX);
+    buf.push_str(&json);
+    buf.push(';');
 
-    view! {
-        <script inner_html = buff />
-    }
+    view! { <script inner_html=buf /> }
 }
