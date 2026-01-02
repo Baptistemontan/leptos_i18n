@@ -2,14 +2,15 @@
 
 use std::fmt;
 
-// use leptos::Attribute;
-
 /// This trait is used when interpolating component with the `td_string!` macro
 pub trait DisplayComponent {
     /// Takes as an input a formatter and a function to format the component children
     fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result;
+
+    /// Format a self-closing component (no children)
+    fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
 impl<F> DisplayComponent for F
@@ -22,6 +23,10 @@ where
     {
         self(f, &children)
     }
+
+    fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self(f, &|_| Ok(()))
+    }
 }
 
 impl DisplayComponent for &str {
@@ -33,6 +38,10 @@ impl DisplayComponent for &str {
         children(f)?;
         write!(f, "</{self}>")
     }
+
+    fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<{self} />")
+    }
 }
 
 impl DisplayComponent for String {
@@ -42,6 +51,11 @@ impl DisplayComponent for String {
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
         self.as_str().fmt(f, children)
+    }
+
+    #[inline]
+    fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_str().fmt_self_closing(f)
     }
 }
 
@@ -90,5 +104,13 @@ impl DisplayComponent for DisplayComp<'_> {
         f.write_str(">")?;
         children(f)?;
         write!(f, "</{}>", self.comp_name)
+    }
+
+    fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<{}", self.comp_name)?;
+        for (attr_name, attr) in self.attrs {
+            write!(f, " {attr_name}=\"{attr}\"")?;
+        }
+        f.write_str(" />")
     }
 }

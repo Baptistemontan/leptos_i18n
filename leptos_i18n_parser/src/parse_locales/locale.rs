@@ -96,6 +96,7 @@ pub struct VarInfo {
 #[derive(Debug, Default)]
 pub struct InterpolationKeys {
     components: BTreeSet<Key>,
+    components_self_closed: BTreeSet<Key>,
     variables: BTreeMap<Key, VarInfo>,
 }
 
@@ -257,6 +258,10 @@ impl InterpolationKeys {
         var_infos.formatters.insert(formatter);
     }
 
+    pub fn push_comp_self_closed(&mut self, key: Key) {
+        self.components_self_closed.insert(key);
+    }
+
     pub fn push_comp(&mut self, key: Key) {
         self.components.insert(key);
     }
@@ -301,6 +306,10 @@ impl InterpolationKeys {
 
     pub fn iter_comps(&self) -> impl Iterator<Item = Key> + '_ {
         self.components.iter().cloned()
+    }
+
+    pub fn iter_comps_self_closed(&self) -> impl Iterator<Item = Key> + '_ {
+        self.components_self_closed.iter().cloned()
     }
 }
 

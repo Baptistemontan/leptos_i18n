@@ -18,6 +18,17 @@ impl<
 {
 }
 
+/// Marker trait for a type that can be used as an interpolation self-closed component.
+pub trait InterpolateCompSelfClosed<O: IntoView + 'static>:
+    Fn() -> O + Clone + 'static + Send + Sync
+{
+}
+
+impl<O: IntoView + 'static, T: Fn() -> O + Clone + 'static + Send + Sync>
+    InterpolateCompSelfClosed<O> for T
+{
+}
+
 /// Marker trait for a type that can be used to produce a count for a range key.
 pub trait InterpolateRangeCount<T>: Fn() -> T + Clone + 'static + Send + Sync {}
 
