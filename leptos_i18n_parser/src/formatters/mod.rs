@@ -137,7 +137,7 @@ pub trait Formatter: 'static {
         let mut builder = self.builder();
         let mut errored = false;
         for (arg_name, arg) in args {
-            let field = match self.parse_field(arg_name) {
+            let field = match self.parse_arg_name(arg_name) {
                 Ok(field) => field,
                 Err(err) => {
                     diag.emit_error(Error::InvalidFormatterArgName {
@@ -150,20 +150,14 @@ pub trait Formatter: 'static {
                     continue;
                 }
             };
-            match self.parse_arg(builder, field, *arg) {
-                Err(err) => {
-                    diag.emit_error(Error::InvalidFormatterArg {
-                        locale: locale.clone(),
-                        key_path: key_path.clone(),
-                        arg_name: arg_name.to_string(),
-                        arg: arg.map(str::to_string),
-                        err: err.to_string(),
-                    });
-                    builder = self.builder();
-                }
-                Ok(updated_builder) => {
-                    builder = updated_builder;
-                }
+            if let Err(err) = self.parse_arg(&mut builder, field, *arg) {
+                diag.emit_error(Error::InvalidFormatterArg {
+                    locale: locale.clone(),
+                    key_path: key_path.clone(),
+                    arg_name: arg_name.to_string(),
+                    arg: arg.map(str::to_string),
+                    err: err.to_string(),
+                });
             }
         }
         if errored {
@@ -185,14 +179,17 @@ pub trait Formatter: 'static {
 
     fn builder(&self) -> Self::Builder;
 
-    fn parse_field<'a>(&self, field_name: &'a str) -> Result<Self::Field<'a>, Self::ParseError>;
+    fn parse_arg_name<'a>(
+        &self,
+        argument_name: &'a str,
+    ) -> Result<Self::Field<'a>, Self::ParseError>;
 
     fn parse_arg(
         &self,
-        builder: Self::Builder,
+        builder: &mut Self::Builder,
         field: Self::Field<'_>,
         arg: Option<&str>,
-    ) -> Result<Self::Builder, Self::ParseError>;
+    ) -> Result<(), Self::ParseError>;
 
     fn build(&self, builder: Self::Builder) -> Result<Self::ToTokens, Self::ParseError>;
 }
@@ -242,23 +239,18 @@ impl<T: Formatter + ?Sized> DynFormatter for T {
         if let Some(args) = args {
             for (arg_name, arg) in args {
                 let arg_name_str = arg_name.to_string();
-                let field = match self.parse_field(&arg_name_str) {
+                let field = match self.parse_arg_name(&arg_name_str) {
                     Ok(field) => field,
                     Err(err) => {
                         return Err(syn::Error::new(arg_name.span(), err));
                     }
                 };
                 let arg_str = arg.as_ref().map(|i| i.to_string());
-                match self.parse_arg(builder, field, arg_str.as_deref()) {
-                    Err(err) => {
-                        return Err(syn::Error::new(
-                            arg.as_ref().unwrap_or(&arg_name).span(),
-                            err,
-                        ));
-                    }
-                    Ok(updated_builder) => {
-                        builder = updated_builder;
-                    }
+                if let Err(err) = self.parse_arg(&mut builder, field, arg_str.as_deref()) {
+                    return Err(syn::Error::new(
+                        arg.as_ref().unwrap_or(&arg_name).span(),
+                        err,
+                    ));
                 }
             }
         }
@@ -274,12 +266,19 @@ impl<T: Formatter + ?Sized> DynFormatter for T {
 
 pub trait FormatterToTokens: Any {
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream;
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream;
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream;
     fn view_bounds(&self) -> TokenStream;
-    fn display_bounds(&self) -> TokenStream;
+
+    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream;
+    fn fmt_bounds(&self) -> TokenStream;
+
+    #[doc(hidden)]
     fn is(&self, type_id: TypeId) -> bool {
         self.type_id() == type_id
+    }
+    #[doc(hidden)]
+    fn to_impl_display(&self, _key: &syn::Ident, _locale_field: &syn::Ident) -> TokenStream {
+        // internals for the t_format! macro, custom formatters aren't possible there.
+        unimplemented!()
     }
 }
 
@@ -303,18 +302,18 @@ impl ValueFormatter {
         }
     }
 
-    pub fn to_bound(&self) -> TokenStream {
+    pub fn view_bounds(&self) -> TokenStream {
         match self {
             Self::None => quote!(l_i18n_crate::__private::InterpolateVar),
             Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
             Self::Formatted { to_tokens, .. } => to_tokens.view_bounds(),
         }
     }
-    pub fn to_string_bound(&self) -> TokenStream {
+    pub fn fmt_bounds(&self) -> TokenStream {
         match self {
             Self::None => quote!(::std::fmt::Display),
             Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
-            Self::Formatted { to_tokens, .. } => to_tokens.display_bounds(),
+            Self::Formatted { to_tokens, .. } => to_tokens.fmt_bounds(),
         }
     }
 
@@ -323,9 +322,9 @@ impl ValueFormatter {
             Self::None => {
                 quote!(#key)
             }
-            Self::Dummy => unreachable!(
-                "var_to_view function should not have been called on a dummy formatter"
-            ),
+            Self::Dummy => {
+                quote!({ let _ = #key; core::unimplemented!("Dummy formatter, parsing of a formatter must have failed.") })
+            }
             Self::Formatted { to_tokens, .. } => to_tokens.to_view(key, locale_field),
         }
     }
@@ -335,22 +334,20 @@ impl ValueFormatter {
                 quote!(core::fmt::Display::fmt(#key, __formatter))
             }
             Self::Dummy => {
-                unreachable!("var_fmt function should not have been called on a dummy formatter")
+                quote!({ let _ = #key; core::unimplemented!("Dummy formatter, parsing of a formatter must have failed.") })
             }
             Self::Formatted { to_tokens, .. } => to_tokens.to_fmt(key, locale_field),
         }
     }
-    pub fn var_to_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    pub fn var_to_impl_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         match self {
             Self::None => unreachable!(
                 "var_to_display function should not have been called on a variable with no formatter."
             ),
             Self::Dummy => {
-                unreachable!(
-                    "var_to_display function should not have been called on a dummy formatter"
-                )
+                quote!({ let _ = #key; core::unimplemented!("Dummy formatter, parsing of a formatter must have failed.") })
             }
-            Self::Formatted { to_tokens, .. } => to_tokens.to_display(key, locale_field),
+            Self::Formatted { to_tokens, .. } => to_tokens.to_impl_display(key, locale_field),
         }
     }
 }
@@ -494,26 +491,26 @@ macro_rules! impl_formatter {
                 }
             }
 
-            fn parse_field<'a>(&self, field_name: &'a str) -> Result<Self::Field<'a>, Self::ParseError> {
-                match field_name {
+            fn parse_arg_name<'a>(&self, arg_name: &'a str) -> Result<Self::Field<'a>, Self::ParseError> {
+                match arg_name {
                     $(
-                        $(stringify!($arg_name) => Ok(field_name)),*
+                        $(stringify!($arg_name) => Ok(arg_name)),*
                     )?,
                     _ => Err(std::borrow::Cow::Borrowed("unknown argument name")),
                 }
             }
 
             #[allow(unused_variables)]
-            fn parse_arg(&self, builder: Self::Builder, field: Self::Field<'_>, arg: Option<&str>) -> Result<Self::Builder, Self::ParseError> {
+            fn parse_arg(&self, builder: &mut Self::Builder, field: Self::Field<'_>, arg: Option<&str>) -> Result<(), Self::ParseError> {
                 match field {
                     $(
                         $(stringify!($arg_name) => {
                             let value = $s::from_arg(arg)?;
-                            #[allow(clippy::needless_update)]
-                            Ok($builder_name {
-                                $arg_name: Some(value),
-                                ..builder
-                            })
+                            if builder.$arg_name.replace(value).is_some() {
+                                Err(std::borrow::Cow::Borrowed("duplicate argument"))
+                            } else {
+                                Ok(())
+                            }
                         }),*
                     )?
                     _ => unreachable!()

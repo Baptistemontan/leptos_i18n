@@ -27,11 +27,11 @@ impl FormatterToTokens for ListFormatter {
         quote!(l_i18n_crate::__private::format_list_to_view(#locale_field, #key, #list_type, #list_style))
     }
 
-    fn display_bounds(&self) -> TokenStream {
+    fn fmt_bounds(&self) -> TokenStream {
         quote!(l_i18n_crate::__private::WriteableList)
     }
 
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(list_type, list_style) = self;
         quote!(l_i18n_crate::__private::format_list_to_display(#locale_field, #key, #list_type, #list_style))
     }

@@ -37,11 +37,11 @@ impl FormatterToTokens for DateTimeFormatter {
         quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
     }
 
-    fn display_bounds(&self) -> TokenStream {
+    fn fmt_bounds(&self) -> TokenStream {
         quote!(l_i18n_crate::__private::AsIcuDateTime)
     }
 
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, time_precision, year_style) = self;
         quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
     }
@@ -75,11 +75,11 @@ impl FormatterToTokens for DateFormatter {
         quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment, #year_style))
     }
 
-    fn display_bounds(&self) -> TokenStream {
+    fn fmt_bounds(&self) -> TokenStream {
         quote!(l_i18n_crate::__private::AsIcuDate)
     }
 
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, year_style) = self;
         quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment, #year_style))
     }
@@ -113,11 +113,11 @@ impl FormatterToTokens for TimeFormatter {
         quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length, #alignment, #precision))
     }
 
-    fn display_bounds(&self) -> TokenStream {
+    fn fmt_bounds(&self) -> TokenStream {
         quote!(l_i18n_crate::__private::AsIcuTime)
     }
 
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, precision) = self;
         quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length, #alignment, #precision))
     }

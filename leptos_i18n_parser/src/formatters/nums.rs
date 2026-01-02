@@ -27,11 +27,11 @@ impl FormatterToTokens for NumberFormatter {
         quote!(l_i18n_crate::__private::format_number_to_view(#locale_field, #key, #strat))
     }
 
-    fn display_bounds(&self) -> TokenStream {
+    fn fmt_bounds(&self) -> TokenStream {
         quote!(l_i18n_crate::__private::IntoFixedDecimal)
     }
 
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(strat) = self;
         quote!(l_i18n_crate::__private::format_number_to_display(#locale_field, #key, #strat))
     }

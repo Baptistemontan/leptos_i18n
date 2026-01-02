@@ -158,11 +158,7 @@ pub enum Error {
         err: String,
     },
 
-    Custom {
-        locale: Key,
-        key_path: KeyPath,
-        err: String,
-    },
+    Custom(String),
 }
 
 impl Display for Error {
@@ -376,11 +372,9 @@ impl Display for Error {
                     cfg_file::Field::TRANSLATIONS_URI
                 )
             }
-            Error::Custom {
-                locale,
-                key_path,
-                err,
-            } => write!(f, "Error in locale {locale:?} at key \"{key_path}\": {err}"),
+            Error::Custom(err) => {
+                write!(f, "{err}")
+            }
             Error::InvalidFormatterArgName {
                 locale,
                 key_path,
@@ -415,12 +409,8 @@ impl Display for Error {
 }
 
 impl Error {
-    pub fn custom(locale: Key, key_path: KeyPath, err: impl ToString) -> Self {
-        Self::Custom {
-            locale,
-            key_path,
-            err: err.to_string(),
-        }
+    pub fn custom(err: impl ToString) -> Self {
+        Self::Custom(err.to_string())
     }
 }
 
@@ -493,6 +483,13 @@ pub enum Warning {
         namespace: Option<Key>,
         path: std::path::PathBuf,
     },
+    Custom(String),
+}
+
+impl Warning {
+    pub fn custom(err: impl ToString) -> Self {
+        Warning::Custom(err.to_string())
+    }
 }
 
 impl Display for Warning {
@@ -532,6 +529,7 @@ impl Display for Warning {
                 f,
                 "File path for locale {locale:?} in namespace {ns:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"
             ),
+            Warning::Custom(warn) => write!(f, "{warn}"),
         }
     }
 }
@@ -550,6 +548,14 @@ impl Diagnostics {
 
     pub fn emit_error(&self, error: Error) {
         self.errors.borrow_mut().push(error);
+    }
+
+    pub fn emit_custom_error(&self, err: impl ToString) {
+        self.emit_error(Error::custom(err));
+    }
+
+    pub fn emit_custom_warning(&self, err: impl ToString) {
+        self.emit_warning(Warning::custom(err));
     }
 
     pub fn emit_warning(&self, warning: Warning) {

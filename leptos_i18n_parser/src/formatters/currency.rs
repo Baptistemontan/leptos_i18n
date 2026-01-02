@@ -30,11 +30,11 @@ impl FormatterToTokens for CurrencyFormatter {
         quote!(l_i18n_crate::__private::format_currency_to_view(#locale_field, #key, #width, #code))
     }
 
-    fn display_bounds(&self) -> TokenStream {
+    fn fmt_bounds(&self) -> TokenStream {
         quote!(l_i18n_crate::__private::IntoFixedDecimal)
     }
 
-    fn to_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
+    fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(width, code) = self;
         quote!(l_i18n_crate::__private::format_currency_to_display(#locale_field, #key, #width, #code))
     }

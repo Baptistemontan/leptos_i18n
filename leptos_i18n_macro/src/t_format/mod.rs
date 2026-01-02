@@ -81,9 +81,9 @@ impl OutputType {
     ) -> TokenStream {
         match self {
             OutputType::View => formatter.var_to_view(value_ident, locale_ident),
-            OutputType::Display => formatter.var_to_display(value_ident, locale_ident),
+            OutputType::Display => formatter.var_to_impl_display(value_ident, locale_ident),
             OutputType::String => {
-                let ts = formatter.var_to_display(value_ident, locale_ident);
+                let ts = formatter.var_to_impl_display(value_ident, locale_ident);
                 quote! { std::string::ToString::to_string(&#ts) }
             }
         }
