@@ -55,6 +55,14 @@ fn interpolate_variable_and_comp() {
 }
 
 #[test]
+fn interpolate_variable_and_comp_self_closed() {
+    let en = td!(Locale::en, interpolate_variable_and_comp_self_closed, <br/> = <br/>);
+    assert_eq_rendered!(en, "hello<br>world");
+    let fr = td!(Locale::fr, interpolate_variable_and_comp_self_closed, <br/> = <br/>);
+    assert_eq_rendered!(fr, "hello<br>world");
+}
+
+#[test]
 fn non_copy_arg() {
     fn check_impl_fn<T>(_: &impl Fn() -> T) {}
 

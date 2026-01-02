@@ -80,6 +80,7 @@ enum VarOrComp {
     },
     Comp {
         into_view: syn::Ident,
+        self_closed: bool,
     },
 }
 
@@ -132,9 +133,16 @@ impl Field {
                 let ts = Self::get_var_generics(generic, formatters, *range);
                 EitherIter::Iter1(std::iter::once(ts))
             }
-            VarOrComp::Comp { into_view } => {
+            VarOrComp::Comp {
+                into_view,
+                self_closed,
+            } => {
                 let ts = [
-                    quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>),
+                    if *self_closed {
+                        quote!(#generic: l_i18n_crate::__private::InterpolateCompSelfClosed<#into_view>)
+                    } else {
+                        quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>)
+                    },
                     quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + 'static),
                 ];
                 EitherIter::Iter2(ts.into_iter())
@@ -159,7 +167,7 @@ impl Field {
         let generic = std::iter::once(&self.generic);
         match &self.var_or_comp {
             VarOrComp::Var { .. } => EitherIter::Iter1(generic),
-            VarOrComp::Comp { into_view } => EitherIter::Iter2(generic.chain(Some(into_view))),
+            VarOrComp::Comp { into_view, .. } => EitherIter::Iter2(generic.chain(Some(into_view))),
         }
     }
 
@@ -193,7 +201,7 @@ impl Field {
     pub fn as_into_view_generic(&self) -> Option<&syn::Ident> {
         match &self.var_or_comp {
             VarOrComp::Var { .. } => None,
-            VarOrComp::Comp { into_view } => Some(into_view),
+            VarOrComp::Comp { into_view, .. } => Some(into_view),
         }
     }
 }
@@ -222,7 +230,10 @@ impl Interpolation {
 
         let comps = keys.iter_comps().map(|key| {
             let into_view = format_ident!("__into_view_{}__", key);
-            let var_or_comp = VarOrComp::Comp { into_view };
+            let var_or_comp = VarOrComp::Comp {
+                into_view,
+                self_closed: false,
+            };
             let generic = format_ident!("__{}__", key);
             Field {
                 key,
@@ -231,7 +242,21 @@ impl Interpolation {
             }
         });
 
-        let mut fields: Vec<_> = vars.chain(comps).collect();
+        let comps_self_closed = keys.iter_comps_self_closed().map(|key| {
+            let into_view = format_ident!("__into_view_{}__", key);
+            let var_or_comp = VarOrComp::Comp {
+                into_view,
+                self_closed: true,
+            };
+            let generic = format_ident!("__{}__", key);
+            Field {
+                key,
+                var_or_comp,
+                generic,
+            }
+        });
+
+        let mut fields: Vec<_> = vars.chain(comps).chain(comps_self_closed).collect();
 
         fields.sort_by(|a, b| a.key.cmp(&b.key));
 

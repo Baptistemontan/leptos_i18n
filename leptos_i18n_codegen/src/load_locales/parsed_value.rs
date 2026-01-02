@@ -88,30 +88,38 @@ fn flatten(
         }
         ParsedValue::Component { key, inner } => {
             let mut key_path = KeyPath::new(None);
-            let captured_keys = inner
-                .get_keys(&mut key_path)
-                .unwrap_at("parsed_value::flatten_1")
-                .is_interpol()
-                .map(|keys| {
-                    let keys = keys
-                        .iter_keys()
-                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
-                    quote!(#(#keys)*)
-                });
+            if let Some(inner) = inner {
+                let captured_keys = inner
+                    .get_keys(&mut key_path)
+                    .unwrap_at("parsed_value::flatten_1")
+                    .is_interpol()
+                    .map(|keys| {
+                        let keys = keys
+                            .iter_keys()
+                            .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
+                        quote!(#(#keys)*)
+                    });
 
-            let inner = to_token_stream(inner, strings_count);
-            let f = quote!(
-                {
-                    #captured_keys
-                    move || #inner
-                }
-            );
-            tokens.push(quote!({
+                let inner = to_token_stream(inner, strings_count);
+                let f = quote!(
+                    {
+                        #captured_keys
+                        move || #inner
+                    }
+                );
+                tokens.push(quote!({
                     let __boxed_children_fn = l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f);
                     let #key = core::clone::Clone::clone(&#key);
                     move || #key(core::clone::Clone::clone(&__boxed_children_fn))
-            }));
+                }));
+            } else {
+                tokens.push(quote!({
+                    let #key = core::clone::Clone::clone(&#key);
+                    move || #key()
+                }));
+            }
         }
+
         ParsedValue::Bloc(values) => {
             for value in values {
                 flatten(value, tokens, locale_field, strings_count);
@@ -149,9 +157,17 @@ fn flatten_string(
             tokens.push(ts);
         }
         ParsedValue::Component { key, inner } => {
-            let inner = as_string_impl(inner, strings_count);
-            tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner)))
+            match inner {
+                Some(inner_value) => {
+                    let inner_ts = as_string_impl(inner_value, strings_count);
+                    tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner_ts)))
+                }
+                None => {
+                    tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt_self_closing(#key, __formatter)))
+                }
+            }
         }
+
         ParsedValue::Bloc(values) => {
             for value in values {
                 flatten_string(value, tokens, locale_field, strings_count);

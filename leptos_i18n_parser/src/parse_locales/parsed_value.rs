@@ -34,7 +34,7 @@ pub enum ParsedValue {
     Ranges(Ranges),
     Literal(Literal),
     Variable { key: Key, formatter: Formatter },
-    Component { key: Key, inner: Box<Self> },
+    Component { key: Key, inner: Option<Box<Self>> },
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
     Plurals(Plurals),
@@ -400,26 +400,71 @@ impl ParsedValue {
     }
 
     fn find_dummy_component(value: &str, dummies: &mut Vec<Dummy>) -> Option<()> {
-        let (key, before, beetween, after) = Self::find_valid_component(value)?;
+        let (key, before, between, after) = Self::find_valid_component(value)?;
+
         dummies.push(Dummy::Component(key));
-        Self::make_dummy_inner(before, dummies);
-        Self::make_dummy_inner(beetween, dummies);
-        Self::make_dummy_inner(after, dummies);
+
+        if let Some(before) = before {
+            Self::make_dummy_inner(before, dummies);
+        }
+
+        if let Some(between) = between {
+            Self::make_dummy_inner(between, dummies);
+        }
+
+        if let Some(after) = after {
+            Self::make_dummy_inner(after, dummies);
+        }
 
         Some(())
     }
 
-    fn find_valid_component(value: &str) -> Option<(Key, &str, &str, &str)> {
+    #[allow(clippy::type_complexity)]
+    fn find_valid_component(
+        value: &str,
+    ) -> Option<(Key, Option<&str>, Option<&str>, Option<&str>)> {
         let mut skip_sum = 0;
+
         loop {
-            let (before, key, after, skip) = Self::find_opening_tag(&value[skip_sum..])?;
-            if let Some((key, beetween, after)) = Self::find_closing_tag(after, key) {
-                let before_len = skip_sum + before.len();
-                let before = &value[..before_len];
-                break Some((key, before, beetween, after));
-            } else {
-                skip_sum += skip;
+            let (before, key, after, skip, self_closing) =
+                Self::find_opening_tag(&value[skip_sum..])?;
+
+            // Calculate the absolute position of where this tag ends
+            let tag_end = skip_sum + skip;
+
+            if self_closing {
+                let key_ident = Key::new(&format!("comp_{key}"))?;
+                // before includes everything from start up to the opening '<'
+                let abs_before = &value[..skip_sum + before.len()];
+                let before = if abs_before.is_empty() {
+                    None
+                } else {
+                    Some(abs_before)
+                };
+                let after = if after.is_empty() { None } else { Some(after) };
+                return Some((key_ident, before, None, after));
             }
+
+            if let Some((key_ident, between, after)) = Self::find_closing_tag(after, key) {
+                // before includes everything from start up to the opening '<'
+                let abs_before = &value[..skip_sum + before.len()];
+                let before = if abs_before.is_empty() {
+                    None
+                } else {
+                    Some(abs_before)
+                };
+                let between = if between.is_empty() {
+                    None
+                } else {
+                    Some(between)
+                };
+                let after = if after.is_empty() { None } else { Some(after) };
+                return Some((key_ident, before, between, after));
+            }
+
+            // No closing tag found - skip past this entire tag (including the tag itself)
+            // so that the skipped tag text becomes part of the next iteration's "before"
+            skip_sum = tag_end;
         }
     }
 
@@ -429,75 +474,107 @@ impl ParsedValue {
         locale: &Key,
         foreign_keys_paths: &ForeignKeysPaths,
     ) -> Option<Result<Self>> {
-        let (key, before, beetween, after) = Self::find_valid_component(value)?;
+        let (key, before, between, after) = Self::find_valid_component(value)?;
 
-        let before = nested_result_try!(ParsedValue::new(
-            before,
-            key_path,
-            locale,
-            foreign_keys_paths,
-        ));
-        let beetween = nested_result_try!(ParsedValue::new(
-            beetween,
-            key_path,
-            locale,
-            foreign_keys_paths,
-        ));
-        let after = nested_result_try!(ParsedValue::new(
-            after,
-            key_path,
-            locale,
-            foreign_keys_paths,
-        ));
+        let mut values = Vec::new();
 
-        let this = ParsedValue::Component {
-            key,
-            inner: beetween.into(),
+        // `before` is literal text only (no components) - just add as literal if non-empty
+        if let Some(before) = before
+            && !before.is_empty()
+        {
+            values.push(ParsedValue::Literal(Literal::String(
+                before.to_string(),
+                usize::MAX,
+            )));
+        }
+
+        let inner = match between {
+            Some(between) => Some(Box::new(nested_result_try!(ParsedValue::new(
+                between,
+                key_path,
+                locale,
+                foreign_keys_paths,
+            )))),
+            None => None,
         };
 
-        Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
+        values.push(ParsedValue::Component { key, inner });
+
+        if let Some(after) = after
+            && !after.is_empty()
+        {
+            let after_parsed = nested_result_try!(ParsedValue::new(
+                after,
+                key_path,
+                locale,
+                foreign_keys_paths,
+            ));
+            // Flatten if after_parsed is a Bloc
+            match after_parsed {
+                ParsedValue::Bloc(mut after_values) => values.append(&mut after_values),
+                other => values.push(other),
+            }
+        }
+
+        Some(Ok(ParsedValue::Bloc(values)))
     }
 
     fn find_closing_tag<'a>(value: &'a str, key: &str) -> Option<(Key, &'a str, &'a str)> {
         let key_ident = Key::new(&format!("comp_{key}"))?;
-        let mut indices = None;
-        let mut depth = 0;
-        let iter = value.match_indices('<').filter_map(|(i, _)| {
-            value[i + 1..]
-                .split_once('>')
-                .map(|(ident, _)| (i, ident.trim()))
-        });
-        for (i, ident) in iter {
-            if let Some(closing_tag) = ident.strip_prefix('/').map(str::trim_start) {
-                if closing_tag != key {
-                    continue;
-                }
-                if depth == 0 {
-                    let end_i = i + ident.len() + 2;
-                    indices = Some((i, end_i))
-                } else {
+        let mut depth = 0usize;
+        let mut search_start = 0;
+
+        while let Some(rel_open) = value[search_start..].find('<') {
+            let open_idx = search_start + rel_open;
+            let Some(rel_close) = value[open_idx..].find('>') else {
+                break;
+            };
+            let close_idx = open_idx + rel_close;
+
+            let tag_content = value[open_idx + 1..close_idx].trim();
+            search_start = close_idx + 1;
+
+            if tag_content.ends_with('/') {
+                // Self-closing tag, skip
+                continue;
+            }
+
+            if let Some(closing_name) = tag_content.strip_prefix('/') {
+                let closing_name = closing_name.trim_start();
+                if closing_name == key {
+                    if depth == 0 {
+                        let before = &value[..open_idx];
+                        let after = &value[close_idx + 1..];
+                        return Some((key_ident, before, after));
+                    }
                     depth -= 1;
                 }
-            } else if ident == key {
+            } else if tag_content == key {
                 depth += 1;
             }
         }
 
-        let (start, end) = indices?;
-
-        let before = &value[..start];
-        let after = &value[end..];
-
-        Some((key_ident, before, after))
+        None
     }
 
-    fn find_opening_tag(value: &str) -> Option<(&str, &str, &str, usize)> {
-        let (before, rest) = value.split_once('<')?;
-        let (ident, after) = rest.split_once('>')?;
+    fn find_opening_tag(value: &str) -> Option<(&str, &str, &str, usize, bool)> {
+        let open_idx = value.find('<')?;
+        let close_idx = value[open_idx..].find('>')? + open_idx;
 
-        let skip = before.len() + ident.len() + 2;
+        let before = &value[..open_idx];
+        let tag_content = &value[open_idx + 1..close_idx];
+        let after = &value[close_idx + 1..];
 
-        Some((before, ident.trim(), after, skip))
+        let self_closing = tag_content.ends_with('/');
+        let ident = if self_closing {
+            tag_content[..tag_content.len() - 1].trim()
+        } else {
+            tag_content.trim()
+        };
+
+        let skip = close_idx + 1;
+
+        Some((before, ident, after, skip, self_closing))
     }
 
     fn resolve_foreign_key_inner(
@@ -571,7 +648,11 @@ impl ParsedValue {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
             }
             ParsedValue::Component { inner, .. } => {
-                inner.resolve_foreign_key(values, top_locale, default_locale, path)
+                if let Some(inner) = inner {
+                    inner.resolve_foreign_key(values, top_locale, default_locale, path)
+                } else {
+                    Ok(())
+                }
             }
             ParsedValue::Bloc(bloc) => {
                 for value in bloc {
@@ -624,10 +705,21 @@ impl ParsedValue {
                     formatter: *formatter,
                 }),
             },
-            ParsedValue::Component { key, inner } => Ok(ParsedValue::Component {
-                key: key.clone(),
-                inner: Box::new(inner.populate(args, foreign_key, locale, key_path)?),
-            }),
+            ParsedValue::Component { key, inner } => {
+                let populated_inner = match inner {
+                    Some(inner) => Some(Box::new(inner.populate(
+                        args,
+                        foreign_key,
+                        locale,
+                        key_path,
+                    )?)),
+                    None => None,
+                };
+                Ok(ParsedValue::Component {
+                    key: key.clone(),
+                    inner: populated_inner,
+                })
+            }
             ParsedValue::Bloc(bloc) => bloc
                 .iter()
                 .map(|value| value.populate(args, foreign_key, locale, key_path))
@@ -765,7 +857,11 @@ impl ParsedValue {
                     })
                     .unwrap_at("reduce_1");
             }
-            ParsedValue::Component { inner, .. } => inner.reduce(),
+            ParsedValue::Component { inner, .. } => {
+                if let Some(inner) = inner {
+                    inner.reduce();
+                }
+            }
             ParsedValue::Subkeys(Some(subkeys)) => {
                 for value in subkeys.keys.values_mut() {
                     value.reduce();
@@ -824,7 +920,9 @@ impl ParsedValue {
                 bloc.push(ParsedValue::Variable { key, formatter })
             }
             ParsedValue::Component { key, mut inner } => {
-                inner.reduce();
+                if let Some(ref mut inner) = inner {
+                    inner.reduce();
+                }
                 bloc.push(ParsedValue::Component { key, inner });
             }
             ParsedValue::Bloc(inner) => {
@@ -881,8 +979,13 @@ impl ParsedValue {
                     .push_var(key.clone(), *formatter);
             }
             ParsedValue::Component { key, inner } => {
-                keys.get_interpol_keys_mut().push_comp(key.clone());
-                inner.get_keys_inner(key_path, keys, false)?;
+                if let Some(inner) = inner {
+                    inner.get_keys_inner(key_path, keys, false)?;
+                    keys.get_interpol_keys_mut().push_comp(key.clone());
+                } else {
+                    keys.get_interpol_keys_mut()
+                        .push_comp_self_closed(key.clone());
+                }
             }
             ParsedValue::Dummy(dummies) => {
                 let interpol_keys = keys.get_interpol_keys_mut();
@@ -951,7 +1054,9 @@ impl ParsedValue {
             }
             ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
             ParsedValue::Component { inner, .. } => {
-                inner.index_strings(strings);
+                if let Some(inner) = inner {
+                    inner.index_strings(strings);
+                }
             }
             ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
             ParsedValue::Bloc(vec) => {
@@ -1264,18 +1369,33 @@ mod tests {
 
     #[test]
     fn parse_comp() {
-        let value = new_parsed_value("before <comp>inner</comp> after");
+        let value =
+            new_parsed_value("<comp1/>hello<comp2 />from<comp3/> before <comp>inner</comp> after");
 
         assert_eq!(
             value,
             ParsedValue::Bloc(vec![
-                ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
+                ParsedValue::Component {
+                    key: new_key("comp_comp1"),
+                    inner: None,
+                },
+                ParsedValue::Literal(Literal::String("hello".to_string(), usize::MAX)),
+                ParsedValue::Component {
+                    key: new_key("comp_comp2"),
+                    inner: None,
+                },
+                ParsedValue::Literal(Literal::String("from".to_string(), usize::MAX)),
+                ParsedValue::Component {
+                    key: new_key("comp_comp3"),
+                    inner: None,
+                },
+                ParsedValue::Literal(Literal::String(" before ".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
-                    inner: Box::new(ParsedValue::Literal(Literal::String(
+                    inner: Some(Box::new(ParsedValue::Literal(Literal::String(
                         "inner".to_string(),
                         usize::MAX
-                    )))
+                    ))))
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
@@ -1294,23 +1414,23 @@ mod tests {
                 ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_comp"),
-                    inner: Box::new(ParsedValue::Bloc(vec![
+                    inner: Some(Box::new(ParsedValue::Bloc(vec![
                         ParsedValue::Literal(Literal::String(
                             "inner before".to_string(),
                             usize::MAX
                         )),
                         ParsedValue::Component {
                             key: new_key("comp_comp"),
-                            inner: Box::new(ParsedValue::Literal(Literal::String(
+                            inner: Some(Box::new(ParsedValue::Literal(Literal::String(
                                 "inner inner".to_string(),
                                 usize::MAX
-                            )))
+                            ))))
                         },
                         ParsedValue::Literal(Literal::String(
                             "inner after".to_string(),
                             usize::MAX
                         )),
-                    ]))
+                    ])))
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
@@ -1327,10 +1447,10 @@ mod tests {
                 ParsedValue::Literal(Literal::String("<p>test".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_h3"),
-                    inner: Box::new(ParsedValue::Literal(Literal::String(
+                    inner: Some(Box::new(ParsedValue::Literal(Literal::String(
                         "this is a h3".to_string(),
                         usize::MAX
-                    )))
+                    ))))
                 },
                 ParsedValue::Literal(Literal::String("not closing p".to_string(), usize::MAX))
             ])

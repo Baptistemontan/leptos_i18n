@@ -21,6 +21,7 @@
   "populated_foreign_key_with_arg": "before $t(click_count, {\"count\": \"{{ new_count }}\" }) after",
   "populated_foreign_key_with_foreign_key_arg": "before $t(click_count, {\"count\": \"$t(subkeys.subkey_1)\" }) after",
   "interpolate_variable_and_comp": "<b>{{ count }}</b>",
+  "interpolate_variable_and_comp_self_closed": "hello<br/>world",
   "list_formatting": "{{ list, list(list_type: and; list_style: wide) }}",
   "date_formatting": "{{ date, date }}",
   "time_formatting": "{{ time, time(time_precision: minute) }}",

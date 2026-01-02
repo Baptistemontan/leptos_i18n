@@ -22,6 +22,7 @@ pub enum InterpolatedValue {
         key: Ident,
         comp_name: Ident,
         attrs: TokenStream,
+        self_closed: bool,
     },
 }
 
@@ -61,10 +62,18 @@ impl syn::parse::Parse for InterpolatedValue {
         if is_comp {
             input.parse::<Token![<]>()?;
         }
+
         let key = input.parse::<Ident>()?;
+
+        let self_closed = input.peek(Token![/]);
+        if self_closed {
+            input.parse::<Token![/]>()?;
+        }
+
         if is_comp {
             input.parse::<Token![>]>()?;
         }
+
         let value = if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
             if input.peek(Token![<]) {
@@ -73,6 +82,7 @@ impl syn::parse::Parse for InterpolatedValue {
                     key,
                     comp_name,
                     attrs,
+                    self_closed,
                 }
             } else {
                 let value = input.parse()?;
@@ -129,9 +139,22 @@ impl InterpolatedValue {
                 key,
                 comp_name,
                 attrs,
+                self_closed,
             } => {
-                let ts = quote! {
-                    move |__children: leptos::children::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
+                let ts = if *self_closed {
+                    quote! {
+                        move || {
+                            leptos::view! { <#comp_name #attrs /> }
+                        }
+                    }
+                } else {
+                    quote! {
+                        move |__children: leptos::children::ChildrenFn| {
+                            leptos::view! {
+                                <#comp_name #attrs>{move || __children()}</#comp_name>
+                            }
+                        }
+                    }
                 };
                 let key = key.clone();
                 *self = InterpolatedValue::Comp(key.clone());
