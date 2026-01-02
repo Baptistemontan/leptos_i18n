@@ -11,16 +11,20 @@ use leptos_i18n_build::TranslationsInfos;
 use std::path::PathBuf;
 
 fn main() {
-  println!("cargo:rerun-if-changed=build.rs");
-  println!("cargo:rerun-if-changed=Cargo.toml");
+  println!("cargo::rerun-if-changed=build.rs");
+  println!("cargo::rerun-if-changed=Cargo.toml");
 
   // where to generate the translations
   let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
   let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
 
-  // emit "cargo:rerun-if-changed" for every translations files
+  // emit the errors and warnings found during parsing
+  translations_infos.emit_diagnostics();
+
+  // emit "cargo::rerun-if-changed" for every translations files
   translations_infos.rerun_if_locales_changed();
+
 
   // codegen
   translations_infos
@@ -53,14 +57,16 @@ use leptos_i18n_build::{FileFormat, ParseOptions, TranslationsInfos};
 use std::path::PathBuf;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=Cargo.toml");
 
     let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
     let options = ParseOptions::default().file_format(FileFormat::Yaml);
 
     let translations_infos = TranslationsInfos::parse(options).unwrap();
+
+    translations_infos.emit_diagnostics();
 
     translations_infos.rerun_if_locales_changed();
 
