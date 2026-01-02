@@ -113,5 +113,5 @@ where
     WL::WIterator: 'a,
 {
     let list_formatter = super::get_list_formatter(locale, list_type, length);
-    list_formatter.format(list.into_iter()).to_string()
+    list_formatter.format(list.into_iter())
 }

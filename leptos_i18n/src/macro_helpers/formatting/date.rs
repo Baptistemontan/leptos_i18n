@@ -119,5 +119,5 @@ where
 {
     let date_formatter = super::get_date_formatter(locale, length, alignment, year_style);
     let date = date.as_icu_date();
-    date_formatter.format(date).to_string()
+    date_formatter.format(date)
 }
