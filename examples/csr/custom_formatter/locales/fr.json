@@ -1,0 +1,4 @@
+{
+  "click_to_change_lang": "Cliquez pour changez de langue",
+  "custom_formatter": "a{{ var, padding(len: 14; dir: right) }}b"
+}

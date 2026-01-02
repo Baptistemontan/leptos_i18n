@@ -39,7 +39,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, hello_world_axum, workspace, axum_island, routing_ssr]
+        examples:
+          [
+            hello_world_actix,
+            hello_world_axum,
+            workspace,
+            axum_island,
+            routing_ssr,
+          ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -174,7 +181,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        examples: [counter, counter_icu_datagen, counter_plurals, interpolation, namespaces, subkeys, yaml, routing_csr, subcontext]
+        examples:
+          [
+            counter,
+            counter_icu_datagen,
+            counter_plurals,
+            interpolation,
+            namespaces,
+            subkeys,
+            yaml,
+            routing_csr,
+            subcontext,
+            custom_formatter,
+          ]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
