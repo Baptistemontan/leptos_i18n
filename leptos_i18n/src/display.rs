@@ -29,7 +29,7 @@ impl Display for Attributes<'_> {
 
 /// A struct that represent a children to format with components
 #[derive(Clone, Copy)]
-pub struct Children<'a>(DynDisplayFn<'a>);
+pub struct Children<'a>(pub DynDisplayFn<'a>);
 
 impl Debug for Children<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
