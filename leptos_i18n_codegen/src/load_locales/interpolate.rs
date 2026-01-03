@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use leptos_i18n_parser::{
-    formatters::ValueFormatter,
+    formatters::VarBounds,
     parse_locales::{
         locale::{DefaultedLocales, InterpolationKeys, Locale},
         options::ParseOptions,
@@ -76,7 +76,7 @@ impl RangeOrPlural {
 
 enum VarOrComp {
     Var {
-        formatters: Vec<ValueFormatter>,
+        bounds: Vec<VarBounds>,
         plural: Option<RangeOrPlural>,
     },
     Comp {
@@ -94,10 +94,10 @@ struct Field {
 impl Field {
     fn get_var_generics(
         generic: &syn::Ident,
-        formatters: &[ValueFormatter],
+        bounds: &[VarBounds],
         plural: Option<RangeOrPlural>,
     ) -> TokenStream {
-        let bounds = formatters.iter().map(ValueFormatter::view_bounds);
+        let bounds = bounds.iter().map(VarBounds::view_bounds);
         let plural_bound = plural.map(RangeOrPlural::to_bound);
         let bounds = bounds.chain(plural_bound);
 
@@ -106,17 +106,17 @@ impl Field {
 
     fn get_fmt_var_generics(
         generic: &syn::Ident,
-        formatters: &[ValueFormatter],
+        bounds: &[VarBounds],
         range: Option<RangeOrPlural>,
     ) -> Option<TokenStream> {
         match range {
             None => {
-                let bounds = formatters.iter().map(ValueFormatter::fmt_bounds);
+                let bounds = bounds.iter().map(VarBounds::fmt_bounds);
                 Some(quote!(#generic: #(#bounds +)*))
             }
             Some(RangeOrPlural::Range(_)) => None,
             Some(RangeOrPlural::Plural) => {
-                let bounds = formatters.iter().map(ValueFormatter::fmt_bounds);
+                let bounds = bounds.iter().map(VarBounds::fmt_bounds);
                 Some(
                     quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>),
                 )
@@ -127,11 +127,8 @@ impl Field {
     pub fn as_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
-            VarOrComp::Var {
-                formatters,
-                plural: range,
-            } => {
-                let ts = Self::get_var_generics(generic, formatters, *range);
+            VarOrComp::Var { bounds, plural } => {
+                let ts = Self::get_var_generics(generic, bounds, *plural);
                 EitherIter::Iter1(std::iter::once(ts))
             }
             VarOrComp::Comp {
@@ -154,10 +151,9 @@ impl Field {
     pub fn as_fmt_bounded_generic(&self) -> Option<TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
-            VarOrComp::Var {
-                formatters,
-                plural: range,
-            } => Self::get_fmt_var_generics(generic, formatters, *range),
+            VarOrComp::Var { bounds, plural } => {
+                Self::get_fmt_var_generics(generic, bounds, *plural)
+            }
             VarOrComp::Comp { .. } => {
                 Some(quote!(#generic: l_i18n_crate::display::DisplayComponent))
             }
@@ -210,10 +206,10 @@ impl Field {
 impl Interpolation {
     fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
         let vars = keys.iter_vars().map(|(key, infos)| {
-            let mut formatters = infos.formatters.iter().cloned().collect::<Vec<_>>();
-            formatters.sort_unstable();
+            let mut bounds = infos.bounds.iter().cloned().collect::<Vec<_>>();
+            bounds.sort(); // the sort is to have consistent codegen
             let var_or_comp = VarOrComp::Var {
-                formatters,
+                bounds,
                 plural: infos.range_count.map(Into::into),
             };
             let generic = format_ident!("__{}__", key);

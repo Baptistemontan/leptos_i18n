@@ -1,4 +1,4 @@
-use leptos_i18n_parser::formatters::ValueFormatter;
+use leptos_i18n_parser::formatters::VarBounds;
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
 use syn::parse_macro_input;
@@ -75,7 +75,7 @@ impl InputType {
 impl OutputType {
     fn to_output(
         self,
-        formatter: ValueFormatter,
+        formatter: VarBounds,
         value_ident: &syn::Ident,
         locale_ident: &syn::Ident,
     ) -> TokenStream {

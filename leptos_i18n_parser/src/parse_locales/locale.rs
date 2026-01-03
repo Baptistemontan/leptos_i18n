@@ -1,7 +1,7 @@
 use serde::de::MapAccess;
 
 use crate::{
-    formatters::{Formatters, ValueFormatter},
+    formatters::{Formatters, VarBounds},
     parse_locales::options::{FileFormat, ParseOptions},
     utils::{Key, KeyPath, UnwrapAt},
 };
@@ -90,7 +90,7 @@ pub enum LocalesOrNamespaces {
 
 #[derive(Debug, Default)]
 pub struct VarInfo {
-    pub formatters: BTreeSet<ValueFormatter>,
+    pub bounds: BTreeSet<VarBounds>,
     pub range_count: Option<RangeOrPlural>,
 }
 
@@ -255,9 +255,9 @@ impl InterpolOrLit {
 }
 
 impl InterpolationKeys {
-    pub fn push_var(&mut self, key: Key, formatter: ValueFormatter) {
+    pub fn push_var(&mut self, key: Key, bounds: VarBounds) {
         let var_infos = self.variables.entry(key).or_default();
-        var_infos.formatters.insert(formatter);
+        var_infos.bounds.insert(bounds);
     }
 
     pub fn push_comp_self_closed(&mut self, key: Key) {

@@ -1,4 +1,4 @@
-use leptos_i18n_parser::formatters::{Formatters, ValueFormatter};
+use leptos_i18n_parser::formatters::{Formatters, VarBounds};
 use quote::ToTokens;
 use std::fmt::Display;
 use syn::{
@@ -10,7 +10,7 @@ use syn::{
 pub struct ParsedInput {
     pub context: Expr,
     pub value: Expr,
-    pub formatter: ValueFormatter,
+    pub formatter: VarBounds,
 }
 
 fn emit_err<A, T: ToTokens, U: Display>(tokens: T, message: U) -> syn::Result<A> {
@@ -39,7 +39,7 @@ fn parse_formatter(
     input: ParseBuffer,
     formatter_name: Ident,
     formatters: &Formatters,
-) -> syn::Result<ValueFormatter> {
+) -> syn::Result<VarBounds> {
     let args = input.parse_terminated(parse_arg, Token![;])?;
     formatters.parse_from_tt(formatter_name, Some(args))
 }

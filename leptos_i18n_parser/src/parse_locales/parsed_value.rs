@@ -6,7 +6,7 @@ use serde::{
 };
 
 use crate::{
-    formatters::{Formatters, ValueFormatter},
+    formatters::{Formatters, VarBounds},
     parse_locales::options::ParseOptions,
     utils::{Key, KeyPath, UnwrapAt},
 };
@@ -29,9 +29,15 @@ pub enum Dummy {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum AttributeValue {
+    Literal(Literal),
+    Variable(Key),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
     pub key: String,
-    pub value: Option<ParsedValue>,
+    pub value: Option<AttributeValue>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -45,7 +51,7 @@ pub enum ParsedValue {
     Literal(Literal),
     Variable {
         key: Key,
-        formatter: ValueFormatter,
+        bounds: VarBounds,
     },
     Component {
         key: Key,
@@ -210,25 +216,10 @@ impl ParsedValue {
         (name.trim(), args.collect())
     }
 
-    fn parse_formatter(s: &str, ctx: &Context) -> ValueFormatter {
+    fn parse_formatter(s: &str, ctx: &Context) -> VarBounds {
         let (name, args) = Self::parse_formatter_args(s);
         ctx.formatters
             .parse(ctx.locale, ctx.key_path, name, &args, ctx.diag)
-        // match ValueFormatter::from_name_and_args(name, &args) {
-        //     Ok(Some(formatter)) => Ok(formatter),
-        //     Ok(None) => Err(Error::UnknownFormatter {
-        //         name: name.to_string(),
-        //         locale: locale.clone(),
-        //         key_path: key_path.clone(),
-        //     }
-        //     .into()),
-        //     Err(formatter) => Err(Error::DisabledFormatter {
-        //         formatter,
-        //         locale: locale.clone(),
-        //         key_path: key_path.clone(),
-        //     }
-        //     .into()),
-        // }
     }
 
     fn parse_key_path(path: &str) -> Option<KeyPath> {
@@ -383,12 +374,15 @@ impl ParsedValue {
         let this = if let Some((ident, s)) = ident.split_once(',') {
             let formatter = Self::parse_formatter(s, ctx);
             let key = Key::new(&format!("var_{}", ident.trim()))?;
-            ParsedValue::Variable { key, formatter }
+            ParsedValue::Variable {
+                key,
+                bounds: formatter,
+            }
         } else {
             let key = Key::new(&format!("var_{ident}"))?;
             ParsedValue::Variable {
                 key,
-                formatter: ValueFormatter::None,
+                bounds: VarBounds::None,
             }
         };
 
@@ -482,14 +476,23 @@ impl ParsedValue {
         }
     }
 
+    fn parse_num(num: &str) -> Option<Literal> {
+        if let Ok(n) = num.parse() {
+            Some(Literal::Unsigned(n))
+        } else if let Ok(n) = num.parse() {
+            Some(Literal::Signed(n))
+        } else if let Ok(n) = num.parse() {
+            Some(Literal::Float(n))
+        } else {
+            None
+        }
+    }
+
     fn parse_attributes(mut attrs: &str, ctx: &Context) -> Result<Attributes> {
-        const FNS: &[ParseFn] = &[];
-        let ctx = Context {
-            parse_fns: FNS,
-            ..*ctx
-        };
+        let _ = ctx;
         let mut attributes = Vec::new();
         loop {
+            attrs = attrs.trim_start();
             if attrs.is_empty() {
                 return Ok(Attributes(attributes));
             }
@@ -522,15 +525,29 @@ impl ParsedValue {
             let rest = rest.trim_start();
             // TODO: parse numbers
             let (value, rest) = if let Some(rest) = rest.strip_prefix("true ") {
-                (ParsedValue::Literal(Literal::Bool(true)), rest)
+                (AttributeValue::Literal(Literal::Bool(true)), rest)
             } else if let Some(rest) = rest.strip_prefix("false ") {
-                (ParsedValue::Literal(Literal::Bool(false)), rest)
+                (AttributeValue::Literal(Literal::Bool(false)), rest)
             } else if let Some(rest) = rest.strip_prefix('"') {
                 let Some((value, rest)) = rest.split_once('"') else {
                     todo!()
                 };
-                let val = Self::new(value, &ctx)?;
-                (val, rest)
+                (
+                    AttributeValue::Literal(Literal::String(value.to_string(), usize::MAX)),
+                    rest,
+                )
+            } else if rest.starts_with(|c| char::is_ascii_digit(&c)) {
+                let (num, rest) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
+                let Some(n) = Self::parse_num(num) else {
+                    todo!()
+                };
+                (AttributeValue::Literal(n), rest)
+            } else if let Some(rest) = rest.strip_prefix("{{") {
+                let Some((key, rest)) = rest.split_once("}}") else {
+                    todo!()
+                };
+                let var_key = Key::try_new(&format!("var_{}", key.trim()))?;
+                (AttributeValue::Variable(var_key), rest)
             } else {
                 todo!()
             };
@@ -765,11 +782,11 @@ impl ParsedValue {
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Literal(_)
             | ParsedValue::Dummy(_) => Ok(self.clone()),
-            ParsedValue::Variable { key, formatter } => match args.get(&*key.name) {
+            ParsedValue::Variable { key, bounds } => match args.get(&*key.name) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
                     key: key.clone(),
-                    formatter: formatter.clone(),
+                    bounds: bounds.clone(),
                 }),
             },
             ParsedValue::Component {
@@ -993,8 +1010,8 @@ impl ParsedValue {
                     bloc.push(ParsedValue::Literal(s));
                 }
             }
-            ParsedValue::Variable { key, formatter } => {
-                bloc.push(ParsedValue::Variable { key, formatter })
+            ParsedValue::Variable { key, bounds } => {
+                bloc.push(ParsedValue::Variable { key, bounds })
             }
             ParsedValue::Component {
                 key,
@@ -1060,16 +1077,15 @@ impl ParsedValue {
                 *keys = InterpolOrLit::Lit(lit_type.get_type());
             }
             ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Variable { key, formatter } => {
+            ParsedValue::Variable { key, bounds } => {
                 keys.get_interpol_keys_mut()
-                    .push_var(key.clone(), formatter.clone());
+                    .push_var(key.clone(), bounds.clone());
             }
             ParsedValue::Component {
                 key,
                 inner,
                 attributes,
             } => {
-                attributes.get_keys_inner(key_path, keys)?;
                 if let Some(inner) = inner {
                     inner.get_keys_inner(key_path, keys, false)?;
                     keys.get_interpol_keys_mut().push_comp(key.clone());
@@ -1077,13 +1093,14 @@ impl ParsedValue {
                     keys.get_interpol_keys_mut()
                         .push_comp_self_closed(key.clone());
                 }
+                attributes.get_keys_inner(key_path, keys)?;
             }
             ParsedValue::Dummy(dummies) => {
                 let interpol_keys = keys.get_interpol_keys_mut();
                 for dummy in dummies {
                     match dummy {
                         Dummy::Variable(key) => {
-                            interpol_keys.push_var(key.clone(), ValueFormatter::Dummy);
+                            interpol_keys.push_var(key.clone(), VarBounds::Dummy);
                         }
                         Dummy::Component(key) => {
                             interpol_keys.push_comp(key.clone());
@@ -1225,17 +1242,13 @@ impl Attributes {
 
     pub fn reduce(&mut self) {
         for attr in &mut self.0 {
-            if let Some(value) = &mut attr.value {
-                value.reduce();
-            }
+            attr.reduce();
         }
     }
 
     pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
         for attr in &self.0 {
-            if let Some(value) = &attr.value {
-                value.get_keys_inner(key_path, keys, false)?;
-            }
+            attr.get_keys_inner(key_path, keys)?;
         }
         Ok(())
     }
@@ -1249,15 +1262,8 @@ impl Attributes {
     ) -> Result<Self> {
         let mut attrs = Vec::with_capacity(self.0.len());
         for attr in &self.0 {
-            let value = if let Some(value) = &attr.value {
-                Some(value.populate(args, foreign_key, locale, key_path)?)
-            } else {
-                None
-            };
-            attrs.push(Attribute {
-                key: attr.key.clone(),
-                value,
-            });
+            let populated_attr = attr.populate(args, foreign_key, locale, key_path)?;
+            attrs.push(populated_attr);
         }
         Ok(Attributes(attrs))
     }
@@ -1270,18 +1276,116 @@ impl Attributes {
         path: &KeyPath,
     ) -> Result<()> {
         for attr in &self.0 {
-            if let Some(value) = &attr.value {
-                value.resolve_foreign_key(values, top_locale, default_locale, path)?;
-            }
+            attr.resolve_foreign_key(values, top_locale, default_locale, path)?;
         }
         Ok(())
     }
 }
 
 impl Attribute {
+    pub fn populate(
+        &self,
+        args: &BTreeMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Key,
+        key_path: &KeyPath,
+    ) -> Result<Self> {
+        let value = if let Some(value) = &self.value {
+            Some(value.populate(args, foreign_key, locale, key_path)?)
+        } else {
+            None
+        };
+        Ok(Attribute {
+            key: self.key.clone(),
+            value,
+        })
+    }
+
+    pub fn reduce(&mut self) {
+        if let Some(value) = &mut self.value {
+            value.reduce();
+        }
+    }
     pub fn index_string(&mut self, strings: &mut StringIndexer) {
         if let Some(value) = &mut self.value {
             value.index_strings(strings);
+        }
+    }
+    pub fn resolve_foreign_key(
+        &self,
+        values: &LocalesOrNamespaces,
+        top_locale: &Key,
+        default_locale: &Key,
+        path: &KeyPath,
+    ) -> Result<()> {
+        if let Some(value) = &self.value {
+            value.resolve_foreign_key(values, top_locale, default_locale, path)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+        if let Some(value) = &self.value {
+            value.get_keys_inner(key_path, keys)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl AttributeValue {
+    pub fn populate(
+        &self,
+        args: &BTreeMap<String, ParsedValue>,
+        _foreign_key: &KeyPath,
+        _locale: &Key,
+        _key_path: &KeyPath,
+    ) -> Result<Self> {
+        match self {
+            AttributeValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
+            AttributeValue::Variable(key) => {
+                let Some(arg) = args.get(&*key.name) else {
+                    return Ok(AttributeValue::Variable(key.clone()));
+                };
+                match arg {
+                    ParsedValue::Variable { key, .. } => Ok(AttributeValue::Variable(key.clone())),
+                    ParsedValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
+                    _ => todo!(),
+                }
+            }
+        }
+    }
+    pub fn reduce(&mut self) {
+        // Nothing to reduce, maybe later
+    }
+
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
+        match self {
+            AttributeValue::Literal(lit) => lit.index_strings(strings),
+            AttributeValue::Variable(_) => {}
+        }
+    }
+
+    pub fn resolve_foreign_key(
+        &self,
+        _values: &LocalesOrNamespaces,
+        _top_locale: &Key,
+        _default_locale: &Key,
+        _path: &KeyPath,
+    ) -> Result<()> {
+        // No foreign keys in attributes, at least for now.
+        Ok(())
+    }
+
+    pub fn get_keys_inner(&self, _key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+        match self {
+            AttributeValue::Literal(_) => Ok(()),
+            AttributeValue::Variable(key) => {
+                keys.get_interpol_keys_mut()
+                    .push_var(key.clone(), VarBounds::AttributeValue);
+                Ok(())
+            }
         }
     }
 }
@@ -1547,7 +1651,7 @@ mod tests {
                 ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
-                    formatter: ValueFormatter::None
+                    bounds: VarBounds::None
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])

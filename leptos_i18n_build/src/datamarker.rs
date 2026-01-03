@@ -1,8 +1,9 @@
 use icu_provider::{DataMarker, DataMarkerInfo};
-use leptos_i18n_parser::formatters;
+use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBounds};
 use leptos_i18n_parser::parse_locales::locale::{
     BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural,
 };
+use std::any::{Any, TypeId};
 use std::collections::HashSet;
 
 /// This enum represent the different `Formatters` and options your translations could be using.
@@ -18,6 +19,11 @@ pub enum FormatterOptions {
     FormatNums,
     /// Use of the `currency` formatter.
     FormatCurrency,
+}
+
+fn check_bound<T: Any>(bound: &dyn FormatterToTokens) -> bool {
+    let ty_id = TypeId::of::<T>();
+    bound.is(ty_id)
 }
 
 pub fn find_used_datamarker(
@@ -41,20 +47,34 @@ pub fn find_used_datamarker(
                         used_icu_markers.insert(FormatterOptions::Plurals);
                     }
 
-                    for formatter in &var_infos.formatters {
-                        let dk = if formatter.is::<formatters::currency::CurrencyFormatter>() {
-                            FormatterOptions::FormatCurrency
-                        } else if formatter.is::<formatters::nums::NumberFormatter>() {
-                            FormatterOptions::FormatNums
-                        } else if formatter.is::<formatters::datetime::DateFormatter>()
-                            || formatter.is::<formatters::datetime::DateTimeFormatter>()
-                            || formatter.is::<formatters::datetime::TimeFormatter>()
-                        {
-                            FormatterOptions::FormatDateTime
-                        } else if formatter.is::<formatters::list::ListFormatter>() {
-                            FormatterOptions::FormatList
-                        } else {
-                            continue;
+                    for bound in &var_infos.bounds {
+                        let dk = match bound {
+                            VarBounds::Formatted { to_tokens, .. } => {
+                                if check_bound::<formatters::currency::CurrencyFormatter>(
+                                    &**to_tokens,
+                                ) {
+                                    FormatterOptions::FormatCurrency
+                                } else if check_bound::<formatters::nums::NumberFormatter>(
+                                    &**to_tokens,
+                                ) {
+                                    FormatterOptions::FormatNums
+                                } else if check_bound::<formatters::datetime::DateFormatter>(
+                                    &**to_tokens,
+                                ) || check_bound::<formatters::datetime::DateTimeFormatter>(
+                                    &**to_tokens,
+                                ) || check_bound::<formatters::datetime::TimeFormatter>(
+                                    &**to_tokens,
+                                ) {
+                                    FormatterOptions::FormatDateTime
+                                } else if check_bound::<formatters::list::ListFormatter>(
+                                    &**to_tokens,
+                                ) {
+                                    FormatterOptions::FormatList
+                                } else {
+                                    continue;
+                                }
+                            }
+                            _ => continue,
                         };
                         used_icu_markers.insert(dk);
                     }

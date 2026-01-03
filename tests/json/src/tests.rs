@@ -99,8 +99,10 @@ fn test() {
     let div = |children: ChildrenFn, attrs: Vec<AnyAttribute>| {
         leptos::view! { <div {..attrs}>{children()}</div>}
     };
-    let en = td!(Locale::en, comp_with_attrs, <div> = div);
+    let en = td!(Locale::en, comp_with_attrs, <div> = div, id = "fr");
     assert_eq_rendered!(en, "<div id=\"en\">test</div>");
-    let fr = td!(Locale::fr, comp_with_attrs, <div> = div);
+    let fr = td!(Locale::fr, comp_with_attrs, <div> = div, id = "fr");
     assert_eq_rendered!(fr, "<div id=\"fr\">test</div>");
+    let fr = td!(Locale::fr, comp_with_attrs, <div> = div, id = || "foo bar");
+    assert_eq_rendered!(fr, "<div id=\"foo bar\">test</div>");
 }
