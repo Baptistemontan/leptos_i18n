@@ -148,14 +148,22 @@ impl Field {
         }
     }
 
-    pub fn as_fmt_bounded_generic(&self) -> Option<TokenStream> {
+    pub fn as_fmt_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
             VarOrComp::Var { bounds, plural } => {
-                Self::get_fmt_var_generics(generic, bounds, *plural)
+                let ts = Self::get_fmt_var_generics(generic, bounds, *plural);
+                EitherIter::Iter1(ts.into_iter())
             }
-            VarOrComp::Comp { .. } => {
-                Some(quote!(#generic: l_i18n_crate::display::DisplayComponent))
+            VarOrComp::Comp {
+                into_view,
+                self_closed: _,
+            } => {
+                let ts = [
+                    quote!(#generic: l_i18n_crate::display::DisplayComponent<#into_view>),
+                    quote!(#into_view),
+                ];
+                EitherIter::Iter2(ts.into_iter())
             }
         }
     }
@@ -176,7 +184,9 @@ impl Field {
                 ..
             } => EitherIter::Iter1(std::iter::once(quote!(#range_type))),
             VarOrComp::Var { .. } => EitherIter::Iter1(generic),
-            VarOrComp::Comp { .. } => EitherIter::Iter2(generic.chain(Some(quote!(())))),
+            VarOrComp::Comp { into_view, .. } => {
+                EitherIter::Iter2(generic.chain(Some(quote!(#into_view))))
+            }
         }
     }
 
@@ -376,15 +386,12 @@ impl Interpolation {
         display_struct_ident: &syn::Ident,
         fields: &[Field],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_fmt_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
         let marker = fields.iter().map(Field::as_string_builder_marker);
 
-        let into_views = fields
-            .iter()
-            .filter_map(Field::as_into_view_generic)
-            .map(|_| quote!(()));
+        let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
         let fns = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
@@ -443,13 +450,10 @@ impl Interpolation {
         into_view_field: &Key,
         fields: &[Field],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_fmt_bounded_generic);
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
         let builder_marker = fields.iter().map(|_| quote!(()));
-        let into_views = fields
-            .iter()
-            .filter_map(Field::as_into_view_generic)
-            .map(|_| quote!(()));
+        let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -583,7 +587,7 @@ impl Interpolation {
         locale_type_ident: &syn::Ident,
         defaults: &BTreeMap<Key, BTreeSet<Key>>,
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_fmt_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
 

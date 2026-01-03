@@ -1,3 +1,5 @@
+use std::fmt::Formatter;
+
 use crate::i18n::*;
 use leptos::attr::any_attribute::AnyAttribute;
 use tests_common::*;
@@ -64,6 +66,14 @@ fn interpolate_variable_and_comp_self_closed() {
 }
 
 #[test]
+fn interpolate_variable_and_comp_self_closed_as_string() {
+    let en = td_string!(Locale::en, interpolate_variable_and_comp_self_closed, <br/> = "br");
+    assert_eq!(en, "hello<br />world");
+    let fr = td_string!(Locale::fr, interpolate_variable_and_comp_self_closed, <br/> = "div");
+    assert_eq!(fr, "hello<div />world");
+}
+
+#[test]
 fn non_copy_arg() {
     fn check_impl_fn<T>(_: &impl Fn() -> T) {}
 
@@ -122,4 +132,49 @@ fn test_comp_with_attributes_as_string() {
     assert_eq!(en, "<div id=\"en\">test</div>");
     let fr = td_string!(Locale::fr, comp_with_attrs, <div> = "div", id = "\"foo_bar\""); // TODO: find a way to not have to escape `"`
     assert_eq!(fr, "<div id=\"foo_bar\">test</div>");
+}
+
+#[test]
+fn test_comp_with_attributes_as_string_with_fn() {
+    let div = |f: &mut Formatter, children: leptos_i18n::display::DynDisplayFn| {
+        write!(f, "<div>")?;
+        children(f)?;
+        write!(f, "</div>")
+    };
+    let en = td_string!(Locale::en, comp_with_attrs, <div>, id = "fr");
+    assert_eq!(en, "<div>test</div>");
+    let div = |f: &mut Formatter,
+               attrs: leptos_i18n::display::Attributes,
+               children: leptos_i18n::display::Children| {
+        write!(f, "<div{attrs}>{children}</div>")
+    };
+    let fr = td_string!(Locale::fr, comp_with_attrs, <div>, id = "\"foo_bar\""); // TODO: find a way to not have to escape `"`
+    assert_eq!(fr, "<div id=\"foo_bar\">test</div>");
+}
+
+#[test]
+fn test_comp_with_attributes_self_closed() {
+    let en = td!(Locale::en, comp_with_attrs_self_closed, <br/> = <br />, id = "fr");
+    assert_eq_rendered!(en, "before<br id=\"test\">after");
+    let fr = td!(Locale::fr, comp_with_attrs_self_closed, <br/> = <br />, id = "foo bar");
+    assert_eq_rendered!(fr, "before<br id=\"foo bar\">after");
+}
+
+#[test]
+fn test_comp_with_attributes_self_closed_as_string() {
+    let en = td_string!(Locale::en, comp_with_attrs_self_closed, <br/> = "br", id = "fr");
+    assert_eq!(en, "before<br id=\"test\" />after");
+    let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/> = "br", id = "\"foo bar\"");
+    assert_eq!(fr, "before<br id=\"foo bar\" />after");
+}
+
+#[test]
+fn test_comp_with_attributes_self_closed_as_string_with_fn() {
+    let br = |f: &mut Formatter| write!(f, "<br />");
+    let en = td_string!(Locale::en, comp_with_attrs_self_closed, <br/>, id = "fr");
+    assert_eq!(en, "before<br />after");
+    let br =
+        |f: &mut Formatter, attrs: leptos_i18n::display::Attributes| write!(f, "<br{attrs} />");
+    let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/>, id = "\"foo bar\"");
+    assert_eq!(fr, "before<br id=\"foo bar\" />after");
 }
