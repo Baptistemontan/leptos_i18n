@@ -60,7 +60,7 @@ pub struct DisplayChildren;
 /// This trait is used when interpolating component with the `td_string!` macro
 pub trait DisplayComponent<M> {
     /// Takes as an input a formatter and a function to format the component with children and attributes
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result;
 
@@ -70,17 +70,17 @@ pub trait DisplayComponent<M> {
 
 impl<F> DisplayComponent<WithAttributes<WithChildren<DisplayChildren>>> for F
 where
-    F: Fn(&mut fmt::Formatter<'_>, Attributes, Children) -> fmt::Result,
+    F: Fn(&mut fmt::Formatter<'_>, Children, Attributes) -> fmt::Result,
 {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        self(f, attrs, Children(&children))
+        self(f, Children(&children), attrs)
     }
 
     fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes) -> fmt::Result {
-        self(f, attrs, Children(&|_| Ok(())))
+        self(f, Children(&|_| Ok(())), attrs)
     }
 }
 
@@ -88,7 +88,7 @@ impl<F> DisplayComponent<WithoutAttributes<WithChildren<DisplayChildren>>> for F
 where
     F: Fn(&mut fmt::Formatter<'_>, Children) -> fmt::Result,
 {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, _attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, _attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
@@ -102,17 +102,17 @@ where
 
 impl<F> DisplayComponent<WithAttributes<WithChildren<ChildrenFn>>> for F
 where
-    F: Fn(&mut fmt::Formatter<'_>, Attributes, DynDisplayFn) -> fmt::Result,
+    F: Fn(&mut fmt::Formatter<'_>, DynDisplayFn, Attributes) -> fmt::Result,
 {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        self(f, attrs, &children)
+        self(f, &children, attrs)
     }
 
     fn fmt_self_closing(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes) -> fmt::Result {
-        self(f, attrs, &|_| Ok(()))
+        self(f, &|_| Ok(()), attrs)
     }
 }
 
@@ -120,7 +120,7 @@ impl<F> DisplayComponent<WithoutAttributes<WithChildren<ChildrenFn>>> for F
 where
     F: Fn(&mut fmt::Formatter<'_>, DynDisplayFn) -> fmt::Result,
 {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, _attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, _attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
@@ -136,7 +136,7 @@ impl<F> DisplayComponent<WithAttributes<WithoutChildren>> for F
 where
     F: Fn(&mut fmt::Formatter<'_>, Attributes) -> fmt::Result,
 {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, _children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, _children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
@@ -152,7 +152,7 @@ impl<F> DisplayComponent<WithoutAttributes<WithoutChildren>> for F
 where
     F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
 {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, _attrs: Attributes, _children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, _children: T, _attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
@@ -165,7 +165,7 @@ where
 }
 
 impl DisplayComponent<()> for str {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
@@ -181,11 +181,11 @@ impl DisplayComponent<()> for str {
 
 impl DisplayComponent<()> for String {
     #[inline]
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        DisplayComponent::fmt(self.as_str(), f, attrs, children)
+        DisplayComponent::fmt(self.as_str(), f, children, attrs)
     }
 
     #[inline]
@@ -196,11 +196,11 @@ impl DisplayComponent<()> for String {
 
 impl DisplayComponent<()> for &str {
     #[inline]
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        <str as DisplayComponent<()>>::fmt(self, f, attrs, children)
+        <str as DisplayComponent<()>>::fmt(self, f, children, attrs)
     }
 
     #[inline]
@@ -211,11 +211,11 @@ impl DisplayComponent<()> for &str {
 
 impl DisplayComponent<()> for &String {
     #[inline]
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        DisplayComponent::fmt(self.as_str(), f, attrs, children)
+        DisplayComponent::fmt(self.as_str(), f, children, attrs)
     }
 
     #[inline]
@@ -264,7 +264,7 @@ impl<'a> DisplayComp<'a> {
 }
 
 impl DisplayComponent<()> for DisplayComp<'_> {
-    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, attrs: Attributes, children: T) -> fmt::Result
+    fn fmt<T>(&self, f: &mut fmt::Formatter<'_>, children: T, attrs: Attributes) -> fmt::Result
     where
         T: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
     {

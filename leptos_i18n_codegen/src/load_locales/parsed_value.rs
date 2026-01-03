@@ -172,7 +172,6 @@ fn flatten_string(
             inner,
             attributes,
         } => {
-            // TODO: attributes
             let attrs_ts = attributes_as_string_impl(attributes, strings_count);
             let attrs_ts = quote! {
                 let __attrs: &[&dyn Fn(&mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result] = { #attrs_ts };
@@ -182,7 +181,7 @@ fn flatten_string(
                     let inner_ts = as_string_impl(inner_value, strings_count);
                     tokens.push(quote!({
                         #attrs_ts
-                        l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, l_i18n_crate::display::Attributes(__attrs), |__formatter| #inner_ts)
+                        l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, { |__formatter| #inner_ts }, l_i18n_crate::display::Attributes(__attrs))
                     }))
                 }
                 None => tokens.push(quote!({

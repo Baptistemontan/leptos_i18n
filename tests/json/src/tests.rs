@@ -1,7 +1,7 @@
-use std::fmt::Formatter;
-
 use crate::i18n::*;
 use leptos::attr::any_attribute::AnyAttribute;
+use leptos_i18n::display::{Attributes, Children};
+use std::fmt::Formatter;
 use tests_common::*;
 
 #[test]
@@ -143,9 +143,7 @@ fn test_comp_with_attributes_as_string_with_fn() {
     };
     let en = td_string!(Locale::en, comp_with_attrs, <div>, id = "fr");
     assert_eq!(en, "<div>test</div>");
-    let div = |f: &mut Formatter,
-               attrs: leptos_i18n::display::Attributes,
-               children: leptos_i18n::display::Children| {
+    let div = |f: &mut Formatter, children: Children, attrs: Attributes| {
         write!(f, "<div{attrs}>{children}</div>")
     };
     let fr = td_string!(Locale::fr, comp_with_attrs, <div>, id = "\"foo_bar\""); // TODO: find a way to not have to escape `"`

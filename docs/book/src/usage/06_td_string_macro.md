@@ -49,7 +49,7 @@ assert_eq!(hw, "Hello <div id=\"my_id\">World</div> !");
 If you want finer control over the formatting, you can create your own types implementing the `DisplayComponent` trait, or you can pass this abomination of a function:
 
 ```rust,ignore
-Fn(&mut core::fmt::Formatter, leptos_i18n::display::Attributes, leptos_i18n::display::DynDisplayFn) -> core::fmt::Result
+Fn(&mut core::fmt::Formatter, leptos_i18n::display::Children, leptos_i18n::display::Attributes) -> core::fmt::Result
 ```
 
 which basically lets you do this:
@@ -58,7 +58,7 @@ which basically lets you do this:
 use core::fmt::{Formatter, Result};
 use leptos_i18n::display::{Attributes, Children};
 
-fn render_b(f: &mut Formatter, attrs: Attributes, child: Children) -> Result {
+fn render_b(f: &mut Formatter, child: Children, attrs: Attributes) -> Result {
     write!(f, "<div{attrs} id=\"some_id\">{child}</div>")
 }
 
@@ -72,7 +72,7 @@ assert_eq!(hw, "Hello <div foo=\"bar\" id=\"some_id\">World</div> !");
 If you look closely, there are no `Clone` or `'static` bounds for any arguments, but they are captured by the value returned by the macro,
 so the returned value has a lifetime bound to the "smallest" lifetime of the arguments.
 
-Components with children can accept `Fn(&mut Formatter, Attributes, Children)` or `Fn(&mut Formatter, Children)`,
+Components with children can accept `Fn(&mut Formatter, Children, Attributes)` or `Fn(&mut Formatter, Children)`,
 and self closed components can accept `Fn(&mut Formatter, Attributes)` or `Fn(&mut Formatter)`.
 
 # The `td_display!` Macro
