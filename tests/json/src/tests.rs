@@ -1,4 +1,5 @@
 use crate::i18n::*;
+use leptos::attr::any_attribute::AnyAttribute;
 use tests_common::*;
 
 #[test]
@@ -91,4 +92,15 @@ fn mixed_lit_type() {
     assert_eq_rendered!(en, "59.89");
     let fr = td!(Locale::fr, mixed_lit_type);
     assert_eq_rendered!(fr, "true");
+}
+
+#[test]
+fn test() {
+    let div = |children: ChildrenFn, attrs: Vec<AnyAttribute>| {
+        leptos::view! { <div {..attrs}>{children()}</div>}
+    };
+    let en = td!(Locale::en, comp_with_attrs, <div> = div);
+    assert_eq_rendered!(en, "<div id=\"en\">test</div>");
+    let fr = td!(Locale::fr, comp_with_attrs, <div> = div);
+    assert_eq_rendered!(fr, "<div id=\"fr\">test</div>");
 }
