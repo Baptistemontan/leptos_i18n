@@ -86,8 +86,13 @@ fn flatten(
                     #ts
             }});
         }
-        ParsedValue::Component { key, inner } => {
+        ParsedValue::Component {
+            key,
+            inner,
+            attributes,
+        } => {
             let mut key_path = KeyPath::new(None);
+            let attrs = attributes.to_token_stream(strings_count);
             if let Some(inner) = inner {
                 let captured_keys = inner
                     .get_keys(&mut key_path)
@@ -109,13 +114,17 @@ fn flatten(
                 );
                 tokens.push(quote!({
                     let __boxed_children_fn = l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f);
+                    let __attrs = { #attrs };
                     let #key = core::clone::Clone::clone(&#key);
-                    move || l_i18n_crate::__private::InterpolateComp::to_view(&#key, core::clone::Clone::clone(&__boxed_children_fn), ())
+                    move || {
+                        l_i18n_crate::__private::InterpolateComp::to_view(&#key, core::clone::Clone::clone(&__boxed_children_fn), &__attrs)
+                    }
                 }));
             } else {
                 tokens.push(quote!({
+                    let __attrs = { #attrs };
                     let #key = core::clone::Clone::clone(&#key);
-                    move || l_i18n_crate::__private::InterpolateCompSelfClosed::to_view(&#key, ())
+                    move || l_i18n_crate::__private::InterpolateCompSelfClosed::to_view(&#key, &__attrs)
                 }));
             }
         }
@@ -156,7 +165,13 @@ fn flatten_string(
             let ts = formatter.var_fmt(key, locale_field);
             tokens.push(ts);
         }
-        ParsedValue::Component { key, inner } => {
+        ParsedValue::Component {
+            key,
+            inner,
+            attributes,
+        } => {
+            // TODO: attributes
+            let _ = attributes;
             match inner {
                 Some(inner_value) => {
                     let inner_ts = as_string_impl(inner_value, strings_count);
