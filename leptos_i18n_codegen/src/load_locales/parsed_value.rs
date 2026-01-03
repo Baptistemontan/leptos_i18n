@@ -81,11 +81,8 @@ fn flatten(
         ParsedValue::Subkeys(_) => unreachable!("subkeys should never have been rendered"),
         ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream(strings_count)),
         ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges, strings_count)),
-        ParsedValue::Variable {
-            key,
-            bounds: formatter,
-        } => {
-            let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
+        ParsedValue::Variable { key, bounds } => {
+            let ts = bounds.var_to_view(&key.ident, &locale_field.ident);
             tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
                     #ts
@@ -166,11 +163,8 @@ fn flatten_string(
             tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))
         }
         ParsedValue::Ranges(ranges) => tokens.push(ranges::as_string_impl(ranges, strings_count)),
-        ParsedValue::Variable {
-            key,
-            bounds: formatter,
-        } => {
-            let ts = formatter.var_fmt(key, locale_field);
+        ParsedValue::Variable { key, bounds } => {
+            let ts = bounds.var_fmt(key, locale_field);
             tokens.push(ts);
         }
         ParsedValue::Component {
@@ -181,19 +175,19 @@ fn flatten_string(
             // TODO: attributes
             let attrs_ts = attributes_as_string_impl(attributes, strings_count);
             let attrs_ts = quote! {
-                let _attrs: &[&dyn Fn(&mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result] = { #attrs_ts };
+                let __attrs: &[&dyn Fn(&mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result] = { #attrs_ts };
             };
             match inner {
                 Some(inner_value) => {
                     let inner_ts = as_string_impl(inner_value, strings_count);
                     tokens.push(quote!({
                         #attrs_ts
-                        l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner_ts)
+                        l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, l_i18n_crate::display::Attributes(__attrs), |__formatter| #inner_ts)
                     }))
                 }
                 None => tokens.push(quote!({
                     #attrs_ts
-                    l_i18n_crate::display::DisplayComponent::fmt_self_closing(#key, __formatter)
+                    l_i18n_crate::display::DisplayComponent::fmt_self_closing(#key, __formatter, l_i18n_crate::display::Attributes(__attrs))
                 })),
             }
         }
@@ -285,7 +279,7 @@ pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> Token
             lit_s @ leptos_i18n_parser::parse_locales::parsed_value::Literal::String(_, _),
         )) => {
             let ts = Literal::from(lit_s).to_token_stream(strings_count);
-            let fstr = format!(" {}={{}}", key);
+            let fstr = format!(" {}={{:?}}", key);
             quote!({
                 let __v = #ts;
                 ::core::write!(__formatter, #fstr, __v)

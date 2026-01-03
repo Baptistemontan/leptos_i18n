@@ -95,7 +95,8 @@ fn mixed_lit_type() {
 }
 
 #[test]
-fn test() {
+fn test_comp_with_attributes_with_function() {
+    // with function
     let div = |children: ChildrenFn, attrs: Vec<AnyAttribute>| {
         leptos::view! { <div {..attrs}>{children()}</div>}
     };
@@ -105,4 +106,20 @@ fn test() {
     assert_eq_rendered!(fr, "<div id=\"fr\">test</div>");
     let fr = td!(Locale::fr, comp_with_attrs, <div> = div, id = || "foo bar");
     assert_eq_rendered!(fr, "<div id=\"foo bar\">test</div>");
+}
+
+#[test]
+fn test_comp_with_attributes_with_direct_comp() {
+    let en = td!(Locale::en, comp_with_attrs, <div> = <div />, id = "fr");
+    assert_eq_rendered!(en, "<div id=\"en\">test</div>");
+    let fr = td!(Locale::fr, comp_with_attrs, <div> = <div />, id = "foo bar");
+    assert_eq_rendered!(fr, "<div id=\"foo bar\">test</div>");
+}
+
+#[test]
+fn test_comp_with_attributes_as_string() {
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = "fr");
+    assert_eq!(en, "<div id=\"en\">test</div>");
+    let fr = td_string!(Locale::fr, comp_with_attrs, <div> = "div", id = "\"foo_bar\""); // TODO: find a way to not have to escape `"`
+    assert_eq!(fr, "<div id=\"foo_bar\">test</div>");
 }

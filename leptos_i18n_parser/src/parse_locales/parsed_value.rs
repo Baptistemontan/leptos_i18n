@@ -523,7 +523,6 @@ impl ParsedValue {
                 continue;
             };
             let rest = rest.trim_start();
-            // TODO: parse numbers
             let (value, rest) = if let Some(rest) = rest.strip_prefix("true ") {
                 (AttributeValue::Literal(Literal::Bool(true)), rest)
             } else if let Some(rest) = rest.strip_prefix("false ") {

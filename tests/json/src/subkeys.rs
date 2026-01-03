@@ -1,4 +1,5 @@
 use crate::i18n::*;
+use leptos_i18n::display::Attributes;
 use tests_common::*;
 
 #[test]
@@ -32,9 +33,10 @@ fn subkey_2() {
 #[test]
 fn subkey_2_string() {
     let b = |f: &mut core::fmt::Formatter,
+             attrs: Attributes,
              children: &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result|
      -> core::fmt::Result {
-        write!(f, "<b>before ")?;
+        write!(f, "<b{attrs}>before ")?;
         children(f)?;
         write!(f, " after</b>")
     };

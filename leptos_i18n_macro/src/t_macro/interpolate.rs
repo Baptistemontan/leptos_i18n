@@ -141,6 +141,7 @@ impl InterpolatedValue {
                 attrs,
                 self_closed,
             } => {
+                // TODO: Attributes
                 let ts = if *self_closed {
                     quote! {
                         move || {
