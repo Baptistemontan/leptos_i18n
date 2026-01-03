@@ -153,6 +153,47 @@ t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, cou
 
 Basically `<name .../>` expands to `move |children| view! { <name ...>{children}</name> }`
 
+## Components attributes
+
+If you declared attributes with your components
+
+```json
+{
+  "highlight_me": "highlight <b id={{ id }}>me</b>"
+}
+```
+
+You can either retrieve them with a closure:
+
+```rust
+use leptos::children::ChildrenFn;
+use leptos::attr::any_attribute::AnyAttribute;
+let b = |children: ChildrenFn, attr: Vec<AnyAttribute>| view!{ <b {..attr} >{children}</b> }
+t!(i18n, highlight_me, id = "my_id", <b>)
+```
+
+Or they will be passed to direct components alongside code defined attributes:
+
+```rust
+// this will spread the attributes into `b` alongside the given attributes
+t!(i18n, highlight_me, id = "my_id", <b> = <b attr:foo="bar" />)
+```
+
+Work the same for self closed components, for the closure syntax you can take the attributes as the only argument:
+
+```json
+{
+  "foo": "befor<br id={{ id }} />after"
+}
+```
+
+```rust
+let br = |attr: Vec<AnyAttribute>| view!{ <br {..attr} /> }
+t!(i18n, highlight_me, id = "my_id", <b>)
+```
+
+> _note_: variables to attributes expect the value to implement `leptos::attr::AttributeValue`.
+
 ## Plurals
 
 Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralsOperands>` ([`PluralsOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `FixedDecimal`.
