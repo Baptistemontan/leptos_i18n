@@ -147,23 +147,27 @@ impl Display for Literal {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Context<'a> {
     pub key_path: &'a KeyPath,
     pub locale: &'a Key,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
     pub formatters: &'a Formatters,
     pub diag: &'a Diagnostics,
+    pub parse_fns: &'a [ParseFn],
 }
 
+type ParseFn = fn(&str, &Context) -> Option<Result<ParsedValue>>;
+
 impl ParsedValue {
+    pub const DEFAULT_FNS: &[ParseFn] = &[
+        ParsedValue::find_component,
+        ParsedValue::find_foreign_key,
+        ParsedValue::find_variable,
+    ];
+
     pub fn new(value: &str, ctx: &Context) -> Result<Self> {
-        let parsed_value = [
-            Self::find_component,
-            Self::find_foreign_key,
-            Self::find_variable,
-        ]
-        .into_iter()
-        .find_map(|f| f(value, ctx));
+        let parsed_value = ctx.parse_fns.iter().find_map(|f| f(value, ctx));
         match parsed_value {
             Some(Ok(value)) => Ok(value),
             None => Ok(ParsedValue::Literal(Literal::String(
@@ -478,12 +482,66 @@ impl ParsedValue {
         }
     }
 
-    fn parse_attributes(attrs: &str, ctx: &Context) -> Result<Attributes> {
-        if attrs.is_empty() {
-            return Ok(Attributes::default());
+    fn parse_attributes(mut attrs: &str, ctx: &Context) -> Result<Attributes> {
+        const FNS: &[ParseFn] = &[];
+        let ctx = Context {
+            parse_fns: FNS,
+            ..*ctx
+        };
+        let mut attributes = Vec::new();
+        loop {
+            if attrs.is_empty() {
+                return Ok(Attributes(attributes));
+            }
+            let white_or_eq_idx = attrs.char_indices().find_map(|(i, c)| {
+                if c.is_whitespace() || c == '=' {
+                    Some(i)
+                } else {
+                    None
+                }
+            });
+            let Some(white_or_eq_idx) = white_or_eq_idx else {
+                attributes.push(Attribute {
+                    key: attrs.to_string(),
+                    value: None,
+                });
+                attrs = "";
+                continue;
+            };
+
+            let key = &attrs[..white_or_eq_idx];
+            let rest = attrs[white_or_eq_idx..].trim_start();
+            let Some(rest) = rest.strip_prefix('=') else {
+                attributes.push(Attribute {
+                    key: key.to_string(),
+                    value: None,
+                });
+                attrs = rest;
+                continue;
+            };
+            let rest = rest.trim_start();
+            // TODO: parse numbers
+            let (value, rest) = if let Some(rest) = rest.strip_prefix("true ") {
+                (ParsedValue::Literal(Literal::Bool(true)), rest)
+            } else if let Some(rest) = rest.strip_prefix("false ") {
+                (ParsedValue::Literal(Literal::Bool(false)), rest)
+            } else if let Some(rest) = rest.strip_prefix('"') {
+                let Some((value, rest)) = rest.split_once('"') else {
+                    todo!()
+                };
+                let val = Self::new(value, &ctx)?;
+                (val, rest)
+            } else {
+                todo!()
+            };
+
+            attrs = rest;
+
+            attributes.push(Attribute {
+                key: key.to_string(),
+                value: Some(value),
+            });
         }
-        let _ = ctx;
-        todo!()
     }
 
     fn find_component(value: &str, ctx: &Context) -> Option<Result<Self>> {
@@ -1263,6 +1321,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             foreign_keys_paths: self.foreign_keys_paths,
             diag: self.diag,
             formatters: self.formatters,
+            parse_fns: ParsedValue::DEFAULT_FNS,
         };
         let pv = ParsedValue::new(v, &ctx);
 
@@ -1451,6 +1510,7 @@ mod tests {
             foreign_keys_paths: &foreign_keys_paths,
             diag: &diag,
             formatters: &formatters,
+            parse_fns: ParsedValue::DEFAULT_FNS,
         };
 
         let p = ParsedValue::new(value, &ctx).unwrap();
