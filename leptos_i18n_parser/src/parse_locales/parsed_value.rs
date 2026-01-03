@@ -1,7 +1,5 @@
 use std::{cell::RefCell, collections::BTreeMap, fmt::Display};
 
-use proc_macro2::TokenStream;
-use quote::quote;
 use serde::{
     Deserialize,
     de::{DeserializeSeed, Visitor, value::MapAccessDeserializer},
@@ -30,8 +28,14 @@ pub enum Dummy {
     Component(Key),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attribute {
+    pub key: String,
+    pub value: Option<ParsedValue>,
+}
+
 #[derive(Default, Debug, Clone, PartialEq)]
-pub struct Attributes(());
+pub struct Attributes(pub Vec<Attribute>);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
@@ -39,7 +43,10 @@ pub enum ParsedValue {
     ForeignKey(RefCell<ForeignKey>),
     Ranges(Ranges),
     Literal(Literal),
-    Variable { key: Key, formatter: ValueFormatter },
+    Variable {
+        key: Key,
+        formatter: ValueFormatter,
+    },
     Component {
         key: Key,
         inner: Option<Box<Self>>,
@@ -470,7 +477,15 @@ impl ParsedValue {
             skip_sum = tag_end;
         }
     }
-    
+
+    fn parse_attributes(attrs: &str, ctx: &Context) -> Result<Attributes> {
+        if attrs.is_empty() {
+            return Ok(Attributes::default());
+        }
+        let _ = ctx;
+        todo!()
+    }
+
     fn find_component(value: &str, ctx: &Context) -> Option<Result<Self>> {
         let (key, before, between, after, attrs) = Self::find_valid_component(value)?;
 
@@ -491,9 +506,7 @@ impl ParsedValue {
             None => None,
         };
 
-        // TODO: parse attributes
-        let _ = attrs;
-        let attributes = Attributes::default();
+        let attributes = nested_result_try!(Self::parse_attributes(attrs, ctx));
 
         values.push(ParsedValue::Component {
             key,
@@ -635,7 +648,6 @@ impl ParsedValue {
     ) -> Result<()> {
         match self {
             ParsedValue::Variable { .. }
-            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::Literal(_)
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => Ok(()),
@@ -644,8 +656,13 @@ impl ParsedValue {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
             }
             ParsedValue::Component {
-                inner: Some(inner), ..
-            } => inner.resolve_foreign_key(values, top_locale, default_locale, path),
+                inner, attributes, ..
+            } => {
+                if let Some(inner) = inner {
+                    inner.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                }
+                attributes.resolve_foreign_key(values, top_locale, default_locale, path)
+            }
             ParsedValue::Bloc(bloc) => {
                 for value in bloc {
                     value.resolve_foreign_key(values, top_locale, default_locale, path)?;
@@ -839,7 +856,6 @@ impl ParsedValue {
                 // skip empty strings
             }
             ParsedValue::Variable { .. }
-            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::Literal(_)
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => {}
@@ -858,9 +874,12 @@ impl ParsedValue {
                     .unwrap_at("reduce_1");
             }
             ParsedValue::Component {
-                inner: Some(inner), ..
+                inner, attributes, ..
             } => {
-                inner.reduce();
+                if let Some(inner) = inner {
+                    inner.reduce();
+                }
+                attributes.reduce();
             }
             ParsedValue::Subkeys(Some(subkeys)) => {
                 for value in subkeys.keys.values_mut() {
@@ -990,9 +1009,9 @@ impl ParsedValue {
             ParsedValue::Component {
                 key,
                 inner,
-                attributes: _,
+                attributes,
             } => {
-                // TODO: attributes
+                attributes.get_keys_inner(key_path, keys)?;
                 if let Some(inner) = inner {
                     inner.get_keys_inner(key_path, keys, false)?;
                     keys.get_interpol_keys_mut().push_comp(key.clone());
@@ -1068,9 +1087,12 @@ impl ParsedValue {
             }
             ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
             ParsedValue::Component {
-                inner: Some(inner), ..
+                inner, attributes, ..
             } => {
-                inner.index_strings(strings);
+                if let Some(inner) = inner {
+                    inner.index_strings(strings);
+                }
+                attributes.index_strings(strings);
             }
             ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
             ParsedValue::Bloc(vec) => {
@@ -1079,7 +1101,6 @@ impl ParsedValue {
                 }
             }
             ParsedValue::Default
-            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
             | ParsedValue::Subkeys(_)
@@ -1138,24 +1159,72 @@ impl ForeignKey {
 }
 
 impl Attributes {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
+        for attr in &mut self.0 {
+            attr.index_string(strings);
+        }
+    }
+
     pub fn reduce(&mut self) {
-        // TODO
+        for attr in &mut self.0 {
+            if let Some(value) = &mut attr.value {
+                value.reduce();
+            }
+        }
+    }
+
+    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+        for attr in &self.0 {
+            if let Some(value) = &attr.value {
+                value.get_keys_inner(key_path, keys, false)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn populate(
         &self,
-        _args: &BTreeMap<String, ParsedValue>,
-        _foreign_key: &KeyPath,
-        _locale: &Key,
-        _key_path: &KeyPath,
+        args: &BTreeMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Key,
+        key_path: &KeyPath,
     ) -> Result<Self> {
-        // TODO
-        Ok(self.clone())
+        let mut attrs = Vec::with_capacity(self.0.len());
+        for attr in &self.0 {
+            let value = if let Some(value) = &attr.value {
+                Some(value.populate(args, foreign_key, locale, key_path)?)
+            } else {
+                None
+            };
+            attrs.push(Attribute {
+                key: attr.key.clone(),
+                value,
+            });
+        }
+        Ok(Attributes(attrs))
     }
 
-    pub fn to_token_stream(&self, _strings_count: usize) -> TokenStream {
-        // TODO (+ don't forget captured keys)
-        quote!(vec![])
+    pub fn resolve_foreign_key(
+        &self,
+        values: &LocalesOrNamespaces,
+        top_locale: &Key,
+        default_locale: &Key,
+        path: &KeyPath,
+    ) -> Result<()> {
+        for attr in &self.0 {
+            if let Some(value) = &attr.value {
+                value.resolve_foreign_key(values, top_locale, default_locale, path)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Attribute {
+    pub fn index_string(&mut self, strings: &mut StringIndexer) {
+        if let Some(value) = &mut self.value {
+            value.index_strings(strings);
+        }
     }
 }
 

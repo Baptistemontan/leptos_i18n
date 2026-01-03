@@ -3,7 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 
 use leptos_i18n_parser::{
-    parse_locales::parsed_value::ParsedValue,
+    parse_locales::parsed_value::{Attribute, Attributes, ParsedValue},
     utils::{Key, KeyPath, UnwrapAt},
 };
 
@@ -91,9 +91,9 @@ fn flatten(
             inner,
             attributes,
         } => {
-            let mut key_path = KeyPath::new(None);
-            let attrs = attributes.to_token_stream(strings_count);
+            let attrs = attributes_to_token_stream(attributes, strings_count);
             if let Some(inner) = inner {
+                let mut key_path = KeyPath::new(None);
                 let captured_keys = inner
                     .get_keys(&mut key_path)
                     .unwrap_at("parsed_value::flatten_1")
@@ -224,5 +224,46 @@ pub fn as_string_impl(this: &ParsedValue, strings_count: usize) -> TokenStream {
         [] => quote!(Ok(())),
         [value] => std::mem::take(value),
         values => quote!({ #(#values?;)* Ok(()) }),
+    }
+}
+
+pub fn attributes_to_token_stream(this: &Attributes, strings_count: usize) -> TokenStream {
+    let attrs = this
+        .0
+        .iter()
+        .map(|attr| attribute_to_token_stream(attr, strings_count));
+
+    quote!(vec![#(#attrs),*])
+}
+
+pub fn attribute_to_token_stream(this: &Attribute, strings_count: usize) -> TokenStream {
+    let key = &this.key;
+    let ts = this
+        .value
+        .as_ref()
+        .map(|v| {
+            let mut key_path = KeyPath::new(None);
+            let captured_keys = v
+                .get_keys(&mut key_path)
+                .unwrap_at("parsed_value::flatten_1")
+                .is_interpol()
+                .map(|keys| {
+                    let keys = keys
+                        .iter_keys()
+                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
+                    quote!(#(#keys)*)
+                });
+            let ts = to_token_stream(v, strings_count);
+            quote!({
+                #captured_keys
+                move || { #ts }
+            })
+        })
+        .unwrap_or(quote!(()));
+
+    quote! {
+        l_i18n_crate::reexports::leptos::prelude::IntoAnyAttribute::into_any_attr(
+            l_i18n_crate::reexports::leptos::attr::custom::custom_attribute(#key, #ts)
+        )
     }
 }
