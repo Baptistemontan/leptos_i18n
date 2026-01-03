@@ -8,7 +8,7 @@ pub trait InterpolateVar: IntoView + Clone + 'static + Send + Sync {}
 impl<T: IntoView + Clone + 'static + Send + Sync> InterpolateVar for T {}
 
 /// Attributes of a parsed component
-pub type Attributes = ();
+pub type Attributes = Vec<leptos::attr::any_attribute::AnyAttribute>;
 
 /// Marker for closure that don't take attributes as argument
 pub struct WithoutAttributes<O>(PhantomData<O>);
@@ -36,7 +36,7 @@ impl<O: IntoView + 'static> AttributesArgMarker for O {
 /// Trait for a type that can be used as an interpolation component.
 pub trait InterpolateComp<O: AttributesArgMarker>: Clone + 'static + Send + Sync {
     /// Create a view from self
-    fn to_view(&self, children: leptos::children::ChildrenFn, attrs: Attributes) -> O::IntoView;
+    fn to_view(&self, children: leptos::children::ChildrenFn, attrs: &Attributes) -> O::IntoView;
 }
 
 impl<
@@ -44,7 +44,7 @@ impl<
     T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync,
 > InterpolateComp<WithoutAttributes<O>> for T
 {
-    fn to_view(&self, children: leptos::children::ChildrenFn, _attrs: Attributes) -> O {
+    fn to_view(&self, children: leptos::children::ChildrenFn, _attrs: &Attributes) -> O {
         self(children)
     }
 }
@@ -54,21 +54,21 @@ impl<
     T: Fn(leptos::children::ChildrenFn, Attributes) -> O + Clone + 'static + Send + Sync,
 > InterpolateComp<WithAttributes<O>> for T
 {
-    fn to_view(&self, children: leptos::children::ChildrenFn, attrs: Attributes) -> O {
-        self(children, attrs)
+    fn to_view(&self, children: leptos::children::ChildrenFn, attrs: &Attributes) -> O {
+        self(children, attrs.clone())
     }
 }
 
 /// Marker trait for a type that can be used as an interpolation self-closed component.
 pub trait InterpolateCompSelfClosed<O: AttributesArgMarker>: Clone + 'static + Send + Sync {
     /// Create a view from self
-    fn to_view(&self, attrs: Attributes) -> O::IntoView;
+    fn to_view(&self, attrs: &Attributes) -> O::IntoView;
 }
 
 impl<O: IntoView + 'static, T: Fn() -> O + Clone + 'static + Send + Sync>
     InterpolateCompSelfClosed<WithoutAttributes<O>> for T
 {
-    fn to_view(&self, _attrs: Attributes) -> O {
+    fn to_view(&self, _attrs: &Attributes) -> O {
         self()
     }
 }
@@ -76,8 +76,8 @@ impl<O: IntoView + 'static, T: Fn() -> O + Clone + 'static + Send + Sync>
 impl<O: IntoView + 'static, T: Fn(Attributes) -> O + Clone + 'static + Send + Sync>
     InterpolateCompSelfClosed<WithAttributes<O>> for T
 {
-    fn to_view(&self, attrs: Attributes) -> O {
-        self(attrs)
+    fn to_view(&self, attrs: &Attributes) -> O {
+        self(attrs.clone())
     }
 }
 
