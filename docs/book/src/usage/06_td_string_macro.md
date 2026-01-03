@@ -72,6 +72,9 @@ assert_eq!(hw, "Hello <div foo=\"bar\" id=\"some_id\">World</div> !");
 If you look closely, there are no `Clone` or `'static` bounds for any arguments, but they are captured by the value returned by the macro,
 so the returned value has a lifetime bound to the "smallest" lifetime of the arguments.
 
+Components with children can accept `Fn(&mut Formatter, Attributes, Children)` or `Fn(&mut Formatter, Children)`,
+and self closed components can accept `Fn(&mut Formatter, Attributes)` or `Fn(&mut Formatter)`.
+
 # The `td_display!` Macro
 
 Just like the `td_string!` macro but returns either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.

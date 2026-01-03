@@ -168,7 +168,7 @@ You can either retrieve them with a closure:
 ```rust
 use leptos::children::ChildrenFn;
 use leptos::attr::any_attribute::AnyAttribute;
-let b = |children: ChildrenFn, attr: Vec<AnyAttribute>| view!{ <b {..attr} >{children}</b> }
+let b = |attr: Vec<AnyAttribute>, children: ChildrenFn| view!{ <b {..attr} >{children}</b> }
 t!(i18n, highlight_me, id = "my_id", <b>)
 ```
 
@@ -193,6 +193,9 @@ t!(i18n, highlight_me, id = "my_id", <b>)
 ```
 
 > _note_: variables to attributes expect the value to implement `leptos::attr::AttributeValue`.
+
+Components with children can accept `Fn(ChildrenFn, Vec<AnyAttribute>)` or `Fn(ChildrenFn)`,
+and self closed components can accept `Fn()` or `Fn(Vec<AnyAttribute>)`.
 
 ## Plurals
 
