@@ -346,3 +346,13 @@ let list_var = move || ["A", "B", "C"];
 
 t!(i18n, list_formatter, list_var);
 ```
+
+## Notes
+
+Formatter can _not_ be used inside components attributes, this is **_NOT_** allowed:
+
+```json
+{
+  "highlight_me": "highlight <b id={{ id, number }}>me</b>"
+}
+```

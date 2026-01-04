@@ -143,15 +143,15 @@ impl InterpolatedValue {
             } => {
                 let ts = if *self_closed {
                     quote! {
-                        move || {
-                            leptos::view! { <#comp_name #attrs /> }
+                        move |__attrs: leptos_i18n::__private::Attributes| {
+                            leptos::view! { <#comp_name {..__attrs} #attrs /> }
                         }
                     }
                 } else {
                     quote! {
-                        move |__children: leptos::children::ChildrenFn| {
+                        move |__children: leptos::children::ChildrenFn, __attrs: leptos_i18n::__private::Attributes| {
                             leptos::view! {
-                                <#comp_name #attrs>{move || __children()}</#comp_name>
+                                <#comp_name {..__attrs} #attrs>{move || __children()}</#comp_name>
                             }
                         }
                     }

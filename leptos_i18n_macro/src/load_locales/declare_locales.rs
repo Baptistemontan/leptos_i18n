@@ -106,6 +106,7 @@ fn parse_str_value(
         foreign_keys_paths,
         formatters,
         diag: &diag,
+        parse_fns: ParsedValue::DEFAULT_FNS,
     };
 
     match ParsedValue::new(&value, &ctx) {

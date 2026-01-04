@@ -1,9 +1,11 @@
+use std::fmt::Display;
+
 use crate::utils::fit_in_leptos_tuple;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 
 use leptos_i18n_parser::{
-    parse_locales::parsed_value::ParsedValue,
+    parse_locales::parsed_value::{Attribute, AttributeValue, Attributes, ParsedValue},
     utils::{Key, KeyPath, UnwrapAt},
 };
 
@@ -79,16 +81,21 @@ fn flatten(
         ParsedValue::Subkeys(_) => unreachable!("subkeys should never have been rendered"),
         ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream(strings_count)),
         ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges, strings_count)),
-        ParsedValue::Variable { key, formatter } => {
-            let ts = formatter.var_to_view(&key.ident, &locale_field.ident);
+        ParsedValue::Variable { key, bounds } => {
+            let ts = bounds.var_to_view(&key.ident, &locale_field.ident);
             tokens.push(quote! {{
                     let #key = core::clone::Clone::clone(&#key);
                     #ts
             }});
         }
-        ParsedValue::Component { key, inner } => {
-            let mut key_path = KeyPath::new(None);
+        ParsedValue::Component {
+            key,
+            inner,
+            attributes,
+        } => {
+            let attrs = attributes_to_token_stream(attributes, strings_count);
             if let Some(inner) = inner {
+                let mut key_path = KeyPath::new(None);
                 let captured_keys = inner
                     .get_keys(&mut key_path)
                     .unwrap_at("parsed_value::flatten_1")
@@ -109,13 +116,17 @@ fn flatten(
                 );
                 tokens.push(quote!({
                     let __boxed_children_fn = l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#f);
+                    let __attrs = { #attrs };
                     let #key = core::clone::Clone::clone(&#key);
-                    move || #key(core::clone::Clone::clone(&__boxed_children_fn))
+                    move || {
+                        l_i18n_crate::__private::InterpolateComp::to_view(&#key, core::clone::Clone::clone(&__boxed_children_fn), &__attrs)
+                    }
                 }));
             } else {
                 tokens.push(quote!({
+                    let __attrs = { #attrs };
                     let #key = core::clone::Clone::clone(&#key);
-                    move || #key()
+                    move || l_i18n_crate::__private::InterpolateCompSelfClosed::to_view(&#key, &__attrs)
                 }));
             }
         }
@@ -152,19 +163,31 @@ fn flatten_string(
             tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))
         }
         ParsedValue::Ranges(ranges) => tokens.push(ranges::as_string_impl(ranges, strings_count)),
-        ParsedValue::Variable { key, formatter } => {
-            let ts = formatter.var_fmt(key, locale_field);
+        ParsedValue::Variable { key, bounds } => {
+            let ts = bounds.var_fmt(key, locale_field);
             tokens.push(ts);
         }
-        ParsedValue::Component { key, inner } => {
+        ParsedValue::Component {
+            key,
+            inner,
+            attributes,
+        } => {
+            let attrs_ts = attributes_as_string_impl(attributes, strings_count);
+            let attrs_ts = quote! {
+                let __attrs: &[&dyn Fn(&mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result] = { #attrs_ts };
+            };
             match inner {
                 Some(inner_value) => {
                     let inner_ts = as_string_impl(inner_value, strings_count);
-                    tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, |__formatter| #inner_ts)))
+                    tokens.push(quote!({
+                        #attrs_ts
+                        l_i18n_crate::display::DisplayComponent::fmt(#key, __formatter, { |__formatter| #inner_ts }, l_i18n_crate::display::Attributes(__attrs))
+                    }))
                 }
-                None => {
-                    tokens.push(quote!(l_i18n_crate::display::DisplayComponent::fmt_self_closing(#key, __formatter)))
-                }
+                None => tokens.push(quote!({
+                    #attrs_ts
+                    l_i18n_crate::display::DisplayComponent::fmt_self_closing(#key, __formatter, l_i18n_crate::display::Attributes(__attrs))
+                })),
             }
         }
 
@@ -209,5 +232,96 @@ pub fn as_string_impl(this: &ParsedValue, strings_count: usize) -> TokenStream {
         [] => quote!(Ok(())),
         [value] => std::mem::take(value),
         values => quote!({ #(#values?;)* Ok(()) }),
+    }
+}
+
+pub fn attributes_to_token_stream(this: &Attributes, strings_count: usize) -> TokenStream {
+    let attrs = this
+        .0
+        .iter()
+        .map(|attr| attribute_to_token_stream(attr, strings_count));
+
+    quote!(vec![#(#attrs),*])
+}
+
+pub fn attributes_as_string_impl(this: &Attributes, strings_count: usize) -> TokenStream {
+    let attrs = this
+        .0
+        .iter()
+        .map(|attr| attribute_as_string_impl(attr, strings_count));
+
+    quote!(&[#(#attrs),*])
+}
+
+pub fn attribute_value_to_token_stream(this: &AttributeValue, strings_count: usize) -> TokenStream {
+    match this {
+        AttributeValue::Literal(lit) => Literal::from(lit).to_token_stream(strings_count),
+        AttributeValue::Variable(key) => {
+            quote!( core::clone::Clone::clone(&#key) )
+        }
+    }
+}
+
+fn attribute_lit_string_impl(key: &str, value: &impl Display) -> TokenStream {
+    let s = format!(" {}={}", key, value);
+    quote!(::core::write!(__formatter, #s))
+}
+
+pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> TokenStream {
+    let key = &this.key;
+    let ts = match &this.value {
+        None => {
+            let s = format!(" {}", key);
+            quote!(::core::write!(__formatter, #s))
+        }
+        Some(AttributeValue::Literal(
+            lit_s @ leptos_i18n_parser::parse_locales::parsed_value::Literal::String(_, _),
+        )) => {
+            let ts = Literal::from(lit_s).to_token_stream(strings_count);
+            let fstr = format!(" {}={{:?}}", key);
+            quote!({
+                let __v = #ts;
+                ::core::write!(__formatter, #fstr, __v)
+            })
+        }
+        Some(AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(value),
+        )) => attribute_lit_string_impl(key, value),
+        Some(AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Signed(value),
+        )) => attribute_lit_string_impl(key, value),
+        Some(AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Unsigned(value),
+        )) => attribute_lit_string_impl(key, value),
+        Some(AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Float(value),
+        )) => attribute_lit_string_impl(key, value),
+        Some(AttributeValue::Variable(var_key)) => {
+            let fstr = format!(" {}={{}}", key);
+            quote!({ ::core::write!(__formatter, #fstr, #var_key) })
+        }
+    };
+
+    quote! {
+        &{
+            |__formatter: &mut ::core::fmt::Formatter<'_>| -> ::core::fmt::Result {
+                #ts
+            }
+        }
+    }
+}
+
+pub fn attribute_to_token_stream(this: &Attribute, strings_count: usize) -> TokenStream {
+    let key = &this.key;
+    let ts = this
+        .value
+        .as_ref()
+        .map(|v| attribute_value_to_token_stream(v, strings_count))
+        .unwrap_or(quote!(()));
+
+    quote! {
+        l_i18n_crate::reexports::leptos::prelude::IntoAnyAttribute::into_any_attr(
+            l_i18n_crate::reexports::leptos::attr::custom::custom_attribute(#key, #ts)
+        )
     }
 }

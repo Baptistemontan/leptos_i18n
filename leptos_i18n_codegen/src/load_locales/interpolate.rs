@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use leptos_i18n_parser::{
-    formatters::ValueFormatter,
+    formatters::VarBounds,
     parse_locales::{
         locale::{DefaultedLocales, InterpolationKeys, Locale},
         options::ParseOptions,
@@ -76,7 +76,7 @@ impl RangeOrPlural {
 
 enum VarOrComp {
     Var {
-        formatters: Vec<ValueFormatter>,
+        bounds: Vec<VarBounds>,
         plural: Option<RangeOrPlural>,
     },
     Comp {
@@ -94,10 +94,10 @@ struct Field {
 impl Field {
     fn get_var_generics(
         generic: &syn::Ident,
-        formatters: &[ValueFormatter],
+        bounds: &[VarBounds],
         plural: Option<RangeOrPlural>,
     ) -> TokenStream {
-        let bounds = formatters.iter().map(ValueFormatter::view_bounds);
+        let bounds = bounds.iter().map(VarBounds::view_bounds);
         let plural_bound = plural.map(RangeOrPlural::to_bound);
         let bounds = bounds.chain(plural_bound);
 
@@ -106,17 +106,17 @@ impl Field {
 
     fn get_fmt_var_generics(
         generic: &syn::Ident,
-        formatters: &[ValueFormatter],
+        bounds: &[VarBounds],
         range: Option<RangeOrPlural>,
     ) -> Option<TokenStream> {
         match range {
             None => {
-                let bounds = formatters.iter().map(ValueFormatter::fmt_bounds);
+                let bounds = bounds.iter().map(VarBounds::fmt_bounds);
                 Some(quote!(#generic: #(#bounds +)*))
             }
             Some(RangeOrPlural::Range(_)) => None,
             Some(RangeOrPlural::Plural) => {
-                let bounds = formatters.iter().map(ValueFormatter::fmt_bounds);
+                let bounds = bounds.iter().map(VarBounds::fmt_bounds);
                 Some(
                     quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>),
                 )
@@ -127,11 +127,8 @@ impl Field {
     pub fn as_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
-            VarOrComp::Var {
-                formatters,
-                plural: range,
-            } => {
-                let ts = Self::get_var_generics(generic, formatters, *range);
+            VarOrComp::Var { bounds, plural } => {
+                let ts = Self::get_var_generics(generic, bounds, *plural);
                 EitherIter::Iter1(std::iter::once(ts))
             }
             VarOrComp::Comp {
@@ -144,22 +141,29 @@ impl Field {
                     } else {
                         quote!(#generic: l_i18n_crate::__private::InterpolateComp<#into_view>)
                     },
-                    quote!(#into_view: l_i18n_crate::reexports::leptos::IntoView + 'static),
+                    quote!(#into_view: l_i18n_crate::__private::AttributesArgMarker),
                 ];
                 EitherIter::Iter2(ts.into_iter())
             }
         }
     }
 
-    pub fn as_fmt_bounded_generic(&self) -> Option<TokenStream> {
+    pub fn as_fmt_bounded_generic(&self) -> impl Iterator<Item = TokenStream> {
         let generic = &self.generic;
         match &self.var_or_comp {
-            VarOrComp::Var {
-                formatters,
-                plural: range,
-            } => Self::get_fmt_var_generics(generic, formatters, *range),
-            VarOrComp::Comp { .. } => {
-                Some(quote!(#generic: l_i18n_crate::display::DisplayComponent))
+            VarOrComp::Var { bounds, plural } => {
+                let ts = Self::get_fmt_var_generics(generic, bounds, *plural);
+                EitherIter::Iter1(ts.into_iter())
+            }
+            VarOrComp::Comp {
+                into_view,
+                self_closed: _,
+            } => {
+                let ts = [
+                    quote!(#generic: l_i18n_crate::display::DisplayComponent<#into_view>),
+                    quote!(#into_view),
+                ];
+                EitherIter::Iter2(ts.into_iter())
             }
         }
     }
@@ -180,7 +184,9 @@ impl Field {
                 ..
             } => EitherIter::Iter1(std::iter::once(quote!(#range_type))),
             VarOrComp::Var { .. } => EitherIter::Iter1(generic),
-            VarOrComp::Comp { .. } => EitherIter::Iter2(generic.chain(Some(quote!(())))),
+            VarOrComp::Comp { into_view, .. } => {
+                EitherIter::Iter2(generic.chain(Some(quote!(#into_view))))
+            }
         }
     }
 
@@ -210,10 +216,10 @@ impl Field {
 impl Interpolation {
     fn make_fields(keys: &InterpolationKeys) -> Vec<Field> {
         let vars = keys.iter_vars().map(|(key, infos)| {
-            let mut formatters = infos.formatters.iter().cloned().collect::<Vec<_>>();
-            formatters.sort_unstable();
+            let mut bounds = infos.bounds.iter().cloned().collect::<Vec<_>>();
+            bounds.sort(); // the sort is to have consistent codegen
             let var_or_comp = VarOrComp::Var {
-                formatters,
+                bounds,
                 plural: infos.range_count.map(Into::into),
             };
             let generic = format_ident!("__{}__", key);
@@ -380,15 +386,12 @@ impl Interpolation {
         display_struct_ident: &syn::Ident,
         fields: &[Field],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_fmt_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
         let marker = fields.iter().map(Field::as_string_builder_marker);
 
-        let into_views = fields
-            .iter()
-            .filter_map(Field::as_into_view_generic)
-            .map(|_| quote!(()));
+        let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
         let fns = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
@@ -447,13 +450,10 @@ impl Interpolation {
         into_view_field: &Key,
         fields: &[Field],
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_fmt_bounded_generic);
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
         let builder_marker = fields.iter().map(|_| quote!(()));
-        let into_views = fields
-            .iter()
-            .filter_map(Field::as_into_view_generic)
-            .map(|_| quote!(()));
+        let into_views = fields.iter().filter_map(Field::as_into_view_generic);
 
         quote! {
             #[allow(non_camel_case_types)]
@@ -587,7 +587,7 @@ impl Interpolation {
         locale_type_ident: &syn::Ident,
         defaults: &BTreeMap<Key, BTreeSet<Key>>,
     ) -> TokenStream {
-        let left_generics = fields.iter().filter_map(Field::as_fmt_bounded_generic);
+        let left_generics = fields.iter().flat_map(Field::as_fmt_bounded_generic);
 
         let right_generics = fields.iter().flat_map(Field::as_string_right_generics);
 

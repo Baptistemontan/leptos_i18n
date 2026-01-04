@@ -38,5 +38,7 @@
   "args_to_plural": "$t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})",
   "count_arg_to_plural": "$t(plural_with_arg_other_than_count, {\"count\": 2})",
   "foreign_key_to_two_plurals": "$t(cardinal_plural) $t(plural_with_arg_other_than_count, {\"arg\": \"fr\"})",
-  "renamed_plurals_count": "$t(cardinal_plural, {\"count\":\"{{ first_count }}\"}) $t(ordinal_plural, {\"count\":\"{{ second_count }}\"})"
+  "renamed_plurals_count": "$t(cardinal_plural, {\"count\":\"{{ first_count }}\"}) $t(ordinal_plural, {\"count\":\"{{ second_count }}\"})",
+  "comp_with_attrs": "<div id={{ id }}>test</div>",
+  "comp_with_attrs_self_closed": "before<br id={{ id }} />after"
 }

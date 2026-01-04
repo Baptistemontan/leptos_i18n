@@ -35,6 +35,31 @@ You can mix them both without a problem:
 }
 ```
 
+## Components attributes
+
+You can pass attributes to the components:
+
+```json
+{
+  "highlight_me": "highlight <b id=\"john\">me</b>"
+}
+```
+
+The values the attributes accept are:
+
+- Strings
+- booleans
+- numbers (signed, unsigned, floats),
+- variables
+
+The syntax for variables:
+
+```json
+{
+  "highlight_me": "highlight <b id={{ id }}>me</b>"
+}
+```
+
 ## Values Names.
 
 Values names must follow the same rules as [keys](./01_key_value.md#keys).

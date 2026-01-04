@@ -6,7 +6,7 @@ use serde::{
 };
 
 use crate::{
-    formatters::{Formatters, ValueFormatter},
+    formatters::{Formatters, VarBounds},
     parse_locales::options::ParseOptions,
     utils::{Key, KeyPath, UnwrapAt},
 };
@@ -29,13 +29,35 @@ pub enum Dummy {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum AttributeValue {
+    Literal(Literal),
+    Variable(Key),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attribute {
+    pub key: String,
+    pub value: Option<AttributeValue>,
+}
+
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct Attributes(pub Vec<Attribute>);
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum ParsedValue {
     Default,
     ForeignKey(RefCell<ForeignKey>),
     Ranges(Ranges),
     Literal(Literal),
-    Variable { key: Key, formatter: ValueFormatter },
-    Component { key: Key, inner: Option<Box<Self>> },
+    Variable {
+        key: Key,
+        bounds: VarBounds,
+    },
+    Component {
+        key: Key,
+        inner: Option<Box<Self>>,
+        attributes: Attributes,
+    },
     Bloc(Vec<Self>),
     Subkeys(Option<Locale>),
     Plurals(Plurals),
@@ -131,23 +153,27 @@ impl Display for Literal {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Context<'a> {
     pub key_path: &'a KeyPath,
     pub locale: &'a Key,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
     pub formatters: &'a Formatters,
     pub diag: &'a Diagnostics,
+    pub parse_fns: &'a [ParseFn],
 }
 
+type ParseFn = fn(&str, &Context) -> Option<Result<ParsedValue>>;
+
 impl ParsedValue {
+    pub const DEFAULT_FNS: &[ParseFn] = &[
+        ParsedValue::find_component,
+        ParsedValue::find_foreign_key,
+        ParsedValue::find_variable,
+    ];
+
     pub fn new(value: &str, ctx: &Context) -> Result<Self> {
-        let parsed_value = [
-            Self::find_component,
-            Self::find_foreign_key,
-            Self::find_variable,
-        ]
-        .into_iter()
-        .find_map(|f| f(value, ctx));
+        let parsed_value = ctx.parse_fns.iter().find_map(|f| f(value, ctx));
         match parsed_value {
             Some(Ok(value)) => Ok(value),
             None => Ok(ParsedValue::Literal(Literal::String(
@@ -190,25 +216,10 @@ impl ParsedValue {
         (name.trim(), args.collect())
     }
 
-    fn parse_formatter(s: &str, ctx: &Context) -> ValueFormatter {
+    fn parse_formatter(s: &str, ctx: &Context) -> VarBounds {
         let (name, args) = Self::parse_formatter_args(s);
         ctx.formatters
             .parse(ctx.locale, ctx.key_path, name, &args, ctx.diag)
-        // match ValueFormatter::from_name_and_args(name, &args) {
-        //     Ok(Some(formatter)) => Ok(formatter),
-        //     Ok(None) => Err(Error::UnknownFormatter {
-        //         name: name.to_string(),
-        //         locale: locale.clone(),
-        //         key_path: key_path.clone(),
-        //     }
-        //     .into()),
-        //     Err(formatter) => Err(Error::DisabledFormatter {
-        //         formatter,
-        //         locale: locale.clone(),
-        //         key_path: key_path.clone(),
-        //     }
-        //     .into()),
-        // }
     }
 
     fn parse_key_path(path: &str) -> Option<KeyPath> {
@@ -363,12 +374,15 @@ impl ParsedValue {
         let this = if let Some((ident, s)) = ident.split_once(',') {
             let formatter = Self::parse_formatter(s, ctx);
             let key = Key::new(&format!("var_{}", ident.trim()))?;
-            ParsedValue::Variable { key, formatter }
+            ParsedValue::Variable {
+                key,
+                bounds: formatter,
+            }
         } else {
             let key = Key::new(&format!("var_{ident}"))?;
             ParsedValue::Variable {
                 key,
-                formatter: ValueFormatter::None,
+                bounds: VarBounds::None,
             }
         };
 
@@ -385,7 +399,7 @@ impl ParsedValue {
     }
 
     fn find_dummy_component(value: &str, dummies: &mut Vec<Dummy>) -> Option<()> {
-        let (key, before, between, after) = Self::find_valid_component(value)?;
+        let (key, before, between, after, attrs) = Self::find_valid_component(value)?;
 
         dummies.push(Dummy::Component(key));
 
@@ -401,18 +415,27 @@ impl ParsedValue {
             Self::make_dummy_inner(after, dummies);
         }
 
+        // TODO: dummy attrs
+        let _ = attrs;
+
         Some(())
     }
 
     #[allow(clippy::type_complexity)]
     fn find_valid_component(
         value: &str,
-    ) -> Option<(Key, Option<&str>, Option<&str>, Option<&str>)> {
+    ) -> Option<(Key, Option<&str>, Option<&str>, Option<&str>, &str)> {
         let mut skip_sum = 0;
 
         loop {
-            let (before, key, after, skip, self_closing) =
+            let (before, tag_content, after, skip, self_closing) =
                 Self::find_opening_tag(&value[skip_sum..])?;
+
+            let (key, attrs) = match tag_content.split_once(' ') {
+                Some((key, attrs)) => (key, attrs.trim_start()),
+                None if tag_content.is_empty() => return None,
+                None => (tag_content, ""),
+            };
 
             // Calculate the absolute position of where this tag ends
             let tag_end = skip_sum + skip;
@@ -427,7 +450,7 @@ impl ParsedValue {
                     Some(abs_before)
                 };
                 let after = if after.is_empty() { None } else { Some(after) };
-                return Some((key_ident, before, None, after));
+                return Some((key_ident, before, None, after, attrs));
             }
 
             if let Some((key_ident, between, after)) = Self::find_closing_tag(after, key) {
@@ -444,7 +467,7 @@ impl ParsedValue {
                     Some(between)
                 };
                 let after = if after.is_empty() { None } else { Some(after) };
-                return Some((key_ident, before, between, after));
+                return Some((key_ident, before, between, after, attrs));
             }
 
             // No closing tag found - skip past this entire tag (including the tag itself)
@@ -453,8 +476,93 @@ impl ParsedValue {
         }
     }
 
+    fn parse_num(num: &str) -> Option<Literal> {
+        if let Ok(n) = num.parse() {
+            Some(Literal::Unsigned(n))
+        } else if let Ok(n) = num.parse() {
+            Some(Literal::Signed(n))
+        } else if let Ok(n) = num.parse() {
+            Some(Literal::Float(n))
+        } else {
+            None
+        }
+    }
+
+    fn parse_attributes(mut attrs: &str, ctx: &Context) -> Result<Attributes> {
+        let _ = ctx;
+        let mut attributes = Vec::new();
+        loop {
+            attrs = attrs.trim_start();
+            if attrs.is_empty() {
+                return Ok(Attributes(attributes));
+            }
+            let white_or_eq_idx = attrs.char_indices().find_map(|(i, c)| {
+                if c.is_whitespace() || c == '=' {
+                    Some(i)
+                } else {
+                    None
+                }
+            });
+            let Some(white_or_eq_idx) = white_or_eq_idx else {
+                attributes.push(Attribute {
+                    key: attrs.to_string(),
+                    value: None,
+                });
+                attrs = "";
+                continue;
+            };
+
+            let key = &attrs[..white_or_eq_idx];
+            let rest = attrs[white_or_eq_idx..].trim_start();
+            let Some(rest) = rest.strip_prefix('=') else {
+                attributes.push(Attribute {
+                    key: key.to_string(),
+                    value: None,
+                });
+                attrs = rest;
+                continue;
+            };
+            let rest = rest.trim_start();
+            let (value, rest) = if let Some(rest) = rest.strip_prefix("true ") {
+                (AttributeValue::Literal(Literal::Bool(true)), rest)
+            } else if let Some(rest) = rest.strip_prefix("false ") {
+                (AttributeValue::Literal(Literal::Bool(false)), rest)
+            } else if let Some(rest) = rest.strip_prefix('"') {
+                let Some((value, rest)) = rest.split_once('"') else {
+                    todo!()
+                };
+                (
+                    AttributeValue::Literal(Literal::String(value.to_string(), usize::MAX)),
+                    rest,
+                )
+            } else if rest.starts_with(|c| char::is_ascii_digit(&c)) {
+                let (num, rest) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
+                let Some(n) = Self::parse_num(num) else {
+                    todo!()
+                };
+                (AttributeValue::Literal(n), rest)
+            } else if let Some(rest) = rest.strip_prefix("{{") {
+                let Some((key, rest)) = rest.split_once("}}") else {
+                    todo!()
+                };
+                let var_key = Key::try_new(&format!("var_{}", key.trim()))?;
+                (AttributeValue::Variable(var_key), rest)
+            } else {
+                todo!()
+            };
+
+            attrs = rest;
+
+            attributes.push(Attribute {
+                key: key.to_string(),
+                value: Some(value),
+            });
+        }
+    }
+
     fn find_component(value: &str, ctx: &Context) -> Option<Result<Self>> {
-        let (key, before, between, after) = Self::find_valid_component(value)?;
+        let (key, before, between, after, attrs) = Self::find_valid_component(value)?;
+
         let mut values = Vec::new();
 
         // `before` is literal text only (no components) - just add as literal if non-empty
@@ -472,7 +580,13 @@ impl ParsedValue {
             None => None,
         };
 
-        values.push(ParsedValue::Component { key, inner });
+        let attributes = nested_result_try!(Self::parse_attributes(attrs, ctx));
+
+        values.push(ParsedValue::Component {
+            key,
+            inner,
+            attributes,
+        });
 
         if let Some(after) = after
             && !after.is_empty()
@@ -535,15 +649,14 @@ impl ParsedValue {
         let after = &value[close_idx + 1..];
 
         let self_closing = tag_content.ends_with('/');
-        let ident = if self_closing {
+        let tag_content = if self_closing {
             tag_content[..tag_content.len() - 1].trim()
         } else {
             tag_content.trim()
         };
 
         let skip = close_idx + 1;
-
-        Some((before, ident, after, skip, self_closing))
+        Some((before, tag_content, after, skip, self_closing))
     }
 
     fn resolve_foreign_key_inner(
@@ -609,7 +722,6 @@ impl ParsedValue {
     ) -> Result<()> {
         match self {
             ParsedValue::Variable { .. }
-            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::Literal(_)
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => Ok(()),
@@ -618,8 +730,13 @@ impl ParsedValue {
                 inner.resolve_foreign_keys(values, top_locale, default_locale, path)
             }
             ParsedValue::Component {
-                inner: Some(inner), ..
-            } => inner.resolve_foreign_key(values, top_locale, default_locale, path),
+                inner, attributes, ..
+            } => {
+                if let Some(inner) = inner {
+                    inner.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                }
+                attributes.resolve_foreign_key(values, top_locale, default_locale, path)
+            }
             ParsedValue::Bloc(bloc) => {
                 for value in bloc {
                     value.resolve_foreign_key(values, top_locale, default_locale, path)?;
@@ -664,14 +781,18 @@ impl ParsedValue {
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Literal(_)
             | ParsedValue::Dummy(_) => Ok(self.clone()),
-            ParsedValue::Variable { key, formatter } => match args.get(&*key.name) {
+            ParsedValue::Variable { key, bounds } => match args.get(&*key.name) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
                     key: key.clone(),
-                    formatter: formatter.clone(),
+                    bounds: bounds.clone(),
                 }),
             },
-            ParsedValue::Component { key, inner } => {
+            ParsedValue::Component {
+                key,
+                inner,
+                attributes,
+            } => {
                 let populated_inner = match inner {
                     Some(inner) => Some(Box::new(inner.populate(
                         args,
@@ -681,9 +802,12 @@ impl ParsedValue {
                     )?)),
                     None => None,
                 };
+                let populated_attributes =
+                    attributes.populate(args, foreign_key, locale, key_path)?;
                 Ok(ParsedValue::Component {
                     key: key.clone(),
                     inner: populated_inner,
+                    attributes: populated_attributes,
                 })
             }
             ParsedValue::Bloc(bloc) => bloc
@@ -806,7 +930,6 @@ impl ParsedValue {
                 // skip empty strings
             }
             ParsedValue::Variable { .. }
-            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::Literal(_)
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => {}
@@ -825,9 +948,12 @@ impl ParsedValue {
                     .unwrap_at("reduce_1");
             }
             ParsedValue::Component {
-                inner: Some(inner), ..
+                inner, attributes, ..
             } => {
-                inner.reduce();
+                if let Some(inner) = inner {
+                    inner.reduce();
+                }
+                attributes.reduce();
             }
             ParsedValue::Subkeys(Some(subkeys)) => {
                 for value in subkeys.keys.values_mut() {
@@ -883,14 +1009,23 @@ impl ParsedValue {
                     bloc.push(ParsedValue::Literal(s));
                 }
             }
-            ParsedValue::Variable { key, formatter } => {
-                bloc.push(ParsedValue::Variable { key, formatter })
+            ParsedValue::Variable { key, bounds } => {
+                bloc.push(ParsedValue::Variable { key, bounds })
             }
-            ParsedValue::Component { key, mut inner } => {
+            ParsedValue::Component {
+                key,
+                mut inner,
+                mut attributes,
+            } => {
                 if let Some(ref mut inner) = inner {
                     inner.reduce();
                 }
-                bloc.push(ParsedValue::Component { key, inner });
+                attributes.reduce();
+                bloc.push(ParsedValue::Component {
+                    key,
+                    inner,
+                    attributes,
+                });
             }
             ParsedValue::Bloc(inner) => {
                 for value in inner {
@@ -941,11 +1076,15 @@ impl ParsedValue {
                 *keys = InterpolOrLit::Lit(lit_type.get_type());
             }
             ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
-            ParsedValue::Variable { key, formatter } => {
+            ParsedValue::Variable { key, bounds } => {
                 keys.get_interpol_keys_mut()
-                    .push_var(key.clone(), formatter.clone());
+                    .push_var(key.clone(), bounds.clone());
             }
-            ParsedValue::Component { key, inner } => {
+            ParsedValue::Component {
+                key,
+                inner,
+                attributes,
+            } => {
                 if let Some(inner) = inner {
                     inner.get_keys_inner(key_path, keys, false)?;
                     keys.get_interpol_keys_mut().push_comp(key.clone());
@@ -953,13 +1092,14 @@ impl ParsedValue {
                     keys.get_interpol_keys_mut()
                         .push_comp_self_closed(key.clone());
                 }
+                attributes.get_keys_inner(key_path, keys)?;
             }
             ParsedValue::Dummy(dummies) => {
                 let interpol_keys = keys.get_interpol_keys_mut();
                 for dummy in dummies {
                     match dummy {
                         Dummy::Variable(key) => {
-                            interpol_keys.push_var(key.clone(), ValueFormatter::Dummy);
+                            interpol_keys.push_var(key.clone(), VarBounds::Dummy);
                         }
                         Dummy::Component(key) => {
                             interpol_keys.push_comp(key.clone());
@@ -1021,9 +1161,12 @@ impl ParsedValue {
             }
             ParsedValue::Ranges(ranges) => ranges.index_strings(strings),
             ParsedValue::Component {
-                inner: Some(inner), ..
+                inner, attributes, ..
             } => {
-                inner.index_strings(strings);
+                if let Some(inner) = inner {
+                    inner.index_strings(strings);
+                }
+                attributes.index_strings(strings);
             }
             ParsedValue::Plurals(plurals) => plurals.index_strings(strings),
             ParsedValue::Bloc(vec) => {
@@ -1032,7 +1175,6 @@ impl ParsedValue {
                 }
             }
             ParsedValue::Default
-            | ParsedValue::Component { inner: None, .. }
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Variable { .. }
             | ParsedValue::Subkeys(_)
@@ -1090,6 +1232,163 @@ impl ForeignKey {
     }
 }
 
+impl Attributes {
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
+        for attr in &mut self.0 {
+            attr.index_string(strings);
+        }
+    }
+
+    pub fn reduce(&mut self) {
+        for attr in &mut self.0 {
+            attr.reduce();
+        }
+    }
+
+    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+        for attr in &self.0 {
+            attr.get_keys_inner(key_path, keys)?;
+        }
+        Ok(())
+    }
+
+    pub fn populate(
+        &self,
+        args: &BTreeMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Key,
+        key_path: &KeyPath,
+    ) -> Result<Self> {
+        let mut attrs = Vec::with_capacity(self.0.len());
+        for attr in &self.0 {
+            let populated_attr = attr.populate(args, foreign_key, locale, key_path)?;
+            attrs.push(populated_attr);
+        }
+        Ok(Attributes(attrs))
+    }
+
+    pub fn resolve_foreign_key(
+        &self,
+        values: &LocalesOrNamespaces,
+        top_locale: &Key,
+        default_locale: &Key,
+        path: &KeyPath,
+    ) -> Result<()> {
+        for attr in &self.0 {
+            attr.resolve_foreign_key(values, top_locale, default_locale, path)?;
+        }
+        Ok(())
+    }
+}
+
+impl Attribute {
+    pub fn populate(
+        &self,
+        args: &BTreeMap<String, ParsedValue>,
+        foreign_key: &KeyPath,
+        locale: &Key,
+        key_path: &KeyPath,
+    ) -> Result<Self> {
+        let value = if let Some(value) = &self.value {
+            Some(value.populate(args, foreign_key, locale, key_path)?)
+        } else {
+            None
+        };
+        Ok(Attribute {
+            key: self.key.clone(),
+            value,
+        })
+    }
+
+    pub fn reduce(&mut self) {
+        if let Some(value) = &mut self.value {
+            value.reduce();
+        }
+    }
+    pub fn index_string(&mut self, strings: &mut StringIndexer) {
+        if let Some(value) = &mut self.value {
+            value.index_strings(strings);
+        }
+    }
+    pub fn resolve_foreign_key(
+        &self,
+        values: &LocalesOrNamespaces,
+        top_locale: &Key,
+        default_locale: &Key,
+        path: &KeyPath,
+    ) -> Result<()> {
+        if let Some(value) = &self.value {
+            value.resolve_foreign_key(values, top_locale, default_locale, path)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+        if let Some(value) = &self.value {
+            value.get_keys_inner(key_path, keys)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl AttributeValue {
+    pub fn populate(
+        &self,
+        args: &BTreeMap<String, ParsedValue>,
+        _foreign_key: &KeyPath,
+        _locale: &Key,
+        _key_path: &KeyPath,
+    ) -> Result<Self> {
+        match self {
+            AttributeValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
+            AttributeValue::Variable(key) => {
+                let Some(arg) = args.get(&*key.name) else {
+                    return Ok(AttributeValue::Variable(key.clone()));
+                };
+                match arg {
+                    ParsedValue::Variable { key, .. } => Ok(AttributeValue::Variable(key.clone())),
+                    ParsedValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
+                    _ => todo!(),
+                }
+            }
+        }
+    }
+    pub fn reduce(&mut self) {
+        // Nothing to reduce, maybe later
+    }
+
+    pub fn index_strings(&mut self, strings: &mut StringIndexer) {
+        match self {
+            AttributeValue::Literal(lit) => lit.index_strings(strings),
+            AttributeValue::Variable(_) => {}
+        }
+    }
+
+    pub fn resolve_foreign_key(
+        &self,
+        _values: &LocalesOrNamespaces,
+        _top_locale: &Key,
+        _default_locale: &Key,
+        _path: &KeyPath,
+    ) -> Result<()> {
+        // No foreign keys in attributes, at least for now.
+        Ok(())
+    }
+
+    pub fn get_keys_inner(&self, _key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+        match self {
+            AttributeValue::Literal(_) => Ok(()),
+            AttributeValue::Variable(key) => {
+                keys.get_interpol_keys_mut()
+                    .push_var(key.clone(), VarBounds::AttributeValue);
+                Ok(())
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct ParsedValueSeed<'a> {
     pub top_locale_name: &'a Key,
@@ -1125,6 +1424,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             foreign_keys_paths: self.foreign_keys_paths,
             diag: self.diag,
             formatters: self.formatters,
+            parse_fns: ParsedValue::DEFAULT_FNS,
         };
         let pv = ParsedValue::new(v, &ctx);
 
@@ -1313,6 +1613,7 @@ mod tests {
             foreign_keys_paths: &foreign_keys_paths,
             diag: &diag,
             formatters: &formatters,
+            parse_fns: ParsedValue::DEFAULT_FNS,
         };
 
         let p = ParsedValue::new(value, &ctx).unwrap();
@@ -1349,7 +1650,7 @@ mod tests {
                 ParsedValue::Literal(Literal::String("before ".to_string(), usize::MAX)),
                 ParsedValue::Variable {
                     key: new_key("var_var"),
-                    formatter: ValueFormatter::None
+                    bounds: VarBounds::None
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
@@ -1367,16 +1668,19 @@ mod tests {
                 ParsedValue::Component {
                     key: new_key("comp_comp1"),
                     inner: None,
+                    attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String("hello".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_comp2"),
                     inner: None,
+                    attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String("from".to_string(), usize::MAX)),
                 ParsedValue::Component {
                     key: new_key("comp_comp3"),
                     inner: None,
+                    attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String(" before ".to_string(), usize::MAX)),
                 ParsedValue::Component {
@@ -1384,7 +1688,8 @@ mod tests {
                     inner: Some(Box::new(ParsedValue::Literal(Literal::String(
                         "inner".to_string(),
                         usize::MAX
-                    ))))
+                    )))),
+                    attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
@@ -1413,13 +1718,15 @@ mod tests {
                             inner: Some(Box::new(ParsedValue::Literal(Literal::String(
                                 "inner inner".to_string(),
                                 usize::MAX
-                            ))))
+                            )))),
+                            attributes: Attributes::default()
                         },
                         ParsedValue::Literal(Literal::String(
                             "inner after".to_string(),
                             usize::MAX
                         )),
-                    ])))
+                    ]))),
+                    attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
             ])
@@ -1439,7 +1746,8 @@ mod tests {
                     inner: Some(Box::new(ParsedValue::Literal(Literal::String(
                         "this is a h3".to_string(),
                         usize::MAX
-                    ))))
+                    )))),
+                    attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String("not closing p".to_string(), usize::MAX))
             ])

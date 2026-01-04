@@ -1,4 +1,6 @@
 use crate::i18n::*;
+use leptos_i18n::display::{Attributes, DynDisplayFn};
+use std::fmt::{self, Formatter};
 use tests_common::*;
 
 #[test]
@@ -31,10 +33,8 @@ fn subkey_2() {
 
 #[test]
 fn subkey_2_string() {
-    let b = |f: &mut core::fmt::Formatter,
-             children: &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result|
-     -> core::fmt::Result {
-        write!(f, "<b>before ")?;
+    let b = |f: &mut Formatter, children: DynDisplayFn, attrs: Attributes| -> fmt::Result {
+        write!(f, "<b{attrs}>before ")?;
         children(f)?;
         write!(f, " after</b>")
     };
