@@ -37,6 +37,7 @@ pub enum AttributeValue {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attribute {
     pub key: String,
+    // None = AttributeValue::Literal(Literal::Bool(true)), could remove the option but for keep it for ease of use.
     pub value: Option<AttributeValue>,
 }
 

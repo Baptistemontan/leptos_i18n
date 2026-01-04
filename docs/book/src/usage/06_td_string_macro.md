@@ -67,7 +67,7 @@ let hw = td_string!(Locale::en, hello_world, foo = "\"bar\"", <b> = render_b);
 assert_eq!(hw, "Hello <div foo=\"bar\" id=\"some_id\">World</div> !");
 ```
 
-> _note_: note the argument `foo = "\"bar\""`, if you don't escape the string it would have printed `foo=bar`, this is done so you can pass booleans, number, or anything that implement `Display`.
+Note the argument `foo = "\"bar\"`, if you don't escape the string it would have printed `foo=bar`, this is done so you can pass booleans or anything that implement `Display` (note that numbers should also be inside `"` for correct HTML).
 
 If you look closely, there are no `Clone` or `'static` bounds for any arguments, but they are captured by the value returned by the macro,
 so the returned value has a lifetime bound to the "smallest" lifetime of the arguments.
