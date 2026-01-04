@@ -130,7 +130,7 @@ fn test_comp_with_attributes_with_direct_comp() {
 fn test_comp_with_attributes_as_string() {
     let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = "fr");
     assert_eq!(en, "<div id=\"en\">test</div>");
-    let fr = td_string!(Locale::fr, comp_with_attrs, <div> = "div", id = "\"foo_bar\""); // TODO: find a way to not have to escape `"`
+    let fr = td_string!(Locale::fr, comp_with_attrs, <div> = "div", id = "\"foo_bar\"");
     assert_eq!(fr, "<div id=\"foo_bar\">test</div>");
 }
 
@@ -146,7 +146,7 @@ fn test_comp_with_attributes_as_string_with_fn() {
     let div = |f: &mut Formatter, children: Children, attrs: Attributes| {
         write!(f, "<div{attrs}>{children}</div>")
     };
-    let fr = td_string!(Locale::fr, comp_with_attrs, <div>, id = "\"foo_bar\""); // TODO: find a way to not have to escape `"`
+    let fr = td_string!(Locale::fr, comp_with_attrs, <div>, id = "\"foo_bar\"");
     assert_eq!(fr, "<div id=\"foo_bar\">test</div>");
 }
 
