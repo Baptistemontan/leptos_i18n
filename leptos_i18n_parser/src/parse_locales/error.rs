@@ -157,6 +157,13 @@ pub enum Error {
         key_path: KeyPath,
         err: String,
     },
+    InvalidAttribute {
+        locale: Key,
+        key_path: KeyPath,
+        attr_name: String,
+        attr_value: String,
+        err: String,
+    },
 
     Custom(String),
 }
@@ -404,6 +411,16 @@ impl Display for Error {
                     "Formatter is invalid in locale {locale:?} at key \"{key_path}\": {err}"
                 )
             }
+            Error::InvalidAttribute {
+                locale,
+                key_path,
+                attr_name,
+                attr_value,
+                err,
+            } => write!(
+                f,
+                "Invalid component attribute value {attr_value:?} for attribute {attr_name:?} in locale {locale:?} at key \"{key_path}\": {err}"
+            ),
         }
     }
 }

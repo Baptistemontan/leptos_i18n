@@ -356,8 +356,8 @@ impl ParsedValue {
 
         dummies.push(Dummy::Variable(key));
 
-        Self::make_dummy_inner(before, dummies);
-        Self::make_dummy_inner(after, dummies);
+        Self::find_dummy_var(before, dummies);
+        Self::find_dummy_var(after, dummies);
 
         Some(())
     }
@@ -415,10 +415,7 @@ impl ParsedValue {
             Self::make_dummy_inner(after, dummies);
         }
 
-        // TODO: dummy attrs
-        let _ = attrs;
-
-        Some(())
+        Self::find_dummy_var(attrs, dummies)
     }
 
     #[allow(clippy::type_complexity)]
@@ -527,28 +524,62 @@ impl ParsedValue {
                 (AttributeValue::Literal(Literal::Bool(true)), rest)
             } else if let Some(rest) = rest.strip_prefix("false ") {
                 (AttributeValue::Literal(Literal::Bool(false)), rest)
-            } else if let Some(rest) = rest.strip_prefix('"') {
-                let Some((value, rest)) = rest.split_once('"') else {
-                    todo!()
+            } else if let Some(new_rest) = rest.strip_prefix('"') {
+                let Some((value, new_rest)) = new_rest.split_once('"') else {
+                    return Err(Error::InvalidAttribute {
+                        locale: ctx.locale.clone(),
+                        key_path: ctx.key_path.clone(),
+                        attr_value: new_rest.to_string(),
+                        attr_name: key.to_string(),
+                        err: "unterminated string".to_string(),
+                    }
+                    .into());
                 };
                 (
                     AttributeValue::Literal(Literal::String(value.to_string(), usize::MAX)),
-                    rest,
+                    new_rest,
                 )
-            } else if rest.starts_with(|c| char::is_ascii_digit(&c)) {
+            } else if rest.starts_with({
+                let mut first = true;
+                move |c| {
+                    char::is_ascii_digit(&c) || (c == '.' && core::mem::replace(&mut first, false))
+                }
+            }) {
                 let (num, rest) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
                 let Some(n) = Self::parse_num(num) else {
-                    todo!()
+                    return Err(Error::InvalidAttribute {
+                        locale: ctx.locale.clone(),
+                        key_path: ctx.key_path.clone(),
+                        attr_value: num.to_string(),
+                        attr_name: key.to_string(),
+                        err: "value appears to be a number, but can't be parsed as one".to_string(),
+                    }
+                    .into());
                 };
                 (AttributeValue::Literal(n), rest)
-            } else if let Some(rest) = rest.strip_prefix("{{") {
-                let Some((key, rest)) = rest.split_once("}}") else {
-                    todo!()
+            } else if let Some(new_rest) = rest.strip_prefix("{{") {
+                let Some((key, new_rest)) = new_rest.split_once("}}") else {
+                    return Err(Error::InvalidAttribute {
+                        locale: ctx.locale.clone(),
+                        key_path: ctx.key_path.clone(),
+                        attr_value: new_rest.to_string(),
+                        attr_name: key.to_string(),
+                        err: "unterminated variable".to_string(),
+                    }
+                    .into());
                 };
                 let var_key = Key::try_new(&format!("var_{}", key.trim()))?;
-                (AttributeValue::Variable(var_key), rest)
+                (AttributeValue::Variable(var_key), new_rest)
             } else {
-                todo!()
+                return Err(Error::InvalidAttribute {
+                    locale: ctx.locale.clone(),
+                    key_path: ctx.key_path.clone(),
+                    attr_value: rest.to_string(),
+                    attr_name: key.to_string(),
+                    err: "invalid argument (expect string, number, boolean or variable)"
+                        .to_string(),
+                }
+                .into());
             };
 
             attrs = rest;
