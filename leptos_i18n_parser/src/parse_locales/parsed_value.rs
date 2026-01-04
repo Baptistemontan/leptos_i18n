@@ -7,7 +7,7 @@ use serde::{
 
 use crate::{
     formatters::{Formatters, VarBounds},
-    parse_locales::options::ParseOptions,
+    parse_locales::{error::Warning, options::ParseOptions},
     utils::{Key, KeyPath, UnwrapAt},
 };
 
@@ -196,7 +196,11 @@ impl ParsedValue {
         }
     }
 
-    fn parse_formatter_args(s: &str) -> (&str, Vec<(&str, Option<&str>)>) {
+    #[allow(clippy::type_complexity)]
+    fn parse_formatter_args<'a>(
+        ctx: &Context,
+        s: &'a str,
+    ) -> (&'a str, Vec<(&'a str, Option<&'a str>)>) {
         let Some((name, rest)) = s.split_once('(') else {
             return (s.trim(), vec![]);
         };
@@ -204,8 +208,16 @@ impl ParsedValue {
             return (s.trim(), vec![]);
         };
 
-        // TODO: what should we do with it ?
-        let _ = rest;
+        let r = rest.trim();
+        if !r.is_empty() {
+            ctx.diag
+                .emit_warning(Warning::UnexpectedCharsAfterFormatter {
+                    locale: ctx.locale.clone(),
+                    formatter_name: name.to_string(),
+                    key_path: ctx.key_path.clone(),
+                    chars: r.to_string(),
+                });
+        }
 
         let args = args.split(';').map(|s| {
             s.split_once(':')
@@ -216,10 +228,9 @@ impl ParsedValue {
         (name.trim(), args.collect())
     }
 
-    fn parse_formatter(s: &str, ctx: &Context) -> VarBounds {
-        let (name, args) = Self::parse_formatter_args(s);
-        ctx.formatters
-            .parse(ctx.locale, ctx.key_path, name, &args, ctx.diag)
+    fn parse_formatter(ctx: &Context, s: &str) -> VarBounds {
+        let (name, args) = Self::parse_formatter_args(ctx, s);
+        ctx.formatters.parse(ctx, name, &args)
     }
 
     fn parse_key_path(path: &str) -> Option<KeyPath> {
@@ -372,12 +383,9 @@ impl ParsedValue {
         let ident = ident.trim();
 
         let this = if let Some((ident, s)) = ident.split_once(',') {
-            let formatter = Self::parse_formatter(s, ctx);
+            let bounds = Self::parse_formatter(ctx, s);
             let key = Key::new(&format!("var_{}", ident.trim()))?;
-            ParsedValue::Variable {
-                key,
-                bounds: formatter,
-            }
+            ParsedValue::Variable { key, bounds }
         } else {
             let key = Key::new(&format!("var_{ident}"))?;
             ParsedValue::Variable {

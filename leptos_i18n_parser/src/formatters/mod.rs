@@ -10,7 +10,10 @@ use std::{
 use syn::{Ident, Token, punctuated::Punctuated, spanned::Spanned};
 
 use crate::{
-    parse_locales::error::{Diagnostics, Error},
+    parse_locales::{
+        error::{Diagnostics, Error},
+        parsed_value::Context,
+    },
     utils::{Key, KeyPath},
 };
 
@@ -71,24 +74,17 @@ impl Formatters {
         Self::new_populated().unwrap()
     }
 
-    pub fn parse(
-        &self,
-        locale: &Key,
-        key_path: &KeyPath,
-        name: &str,
-        args: &[(&str, Option<&str>)],
-        diag: &Diagnostics,
-    ) -> VarBounds {
+    pub fn parse(&self, ctx: &Context, name: &str, args: &[(&str, Option<&str>)]) -> VarBounds {
         let Some(formatter) = self.formatters.get(name) else {
-            diag.emit_error(Error::UnknownFormatter {
+            ctx.diag.emit_error(Error::UnknownFormatter {
                 name: name.to_string(),
-                locale: locale.clone(),
-                key_path: key_path.clone(),
+                locale: ctx.locale.clone(),
+                key_path: ctx.key_path.clone(),
             });
             return VarBounds::Dummy;
         };
 
-        formatter.parse(locale, key_path, args, diag)
+        formatter.parse(ctx, args)
     }
 
     #[doc(hidden)]
@@ -195,13 +191,7 @@ pub trait Formatter: 'static {
 }
 
 trait DynFormatter {
-    fn parse(
-        &self,
-        locale: &Key,
-        key_path: &KeyPath,
-        args: &[(&str, Option<&str>)],
-        diag: &Diagnostics,
-    ) -> VarBounds;
+    fn parse(&self, ctx: &Context, args: &[(&str, Option<&str>)]) -> VarBounds;
 
     fn parse_from_tt(
         &self,
@@ -211,14 +201,8 @@ trait DynFormatter {
 }
 
 impl<T: Formatter + ?Sized> DynFormatter for T {
-    fn parse(
-        &self,
-        locale: &Key,
-        key_path: &KeyPath,
-        args: &[(&str, Option<&str>)],
-        diag: &Diagnostics,
-    ) -> VarBounds {
-        match T::parse_with_diagnostics(self, locale, key_path, args, diag) {
+    fn parse(&self, ctx: &Context, args: &[(&str, Option<&str>)]) -> VarBounds {
+        match T::parse_with_diagnostics(self, ctx.locale, ctx.key_path, args, ctx.diag) {
             Some(f) => VarBounds::Formatted {
                 formatter_name: T::NAME,
                 to_tokens: Rc::new(f),
