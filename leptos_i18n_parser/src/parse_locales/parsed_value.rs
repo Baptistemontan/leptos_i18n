@@ -1368,9 +1368,9 @@ impl AttributeValue {
     pub fn populate(
         &self,
         args: &BTreeMap<String, ParsedValue>,
-        _foreign_key: &KeyPath,
-        _locale: &Key,
-        _key_path: &KeyPath,
+        foreign_key: &KeyPath,
+        locale: &Key,
+        key_path: &KeyPath,
     ) -> Result<Self> {
         match self {
             AttributeValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
@@ -1381,7 +1381,13 @@ impl AttributeValue {
                 match arg {
                     ParsedValue::Variable { key, .. } => Ok(AttributeValue::Variable(key.clone())),
                     ParsedValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
-                    _ => todo!(),
+                    _ => Err(Error::InvalidForeignKeyArgForAttribute {
+                        locale: locale.clone(),
+                        key_path: key_path.clone(),
+                        arg_name: key.clone(),
+                        foreign_key: foreign_key.clone(),
+                    }
+                    .into()),
                 }
             }
         }

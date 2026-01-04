@@ -164,6 +164,12 @@ pub enum Error {
         attr_value: String,
         err: String,
     },
+    InvalidForeignKeyArgForAttribute {
+        locale: Key,
+        key_path: KeyPath,
+        arg_name: Key,
+        foreign_key: KeyPath,
+    },
 
     Custom(String),
 }
@@ -420,6 +426,15 @@ impl Display for Error {
             } => write!(
                 f,
                 "Invalid component attribute value {attr_value:?} for attribute {attr_name:?} in locale {locale:?} at key \"{key_path}\": {err}"
+            ),
+            Error::InvalidForeignKeyArgForAttribute {
+                locale,
+                key_path,
+                arg_name,
+                foreign_key,
+            } => write!(
+                f,
+                "Invalid foreign key argument {arg_name:?} to key \"{foreign_key}\" at key \"{key_path}\" in locale {locale:?}: argument to attributes must be either a variable or a literal (boolean, string, numbers)"
             ),
         }
     }
