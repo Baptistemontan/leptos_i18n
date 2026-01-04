@@ -73,13 +73,46 @@ fn test_comp_with_attributes_with_direct_comp() {
 
 #[test]
 fn test_comp_with_attributes_as_string() {
-    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = "\"en\"");
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = "en");
     assert_eq!(en, "<div id=\"en\" foo=\"bar\">test</div>");
-    let fr = td_string!(Locale::fr, comp_with_attrs, <div> = "div", id = "\"foo_bar\"");
+    let fr = td_string!(Locale::fr, comp_with_attrs, <div> = "div", id = "foo_bar");
     assert_eq!(
         fr,
         "<div id=\"foo_bar\" bool true_bool num=\"17\">test</div>"
     );
+}
+
+#[test]
+fn test_comp_with_attributes_variable_to_string() {
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = true);
+    assert_eq!(en, "<div id foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = false);
+    assert_eq!(en, "<div foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = 56);
+    assert_eq!(en, "<div id=\"56\" foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = 56.78);
+    assert_eq!(en, "<div id=\"56.78\" foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = -56.78);
+    assert_eq!(en, "<div id=\"-56.78\" foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = Some("test"));
+    assert_eq!(en, "<div id=\"test\" foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = Some(true));
+    assert_eq!(en, "<div id foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = Some(false));
+    assert_eq!(en, "<div foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = Some(56.78));
+    assert_eq!(en, "<div id=\"56.78\" foo=\"bar\">test</div>");
+
+    let en = td_string!(Locale::en, comp_with_attrs, <div> = "div", id = Option::<u8>::None);
+    assert_eq!(en, "<div foo=\"bar\">test</div>");
 }
 
 #[test]
@@ -89,12 +122,12 @@ fn test_comp_with_attributes_as_string_with_fn() {
         children(f)?;
         write!(f, "</div>")
     };
-    let en = td_string!(Locale::en, comp_with_attrs, <div>, id = "\"en\"");
+    let en = td_string!(Locale::en, comp_with_attrs, <div>, id = "en");
     assert_eq!(en, "<div>test</div>");
     let div = |f: &mut Formatter, children: Children, attrs: Attributes| {
         write!(f, "<div{attrs}>{children}</div>")
     };
-    let fr = td_string!(Locale::fr, comp_with_attrs, <div>, id = "\"foo_bar\"");
+    let fr = td_string!(Locale::fr, comp_with_attrs, <div>, id = "foo_bar");
     assert_eq!(
         fr,
         "<div id=\"foo_bar\" bool true_bool num=\"17\">test</div>"
@@ -111,19 +144,19 @@ fn test_comp_with_attributes_self_closed() {
 
 #[test]
 fn test_comp_with_attributes_self_closed_as_string() {
-    let en = td_string!(Locale::en, comp_with_attrs_self_closed, <br/> = "br", id = "\"en\"");
+    let en = td_string!(Locale::en, comp_with_attrs_self_closed, <br/> = "br", id = "en");
     assert_eq!(en, "before<br id=\"test\" />after");
-    let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/> = "br", id = "\"foo bar\"");
+    let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/> = "br", id = "foo bar");
     assert_eq!(fr, "before<br id=\"foo bar\" />after");
 }
 
 #[test]
 fn test_comp_with_attributes_self_closed_as_string_with_fn() {
     let br = |f: &mut Formatter| write!(f, "<br />");
-    let en = td_string!(Locale::en, comp_with_attrs_self_closed, <br/>, id = "\"en\"");
+    let en = td_string!(Locale::en, comp_with_attrs_self_closed, <br/>, id = "en");
     assert_eq!(en, "before<br />after");
     let br =
         |f: &mut Formatter, attrs: leptos_i18n::display::Attributes| write!(f, "<br{attrs} />");
-    let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/>, id = "\"foo bar\"");
+    let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/>, id = "foo bar");
     assert_eq!(fr, "before<br id=\"foo bar\" />after");
 }

@@ -311,8 +311,7 @@ pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> Optio
             leptos_i18n_parser::parse_locales::parsed_value::Literal::Float(value),
         )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Variable(var_key)) => {
-            let fstr = format!(" {}={{}}", key);
-            quote!({ ::core::write!(__formatter, #fstr, #var_key) })
+            quote!({ l_i18n_crate::display::AttributeValue::fmt_with_name(&#var_key, __formatter, #key) })
         }
     };
 
