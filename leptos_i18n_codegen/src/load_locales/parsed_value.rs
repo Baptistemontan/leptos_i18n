@@ -295,7 +295,7 @@ pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> Optio
             lit_s @ leptos_i18n_parser::parse_locales::parsed_value::Literal::String(_, _),
         )) => {
             let ts = Literal::from(lit_s).to_token_stream(strings_count);
-            let fstr = format!(" {}={{:?}}", key);
+            let fstr = format!(" {}=\"{{}}\"", key);
             quote!({
                 let __v = #ts;
                 ::core::write!(__formatter, #fstr, __v)
