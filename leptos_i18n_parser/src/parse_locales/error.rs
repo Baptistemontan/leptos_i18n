@@ -157,6 +157,19 @@ pub enum Error {
         key_path: KeyPath,
         err: String,
     },
+    InvalidAttribute {
+        locale: Key,
+        key_path: KeyPath,
+        attr_name: String,
+        attr_value: String,
+        err: String,
+    },
+    InvalidForeignKeyArgForAttribute {
+        locale: Key,
+        key_path: KeyPath,
+        arg_name: Key,
+        foreign_key: KeyPath,
+    },
 
     Custom(String),
 }
@@ -404,6 +417,25 @@ impl Display for Error {
                     "Formatter is invalid in locale {locale:?} at key \"{key_path}\": {err}"
                 )
             }
+            Error::InvalidAttribute {
+                locale,
+                key_path,
+                attr_name,
+                attr_value,
+                err,
+            } => write!(
+                f,
+                "Invalid component attribute value {attr_value:?} for attribute {attr_name:?} in locale {locale:?} at key \"{key_path}\": {err}"
+            ),
+            Error::InvalidForeignKeyArgForAttribute {
+                locale,
+                key_path,
+                arg_name,
+                foreign_key,
+            } => write!(
+                f,
+                "Invalid foreign key argument {arg_name:?} to key \"{foreign_key}\" at key \"{key_path}\" in locale {locale:?}: argument to attributes must be either a variable or a literal (boolean, string, numbers)"
+            ),
         }
     }
 }
@@ -483,6 +515,12 @@ pub enum Warning {
         namespace: Option<Key>,
         path: std::path::PathBuf,
     },
+    UnexpectedCharsAfterFormatter {
+        locale: Key,
+        key_path: KeyPath,
+        formatter_name: String,
+        chars: String,
+    },
     Custom(String),
 }
 
@@ -519,7 +557,7 @@ impl Display for Warning {
                 path,
             } => write!(
                 f,
-                "File path for locale {locale:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"
+                "File path for locale {locale:?} is not valid UTF8, can't add it to build script depedencies. Path: {path:?}"
             ),
             Warning::NonUnicodePath {
                 locale,
@@ -527,9 +565,18 @@ impl Display for Warning {
                 path,
             } => write!(
                 f,
-                "File path for locale {locale:?} in namespace {ns:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"
+                "File path for locale {locale:?} in namespace {ns:?} is not valid UTF8, can't add it to build script depedencies. Path: {path:?}"
             ),
             Warning::Custom(warn) => write!(f, "{warn}"),
+            Warning::UnexpectedCharsAfterFormatter {
+                locale,
+                key_path,
+                chars,
+                formatter_name,
+            } => write!(
+                f,
+                "Unexpected characters {chars:?} after formatter {formatter_name:?} in locale {locale:?} at key \"{key_path}\""
+            ),
         }
     }
 }
