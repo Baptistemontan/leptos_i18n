@@ -168,7 +168,7 @@ You can either retrieve them with a closure:
 ```rust
 use leptos::children::ChildrenFn;
 use leptos::attr::any_attribute::AnyAttribute;
-let b = |attr: Vec<AnyAttribute>, children: ChildrenFn| view!{ <b {..attr} >{children}</b> }
+let b = |children: ChildrenFn, attr: Vec<AnyAttribute>| view!{ <b {..attr} >{children}</b> }
 t!(i18n, highlight_me, id = "my_id", <b>)
 ```
 
@@ -183,13 +183,13 @@ Work the same for self closed components, for the closure syntax you can take th
 
 ```json
 {
-  "foo": "befor<br id={{ id }} />after"
+  "foo": "before<br id={{ id }} />after"
 }
 ```
 
 ```rust
 let br = |attr: Vec<AnyAttribute>| view!{ <br {..attr} /> }
-t!(i18n, highlight_me, id = "my_id", <b>)
+t!(i18n, highlight_me, id = "my_id", <br>)
 ```
 
 > _note_: variables to attributes expect the value to implement `leptos::attr::AttributeValue`.

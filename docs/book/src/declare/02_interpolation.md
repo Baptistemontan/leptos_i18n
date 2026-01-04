@@ -25,9 +25,17 @@ You can declare a component with HTML-like syntax:
 }
 ```
 
+Or self-closed components:
+
+```json
+{
+  "with_break": "some line <br /> some other line"
+}
+```
+
 ## Use both
 
-You can mix them both without a problem:
+You can mix both interpolated values and interpolated components:
 
 ```json
 {
@@ -56,7 +64,7 @@ The syntax for variables:
 
 ```json
 {
-  "highlight_me": "highlight <b id={{ id }}>me</b>"
+  "with_break": "some line <br id={{ id }} /> some other line"
 }
 ```
 
