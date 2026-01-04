@@ -551,23 +551,21 @@ impl Display for Warning {
                     "At key \"{key_path}\", locale {locale:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless."
                 )
             }
-            // TODO: deprecate
             Warning::NonUnicodePath {
                 locale,
                 namespace: None,
                 path,
             } => write!(
                 f,
-                "File path for locale {locale:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"
+                "File path for locale {locale:?} is not valid UTF8, can't add it to build script depedencies. Path: {path:?}"
             ),
-            // TODO: deprecate
             Warning::NonUnicodePath {
                 locale,
                 namespace: Some(ns),
                 path,
             } => write!(
                 f,
-                "File path for locale {locale:?} in namespace {ns:?} is not valid Unicode, can't add it to proc macro depedencies. Path: {path:?}"
+                "File path for locale {locale:?} in namespace {ns:?} is not valid UTF8, can't add it to build script depedencies. Path: {path:?}"
             ),
             Warning::Custom(warn) => write!(f, "{warn}"),
             Warning::UnexpectedCharsAfterFormatter {
