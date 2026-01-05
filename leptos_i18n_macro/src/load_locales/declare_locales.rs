@@ -87,8 +87,7 @@ fn parse_array<T: syn::parse::Parse>(
 
 fn parse_str_value(
     input: syn::parse::ParseStream,
-    key_path: &KeyPath,
-    locale: &Key,
+    loc: &Loc,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
 ) -> syn::Result<Option<ParsedValue>> {
@@ -101,7 +100,7 @@ fn parse_str_value(
     let diag = Diagnostics::new();
 
     let ctx = ParseContext {
-        loc: Loc { locale, key_path },
+        loc: *loc,
         foreign_keys_paths,
         formatters,
         diag: &diag,
@@ -111,15 +110,15 @@ fn parse_str_value(
     match ParsedValue::new(&ctx, &value) {
         Ok(pv) => {
             if let Some(err) = diag.errors().first() {
-                return Err(syn::Error::new_spanned(lit_str, err.to_string()));
+                return emit_err(lit_str, err);
             }
             if let Some(warn) = diag.warnings().first() {
                 // TODO: warn instead of error
-                return Err(syn::Error::new_spanned(lit_str, warn.to_string()));
+                return emit_err(lit_str, warn);
             }
             Ok(Some(pv))
         }
-        Err(err) => Err(syn::Error::new_spanned(lit_str, err.to_string())),
+        Err(err) => emit_err(lit_str, err),
     }
 }
 
@@ -195,13 +194,12 @@ fn parse_range_pair<T: RangeNumber>(
     let content;
     syn::bracketed!(content in input);
 
-    let Some(parsed_value) = parse_str_value(
-        &content,
-        seed.key_path,
-        seed.locale,
-        seed.formatters,
-        foreign_keys_paths,
-    )?
+    let loc = Loc {
+        locale: seed.locale,
+        key_path: seed.key_path,
+    };
+
+    let Some(parsed_value) = parse_str_value(&content, &loc, seed.formatters, foreign_keys_paths)?
     else {
         return Err(content.error("only strings are accepted here."));
     };
@@ -296,9 +294,11 @@ fn parse_values(
     let key = Key::from_ident(ident);
     let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    if let Some(parsed_value) =
-        parse_str_value(input, &pushed_key, locale, formatters, foreign_keys_paths)?
-    {
+    let loc = Loc {
+        locale,
+        key_path: &pushed_key,
+    };
+    if let Some(parsed_value) = parse_str_value(input, &loc, formatters, foreign_keys_paths)? {
         return Ok((key, parsed_value));
     }
     if let Some(parsed_value) = parse_map_values(
