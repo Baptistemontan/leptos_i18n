@@ -402,6 +402,12 @@ impl<T: Into<Error>> From<T> for BoxedError {
     }
 }
 
+impl From<BoxedError> for Box<dyn core::error::Error> {
+    fn from(value: BoxedError) -> Self {
+        value.0
+    }
+}
+
 impl From<Box<Error>> for BoxedError {
     fn from(value: Box<Error>) -> Self {
         BoxedError(value)

@@ -35,14 +35,13 @@ pub fn load_locales(
     let crate_path = crate_path.unwrap_or(&default_crate_path);
 
     let ParsedLocales {
-        cfg_file,
+        cfg,
         builder_keys,
-        options,
         diag,
         ..
     } = parsed_locales;
 
-    if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg_file.translations_uri.is_none() {
+    if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
     }
 
@@ -70,14 +69,14 @@ pub fn load_locales(
         &keys_ident,
         &enum_ident,
         &translation_unit_enum_ident,
-        cfg_file.translations_uri.as_deref(),
-        options,
+        cfg.translations_uri.as_deref(),
+        &cfg.options,
     );
     let locale_enum = create_locales_enum(
         &enum_ident,
         &keys_ident,
         &translation_unit_enum_ident,
-        &cfg_file.locales,
+        &cfg.locales,
     )?;
 
     let mut macros_reexport = vec![

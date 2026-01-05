@@ -1,7 +1,20 @@
-use leptos_i18n_parser::parse_locales::error::Result;
+use std::path::PathBuf;
+
+use leptos_i18n_parser::parse_locales::{
+    cfg_file::ConfigFile,
+    error::{Error, Result},
+};
 use proc_macro2::TokenStream;
 
 pub mod declare_locales;
+
+fn get_manifest_dir() -> Result<PathBuf> {
+    let path = std::env::var("CARGO_MANIFEST_DIR")
+        .map(Into::into)
+        .map_err(Error::CargoDirEnvNotPresent)?;
+
+    Ok(path)
+}
 
 /// Steps:
 ///
@@ -15,8 +28,13 @@ pub mod declare_locales;
 /// 4.4: discard any surplus key and emit a warning
 /// 5: generate code (and warnings)
 pub fn load_locales() -> Result<TokenStream> {
+    let mut manifest_dir_path = get_manifest_dir()?;
+
+    let cfg_file = ConfigFile::new(&mut manifest_dir_path)?;
+    let cfg = cfg_file.into();
+
     let parsed_locales =
-        leptos_i18n_parser::parse_locales::parse_locales(None, Default::default())?;
+        leptos_i18n_parser::parse_locales::parse_locales(Some(manifest_dir_path), cfg)?;
 
     leptos_i18n_codegen::gen_code(&parsed_locales, None, true, None)
 }

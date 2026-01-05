@@ -4,7 +4,7 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 pub use datamarker::FormatterOptions;
-pub use leptos_i18n_parser::parse_locales::options::{FileFormat, ParseOptions, parser};
+pub use leptos_i18n_parser::parse_locales::options::{Config, FileFormat, ParseOptions, parser};
 
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
@@ -62,22 +62,22 @@ pub struct TranslationsInfos {
 }
 
 impl TranslationsInfos {
-    fn parse_inner(dir_path: Option<PathBuf>, options: ParseOptions) -> Result<Self> {
+    fn parse_inner(dir_path: Option<PathBuf>, cfg: Config) -> Result<Self> {
         // We don't really care for warnings, they will already be displayed by the macro
-        let parsed_locales = parse_locales(dir_path, options)?;
+        let parsed_locales = parse_locales(dir_path, cfg)?;
 
         Ok(TranslationsInfos { parsed_locales })
     }
 
     /// Parse the translations and obtain informations about them.
-    pub fn parse(options: ParseOptions) -> Result<Self> {
-        let this = Self::parse_inner(None, options)?;
+    pub fn parse(cfg: Config) -> Result<Self> {
+        let this = Self::parse_inner(None, cfg)?;
         Ok(this)
     }
 
     /// Parse the translations at the given directory and obtain informations about them.
-    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P, options: ParseOptions) -> Result<Self> {
-        Self::parse_inner(Some(dir_path.into()), options)
+    pub fn parse_at_dir<P: Into<PathBuf>>(dir_path: P, cfg: Config) -> Result<Self> {
+        Self::parse_inner(Some(dir_path.into()), cfg)
     }
 
     /// Paths to all files containing translations.

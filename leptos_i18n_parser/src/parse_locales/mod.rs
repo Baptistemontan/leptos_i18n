@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use cfg_file::ConfigFile;
 use icu_locale::LanguageIdentifier;
 use locale::{BuildersKeys, BuildersKeysInner, DefaultTo, Locale, LocalesOrNamespaces};
 
@@ -22,7 +21,7 @@ use error::{Diagnostics, Error, Result};
 // use warning::Warnings;
 
 use crate::{
-    parse_locales::options::ParseOptions,
+    parse_locales::options::{Config, ParseOptions},
     utils::{Key, KeyPath, Loc, Location, UnwrapAt},
 };
 
@@ -45,7 +44,7 @@ fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {
 
 pub struct RawParsedLocales {
     pub locales: LocalesOrNamespaces,
-    pub cfg_file: ConfigFile,
+    pub cfg: Config,
     pub foreign_keys_paths: ForeignKeysPaths,
     pub diag: Diagnostics,
     pub tracked_files: Vec<String>,
@@ -53,7 +52,7 @@ pub struct RawParsedLocales {
 
 pub fn parse_locales_raw(
     cargo_manifest_dir: Option<PathBuf>,
-    options: &ParseOptions,
+    cfg: Config,
 ) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
@@ -61,24 +60,21 @@ pub fn parse_locales_raw(
 
     let diag = Diagnostics::new();
 
-    let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
+    // let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
 
-    let mut tracked_files = Vec::with_capacity(
-        cfg_file.locales.len() * cfg_file.name_spaces.as_ref().map(Vec::len).unwrap_or(1),
-    );
+    let mut tracked_files = Vec::with_capacity(cfg.locales.len() * cfg.namespaces.len().max(1));
 
     let locales = LocalesOrNamespaces::new(
         &mut cargo_manifest_dir,
-        &cfg_file,
         &foreign_keys_paths,
         &diag,
         &mut tracked_files,
-        options,
+        &cfg,
     )?;
 
     let raw_parsed_locales = RawParsedLocales {
         locales,
-        cfg_file,
+        cfg,
         foreign_keys_paths,
         diag,
         tracked_files,
@@ -89,46 +85,44 @@ pub fn parse_locales_raw(
 
 pub fn make_builder_keys(
     mut locales: LocalesOrNamespaces,
-    cfg_file: &ConfigFile,
+    cfg: &Config,
     foreign_keys_paths: ForeignKeysPaths,
     diag: &Diagnostics,
-    options: &ParseOptions,
 ) -> Result<BuildersKeys> {
     locales.merge_plurals(diag)?;
 
-    resolve_foreign_keys(&locales, &cfg_file.default, foreign_keys_paths.into_inner())?;
+    resolve_foreign_keys(
+        &locales,
+        &cfg.default_locale,
+        foreign_keys_paths.into_inner(),
+    )?;
 
-    check_locales(locales, &cfg_file.extensions, diag, options)
+    check_locales(locales, &cfg.extensions, diag, &cfg.options)
 }
 
 pub struct ParsedLocales {
-    pub cfg_file: ConfigFile,
+    pub cfg: Config,
     pub builder_keys: BuildersKeys,
     pub diag: Diagnostics,
     pub tracked_files: Option<Vec<String>>,
-    pub options: ParseOptions,
 }
 
-pub fn parse_locales(
-    cargo_manifest_dir: Option<PathBuf>,
-    options: ParseOptions,
-) -> Result<ParsedLocales> {
+pub fn parse_locales(cargo_manifest_dir: Option<PathBuf>, cfg: Config) -> Result<ParsedLocales> {
     let RawParsedLocales {
         locales,
-        cfg_file,
+        cfg,
         foreign_keys_paths,
         tracked_files,
         diag,
-    } = parse_locales_raw(cargo_manifest_dir, &options)?;
+    } = parse_locales_raw(cargo_manifest_dir, cfg)?;
 
-    let builder_keys = make_builder_keys(locales, &cfg_file, foreign_keys_paths, &diag, &options)?;
+    let builder_keys = make_builder_keys(locales, &cfg, foreign_keys_paths, &diag)?;
 
     Ok(ParsedLocales {
-        cfg_file,
+        cfg,
         builder_keys,
         diag,
         tracked_files: Some(tracked_files),
-        options,
     })
 }
 

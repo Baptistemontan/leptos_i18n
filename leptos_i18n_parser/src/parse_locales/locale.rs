@@ -2,7 +2,7 @@ use serde::de::MapAccess;
 
 use crate::{
     formatters::{Formatters, VarBounds},
-    parse_locales::options::{FileFormat, ParseOptions},
+    parse_locales::options::{Config, FileFormat, ParseOptions},
     utils::{Key, KeyPath, Loc, Location, UnwrapAt},
 };
 use std::{
@@ -15,7 +15,6 @@ use std::{
 
 use super::{
     ForeignKeysPaths, StringIndexer,
-    cfg_file::ConfigFile,
     error::{Diagnostics, Error, Result, Warning},
     parsed_value::{ParsedValue, ParsedValueSeed},
     plurals::{PluralForm, PluralRuleType, Plurals},
@@ -368,33 +367,31 @@ impl Namespace {
 impl LocalesOrNamespaces {
     pub fn new(
         manifest_dir_path: &mut PathBuf,
-        cfg_file: &ConfigFile,
         foreign_keys_paths: &ForeignKeysPaths,
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
-        options: &ParseOptions,
+        cfg: &Config,
     ) -> Result<Self> {
-        let locale_keys = &cfg_file.locales;
-        manifest_dir_path.push(&*cfg_file.locales_dir);
-        if let Some(namespace_keys) = &cfg_file.name_spaces {
-            let mut namespaces = Vec::with_capacity(namespace_keys.len());
-            for namespace in namespace_keys {
+        manifest_dir_path.push(&cfg.locales_path);
+        if !cfg.namespaces.is_empty() {
+            let mut namespaces = Vec::with_capacity(cfg.namespaces.len());
+            for namespace in &cfg.namespaces {
                 namespaces.push(Namespace::new(
                     manifest_dir_path,
                     namespace.clone(),
-                    locale_keys,
+                    &cfg.locales,
                     foreign_keys_paths,
                     diag,
                     tracked_files,
-                    options,
+                    &cfg.options,
                 )?);
             }
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
         } else {
-            let mut locales = Vec::with_capacity(locale_keys.len());
-            for locale in locale_keys.iter().cloned() {
+            let mut locales = Vec::with_capacity(cfg.locales.len());
+            for locale in cfg.locales.iter().cloned() {
                 manifest_dir_path.push(&*locale.name);
-                let locale_file = find_file(manifest_dir_path, &options.file_format)?;
+                let locale_file = find_file(manifest_dir_path, &cfg.options.file_format)?;
                 let locale = Locale::new(
                     locale_file,
                     manifest_dir_path,
@@ -403,7 +400,7 @@ impl LocalesOrNamespaces {
                     foreign_keys_paths,
                     diag,
                     tracked_files,
-                    options,
+                    &cfg.options,
                 )?;
                 locales.push(locale);
                 manifest_dir_path.pop();
