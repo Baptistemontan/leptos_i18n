@@ -157,6 +157,11 @@ pub enum Error {
         key_path: KeyPath,
         err: String,
     },
+    InvalidAttributeName {
+        locale: Key,
+        key_path: KeyPath,
+        value: String,
+    },
     InvalidAttribute {
         locale: Key,
         key_path: KeyPath,
@@ -435,6 +440,14 @@ impl Display for Error {
             } => write!(
                 f,
                 "Invalid foreign key argument {arg_name:?} to key \"{foreign_key}\" at key \"{key_path}\" in locale {locale:?}: argument to attributes must be either a variable or a literal (boolean, string, numbers)"
+            ),
+            Error::InvalidAttributeName {
+                locale,
+                key_path,
+                value,
+            } => write!(
+                f,
+                "Invalid attribute name {value:?} in locale {locale:?} at key \"{key_path}\""
             ),
         }
     }

@@ -297,7 +297,8 @@ impl VarBounds {
     }
     pub fn fmt_bounds(&self) -> TokenStream {
         match self {
-            Self::None | Self::AttributeValue => quote!(::std::fmt::Display),
+            Self::None => quote!(::std::fmt::Display),
+            Self::AttributeValue => quote!(l_i18n_crate::display::AttributeValue),
             Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
             Self::Formatted { to_tokens, .. } => to_tokens.fmt_bounds(),
         }

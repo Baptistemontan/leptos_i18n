@@ -239,7 +239,7 @@ pub fn attributes_to_token_stream(this: &Attributes, strings_count: usize) -> To
     let attrs = this
         .0
         .iter()
-        .map(|attr| attribute_to_token_stream(attr, strings_count));
+        .filter_map(|attr| attribute_to_token_stream(attr, strings_count));
 
     quote!(vec![#(#attrs),*])
 }
@@ -248,80 +248,94 @@ pub fn attributes_as_string_impl(this: &Attributes, strings_count: usize) -> Tok
     let attrs = this
         .0
         .iter()
-        .map(|attr| attribute_as_string_impl(attr, strings_count));
+        .filter_map(|attr| attribute_as_string_impl(attr, strings_count));
 
     quote!(&[#(#attrs),*])
 }
 
-pub fn attribute_value_to_token_stream(this: &AttributeValue, strings_count: usize) -> TokenStream {
+pub fn attribute_value_to_token_stream(
+    this: &AttributeValue,
+    strings_count: usize,
+) -> Option<TokenStream> {
     match this {
-        AttributeValue::Literal(lit) => Literal::from(lit).to_token_stream(strings_count),
-        AttributeValue::Variable(key) => {
-            quote!( core::clone::Clone::clone(&#key) )
+        // TODO: should we really skip `false` attributes ? already skipped for string rendering, but it might have an impact with DOM rendering ?
+        AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(false),
+        ) => None,
+        AttributeValue::Literal(lit) => {
+            let ts = Literal::from(lit).to_token_stream(strings_count);
+            Some(ts)
         }
+        AttributeValue::Variable(key) => Some(quote!( core::clone::Clone::clone(&#key) )),
     }
 }
 
-fn attribute_lit_string_impl(key: &str, value: &impl Display) -> TokenStream {
-    let s = format!(" {}={}", key, value);
+fn attribute_num_string_impl(key: &str, value: &impl Display) -> TokenStream {
+    let s = format!(" {}=\"{}\"", key, value);
     quote!(::core::write!(__formatter, #s))
 }
 
-pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> TokenStream {
+pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> Option<TokenStream> {
     let key = &this.key;
     let ts = match &this.value {
-        None => {
+        None
+        | Some(AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(true), // collapse `attre = true` to just `attr`
+        )) => {
             let s = format!(" {}", key);
             quote!(::core::write!(__formatter, #s))
+        }
+        Some(AttributeValue::Literal(
+            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(false),
+        )) => {
+            // Don't render `false` attributes
+            return None;
         }
         Some(AttributeValue::Literal(
             lit_s @ leptos_i18n_parser::parse_locales::parsed_value::Literal::String(_, _),
         )) => {
             let ts = Literal::from(lit_s).to_token_stream(strings_count);
-            let fstr = format!(" {}={{:?}}", key);
+            let fstr = format!(" {}=\"{{}}\"", key);
             quote!({
                 let __v = #ts;
                 ::core::write!(__formatter, #fstr, __v)
             })
         }
         Some(AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(value),
-        )) => attribute_lit_string_impl(key, value),
-        Some(AttributeValue::Literal(
             leptos_i18n_parser::parse_locales::parsed_value::Literal::Signed(value),
-        )) => attribute_lit_string_impl(key, value),
+        )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Literal(
             leptos_i18n_parser::parse_locales::parsed_value::Literal::Unsigned(value),
-        )) => attribute_lit_string_impl(key, value),
+        )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Literal(
             leptos_i18n_parser::parse_locales::parsed_value::Literal::Float(value),
-        )) => attribute_lit_string_impl(key, value),
+        )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Variable(var_key)) => {
-            let fstr = format!(" {}={{}}", key);
-            quote!({ ::core::write!(__formatter, #fstr, #var_key) })
+            quote!({ l_i18n_crate::display::AttributeValue::fmt_with_name(&#var_key, __formatter, #key) })
         }
     };
 
-    quote! {
+    Some(quote! {
         &{
             |__formatter: &mut ::core::fmt::Formatter<'_>| -> ::core::fmt::Result {
                 #ts
             }
         }
-    }
+    })
 }
 
-pub fn attribute_to_token_stream(this: &Attribute, strings_count: usize) -> TokenStream {
+pub fn attribute_to_token_stream(this: &Attribute, strings_count: usize) -> Option<TokenStream> {
     let key = &this.key;
-    let ts = this
-        .value
-        .as_ref()
-        .map(|v| attribute_value_to_token_stream(v, strings_count))
-        .unwrap_or(quote!(()));
+    let ts = match &this.value {
+        Some(v) => attribute_value_to_token_stream(v, strings_count)?,
+        None => quote!(true),
+    };
 
-    quote! {
+    let ts = quote! {
         l_i18n_crate::reexports::leptos::prelude::IntoAnyAttribute::into_any_attr(
             l_i18n_crate::reexports::leptos::attr::custom::custom_attribute(#key, #ts)
         )
-    }
+    };
+
+    Some(ts)
 }

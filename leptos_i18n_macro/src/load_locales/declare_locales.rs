@@ -109,7 +109,7 @@ fn parse_str_value(
         parse_fns: ParsedValue::DEFAULT_FNS,
     };
 
-    match ParsedValue::new(&value, &ctx) {
+    match ParsedValue::new(&ctx, &value) {
         Ok(pv) => {
             if let Some(err) = diag.errors().first() {
                 return Err(syn::Error::new_spanned(lit_str, err.to_string()));

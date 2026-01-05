@@ -3,6 +3,7 @@
 use std::{
     fmt::{self, Debug, Display},
     marker::PhantomData,
+    rc, sync,
 };
 
 /// Function that takes a formatter to format things like children or attributes
@@ -281,3 +282,145 @@ impl DisplayComponent<()> for DisplayComp<'_> {
         write!(f, " />")
     }
 }
+
+/// Render strategy for `AttributeValue`
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum RenderStrategy {
+    /// Skip the rendering
+    Skip,
+    /// Render with a value: "$attr_name=$value".
+    #[default]
+    WithValue,
+    /// Render without a value: "$attr".
+    WithoutValue,
+}
+
+/// Values that can be passed to component attributes.
+pub trait AttributeValue {
+    /// Format the attribute with its attribute name.
+    fn fmt_with_name(&self, f: &mut fmt::Formatter<'_>, attr_name: &str) -> fmt::Result {
+        match self.render_strat(attr_name) {
+            RenderStrategy::Skip => Ok(()),
+            RenderStrategy::WithValue => {
+                write!(f, " {}=", attr_name)?;
+                self.fmt(f)
+            }
+            RenderStrategy::WithoutValue => {
+                write!(f, " {}", attr_name)
+            }
+        }
+    }
+
+    /// If this attribute should be skipped from rendering.
+    fn render_strat(&self, attr_name: &str) -> RenderStrategy {
+        let _ = attr_name;
+        RenderStrategy::default()
+    }
+
+    /// Format the value
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+}
+
+impl<T: AttributeValue> AttributeValue for Option<T> {
+    fn render_strat(&self, attr_name: &str) -> RenderStrategy {
+        match self {
+            None => RenderStrategy::Skip,
+            Some(v) => T::render_strat(v, attr_name),
+        }
+    }
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            None => Ok(()),
+            Some(v) => T::fmt(v, f),
+        }
+    }
+
+    fn fmt_with_name(&self, f: &mut fmt::Formatter<'_>, attr_name: &str) -> fmt::Result {
+        match self {
+            None => Ok(()),
+            Some(v) => T::fmt_with_name(v, f, attr_name),
+        }
+    }
+}
+
+macro_rules! impl_attribute_value_for_pointers {
+    ($inner:ident, $t: ty) => {
+        impl<$inner: AttributeValue + ?Sized> AttributeValue for $t {
+            fn fmt_with_name(&self, f: &mut fmt::Formatter<'_>, attr_name: &str) -> fmt::Result {
+                $inner::fmt_with_name(&*self, f, attr_name)
+            }
+
+            fn render_strat(&self, attr_name: &str) -> RenderStrategy {
+                $inner::render_strat(&*self, attr_name)
+            }
+
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                $inner::fmt(&*self, f)
+            }
+        }
+    };
+    ($inner:ident, $($t:ty),*) => {
+        $(
+            impl_attribute_value_for_pointers!($inner, $t);
+        )*
+    }
+}
+
+impl_attribute_value_for_pointers!(T, &'_ T, &'_ mut T, Box<T>, rc::Rc<T>, sync::Arc<T>);
+
+macro_rules! impl_attribute_value {
+    ($t: ty) => {
+        impl AttributeValue for $t {
+            fn fmt_with_name(&self, f: &mut fmt::Formatter<'_>, attr_name: &str) -> fmt::Result {
+                write!(f, " {}=\"{}\"", attr_name, self)
+            }
+
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "\"{}\"", self)
+            }
+        }
+    };
+    ($($t:ty),*) => {
+        $(impl_attribute_value!($t);)*
+    }
+}
+
+impl_attribute_value!(str);
+
+impl AttributeValue for String {
+    fn fmt_with_name(&self, f: &mut fmt::Formatter<'_>, attr_name: &str) -> fmt::Result {
+        <str as AttributeValue>::fmt_with_name(self, f, attr_name)
+    }
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        <str as AttributeValue>::fmt(self, f)
+    }
+}
+
+impl AttributeValue for bool {
+    fn render_strat(&self, _attr_name: &str) -> RenderStrategy {
+        if *self {
+            RenderStrategy::WithoutValue
+        } else {
+            RenderStrategy::Skip
+        }
+    }
+
+    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        unreachable!("bools should'nt be rendered.")
+    }
+}
+
+macro_rules! impl_attribute_value_for_nums {
+    ($num: ty) => {
+        impl_attribute_value!($num, core::num::NonZero<$num>);
+    };
+    ($($num:ty),*) => {
+        $(impl_attribute_value_for_nums!($num);)*
+    }
+}
+
+impl_attribute_value_for_nums!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
+
+impl_attribute_value!(f32, f64);
