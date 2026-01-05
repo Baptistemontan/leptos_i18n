@@ -31,10 +31,6 @@ zerovec = "0.11" # for databake
 # only needed for experimental features (e.g "format_currency")
 icu_pattern = "0.4.1" # for databake
 
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]
-
 [build-dependencies.leptos_i18n_build]
 path = "../../../leptos_i18n_build"
 features = ["pretty_print", "csr"]

@@ -1,7 +1,7 @@
-use leptos_i18n_build::{ParseOptions, TranslationsInfos};
-use std::path::PathBuf;
+use leptos_i18n_build::{Config, ParseOptions, TranslationsInfos};
+use std::{error::Error, path::PathBuf};
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=Cargo.toml");
 
@@ -9,13 +9,15 @@ fn main() {
 
     let options = ParseOptions::default().interpolate_display(true);
 
-    let translations_infos = TranslationsInfos::parse(options).unwrap();
+    let cfg = Config::new("en")?.add_locale("fr")?.parse_options(options);
+
+    let translations_infos = TranslationsInfos::parse(cfg).unwrap();
 
     translations_infos.emit_diagnostics();
 
     translations_infos.rerun_if_locales_changed();
 
-    translations_infos
-        .generate_i18n_module(i18n_mod_directory)
-        .unwrap();
+    translations_infos.generate_i18n_module(i18n_mod_directory)?;
+
+    Ok(())
 }

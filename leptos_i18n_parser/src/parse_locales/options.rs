@@ -169,6 +169,16 @@ impl Config {
         Ok(self)
     }
 
+    pub fn add_namespaces<T: AsRef<str>>(
+        mut self,
+        locales: impl IntoIterator<Item = T>,
+    ) -> Result<Self> {
+        for locale in locales {
+            self = self.add_namespace(locale.as_ref())?;
+        }
+        Ok(self)
+    }
+
     pub fn translations_uri(self, uri: impl ToStrCow<'static>) -> Self {
         Self {
             translations_uri: Some(uri.into_cow()),
