@@ -20,8 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     translations_infos
         .get_translations()
-        .write_to_dir("./target/i18n")?
+        .write_to_dir("./target/i18n")?;
 
     Ok(())
 }
-

@@ -1,4 +1,4 @@
-use leptos_i18n_build::TranslationsInfos;
+use leptos_i18n_build::{Config, TranslationsInfos};
 use std::error::Error;
 use std::path::PathBuf;
 
