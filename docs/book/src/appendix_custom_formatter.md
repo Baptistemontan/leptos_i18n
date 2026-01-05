@@ -350,7 +350,8 @@ In your `build.rs` file, simply pass your formatter to the `ParseOptions`:
 
 ```rust
 let options = ParseOptions::new().add_formatter(PaddingFormatterParser);
-let translations_infos = TranslationsInfos::parse(options).unwrap();
+let cfg = cfg.parse_options(options);
+let translations_infos = TranslationsInfos::parse(cfg).unwrap();
 ```
 
 > note that `add_formatter` will panic if a formatter with the same name is already present. it also comes already loaded with all builtins formatters.

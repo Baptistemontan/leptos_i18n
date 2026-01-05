@@ -3,11 +3,8 @@
 Translations files can grow quite rapidly and become very big, and avoiding key collisions can be hard without avoiding long names.
 To avoid this situation, you can declare namespaces in the configuration:
 
-```toml
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]
-namespaces = ["common", "home"]
+```rust
+let cfg = Config::new("en")?.add_locale("fr")?.add_namespaces(["common", "home"]);
 ```
 
 Then your file structures must look like this in the `/locales` directory:

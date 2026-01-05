@@ -63,24 +63,18 @@ When automatic inheritance isn't sufficient, you can manually specify inheritanc
 
 #### Configuration
 
-Add inheritance rules to your `Cargo.toml`:
+Add inheritance rules with the config builder:
 
-```toml
-[package.metadata.leptos-i18n]
-inherits = {
-    child-locale = "parent-locale"
-}
+```rust
+let cfg = cfg.extend_locale("child-locale", "parent-locale")?;
 ```
 
 #### Example
 
 To make `en-Latn-US-Valencia-u-ca-buddhist` inherit from `en-Latn-US-Valencia` instead of `en-US`:
 
-```toml
-[package.metadata.leptos-i18n]
-inherits = {
-    en-Latn-US-Valencia-u-ca-buddhist = "en-Latn-US-Valencia"
-}
+```rust
+let cfg = cfg.extend_locale("en-Latn-US-Valencia-u-ca-buddhist", "en-Latn-US-Valencia")?;
 ```
 
 This changes the inheritance tree to:
@@ -117,11 +111,11 @@ The inheritance system affects how missing key warnings are handled:
 
 You can suppress missing key warnings for a locale by explicitly setting it to inherit from the default locale:
 
-```toml
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr", "it"]
-inherits = { "it" = "en" }
+```rust
+let cfg = Config::new("en")?
+    .add_locale("fr")?
+    .add_locale("it")?
+    .extend_locale("it", "en")?;
 ```
 
 **Result**:
@@ -137,11 +131,10 @@ The default locale is the root of the inheritance tree and cannot inherit from o
 
 **This will cause an error**:
 
-```toml
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]
-inherits = { "en" = "fr" }  # ❌ Error: default locale cannot inherit
+```rust
+let cfg = Config::new("en")?
+    .add_locale("fr")?
+    .extend_locale("en", "fr")?; // ❌ Error: default locale cannot inherit
 ```
 
 ### Inheritance vs. Defaulting
