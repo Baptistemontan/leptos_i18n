@@ -1,4 +1,5 @@
 use crate::{
+    Error,
     formatters::{Formatter, Formatters},
     parse_locales::{
         cfg_file::DEFAULT_LOCALES_PATH,
@@ -13,6 +14,7 @@ use std::{
     collections::BTreeMap,
     fmt::Debug,
     io::Read,
+    panic::Location,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -136,17 +138,26 @@ impl Config {
         })
     }
 
+    #[track_caller]
     fn add_locale_inner(&mut self, loc: Key) {
-        // TODO: check if already present and warn ?
-        self.locales.push(loc);
+        if self.locales.contains(&loc) {
+            let location = Location::caller();
+            println!(
+                "cargo::warning=locale \"{loc}\" already present, re-added at {location}, it is skipped"
+            );
+        } else {
+            self.locales.push(loc);
+        }
     }
 
+    #[track_caller]
     pub fn add_locale(mut self, locale: &str) -> Result<Self> {
         let loc = Key::try_new(locale)?;
         self.add_locale_inner(loc);
         Ok(self)
     }
 
+    #[track_caller]
     pub fn add_locales<T: AsRef<str>>(
         mut self,
         locales: impl IntoIterator<Item = T>,
@@ -186,14 +197,44 @@ impl Config {
         }
     }
 
+    #[track_caller]
     pub fn extend_locale(mut self, locale_to_extend: &str, inherit_from: &str) -> Result<Self> {
+        #[track_caller]
+        fn check_if_present(locales: &[Key], loc: &Key) -> Result<()> {
+            if locales.contains(loc) {
+                Ok(())
+            } else {
+                Err(Error::UnknownLocaleInInherit {
+                    loc: Location::caller(),
+                    locale: loc.to_string(),
+                }
+                .into())
+            }
+        }
+
         let loc_to_ext = Key::try_new(locale_to_extend)?;
         let inh_from = Key::try_new(inherit_from)?;
 
-        // TODO: check if `locale_to_extend` is the default
-        // TODO: check if both locales are known
+        if loc_to_ext == self.default_locale {
+            return Err(Error::DefaultLocaleCantInherit {
+                loc: Location::caller(),
+            }
+            .into());
+        }
 
-        self.extensions.insert(loc_to_ext, inh_from);
+        check_if_present(&self.locales, &loc_to_ext)?;
+        check_if_present(&self.locales, &inh_from)?;
+
+        if loc_to_ext == inh_from {
+            // TODO: do we allow inherit from self ? cyclics inheritance are allowed so does this count ?
+        }
+
+        if let Some(old_inh) = self.extensions.insert(loc_to_ext, inh_from) {
+            let location = Location::caller();
+            println!(
+                "cargo::warning=locale \"{locale_to_extend}\" already inherit from \"{old_inh}\", overwritten at {location}"
+            );
+        }
         Ok(self)
     }
 
