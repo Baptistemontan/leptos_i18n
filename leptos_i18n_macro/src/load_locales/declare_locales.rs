@@ -9,12 +9,12 @@ use leptos_i18n_parser::{
         locale::{Locale, LocalesOrNamespaces},
         make_builder_keys,
         options::ParseOptions,
-        parsed_value::{Context, ParsedValue},
+        parsed_value::ParsedValue,
         ranges::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
     },
-    utils::{Key, KeyPath},
+    utils::{Key, KeyPath, Loc, ParseContext},
 };
 use proc_macro2::Span;
 use quote::ToTokens;
@@ -87,7 +87,7 @@ fn parse_array<T: syn::parse::Parse>(
 
 fn parse_str_value(
     input: syn::parse::ParseStream,
-    key_path: &mut KeyPath,
+    key_path: &KeyPath,
     locale: &Key,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
@@ -100,9 +100,8 @@ fn parse_str_value(
 
     let diag = Diagnostics::new();
 
-    let ctx = Context {
-        locale,
-        key_path,
+    let ctx = ParseContext {
+        loc: Loc { locale, key_path },
         foreign_keys_paths,
         formatters,
         diag: &diag,
@@ -297,13 +296,9 @@ fn parse_values(
     let key = Key::from_ident(ident);
     let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    if let Some(parsed_value) = parse_str_value(
-        input,
-        &mut pushed_key,
-        locale,
-        formatters,
-        foreign_keys_paths,
-    )? {
+    if let Some(parsed_value) =
+        parse_str_value(input, &pushed_key, locale, formatters, foreign_keys_paths)?
+    {
         return Ok((key, parsed_value));
     }
     if let Some(parsed_value) = parse_map_values(

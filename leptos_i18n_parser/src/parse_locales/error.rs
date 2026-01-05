@@ -15,7 +15,10 @@ use std::{
 use super::{locale::SerdeError, ranges::RangeType};
 use crate::{
     parse_locales::cfg_file,
-    utils::key::{Key, KeyPath},
+    utils::{
+        Location,
+        key::{Key, KeyPath},
+    },
 };
 
 #[derive(Debug)]
@@ -70,108 +73,89 @@ pub enum Error {
     },
     ExplicitDefaultInDefault(KeyPath),
     RecursiveForeignKey {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     MissingForeignKey {
         foreign_key: KeyPath,
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     InvalidForeignKey {
         foreign_key: KeyPath,
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     UnknownFormatter {
         name: String,
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     ConflictingPluralRuleType {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     InvalidForeignKeyArgs {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         err: serde_json::Error,
     },
     InvalidCountArg {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         foreign_key: KeyPath,
     },
     InvalidCountArgType {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         foreign_key: KeyPath,
         input_type: RangeType,
         range_type: RangeType,
     },
     CountArgOutsideRange {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         foreign_key: KeyPath,
         err: TryFromIntError,
     },
     UnexpectedToken {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         message: String,
     },
     RangeAndPluralsMix {
         key_path: KeyPath,
     },
     PluralsAtNormalKey {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     DisabledFormatter {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         formatter_err: &'static str,
     },
     DisabledPlurals {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     NoFileFormats,
     MultipleFilesFormats,
     MissingTranslationsURI,
     InvalidFormatterArgName {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         name: String,
         err: String,
     },
     InvalidFormatterArg {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         arg_name: String,
         arg: Option<String>,
         err: String,
     },
     InvalidFormatter {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         err: String,
     },
     InvalidAttributeName {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         value: String,
     },
     InvalidAttribute {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         attr_name: String,
         attr_value: String,
         err: String,
     },
     InvalidForeignKeyArgForAttribute {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         arg_name: Key,
         foreign_key: KeyPath,
     },
@@ -272,101 +256,66 @@ impl Display for Error {
                 f,
                 "Explicit defaults (null) are not allowed in default locale, at key \"{key_path}\""
             ),
-            Error::RecursiveForeignKey { locale, key_path } => write!(
+            Error::RecursiveForeignKey { loc } => write!(
                 f,
-                "Borrow Error while linking foreign key at key \"{key_path}\" in locale {locale:?}, check for recursive foreign key."
+                "Borrow Error while linking foreign key at {loc}, check for recursive foreign key."
             ),
-            Error::MissingForeignKey {
-                foreign_key,
-                locale,
-                key_path,
-            } => write!(
+            Error::MissingForeignKey { foreign_key, loc } => write!(
                 f,
-                "Invalid foreign key \"{foreign_key}\" at key \"{key_path}\" in locale {locale:?}, key don't exist."
+                "Invalid foreign key \"{foreign_key}\" at {loc}, key don't exist."
             ),
-            Error::InvalidForeignKey {
-                foreign_key,
-                locale,
-                key_path,
-            } => write!(
+            Error::InvalidForeignKey { foreign_key, loc } => write!(
                 f,
-                "Invalid foreign key \"{foreign_key}\" at key \"{key_path}\" in locale {locale:?}, foreign key to subkeys are not allowed."
+                "Invalid foreign key \"{foreign_key}\" at {loc}, foreign key to subkeys are not allowed."
             ),
-            Error::UnknownFormatter {
-                name,
-                locale,
-                key_path,
-            } => write!(
+            Error::UnknownFormatter { name, loc } => {
+                write!(f, "Unknown formatter {name:?} at {loc}.")
+            }
+            Error::ConflictingPluralRuleType { loc } => {
+                write!(f, "Found both ordinal and cardinal plurals at {loc}.")
+            }
+            Error::InvalidForeignKeyArgs { loc, err } => {
+                write!(f, "Malformed foreign key args at {loc}: {err}.")
+            }
+            Error::InvalidCountArg { loc, foreign_key } => write!(
                 f,
-                "Unknown formatter {name:?} at key \"{key_path}\" in locale {locale:?}."
-            ),
-            Error::ConflictingPluralRuleType { locale, key_path } => write!(
-                f,
-                "Found both ordinal and cardinal plurals for key \"{key_path}\" in locale {locale:?}."
-            ),
-            Error::InvalidForeignKeyArgs {
-                locale,
-                key_path,
-                err,
-            } => write!(
-                f,
-                "Malformed foreign key args in locale {locale:?} at key \"{key_path}\": {err}."
-            ),
-            Error::InvalidCountArg {
-                locale,
-                key_path,
-                foreign_key,
-            } => write!(
-                f,
-                "Invalid arg \"count\" in locale {locale:?} at key \"{key_path}\" to foreign key \"{foreign_key}\": argument \"count\" for plurals or ranges can only be a literal number or a single variable."
+                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" for plurals or ranges can only be a literal number or a single variable."
             ),
             Error::InvalidCountArgType {
-                locale,
-                key_path,
+                loc,
                 foreign_key,
                 input_type,
                 range_type,
             } => write!(
                 f,
-                "Invalid arg \"count\" in locale {locale:?} at key \"{key_path}\" to foreign key \"{foreign_key}\": argument \"count\" of type {input_type} for range of type {range_type} is not allowed."
+                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" of type {input_type} for range of type {range_type} is not allowed."
             ),
             Error::CountArgOutsideRange {
-                locale,
-                key_path,
+                loc,
                 foreign_key,
                 err,
             } => write!(
                 f,
-                "Invalid arg \"count\" in locale {locale:?} at key \"{key_path}\" to foreign key \"{foreign_key}\": argument \"count\" is outside range: {err}"
+                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" is outside range: {err}"
             ),
-            Error::UnexpectedToken {
-                locale,
-                key_path,
-                message,
-            } => write!(
+            Error::UnexpectedToken { loc, message } => write!(
                 f,
-                "Unexpected error occured while parsing key \"{key_path}\" in locale {locale:?}: {message}"
+                "Unexpected error occured while parsing at {loc}: {message}"
             ),
             Error::RangeAndPluralsMix { key_path } => write!(
                 f,
                 "mixing plurals and ranges are not supported yet, for key \"{key_path}\""
             ),
-            Error::PluralsAtNormalKey { key_path, locale } => write!(
+            Error::PluralsAtNormalKey { loc } => write!(
                 f,
-                "In locale {locale:?} at key \"{key_path}\", Found plurals but a key of that name is already present."
+                "At {loc}, Found plurals but a key of that name is already present."
             ),
-            Error::DisabledFormatter {
-                locale,
-                key_path,
-                formatter_err,
-            } => write!(
+            Error::DisabledFormatter { loc, formatter_err } => {
+                write!(f, "{}, at {loc}", formatter_err)
+            }
+            Error::DisabledPlurals { loc } => write!(
                 f,
-                "{}, at key \"{}\" in locale {:?}",
-                formatter_err, key_path, locale
-            ),
-            Error::DisabledPlurals { locale, key_path } => write!(
-                f,
-                "Plurals are not enabled, enable the \"plurals\" feature to use them, at key \"{key_path}\" in locale {locale:?}"
+                "Plurals are not enabled, enable the \"plurals\" feature to use them, at {loc}"
             ),
             Error::NoFileFormats => write!(
                 f,
@@ -393,62 +342,42 @@ impl Display for Error {
             Error::Custom(err) => {
                 write!(f, "{err}")
             }
-            Error::InvalidFormatterArgName {
-                locale,
-                key_path,
-                name,
-                err,
-            } => write!(
+            Error::InvalidFormatterArgName { loc, name, err } => write!(
                 f,
-                "Formatter argument name {name:?} is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+                "Formatter argument name {name:?} is invalid at {loc}: {err}"
             ),
             Error::InvalidFormatterArg {
-                locale,
-                key_path,
+                loc,
                 arg_name,
                 arg,
                 err,
             } => write!(
                 f,
-                "Formatter argument value {arg:?} for argument name {arg_name:?} is invalid in locale {locale:?} at key \"{key_path}\": {err}"
+                "Formatter argument value {arg:?} for argument name {arg_name:?} is invalid at {loc}: {err}"
             ),
-            Error::InvalidFormatter {
-                locale,
-                key_path,
-                err,
-            } => {
-                write!(
-                    f,
-                    "Formatter is invalid in locale {locale:?} at key \"{key_path}\": {err}"
-                )
+            Error::InvalidFormatter { loc, err } => {
+                write!(f, "Formatter is invalid at {loc}: {err}")
             }
             Error::InvalidAttribute {
-                locale,
-                key_path,
+                loc,
                 attr_name,
                 attr_value,
                 err,
             } => write!(
                 f,
-                "Invalid component attribute value {attr_value:?} for attribute {attr_name:?} in locale {locale:?} at key \"{key_path}\": {err}"
+                "Invalid component attribute value {attr_value:?} for attribute {attr_name:?} at {loc}: {err}"
             ),
             Error::InvalidForeignKeyArgForAttribute {
-                locale,
-                key_path,
+                loc,
                 arg_name,
                 foreign_key,
             } => write!(
                 f,
-                "Invalid foreign key argument {arg_name:?} to key \"{foreign_key}\" at key \"{key_path}\" in locale {locale:?}: argument to attributes must be either a variable or a literal (boolean, string, numbers)"
+                "Invalid foreign key argument {arg_name:?} to key \"{foreign_key}\" at {loc}: argument to attributes must be either a variable or a literal (boolean, string, numbers)"
             ),
-            Error::InvalidAttributeName {
-                locale,
-                key_path,
-                value,
-            } => write!(
-                f,
-                "Invalid attribute name {value:?} in locale {locale:?} at key \"{key_path}\""
-            ),
+            Error::InvalidAttributeName { loc, value } => {
+                write!(f, "Invalid attribute name {value:?} at {loc}")
+            }
         }
     }
 }
@@ -510,16 +439,13 @@ use super::plurals::{PluralForm, PluralRuleType};
 #[derive(Debug)]
 pub enum Warning {
     MissingKey {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     SurplusKey {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     UnusedForm {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         form: PluralForm,
         rule_type: PluralRuleType,
     },
@@ -529,8 +455,7 @@ pub enum Warning {
         path: std::path::PathBuf,
     },
     UnexpectedCharsAfterFormatter {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
         formatter_name: String,
         chars: String,
     },
@@ -546,22 +471,27 @@ impl Warning {
 impl Display for Warning {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Warning::MissingKey { locale, key_path } => {
-                write!(f, "Missing key \"{key_path}\" in locale {locale:?}")
+            Warning::MissingKey { loc } => {
+                write!(
+                    f,
+                    "Missing key \"{}\" in locale {:?}",
+                    loc.key_path, loc.locale
+                )
             }
-            Warning::SurplusKey { locale, key_path } => write!(
+            Warning::SurplusKey { loc } => write!(
                 f,
-                "Key \"{key_path}\" is present in locale {locale:?} but not in default locale, it is ignored"
+                "Key \"{}\" is present in locale {:?} but not in default locale, it is ignored",
+                loc.key_path, loc.locale
             ),
             Warning::UnusedForm {
-                locale,
-                key_path,
+                loc,
                 form,
                 rule_type,
             } => {
                 write!(
                     f,
-                    "At key \"{key_path}\", locale {locale:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless."
+                    "At key \"{}\", locale {:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless.",
+                    loc.key_path, loc.locale
                 )
             }
             Warning::NonUnicodePath {
@@ -582,13 +512,12 @@ impl Display for Warning {
             ),
             Warning::Custom(warn) => write!(f, "{warn}"),
             Warning::UnexpectedCharsAfterFormatter {
-                locale,
-                key_path,
+                loc,
                 chars,
                 formatter_name,
             } => write!(
                 f,
-                "Unexpected characters {chars:?} after formatter {formatter_name:?} in locale {locale:?} at key \"{key_path}\""
+                "Unexpected characters {chars:?} after formatter {formatter_name:?} at {loc}"
             ),
         }
     }

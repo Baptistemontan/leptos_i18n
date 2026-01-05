@@ -8,7 +8,7 @@ use serde::{
 use crate::{
     formatters::{Formatters, VarBounds},
     parse_locales::{error::Warning, options::ParseOptions},
-    utils::{Key, KeyPath, UnwrapAt},
+    utils::{Key, KeyPath, Loc, Location, ParseContext, ParseFn, UnwrapAt},
 };
 
 use super::{
@@ -154,18 +154,6 @@ impl Display for Literal {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct Context<'a> {
-    pub key_path: &'a KeyPath,
-    pub locale: &'a Key,
-    pub foreign_keys_paths: &'a ForeignKeysPaths,
-    pub formatters: &'a Formatters,
-    pub diag: &'a Diagnostics,
-    pub parse_fns: &'a [ParseFn],
-}
-
-type ParseFn = fn(&Context, &str) -> Option<Result<ParsedValue>>;
-
 impl ParsedValue {
     pub const DEFAULT_FNS: &[ParseFn] = &[
         ParsedValue::find_component,
@@ -173,7 +161,7 @@ impl ParsedValue {
         ParsedValue::find_variable,
     ];
 
-    pub fn new(ctx: &Context, value: &str) -> Result<Self> {
+    pub fn new(ctx: &ParseContext, value: &str) -> Result<Self> {
         let parsed_value = ctx.parse_fns.iter().find_map(|f| f(ctx, value));
         match parsed_value {
             Some(Ok(value)) => Ok(value),
@@ -199,7 +187,7 @@ impl ParsedValue {
 
     #[allow(clippy::type_complexity)]
     fn parse_formatter_args<'a>(
-        ctx: &Context,
+        ctx: &ParseContext,
         s: &'a str,
     ) -> (&'a str, Vec<(&'a str, Option<&'a str>)>) {
         let Some((name, rest)) = s.split_once('(') else {
@@ -213,9 +201,8 @@ impl ParsedValue {
         if !r.is_empty() {
             ctx.diag
                 .emit_warning(Warning::UnexpectedCharsAfterFormatter {
-                    locale: ctx.locale.clone(),
+                    loc: ctx.into(),
                     formatter_name: name.to_string(),
-                    key_path: ctx.key_path.clone(),
                     chars: r.to_string(),
                 });
         }
@@ -229,7 +216,7 @@ impl ParsedValue {
         (name.trim(), args.collect())
     }
 
-    fn parse_formatter(ctx: &Context, s: &str) -> VarBounds {
+    fn parse_formatter(ctx: &ParseContext, s: &str) -> VarBounds {
         let (name, args) = Self::parse_formatter_args(ctx, s);
         ctx.formatters.parse(ctx, name, &args)
     }
@@ -253,14 +240,13 @@ impl ParsedValue {
 
     fn parse_foreign_key_args_inner(
         s: &str,
-        ctx: &Context,
+        ctx: &ParseContext,
     ) -> Result<BTreeMap<String, ParsedValue>> {
         let args = match serde_json::from_str::<BTreeMap<String, Literal>>(s) {
             Ok(args) => args,
             Err(err) => {
                 return Err(Error::InvalidForeignKeyArgs {
-                    locale: ctx.locale.clone(),
-                    key_path: ctx.key_path.clone(),
+                    loc: ctx.into(),
                     err,
                 }
                 .into());
@@ -282,7 +268,7 @@ impl ParsedValue {
 
     fn parse_foreign_key_args<'a>(
         s: &'a str,
-        ctx: &Context,
+        ctx: &ParseContext,
     ) -> Result<(BTreeMap<String, ParsedValue>, &'a str)> {
         let mut depth = 0usize;
         let mut index = 0usize;
@@ -295,8 +281,7 @@ impl ParsedValue {
                         Some(v) => v,
                         None => {
                             return Err(Error::UnexpectedToken {
-                                locale: ctx.locale.clone(),
-                                key_path: ctx.key_path.clone(),
+                                loc: ctx.into(),
                                 message: "malformed foreign key".to_string(),
                             }
                             .into());
@@ -315,8 +300,7 @@ impl ParsedValue {
 
         let Some(after) = after.trim_start().strip_prefix(')') else {
             return Err(Error::UnexpectedToken {
-                locale: ctx.locale.clone(),
-                key_path: ctx.key_path.clone(),
+                loc: ctx.into(),
                 message: "malformed foreign key".to_string(),
             }
             .into());
@@ -327,7 +311,7 @@ impl ParsedValue {
         Ok((args, after))
     }
 
-    fn find_foreign_key(ctx: &Context, value: &str) -> Option<Result<Self>> {
+    fn find_foreign_key(ctx: &ParseContext, value: &str) -> Option<Result<Self>> {
         let (before, rest) = value.split_once("$t(")?;
         let next_split = rest.find([',', ')'])?;
         let keypath = rest.get(..next_split)?;
@@ -342,10 +326,9 @@ impl ParsedValue {
         };
 
         let this = ParsedValue::ForeignKey(RefCell::new(ForeignKey::new(
-            ctx.key_path.clone(),
+            ctx.loc.into(),
             target_key_path,
             args,
-            ctx.locale,
             ctx.foreign_keys_paths,
         )));
 
@@ -376,7 +359,7 @@ impl ParsedValue {
 
     fn find_valid_variable<'a>(
         value: &'a str,
-        ctx: &Context,
+        ctx: &ParseContext,
     ) -> Option<Result<(&'a str, Self, &'a str)>> {
         let (before, rest) = value.split_once("{{")?;
         let (ident, after) = rest.split_once("}}")?;
@@ -398,7 +381,7 @@ impl ParsedValue {
         Some(Ok((before, this, after)))
     }
 
-    fn find_variable(ctx: &Context, value: &str) -> Option<Result<Self>> {
+    fn find_variable(ctx: &ParseContext, value: &str) -> Option<Result<Self>> {
         let (before, this, after) = nested_result_try!(Self::find_valid_variable(value, ctx)?);
 
         let before = nested_result_try!(Self::new(ctx, before));
@@ -517,20 +500,19 @@ impl ParsedValue {
             .and_then(|i| Some((s.get(..i)?, s.get(i + 1..)?)))
     }
 
-    fn validate_key<'a>(ctx: &Context, key: &'a str) -> Result<&'a str> {
+    fn validate_key<'a>(ctx: &ParseContext, key: &'a str) -> Result<&'a str> {
         if key.chars().all(|c| c.is_alphabetic() || c == '_') {
             Ok(key)
         } else {
             Err(Error::InvalidAttributeName {
-                locale: ctx.locale.clone(),
-                key_path: ctx.key_path.clone(),
+                loc: ctx.into(),
                 value: key.to_string(),
             }
             .into())
         }
     }
 
-    fn parse_attributes(ctx: &Context, mut attrs: &str) -> Result<Attributes> {
+    fn parse_attributes(ctx: &ParseContext, mut attrs: &str) -> Result<Attributes> {
         let _ = ctx;
         let mut attributes = Vec::new();
         loop {
@@ -563,8 +545,7 @@ impl ParsedValue {
             } else if let Some(new_rest) = rest.strip_prefix('"') {
                 let Some((value, new_rest)) = Self::parse_attribute_str(new_rest) else {
                     return Err(Error::InvalidAttribute {
-                        locale: ctx.locale.clone(),
-                        key_path: ctx.key_path.clone(),
+                        loc: ctx.into(),
                         attr_value: new_rest.to_string(),
                         attr_name: key.to_string(),
                         err: "unterminated string".to_string(),
@@ -579,8 +560,7 @@ impl ParsedValue {
                 let (num, rest) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
                 let Some(n) = Self::parse_num(num) else {
                     return Err(Error::InvalidAttribute {
-                        locale: ctx.locale.clone(),
-                        key_path: ctx.key_path.clone(),
+                        loc: ctx.into(),
                         attr_value: num.to_string(),
                         attr_name: key.to_string(),
                         err: "value appears to be a number, but can't be parsed as one".to_string(),
@@ -591,8 +571,7 @@ impl ParsedValue {
             } else if let Some(new_rest) = rest.strip_prefix("{{") {
                 let Some((key, new_rest)) = new_rest.split_once("}}") else {
                     return Err(Error::InvalidAttribute {
-                        locale: ctx.locale.clone(),
-                        key_path: ctx.key_path.clone(),
+                        loc: ctx.into(),
                         attr_value: new_rest.to_string(),
                         attr_name: key.to_string(),
                         err: "unterminated variable".to_string(),
@@ -603,8 +582,7 @@ impl ParsedValue {
                 (AttributeValue::Variable(var_key), new_rest)
             } else {
                 return Err(Error::InvalidAttribute {
-                    locale: ctx.locale.clone(),
-                    key_path: ctx.key_path.clone(),
+                    loc: ctx.into(),
                     attr_value: rest.to_string(),
                     attr_name: key.to_string(),
                     err: "invalid argument (expect string, number, boolean or variable)"
@@ -622,7 +600,7 @@ impl ParsedValue {
         }
     }
 
-    fn find_component(ctx: &Context, value: &str) -> Option<Result<Self>> {
+    fn find_component(ctx: &ParseContext, value: &str) -> Option<Result<Self>> {
         let (key, before, between, after, attrs) = Self::find_valid_component(value)?;
 
         let mut values = Vec::new();
@@ -724,20 +702,22 @@ impl ParsedValue {
     fn resolve_foreign_key_inner(
         foreign_key: &mut ForeignKey,
         values: &LocalesOrNamespaces,
-        top_locale: &Key,
+        loc: &Loc,
         default_locale: &Key,
-        key_path: &KeyPath,
     ) -> Result<()> {
         let ForeignKey::NotSet(foreign_key_path, args) = &*foreign_key else {
             // already set, I don't know how we got here but whatever
             return Ok(());
         };
 
-        let Some(value) = values.get_value_at(top_locale, foreign_key_path) else {
+        let val_loc = Loc {
+            locale: loc.locale,
+            key_path: foreign_key_path,
+        };
+        let Some(value) = values.get_value_at(&val_loc) else {
             return Err(Error::MissingForeignKey {
                 foreign_key: foreign_key_path.to_owned(),
-                locale: top_locale.clone(),
-                key_path: key_path.to_owned(),
+                loc: loc.into(),
             }
             .into());
         };
@@ -747,28 +727,31 @@ impl ParsedValue {
             // but we still need to do it here to avoid infinite loop
             // this case happen if a foreign key point to an explicit default in the default locale
             // pretty niche, but would cause a rustc stack overflow if not done.
-            if top_locale == default_locale {
-                return Err(Error::ExplicitDefaultInDefault(key_path.to_owned()).into());
+            if loc.locale == default_locale {
+                return Err(Error::ExplicitDefaultInDefault(loc.key_path.to_owned()).into());
             } else {
-                return Self::resolve_foreign_key_inner(
-                    foreign_key,
-                    values,
-                    default_locale,
-                    default_locale,
-                    key_path,
-                );
+                let loc = Loc {
+                    locale: default_locale,
+                    key_path: loc.key_path,
+                };
+                return Self::resolve_foreign_key_inner(foreign_key, values, &loc, default_locale);
             }
         }
 
+        let val_loc = Loc {
+            locale: loc.locale,
+            key_path: foreign_key_path,
+        };
+
         // possibility that the foreign key must be resolved too
-        value.resolve_foreign_key(values, top_locale, default_locale, foreign_key_path)?;
+        value.resolve_foreign_key(values, &val_loc, default_locale)?;
 
         // possibility that args must resolve too
         for arg in args.values() {
-            arg.resolve_foreign_key(values, top_locale, default_locale, foreign_key_path)?;
+            arg.resolve_foreign_key(values, &val_loc, default_locale)?;
         }
 
-        let value = value.populate(args, foreign_key_path, top_locale, key_path)?;
+        let value = value.populate(args, foreign_key_path, loc)?;
 
         let _ = std::mem::replace(foreign_key, ForeignKey::Set(Box::new(value)));
 
@@ -778,9 +761,8 @@ impl ParsedValue {
     pub fn resolve_foreign_key(
         &self,
         values: &LocalesOrNamespaces,
-        top_locale: &Key,
+        loc: &Loc,
         default_locale: &Key,
-        path: &KeyPath,
     ) -> Result<()> {
         match self {
             ParsedValue::Variable { .. }
@@ -788,45 +770,33 @@ impl ParsedValue {
             | ParsedValue::Default
             | ParsedValue::Dummy(_) => Ok(()),
             ParsedValue::Subkeys(_) => Ok(()), // unreachable ?
-            ParsedValue::Ranges(inner) => {
-                inner.resolve_foreign_keys(values, top_locale, default_locale, path)
-            }
+            ParsedValue::Ranges(inner) => inner.resolve_foreign_keys(values, loc, default_locale),
             ParsedValue::Component {
                 inner, attributes, ..
             } => {
                 if let Some(inner) = inner {
-                    inner.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                    inner.resolve_foreign_key(values, loc, default_locale)?;
                 }
-                attributes.resolve_foreign_key(values, top_locale, default_locale, path)
+                attributes.resolve_foreign_key(values, loc, default_locale)
             }
             ParsedValue::Bloc(bloc) => {
                 for value in bloc {
-                    value.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                    value.resolve_foreign_key(values, loc, default_locale)?;
                 }
                 Ok(())
             }
             ParsedValue::ForeignKey(foreign_key) => {
                 let Ok(mut foreign_key) = foreign_key.try_borrow_mut() else {
-                    return Err(Error::RecursiveForeignKey {
-                        locale: top_locale.clone(),
-                        key_path: path.to_owned(),
-                    }
-                    .into());
+                    return Err(Error::RecursiveForeignKey { loc: loc.into() }.into());
                 };
 
-                Self::resolve_foreign_key_inner(
-                    &mut foreign_key,
-                    values,
-                    top_locale,
-                    default_locale,
-                    path,
-                )
+                Self::resolve_foreign_key_inner(&mut foreign_key, values, loc, default_locale)
             }
             ParsedValue::Plurals(Plurals { forms, other, .. }) => {
                 for value in forms.values() {
-                    value.resolve_foreign_key(values, top_locale, default_locale, path)?;
+                    value.resolve_foreign_key(values, loc, default_locale)?;
                 }
-                other.resolve_foreign_key(values, top_locale, default_locale, path)
+                other.resolve_foreign_key(values, loc, default_locale)
             }
         }
     }
@@ -835,8 +805,7 @@ impl ParsedValue {
         &self,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<Self> {
         match self {
             ParsedValue::Default
@@ -856,16 +825,10 @@ impl ParsedValue {
                 attributes,
             } => {
                 let populated_inner = match inner {
-                    Some(inner) => Some(Box::new(inner.populate(
-                        args,
-                        foreign_key,
-                        locale,
-                        key_path,
-                    )?)),
+                    Some(inner) => Some(Box::new(inner.populate(args, foreign_key, loc)?)),
                     None => None,
                 };
-                let populated_attributes =
-                    attributes.populate(args, foreign_key, locale, key_path)?;
+                let populated_attributes = attributes.populate(args, foreign_key, loc)?;
                 Ok(ParsedValue::Component {
                     key: key.clone(),
                     inner: populated_inner,
@@ -874,15 +837,14 @@ impl ParsedValue {
             }
             ParsedValue::Bloc(bloc) => bloc
                 .iter()
-                .map(|value| value.populate(args, foreign_key, locale, key_path))
+                .map(|value| value.populate(args, foreign_key, loc))
                 .collect::<Result<_>>()
                 .map(ParsedValue::Bloc),
-            ParsedValue::Ranges(ranges) => ranges.populate(args, foreign_key, locale, key_path),
-            ParsedValue::Plurals(plurals) => plurals.populate(args, foreign_key, locale, key_path),
+            ParsedValue::Ranges(ranges) => ranges.populate(args, foreign_key, loc),
+            ParsedValue::Plurals(plurals) => plurals.populate(args, foreign_key, loc),
             ParsedValue::Subkeys(_) => Err(Error::InvalidForeignKey {
                 foreign_key: foreign_key.to_owned(),
-                locale: locale.clone(),
-                key_path: key_path.to_owned(),
+                loc: loc.into(),
             }
             .into()),
         }
@@ -1253,13 +1215,12 @@ impl ParsedValue {
 
 impl ForeignKey {
     pub fn new(
-        current_key_path: KeyPath,
+        loc: Location,
         target_key_path: KeyPath,
         args: BTreeMap<String, ParsedValue>,
-        locale: &Key,
         foreign_keys_paths: &ForeignKeysPaths,
     ) -> Self {
-        foreign_keys_paths.push_path(locale.clone(), current_key_path);
+        foreign_keys_paths.push_path(loc);
         ForeignKey::NotSet(target_key_path, args)
     }
 
@@ -1318,12 +1279,11 @@ impl Attributes {
         &self,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<Self> {
         let mut attrs = Vec::with_capacity(self.0.len());
         for attr in &self.0 {
-            let populated_attr = attr.populate(args, foreign_key, locale, key_path)?;
+            let populated_attr = attr.populate(args, foreign_key, loc)?;
             attrs.push(populated_attr);
         }
         Ok(Attributes(attrs))
@@ -1332,12 +1292,11 @@ impl Attributes {
     pub fn resolve_foreign_key(
         &self,
         values: &LocalesOrNamespaces,
-        top_locale: &Key,
+        loc: &Loc,
         default_locale: &Key,
-        path: &KeyPath,
     ) -> Result<()> {
         for attr in &self.0 {
-            attr.resolve_foreign_key(values, top_locale, default_locale, path)?;
+            attr.resolve_foreign_key(values, loc, default_locale)?;
         }
         Ok(())
     }
@@ -1348,11 +1307,10 @@ impl Attribute {
         &self,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<Self> {
         let value = if let Some(value) = &self.value {
-            Some(value.populate(args, foreign_key, locale, key_path)?)
+            Some(value.populate(args, foreign_key, loc)?)
         } else {
             None
         };
@@ -1375,12 +1333,11 @@ impl Attribute {
     pub fn resolve_foreign_key(
         &self,
         values: &LocalesOrNamespaces,
-        top_locale: &Key,
+        loc: &Loc,
         default_locale: &Key,
-        path: &KeyPath,
     ) -> Result<()> {
         if let Some(value) = &self.value {
-            value.resolve_foreign_key(values, top_locale, default_locale, path)
+            value.resolve_foreign_key(values, loc, default_locale)
         } else {
             Ok(())
         }
@@ -1400,8 +1357,7 @@ impl AttributeValue {
         &self,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<Self> {
         match self {
             AttributeValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
@@ -1413,8 +1369,7 @@ impl AttributeValue {
                     ParsedValue::Variable { key, .. } => Ok(AttributeValue::Variable(key.clone())),
                     ParsedValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
                     _ => Err(Error::InvalidForeignKeyArgForAttribute {
-                        locale: locale.clone(),
-                        key_path: key_path.clone(),
+                        loc: loc.into(),
                         arg_name: key.clone(),
                         foreign_key: foreign_key.clone(),
                     }
@@ -1437,9 +1392,8 @@ impl AttributeValue {
     pub fn resolve_foreign_key(
         &self,
         _values: &LocalesOrNamespaces,
-        _top_locale: &Key,
+        _loc: &Loc,
         _default_locale: &Key,
-        _path: &KeyPath,
     ) -> Result<()> {
         // No foreign keys in attributes, at least for now.
         Ok(())
@@ -1486,9 +1440,11 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
     where
         E: serde::de::Error,
     {
-        let ctx = Context {
-            locale: self.top_locale_name,
-            key_path: self.key_path,
+        let ctx = ParseContext {
+            loc: Loc {
+                key_path: self.key_path,
+                locale: self.top_locale_name,
+            },
             foreign_keys_paths: self.foreign_keys_paths,
             diag: self.diag,
             formatters: self.formatters,
@@ -1675,9 +1631,11 @@ mod tests {
         let diag = Diagnostics::new();
         let formatters = Formatters::new();
 
-        let ctx = Context {
-            key_path: &key_path,
-            locale: &locale,
+        let ctx = ParseContext {
+            loc: Loc {
+                key_path: &key_path,
+                locale: &locale,
+            },
             foreign_keys_paths: &foreign_keys_paths,
             diag: &diag,
             formatters: &formatters,
