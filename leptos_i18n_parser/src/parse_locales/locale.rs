@@ -3,7 +3,7 @@ use serde::de::MapAccess;
 use crate::{
     formatters::{Formatters, VarBounds},
     parse_locales::options::{FileFormat, ParseOptions},
-    utils::{Key, KeyPath, UnwrapAt},
+    utils::{Key, KeyPath, Loc, Location, UnwrapAt},
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet, btree_map::Entry},
@@ -421,7 +421,7 @@ impl LocalesOrNamespaces {
 
         for locale in locales {
             let top_locale = locale.name.clone();
-            locale.merge_plurals(top_locale.clone(), &mut key_path, diag)?;
+            locale.merge_plurals(&top_locale, &mut key_path, diag)?;
         }
 
         Ok(())
@@ -447,12 +447,12 @@ impl LocalesOrNamespaces {
         }
     }
 
-    pub fn get_value_at(&self, top_locale: &Key, path: &KeyPath) -> Option<&'_ ParsedValue> {
-        let locale = match (&path.namespace, self) {
+    pub fn get_value_at(&self, loc: &Loc) -> Option<&'_ ParsedValue> {
+        let locale = match (&loc.key_path.namespace, self) {
             (None, LocalesOrNamespaces::NameSpaces(_))
             | (Some(_), LocalesOrNamespaces::Locales(_)) => None,
             (None, LocalesOrNamespaces::Locales(locales)) => {
-                locales.iter().find(|locale| &locale.name == top_locale)
+                locales.iter().find(|locale| &locale.name == loc.locale)
             }
             (Some(target_namespace), LocalesOrNamespaces::NameSpaces(namespaces)) => {
                 let namespace = namespaces.iter().find(|ns| &ns.key == target_namespace)?;
@@ -460,11 +460,11 @@ impl LocalesOrNamespaces {
                 namespace
                     .locales
                     .iter()
-                    .find(|locale| &locale.name == top_locale)
+                    .find(|locale| &locale.name == loc.locale)
             }
         }?;
 
-        locale.get_value_at(&path.path)
+        locale.get_value_at(&loc.key_path.path)
     }
 }
 
@@ -547,7 +547,7 @@ impl Locale {
 
     pub fn merge_plurals(
         &mut self,
-        locale: Key,
+        locale: &Key,
         key_path: &mut KeyPath,
         diag: &Diagnostics,
     ) -> Result<()> {
@@ -560,7 +560,7 @@ impl Locale {
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
                 let mut pushed_key = key_path.push_key(key.clone());
-                subkeys.merge_plurals(locale.clone(), &mut pushed_key, diag)?;
+                subkeys.merge_plurals(locale, &mut pushed_key, diag)?;
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
@@ -587,8 +587,7 @@ impl Locale {
             let pushed_key = key_path.push_key(key);
             if !cfg!(feature = "plurals") {
                 return Err(Error::DisabledPlurals {
-                    locale: locale.clone(),
-                    key_path: pushed_key.clone(),
+                    loc: Location::new(locale.clone(), pushed_key.clone()),
                 }
                 .into());
             }
@@ -600,8 +599,7 @@ impl Locale {
                         Ok((form, value))
                     } else {
                         Err(Error::ConflictingPluralRuleType {
-                            locale: locale.clone(),
-                            key_path: pushed_key.clone(),
+                            loc: Location::new(locale.clone(), pushed_key.clone()),
                         }
                         .into())
                     }
@@ -613,14 +611,17 @@ impl Locale {
                 count_key: Key::count(),
                 other: Box::new(other),
             };
-            plural.check_forms(&locale, &pushed_key, diag)?;
+            let loc = Loc {
+                locale,
+                key_path: &pushed_key,
+            };
+            plural.check_forms(&loc, diag)?;
             let value = ParsedValue::Plurals(plural);
             let key = pushed_key.pop().unwrap_at("merge_plurals_3");
             if self.keys.insert(key.clone(), value).is_some() {
                 let pushed_key = key_path.push_key(key);
                 return Err(Error::PluralsAtNormalKey {
-                    locale,
-                    key_path: pushed_key.clone(),
+                    loc: Location::new(locale.clone(), pushed_key.clone()),
                 }
                 .into());
             }
@@ -646,8 +647,7 @@ impl Locale {
                 Entry::Vacant(entry) => {
                     if matches!(default_to, DefaultTo::Implicit(_)) {
                         diag.emit_warning(Warning::MissingKey {
-                            locale: top_locale.clone(),
-                            key_path: pushed_key.clone(),
+                            loc: Location::new(top_locale.clone(), pushed_key.clone()),
                         });
                     }
                     entry.insert(ParsedValue::Default)
@@ -671,8 +671,7 @@ impl Locale {
                 if !keys.0.contains_key(key) {
                     let pushed_key = key_path.push_key(key.clone());
                     diag.emit_warning(Warning::SurplusKey {
-                        locale: top_locale.clone(),
-                        key_path: pushed_key.clone(),
+                        loc: Location::new(top_locale.clone(), pushed_key.clone()),
                     });
                 }
             }

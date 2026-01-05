@@ -10,11 +10,8 @@ use std::{
 use syn::{Ident, Token, punctuated::Punctuated, spanned::Spanned};
 
 use crate::{
-    parse_locales::{
-        error::{Diagnostics, Error},
-        parsed_value::Context,
-    },
-    utils::{Key, KeyPath},
+    parse_locales::error::{Diagnostics, Error},
+    utils::{Key, Loc, ParseContext},
 };
 
 pub mod currency;
@@ -74,12 +71,16 @@ impl Formatters {
         Self::new_populated().unwrap()
     }
 
-    pub fn parse(&self, ctx: &Context, name: &str, args: &[(&str, Option<&str>)]) -> VarBounds {
+    pub fn parse(
+        &self,
+        ctx: &ParseContext,
+        name: &str,
+        args: &[(&str, Option<&str>)],
+    ) -> VarBounds {
         let Some(formatter) = self.formatters.get(name) else {
             ctx.diag.emit_error(Error::UnknownFormatter {
                 name: name.to_string(),
-                locale: ctx.locale.clone(),
-                key_path: ctx.key_path.clone(),
+                loc: ctx.into(),
             });
             return VarBounds::Dummy;
         };
@@ -118,15 +119,13 @@ pub trait Formatter: 'static {
 
     fn parse_with_diagnostics(
         &self,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
         args: &[(&str, Option<&str>)],
         diag: &Diagnostics,
     ) -> Option<Self::ToTokens> {
         if let Some(formatter_err) = Self::DISABLED {
             diag.emit_error(Error::DisabledFormatter {
-                locale: locale.clone(),
-                key_path: key_path.clone(),
+                loc: loc.into(),
                 formatter_err,
             });
         }
@@ -137,8 +136,7 @@ pub trait Formatter: 'static {
                 Ok(field) => field,
                 Err(err) => {
                     diag.emit_error(Error::InvalidFormatterArgName {
-                        locale: locale.clone(),
-                        key_path: key_path.clone(),
+                        loc: loc.into(),
                         name: arg_name.to_string(),
                         err: err.to_string(),
                     });
@@ -148,8 +146,7 @@ pub trait Formatter: 'static {
             };
             if let Err(err) = self.parse_arg(&mut builder, field, *arg) {
                 diag.emit_error(Error::InvalidFormatterArg {
-                    locale: locale.clone(),
-                    key_path: key_path.clone(),
+                    loc: loc.into(),
                     arg_name: arg_name.to_string(),
                     arg: arg.map(str::to_string),
                     err: err.to_string(),
@@ -163,8 +160,7 @@ pub trait Formatter: 'static {
                 Ok(tt) => Some(tt),
                 Err(err) => {
                     diag.emit_error(Error::InvalidFormatter {
-                        locale: locale.clone(),
-                        key_path: key_path.clone(),
+                        loc: loc.into(),
                         err: err.to_string(),
                     });
                     None
@@ -191,7 +187,7 @@ pub trait Formatter: 'static {
 }
 
 trait DynFormatter {
-    fn parse(&self, ctx: &Context, args: &[(&str, Option<&str>)]) -> VarBounds;
+    fn parse(&self, ctx: &ParseContext, args: &[(&str, Option<&str>)]) -> VarBounds;
 
     fn parse_from_tt(
         &self,
@@ -201,8 +197,8 @@ trait DynFormatter {
 }
 
 impl<T: Formatter + ?Sized> DynFormatter for T {
-    fn parse(&self, ctx: &Context, args: &[(&str, Option<&str>)]) -> VarBounds {
-        match T::parse_with_diagnostics(self, ctx.locale, ctx.key_path, args, ctx.diag) {
+    fn parse(&self, ctx: &ParseContext, args: &[(&str, Option<&str>)]) -> VarBounds {
+        match T::parse_with_diagnostics(self, &ctx.loc, args, ctx.diag) {
             Some(f) => VarBounds::Formatted {
                 formatter_name: T::NAME,
                 to_tokens: Rc::new(f),

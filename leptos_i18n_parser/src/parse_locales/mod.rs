@@ -23,7 +23,7 @@ use error::{Diagnostics, Error, Result};
 
 use crate::{
     parse_locales::options::ParseOptions,
-    utils::{Key, KeyPath, UnwrapAt},
+    utils::{Key, KeyPath, Loc, Location, UnwrapAt},
 };
 
 pub const VAR_COUNT_KEY: &str = "var_count";
@@ -135,13 +135,17 @@ pub fn parse_locales(
 fn resolve_foreign_keys(
     values: &LocalesOrNamespaces,
     default_locale: &Key,
-    foreign_keys_paths: BTreeSet<(Key, KeyPath)>,
+    foreign_keys_paths: BTreeSet<Location>,
 ) -> Result<()> {
-    for (locale, value_path) in foreign_keys_paths {
+    for loc in foreign_keys_paths {
+        let loc = Loc {
+            locale: &loc.locale,
+            key_path: &loc.key_path,
+        };
         let value = values
-            .get_value_at(&locale, &value_path)
+            .get_value_at(&loc)
             .unwrap_at("resolve_foreign_keys_1");
-        value.resolve_foreign_key(values, &locale, default_locale, &value_path)?;
+        value.resolve_foreign_key(values, &loc, default_locale)?;
     }
     Ok(())
 }
@@ -334,18 +338,18 @@ impl StringIndexer {
 }
 
 #[derive(Default, Debug)]
-pub struct ForeignKeysPaths(RefCell<BTreeSet<(Key, KeyPath)>>);
+pub struct ForeignKeysPaths(RefCell<BTreeSet<Location>>);
 
 impl ForeignKeysPaths {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn push_path(&self, locale: Key, path: KeyPath) {
-        self.0.borrow_mut().insert((locale, path));
+    pub fn push_path(&self, loc: Location) {
+        self.0.borrow_mut().insert(loc);
     }
 
-    pub fn into_inner(self) -> BTreeSet<(Key, KeyPath)> {
+    pub fn into_inner(self) -> BTreeSet<Location> {
         self.0.into_inner()
     }
 }
