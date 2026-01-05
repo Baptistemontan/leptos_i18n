@@ -45,5 +45,6 @@
   "foreign_key_to_two_plurals": "$t(cardinal_plural) $t(plural_with_arg_other_than_count, {\"arg\": \"en\"})",
   "renamed_plurals_count": "$t(cardinal_plural, {\"count\":\"{{ first_count }}\"}) $t(ordinal_plural, {\"count\":\"{{ second_count }}\"})",
   "comp_with_attrs": "<div id={{ id }} foo=\"bar\">test</div>",
-  "comp_with_attrs_self_closed": "before<br id=\"test\" />after"
+  "comp_with_attrs_self_closed": "before<br id=\"test\" />after",
+  "comp_with_escaped_str_attrs": "<div foo=\"\\\"bar\">test</div>"
 }

@@ -160,3 +160,21 @@ fn test_comp_with_attributes_self_closed_as_string_with_fn() {
     let fr = td_string!(Locale::fr, comp_with_attrs_self_closed, <br/>, id = "foo bar");
     assert_eq!(fr, "before<br id=\"foo bar\" />after");
 }
+
+#[test]
+fn test_comp_with_escaped_str_attribute() {
+    let en = td!(Locale::en, comp_with_escaped_str_attrs, <div> = <div />, foo = "");
+    assert_eq_rendered!(en, "<div foo=\"\\&quot;bar\">test</div>");
+
+    let fr = td!(Locale::en, comp_with_escaped_str_attrs, <div> = <div />, foo = "\"bar");
+    assert_eq_rendered!(fr, "<div foo=\"\\&quot;bar\">test</div>");
+}
+
+#[test]
+fn test_comp_with_escaped_str_attribute_as_str() {
+    let en = td_string!(Locale::en, comp_with_escaped_str_attrs, <div> = "div", foo = "");
+    assert_eq!(en, "<div foo=\"\\\"bar\">test</div>");
+
+    let fr = td_string!(Locale::en, comp_with_escaped_str_attrs, <div> = "div", foo = "\"bar");
+    assert_eq!(fr, "<div foo=\"\\\"bar\">test</div>");
+}

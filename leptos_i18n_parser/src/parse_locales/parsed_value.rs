@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::BTreeMap, fmt::Display};
+use std::{cell::RefCell, collections::BTreeMap, fmt::Display, mem};
 
 use serde::{
     Deserialize,
@@ -164,7 +164,7 @@ pub struct Context<'a> {
     pub parse_fns: &'a [ParseFn],
 }
 
-type ParseFn = fn(&str, &Context) -> Option<Result<ParsedValue>>;
+type ParseFn = fn(&Context, &str) -> Option<Result<ParsedValue>>;
 
 impl ParsedValue {
     pub const DEFAULT_FNS: &[ParseFn] = &[
@@ -173,8 +173,8 @@ impl ParsedValue {
         ParsedValue::find_variable,
     ];
 
-    pub fn new(value: &str, ctx: &Context) -> Result<Self> {
-        let parsed_value = ctx.parse_fns.iter().find_map(|f| f(value, ctx));
+    pub fn new(ctx: &Context, value: &str) -> Result<Self> {
+        let parsed_value = ctx.parse_fns.iter().find_map(|f| f(ctx, value));
         match parsed_value {
             Some(Ok(value)) => Ok(value),
             None => Ok(ParsedValue::Literal(Literal::String(
@@ -270,7 +270,7 @@ impl ParsedValue {
 
         for (key, arg) in args {
             let parsed_value = match arg {
-                Literal::String(s, _) => Self::new(&s, ctx)?,
+                Literal::String(s, _) => Self::new(ctx, &s)?,
                 other => ParsedValue::Literal(other),
             };
             let key = format!("var_{}", key.trim());
@@ -327,7 +327,7 @@ impl ParsedValue {
         Ok((args, after))
     }
 
-    fn find_foreign_key(value: &str, ctx: &Context) -> Option<Result<Self>> {
+    fn find_foreign_key(ctx: &Context, value: &str) -> Option<Result<Self>> {
         let (before, rest) = value.split_once("$t(")?;
         let next_split = rest.find([',', ')'])?;
         let keypath = rest.get(..next_split)?;
@@ -349,8 +349,8 @@ impl ParsedValue {
             ctx.foreign_keys_paths,
         )));
 
-        let before = nested_result_try!(Self::new(before, ctx));
-        let after = nested_result_try!(Self::new(after, ctx));
+        let before = nested_result_try!(Self::new(ctx, before));
+        let after = nested_result_try!(Self::new(ctx, after));
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
@@ -398,11 +398,11 @@ impl ParsedValue {
         Some(Ok((before, this, after)))
     }
 
-    fn find_variable(value: &str, ctx: &Context) -> Option<Result<Self>> {
+    fn find_variable(ctx: &Context, value: &str) -> Option<Result<Self>> {
         let (before, this, after) = nested_result_try!(Self::find_valid_variable(value, ctx)?);
 
-        let before = nested_result_try!(Self::new(before, ctx));
-        let after = nested_result_try!(Self::new(after, ctx));
+        let before = nested_result_try!(Self::new(ctx, before));
+        let after = nested_result_try!(Self::new(ctx, after));
 
         Some(Ok(ParsedValue::Bloc(vec![before, this, after])))
     }
@@ -494,7 +494,43 @@ impl ParsedValue {
         }
     }
 
-    fn parse_attributes(mut attrs: &str, ctx: &Context) -> Result<Attributes> {
+    fn parse_attribute_num() -> impl FnMut(char) -> bool {
+        let mut first = true;
+        move |c| char::is_ascii_digit(&c) || (c == '.' && mem::replace(&mut first, false))
+    }
+
+    fn parse_attribute_str(s: &str) -> Option<(&str, &str)> {
+        let mut escaped = false;
+        s.char_indices()
+            .find_map(|(i, c)| {
+                if mem::replace(&mut escaped, false) {
+                    None
+                } else if c == '\\' {
+                    escaped = true;
+                    None
+                } else if c == '"' {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .and_then(|i| Some((s.get(..i)?, s.get(i + 1..)?)))
+    }
+
+    fn validate_key<'a>(ctx: &Context, key: &'a str) -> Result<&'a str> {
+        if key.chars().all(|c| c.is_alphabetic() || c == '_') {
+            Ok(key)
+        } else {
+            Err(Error::InvalidAttributeName {
+                locale: ctx.locale.clone(),
+                key_path: ctx.key_path.clone(),
+                value: key.to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn parse_attributes(ctx: &Context, mut attrs: &str) -> Result<Attributes> {
         let _ = ctx;
         let mut attributes = Vec::new();
         loop {
@@ -502,24 +538,15 @@ impl ParsedValue {
             if attrs.is_empty() {
                 return Ok(Attributes(attributes));
             }
-            let white_or_eq_idx = attrs.char_indices().find_map(|(i, c)| {
-                if c.is_whitespace() || c == '=' {
-                    Some(i)
-                } else {
-                    None
-                }
-            });
-            let Some(white_or_eq_idx) = white_or_eq_idx else {
-                attributes.push(Attribute {
-                    key: attrs.to_string(),
-                    value: None,
-                });
-                attrs = "";
-                continue;
-            };
 
-            let key = &attrs[..white_or_eq_idx];
-            let rest = attrs[white_or_eq_idx..].trim_start();
+            let (key, rest) = attrs
+                .find(|c: char| c.is_whitespace() || c == '=')
+                .and_then(|i| attrs.split_at_checked(i))
+                .unwrap_or((attrs, ""));
+
+            let key = Self::validate_key(ctx, key)?;
+            let rest = rest.trim_start();
+
             let Some(rest) = rest.strip_prefix('=') else {
                 attributes.push(Attribute {
                     key: key.to_string(),
@@ -534,7 +561,7 @@ impl ParsedValue {
             } else if let Some(rest) = rest.strip_prefix("false ") {
                 (AttributeValue::Literal(Literal::Bool(false)), rest)
             } else if let Some(new_rest) = rest.strip_prefix('"') {
-                let Some((value, new_rest)) = new_rest.split_once('"') else {
+                let Some((value, new_rest)) = Self::parse_attribute_str(new_rest) else {
                     return Err(Error::InvalidAttribute {
                         locale: ctx.locale.clone(),
                         key_path: ctx.key_path.clone(),
@@ -548,12 +575,7 @@ impl ParsedValue {
                     AttributeValue::Literal(Literal::String(value.to_string(), usize::MAX)),
                     new_rest,
                 )
-            } else if rest.starts_with({
-                let mut first = true;
-                move |c| {
-                    char::is_ascii_digit(&c) || (c == '.' && core::mem::replace(&mut first, false))
-                }
-            }) {
+            } else if rest.starts_with(Self::parse_attribute_num()) {
                 let (num, rest) = rest.split_once(char::is_whitespace).unwrap_or((rest, ""));
                 let Some(n) = Self::parse_num(num) else {
                     return Err(Error::InvalidAttribute {
@@ -600,7 +622,7 @@ impl ParsedValue {
         }
     }
 
-    fn find_component(value: &str, ctx: &Context) -> Option<Result<Self>> {
+    fn find_component(ctx: &Context, value: &str) -> Option<Result<Self>> {
         let (key, before, between, after, attrs) = Self::find_valid_component(value)?;
 
         let mut values = Vec::new();
@@ -616,11 +638,11 @@ impl ParsedValue {
         }
 
         let inner = match between {
-            Some(between) => Some(Box::new(nested_result_try!(ParsedValue::new(between, ctx)))),
+            Some(between) => Some(Box::new(nested_result_try!(ParsedValue::new(ctx, between)))),
             None => None,
         };
 
-        let attributes = nested_result_try!(Self::parse_attributes(attrs, ctx));
+        let attributes = nested_result_try!(Self::parse_attributes(ctx, attrs));
 
         values.push(ParsedValue::Component {
             key,
@@ -631,7 +653,7 @@ impl ParsedValue {
         if let Some(after) = after
             && !after.is_empty()
         {
-            let after_parsed = nested_result_try!(ParsedValue::new(after, ctx));
+            let after_parsed = nested_result_try!(ParsedValue::new(ctx, after));
             // Flatten if after_parsed is a Bloc
             match after_parsed {
                 ParsedValue::Bloc(mut after_values) => values.append(&mut after_values),
@@ -1472,7 +1494,7 @@ impl<'de> serde::de::Visitor<'de> for ParsedValueSeed<'_> {
             formatters: self.formatters,
             parse_fns: ParsedValue::DEFAULT_FNS,
         };
-        let pv = ParsedValue::new(v, &ctx);
+        let pv = ParsedValue::new(&ctx, v);
 
         let pv = match pv {
             Ok(pv) => pv,
@@ -1662,7 +1684,7 @@ mod tests {
             parse_fns: ParsedValue::DEFAULT_FNS,
         };
 
-        let p = ParsedValue::new(value, &ctx).unwrap();
+        let p = ParsedValue::new(&ctx, value).unwrap();
         if let Some(err) = diag.errors().first() {
             panic!("{err}");
         }
