@@ -9,7 +9,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let options = ParseOptions::default().interpolate_display(true);
 
-    let cfg = Config::new("en")?.add_locale("fr")?.parse_options(options);
+    let cfg = Config::new("en")?
+        .add_locale("fr")?
+        .add_namespaces(["first_namespace", "second_namespace"])?
+        .parse_options(options);
 
     let translations_infos = TranslationsInfos::parse(cfg).unwrap();
 
