@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=Cargo.toml");
 
-    let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR")?).join("i18n");
+    let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
     let options = ParseOptions::new()
         .interpolate_display(true)
