@@ -128,7 +128,7 @@ leptos_i18n_build = "0.6.0"
 ```
 
 ```rust,ignore
-use leptos_i18n_build::TranslationsInfos;
+use leptos_i18n_build::{TranslationsInfos, Config};
 use std::path::PathBuf;
 
 fn main() {
@@ -137,7 +137,9 @@ fn main() {
 
     let mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("baked_data");
 
-    let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
+    let cfg: Config = // ...;
+
+    let translations_infos = TranslationsInfos::parse(cfg).unwrap();
 
     translations_infos.rerun_if_locales_changed();
 

@@ -1,9 +1,35 @@
 use crate::{
+    Error,
     formatters::{Formatter, Formatters},
-    parse_locales::locale::{Locale, LocaleSeed, SerdeError},
+    parse_locales::{
+        cfg_file::DEFAULT_LOCALES_PATH,
+        error::Result,
+        locale::{Locale, LocaleSeed, SerdeError},
+    },
+    utils::Key,
 };
 use parser::Parser;
-use std::{fmt::Debug, io::Read, path::Path, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::BTreeMap,
+    fmt::Debug,
+    io::Read,
+    panic::Location,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub struct Config {
+    pub default_locale: Key,
+    pub locales: Vec<Key>,
+    pub locales_path: Cow<'static, Path>,
+    pub namespaces: Vec<Key>,
+    pub translations_uri: Option<Cow<'static, str>>,
+    pub extensions: BTreeMap<Key, Key>,
+    pub options: ParseOptions,
+}
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -95,6 +121,125 @@ impl ParseOptions {
             .insert_formatter(formatter)
             .expect("tried to overwrite an existing formatter.");
         self
+    }
+}
+
+impl Config {
+    pub fn new(default_locale: &str) -> Result<Self> {
+        let default_locale = Key::try_new(default_locale)?;
+        Ok(Config {
+            locales: vec![default_locale.clone()],
+            default_locale,
+            locales_path: Cow::Borrowed(DEFAULT_LOCALES_PATH.as_ref()),
+            namespaces: vec![],
+            translations_uri: None,
+            extensions: BTreeMap::new(),
+            options: ParseOptions::default(),
+        })
+    }
+
+    #[track_caller]
+    fn add_locale_inner(&mut self, loc: Key) {
+        if self.locales.contains(&loc) {
+            let location = Location::caller();
+            println!(
+                "cargo::warning=locale \"{loc}\" already present, re-added at {location}, it is skipped"
+            );
+        } else {
+            self.locales.push(loc);
+        }
+    }
+
+    #[track_caller]
+    pub fn add_locale(mut self, locale: &str) -> Result<Self> {
+        let loc = Key::try_new(locale)?;
+        self.add_locale_inner(loc);
+        Ok(self)
+    }
+
+    #[track_caller]
+    pub fn add_locales<T: AsRef<str>>(
+        mut self,
+        locales: impl IntoIterator<Item = T>,
+    ) -> Result<Self> {
+        for locale in locales {
+            self = self.add_locale(locale.as_ref())?;
+        }
+        Ok(self)
+    }
+
+    pub fn locales_path(self, path: impl ToPathCow<'static>) -> Self {
+        Self {
+            locales_path: path.into_cow(),
+            ..self
+        }
+    }
+
+    pub fn add_namespace(mut self, namespace: &str) -> Result<Self> {
+        self.namespaces.push(Key::try_new(namespace)?);
+        Ok(self)
+    }
+
+    pub fn add_namespaces<T: AsRef<str>>(
+        mut self,
+        locales: impl IntoIterator<Item = T>,
+    ) -> Result<Self> {
+        for locale in locales {
+            self = self.add_namespace(locale.as_ref())?;
+        }
+        Ok(self)
+    }
+
+    pub fn translations_uri(self, uri: impl ToStrCow<'static>) -> Self {
+        Self {
+            translations_uri: Some(uri.into_cow()),
+            ..self
+        }
+    }
+
+    #[track_caller]
+    pub fn extend_locale(mut self, locale_to_extend: &str, inherit_from: &str) -> Result<Self> {
+        #[track_caller]
+        fn check_if_present(locales: &[Key], loc: &Key) -> Result<()> {
+            if locales.contains(loc) {
+                Ok(())
+            } else {
+                Err(Error::UnknownLocaleInInherit {
+                    loc: Location::caller(),
+                    locale: loc.to_string(),
+                }
+                .into())
+            }
+        }
+
+        let loc_to_ext = Key::try_new(locale_to_extend)?;
+        let inh_from = Key::try_new(inherit_from)?;
+
+        if loc_to_ext == self.default_locale {
+            return Err(Error::DefaultLocaleCantInherit {
+                loc: Location::caller(),
+            }
+            .into());
+        }
+
+        check_if_present(&self.locales, &loc_to_ext)?;
+        check_if_present(&self.locales, &inh_from)?;
+
+        if loc_to_ext == inh_from {
+            // TODO: do we allow inherit from self ? cyclics inheritance are allowed so does this count ?
+        }
+
+        if let Some(old_inh) = self.extensions.insert(loc_to_ext, inh_from) {
+            let location = Location::caller();
+            println!(
+                "cargo::warning=locale \"{locale_to_extend}\" already inherit from \"{old_inh}\", overwritten at {location}"
+            );
+        }
+        Ok(self)
+    }
+
+    pub fn parse_options(self, options: ParseOptions) -> Self {
+        Self { options, ..self }
     }
 }
 
@@ -191,5 +336,49 @@ pub mod parser {
         let seed = Seed(seed);
         let value = parser.deserialize(&mut reader, path, seed)?;
         Ok(value.0)
+    }
+}
+
+pub trait ToPathCow<'a> {
+    fn into_cow(self) -> Cow<'a, Path>;
+}
+
+impl<'a> ToPathCow<'a> for &'a str {
+    fn into_cow(self) -> Cow<'a, Path> {
+        Cow::Borrowed(self.as_ref())
+    }
+}
+
+impl<'a> ToPathCow<'a> for &'a Path {
+    fn into_cow(self) -> Cow<'a, Path> {
+        Cow::Borrowed(self)
+    }
+}
+
+impl<'a> ToPathCow<'a> for String {
+    fn into_cow(self) -> Cow<'a, Path> {
+        Cow::Owned(self.into())
+    }
+}
+
+impl<'a> ToPathCow<'a> for PathBuf {
+    fn into_cow(self) -> Cow<'a, Path> {
+        Cow::Owned(self)
+    }
+}
+
+pub trait ToStrCow<'a> {
+    fn into_cow(self) -> Cow<'a, str>;
+}
+
+impl<'a> ToStrCow<'a> for &'a str {
+    fn into_cow(self) -> Cow<'a, str> {
+        Cow::Borrowed(self)
+    }
+}
+
+impl<'a> ToStrCow<'a> for String {
+    fn into_cow(self) -> Cow<'a, str> {
+        Cow::Owned(self)
     }
 }

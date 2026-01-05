@@ -1,12 +1,13 @@
 use leptos_i18n_build::{
     formatter::{Formatter, FormatterToTokens, Key},
-    ParseOptions, TranslationsInfos,
+    Config, ParseOptions, TranslationsInfos,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
+use std::error::Error;
 use std::path::PathBuf;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=Cargo.toml");
 
@@ -16,15 +17,17 @@ fn main() {
         .interpolate_display(true)
         .add_formatter(PaddingFormatterParser);
 
-    let translations_infos = TranslationsInfos::parse(options).unwrap();
+    let cfg = Config::new("en")?.add_locale("fr")?.parse_options(options);
+
+    let translations_infos = TranslationsInfos::parse(cfg)?;
 
     translations_infos.emit_diagnostics();
 
     translations_infos.rerun_if_locales_changed();
 
-    translations_infos
-        .generate_i18n_module(i18n_mod_directory)
-        .unwrap();
+    translations_infos.generate_i18n_module(i18n_mod_directory)?;
+
+    Ok(())
 }
 
 struct PaddingFormatterParser;

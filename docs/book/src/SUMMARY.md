@@ -16,7 +16,6 @@
   - [Mixing Kinds](./declare/06_mix_kinds.md)
   - [Formatters](./declare/07_formatters.md)
 - [Use Translations](./usage/README.md)
-  - [Load The Translations](./usage/01_load.md)
   - [`I18nContext`](./usage/02_context.md)
   - [Sub-context](./usage/03_subcontext.md)
   - [`t!` Macro](./usage/04_t_macro.md)

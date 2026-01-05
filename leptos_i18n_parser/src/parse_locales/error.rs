@@ -1,3 +1,4 @@
+use core::panic;
 use icu_locale::ParseError as LocidError;
 use icu_provider::DataError as IcuDataError;
 use proc_macro2::TokenStream;
@@ -158,6 +159,13 @@ pub enum Error {
         loc: Location,
         arg_name: Key,
         foreign_key: KeyPath,
+    },
+    UnknownLocaleInInherit {
+        loc: &'static panic::Location<'static>,
+        locale: String,
+    },
+    DefaultLocaleCantInherit {
+        loc: &'static panic::Location<'static>,
     },
 
     Custom(String),
@@ -378,6 +386,18 @@ impl Display for Error {
             Error::InvalidAttributeName { loc, value } => {
                 write!(f, "Invalid attribute name {value:?} at {loc}")
             }
+            Error::UnknownLocaleInInherit { loc, locale } => {
+                write!(
+                    f,
+                    "Tried to declare inheritance for an unknown locale \"{locale}\" at {loc}, make sure to add it before declaring the inheritance."
+                )
+            }
+            Error::DefaultLocaleCantInherit { loc } => {
+                write!(
+                    f,
+                    "Tried to declare inheritance for the default locale at {loc}"
+                )
+            }
         }
     }
 }
@@ -399,6 +419,12 @@ pub struct BoxedError(Box<Error>);
 impl<T: Into<Error>> From<T> for BoxedError {
     fn from(value: T) -> Self {
         BoxedError(Box::new(value.into()))
+    }
+}
+
+impl From<BoxedError> for Box<dyn core::error::Error> {
+    fn from(value: BoxedError) -> Self {
+        value.0
     }
 }
 

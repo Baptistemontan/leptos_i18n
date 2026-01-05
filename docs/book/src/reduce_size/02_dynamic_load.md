@@ -122,12 +122,10 @@ Then if you are using Trunk you just have to add the directory to the build pipe
 ```
 
 Now the translations will be available at `i18n/{locale}.json`
-To inform `leptos_i18n` where to find those translations you need to supply the `translations-path` field under `[package.metadata.leptos-i18n]`:
+To inform `leptos_i18n` where to find those translations you need to supply the `translations_uri` to the config builder:
 
-```toml
-# Cargo.toml
-[package.metadata.leptos-i18n]
-translations-path = "i18n/{locale}.json" # or "i18n/{namespace}/{locale}.json" when using namespaces
+```rust
+let cfg = cfg.translations_uri("i18n/{locale}.json"); // or "i18n/{namespace}/{locale}.json" when using namespaces
 ```
 
 And this is it!

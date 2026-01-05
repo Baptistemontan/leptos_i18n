@@ -22,14 +22,6 @@
 //!
 //! # A Simple Counter
 //!
-//! `Cargo.toml`:
-//!
-//! ```toml
-//! [package.metadata.leptos-i18n]
-//! default = "en"
-//! locales = ["en", "fr"]
-//! ```
-//!
 //! `./locales/en.json`:
 //!
 //! ```json
