@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .add_namespaces(["first_namespace", "second_namespace"])?
         .parse_options(options);
 
-    let translations_infos = TranslationsInfos::parse(cfg).unwrap();
+    let translations_infos = TranslationsInfos::parse(cfg)?;
 
     translations_infos.emit_diagnostics();
 

@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let cfg = Config::new("en")?.add_locale("fr")?.parse_options(options);
 
-    let translations_infos = TranslationsInfos::parse(cfg).unwrap();
+    let translations_infos = TranslationsInfos::parse(cfg)?;
 
     translations_infos.emit_diagnostics();
 
