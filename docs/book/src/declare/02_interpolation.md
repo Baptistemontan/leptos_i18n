@@ -25,13 +25,46 @@ You can declare a component with HTML-like syntax:
 }
 ```
 
+Or self-closed components:
+
+```json
+{
+  "with_break": "some line <br /> some other line"
+}
+```
+
 ## Use both
 
-You can mix them both without a problem:
+You can mix both interpolated values and interpolated components:
 
 ```json
 {
   "click_count": "You clicked <b>{{ count }}</b> times"
+}
+```
+
+## Components attributes
+
+You can pass attributes to the components:
+
+```json
+{
+  "highlight_me": "highlight <b id=\"john\">me</b>"
+}
+```
+
+The values the attributes accept are:
+
+- Strings
+- booleans
+- numbers (signed, unsigned, floats),
+- variables
+
+The syntax for variables:
+
+```json
+{
+  "with_break": "some line <br id={{ id }} /> some other line"
 }
 ```
 

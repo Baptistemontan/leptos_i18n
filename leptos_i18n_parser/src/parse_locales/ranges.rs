@@ -8,14 +8,14 @@ use std::{
 
 use crate::{
     parse_locales::{parsed_value::Literal, plurals::Plurals},
-    utils::{Key, KeyPath},
+    utils::{Key, KeyPath, Loc},
 };
 
 use super::{
+    StringIndexer,
     error::{Error, Result},
     locale::{InterpolOrLit, LocalesOrNamespaces},
     parsed_value::{ParsedValue, ParsedValueSeed},
-    StringIndexer,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,10 +48,11 @@ pub enum Range<T> {
     Fallback,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub enum RangeType {
     I8,
     I16,
+    #[default]
     I32,
     I64,
     U8,
@@ -61,21 +62,10 @@ pub enum RangeType {
     F32,
     F64,
 }
+
 type DefaultRangeType = i32;
 
-#[cfg(not(feature = "quote"))]
-pub trait MaybeToTokens {}
-
-#[cfg(not(feature = "quote"))]
-impl<T> MaybeToTokens for T {}
-
-#[cfg(feature = "quote")]
-pub trait MaybeToTokens: quote::ToTokens {}
-
-#[cfg(feature = "quote")]
-impl<T: quote::ToTokens> MaybeToTokens for T {}
-
-pub trait RangeNumber: FromStr + PartialOrd + Copy + MaybeToTokens {
+pub trait RangeNumber: FromStr + PartialOrd + Copy + quote::ToTokens {
     const TYPE: RangeType;
 
     fn range_end_bound(self) -> Option<Bound<Self>>;
@@ -171,9 +161,11 @@ impl<T: RangeNumber> Range<T> {
 
     pub fn new(s: &str) -> Result<Self> {
         let parse = |s: &str| {
-            s.parse::<T>().map_err(|_| Error::RangeParse {
-                range: s.to_string(),
-                range_type: T::TYPE,
+            s.parse::<T>().map_err(|_| {
+                Box::new(Error::RangeParse {
+                    range: s.to_string(),
+                    range_type: T::TYPE,
+                })
             })
         };
         let s = s.trim();
@@ -211,10 +203,10 @@ impl<T: RangeNumber> Range<T> {
             if let Some(start) = start {
                 match end {
                     Bound::Excluded(end) if end <= start => {
-                        return Err(Error::ImpossibleRange(s.to_string()).into())
+                        return Err(Error::ImpossibleRange(s.to_string()).into());
                     }
                     Bound::Included(end) if end < start => {
-                        return Err(Error::ImpossibleRange(s.to_string()).into())
+                        return Err(Error::ImpossibleRange(s.to_string()).into());
                     }
                     _ => {}
                 }
@@ -222,14 +214,9 @@ impl<T: RangeNumber> Range<T> {
 
             Ok(Self::Bounds { start, end })
         } else {
-            parse(s).map(Self::Exact).map_err(Box::new)
+            let exact_value = parse(s)?;
+            Ok(Self::Exact(exact_value))
         }
-    }
-}
-
-impl Default for RangeType {
-    fn default() -> Self {
-        Self::I32
     }
 }
 
@@ -389,13 +376,10 @@ impl Ranges {
     pub fn resolve_foreign_keys(
         &self,
         values: &LocalesOrNamespaces,
-        top_locale: &Key,
+        loc: &Loc,
         default_locale: &Key,
-        path: &KeyPath,
     ) -> Result<()> {
-        self.try_for_each_value(move |value| {
-            value.resolve_foreign_key(values, top_locale, default_locale, path)
-        })
+        self.try_for_each_value(move |value| value.resolve_foreign_key(values, loc, default_locale))
     }
 
     pub fn try_for_each_value<F, E>(&self, f: F) -> Result<(), E>
@@ -457,52 +441,46 @@ impl Ranges {
         count_arg: &ParsedValue,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<ParsedValue> {
         fn find_value<T: RangeNumber>(
             v: &RangesInner<T>,
             count: T,
             args: &BTreeMap<String, ParsedValue>,
             foreign_key: &KeyPath,
-            locale: &Key,
-            key_path: &KeyPath,
+            loc: &Loc,
         ) -> Result<ParsedValue> {
             for (range, value) in v {
                 if range.do_match(count) {
-                    return value.populate(args, foreign_key, locale, key_path);
+                    return value.populate(args, foreign_key, loc);
                 }
             }
             unreachable!("plurals validity should already have been checked.");
         }
+
         fn try_from<T, U: TryFrom<T, Error = TryFromIntError>>(
             count: T,
-            locale: &Key,
-            key_path: &KeyPath,
+            loc: &Loc,
             foreign_key: &KeyPath,
         ) -> Result<U> {
-            TryFrom::try_from(count)
-                .map_err(|err| Error::CountArgOutsideRange {
-                    locale: locale.clone(),
-                    key_path: key_path.to_owned(),
-                    foreign_key: foreign_key.to_owned(),
-                    err,
-                })
-                .map_err(Box::new)
+            let value = TryFrom::try_from(count).map_err(|err| Error::CountArgOutsideRange {
+                loc: loc.into(),
+                foreign_key: foreign_key.to_owned(),
+                err,
+            })?;
+
+            Ok(value)
         }
         match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
                 let count = *count;
                 match &self.inner {
                     UntypedRangesInner::F32(v) => {
-                        find_value(v, count as f32, args, foreign_key, locale, key_path)
+                        find_value(v, count as f32, args, foreign_key, loc)
                     }
-                    UntypedRangesInner::F64(v) => {
-                        find_value(v, count, args, foreign_key, locale, key_path)
-                    }
+                    UntypedRangesInner::F64(v) => find_value(v, count, args, foreign_key, loc),
                     _ => Err(Error::InvalidCountArgType {
-                        locale: locale.clone(),
-                        key_path: key_path.to_owned(),
+                        loc: loc.into(),
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::F64,
                         range_type: self.get_type(),
@@ -513,68 +491,58 @@ impl Ranges {
             ParsedValue::Literal(Literal::Unsigned(count)) => {
                 let count = *count;
                 match &self.inner {
-                    UntypedRangesInner::U64(v) => {
-                        find_value(v, count, args, foreign_key, locale, key_path)
-                    }
+                    UntypedRangesInner::U64(v) => find_value(v, count, args, foreign_key, loc),
                     UntypedRangesInner::I8(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::I16(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::I32(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::I64(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::U8(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::U16(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::U32(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     _ => Err(Error::InvalidCountArgType {
-                        locale: locale.clone(),
-                        key_path: key_path.to_owned(),
+                        loc: loc.into(),
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::U64,
                         range_type: self.get_type(),
@@ -587,66 +555,56 @@ impl Ranges {
                 match &self.inner {
                     UntypedRangesInner::U64(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::I8(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::I16(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::I32(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
-                    UntypedRangesInner::I64(v) => {
-                        find_value(v, count, args, foreign_key, locale, key_path)
-                    }
+                    UntypedRangesInner::I64(v) => find_value(v, count, args, foreign_key, loc),
                     UntypedRangesInner::U8(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::U16(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     UntypedRangesInner::U32(v) => find_value(
                         v,
-                        try_from(count, locale, key_path, foreign_key)?,
+                        try_from(count, loc, foreign_key)?,
                         args,
                         foreign_key,
-                        locale,
-                        key_path,
+                        loc,
                     ),
                     _ => Err(Error::InvalidCountArgType {
-                        locale: locale.clone(),
-                        key_path: key_path.to_owned(),
+                        loc: loc.into(),
                         foreign_key: foreign_key.to_owned(),
                         input_type: RangeType::I64,
                         range_type: self.get_type(),
@@ -655,15 +613,14 @@ impl Ranges {
                 }
             }
             ParsedValue::Bloc(values) => {
-                let new_key = Plurals::find_variable(values, locale, key_path, foreign_key)?;
-                self.populate_with_new_key(new_key, args, foreign_key, locale, key_path)
+                let new_key = Plurals::find_variable(values, loc, foreign_key)?;
+                self.populate_with_new_key(new_key, args, foreign_key, loc)
             }
             ParsedValue::Variable { key, .. } => {
-                self.populate_with_new_key(key.clone(), args, foreign_key, locale, key_path)
+                self.populate_with_new_key(key.clone(), args, foreign_key, loc)
             }
             _ => Err(Error::InvalidCountArg {
-                locale: locale.clone(),
-                key_path: key_path.to_owned(),
+                loc: loc.into(),
                 foreign_key: foreign_key.to_owned(),
             }
             .into()),
@@ -675,54 +632,52 @@ impl Ranges {
         new_key: Key,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<ParsedValue> {
         fn inner<T: Clone>(
             v: &RangesInner<T>,
             args: &BTreeMap<String, ParsedValue>,
             foreign_key: &KeyPath,
-            locale: &Key,
-            key_path: &KeyPath,
+            loc: &Loc,
         ) -> Result<RangesInner<T>> {
             let mut values = Vec::with_capacity(v.len());
             for (range, value) in v {
                 let range = Clone::clone(range);
-                let value = value.populate(args, foreign_key, locale, key_path)?;
+                let value = value.populate(args, foreign_key, loc)?;
                 values.push((range, value));
             }
             Ok(values)
         }
         let ranges = match &self.inner {
             UntypedRangesInner::I8(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I8)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::I8)
             }
             UntypedRangesInner::I16(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I16)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::I16)
             }
             UntypedRangesInner::I32(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I32)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::I32)
             }
             UntypedRangesInner::I64(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::I64)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::I64)
             }
             UntypedRangesInner::U8(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U8)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::U8)
             }
             UntypedRangesInner::U16(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U16)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::U16)
             }
             UntypedRangesInner::U32(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U32)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::U32)
             }
             UntypedRangesInner::U64(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::U64)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::U64)
             }
             UntypedRangesInner::F32(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::F32)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::F32)
             }
             UntypedRangesInner::F64(v) => {
-                inner(v, args, foreign_key, locale, key_path).map(UntypedRangesInner::F64)
+                inner(v, args, foreign_key, loc).map(UntypedRangesInner::F64)
             }
         };
         ranges
@@ -737,13 +692,12 @@ impl Ranges {
         &self,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<ParsedValue> {
         if let Some(count_arg) = args.get("var_count") {
-            self.populate_with_count_arg(count_arg, args, foreign_key, locale, key_path)
+            self.populate_with_count_arg(count_arg, args, foreign_key, loc)
         } else {
-            self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
+            self.populate_with_new_key(self.count_key.clone(), args, foreign_key, loc)
         }
     }
 
@@ -864,7 +818,7 @@ impl<'de> serde::de::Visitor<'de> for TypeOrRangeSeed<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct RangeStructSeed<'a, T>(pub ParsedValueSeed<'a>, PhantomData<T>);
 
 impl<'de, T: RangeNumber> serde::de::DeserializeSeed<'de> for RangeStructSeed<'_, T> {

@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - master
+      - next
   pull_request:
     branches:
       - master
+      - next
 env:
   CARGO_TERM_COLOR: always
 jobs:
@@ -15,36 +17,22 @@ jobs:
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-      - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@nightly
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          targets: wasm32-unknown-unknown
+          components: clippy,rustfmt
       - name: "Install cargo-all-features"
-        run: cargo install cargo-all-features --locked
-      - name: "Install clippy"
-        run: rustup component add clippy
+        run: cargo install cargo-all-features
       - name: "Run clippy"
-        run: cargo clippy --package leptos_i18n
+        working-directory: "leptos_i18n"
+        run: cargo all-features clippy
       - name: "Test all features"
         working-directory: "leptos_i18n"
-        run: cargo test-all-features
-  macros_test:
-    # Why not also use cargo-all-features with the parser and macros packages ?
-    # Because all features are forwarded from leptos_i18n,
-    # so if some features mix creates a problem they will appear in leptos_i18n tests.
-    # All leptos_i18n_macro tests don't require any feature flag, so no need to test each feature and matchup
-    # just run once with default, this speeds up CI
-    name: Test ${{ matrix.packages }} package
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        packages: [leptos_i18n_macro, leptos_i18n_parser, leptos_i18n_build]
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-      - name: "Load cargo toolchain"
-        uses: dtolnay/rust-toolchain@stable
-      - name: "Run tests"
-        run: cargo test --package ${{ matrix.packages }}
+        run: cargo all-features test
+      - name: Check format
+        run: cargo fmt --check
   test_ssr_examples:
     name: Test ${{ matrix.examples }} SSR example
     runs-on: ubuntu-latest
@@ -72,17 +60,17 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos
+        run: cargo install cargo-leptos --locked
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: cargo leptos build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/ssr/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -115,17 +103,17 @@ jobs:
           toolchain: "stable"
           targets: "wasm32-unknown-unknown"
       - name: "Install cargo-leptos"
-        run: cargo install cargo-leptos
+        run: cargo install cargo-leptos --locked
       - name: "Build ${{ matrix.examples }} example"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: cargo leptos build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -170,11 +158,11 @@ jobs:
         run: trunk build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/dynamic_load/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -198,13 +186,13 @@ jobs:
             counter,
             counter_icu_datagen,
             counter_plurals,
-            counter_ranges,
             interpolation,
             namespaces,
             subkeys,
             yaml,
             routing_csr,
             subcontext,
+            custom_formatter,
           ]
     steps:
       - name: "Checkout repo"
@@ -225,11 +213,11 @@ jobs:
         run: trunk build
       - name: "Build e2e utils"
         working-directory: examples/utils
-        run: npm ci
+        run: npm install
       - name: "Install Playwright"
         working-directory: examples/csr/${{ matrix.examples }}
         run: |
-          npm ci
+          npm install
           npx playwright install --with-deps
       - name: "e2e testing ${{ matrix.examples }} example"
         id: e2e
@@ -248,14 +236,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        tests_suites: [json, json5, yaml, namespaces]
+        tests_suites: [json, json5, yaml, toml, namespaces]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
-      - name: "Install wasm32-unknown-unknown"
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "stable"
+          toolchain: stable
+          targets: wasm32-unknown-unknown
       - name: Running test suite ${{ matrix.tests_suites }}
         working-directory: tests/${{ matrix.tests_suites }}
         run: cargo test

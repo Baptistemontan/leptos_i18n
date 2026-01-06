@@ -22,14 +22,6 @@
 //!
 //! # A Simple Counter
 //!
-//! `Cargo.toml`:
-//!
-//! ```toml
-//! [package.metadata.leptos-i18n]
-//! default = "en"
-//! locales = ["en", "fr"]
-//! ```
-//!
 //! `./locales/en.json`:
 //!
 //! ```json
@@ -69,7 +61,7 @@
 //! #       },
 //! #   };
 //! # /*
-//! leptos_i18n::load_locales!();
+//! include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 //! # */
 //! use i18n::*; // `i18n` module created by the macro above
 //! use leptos::prelude::*;
@@ -139,7 +131,7 @@ pub use macro_helpers::formatting;
 
 pub use locale_traits::{Direction, Locale, LocaleKeys};
 
-pub use context::{use_i18n_context, I18nContext};
+pub use context::{I18nContext, use_i18n_context};
 
 #[allow(deprecated)]
 pub use context::provide_i18n_context;
@@ -165,6 +157,13 @@ pub mod __private {
     pub use crate::formatting::get_plural_rules;
     pub use crate::macro_helpers::*;
     pub use leptos_i18n_macro as macros_reexport;
+
+    /// Helper trait to make some bounds for dummy code
+    pub trait AnyBound {}
+    impl<T: ?Sized> AnyBound for T {}
+
+    #[deprecated(since = "0.6.0", note = "Ranges are deprecated, use plurals instead.")]
+    pub fn warn_deprecated_ranges() {}
 }
 
 /// This module contain utilities to create custom ICU providers.
@@ -206,7 +205,7 @@ pub mod reexports {
         ))]
         pub use icu_provider as provider;
 
-        pub use icu_locid as locid;
+        pub use icu_locale as locid;
     }
     pub use leptos;
     pub use serde;

@@ -1,7 +1,7 @@
 [package]
 name = "leptos_i18n_build"
 version = { workspace = true }
-edition = "2021"
+edition = "2024"
 authors = ["Baptiste de Montangon"]
 license = "MIT"
 repository = "https://github.com/Baptistemontan/leptos_i18n"
@@ -9,13 +9,53 @@ description = "build.rs utilities for the leptos_i18n crate"
 readme = "../README.md"
 
 [dependencies]
+proc-macro2 = "1"
+
 leptos_i18n_parser = { workspace = true }
-icu_datagen = { workspace = true, features = ["experimental_components"] }
+leptos_i18n_codegen = { workspace = true, default-features = true }
+
+icu_provider_export = { workspace = true, features = [
+  "baked_exporter",
+  "rayon",
+] }
+icu_provider_source = { workspace = true, features = [
+  "networking",
+  "use_wasm",
+  "experimental",
+] }
+icu = { workspace = true, features = ["experimental"] }
 icu_provider = { workspace = true }
-icu_locid = { workspace = true }
+icu_locale = { workspace = true }
+
+
+prettyplease = { version = "0.2", features = ["verbatim"], optional = true }
+syn = { version = "2.0" }
 
 [features]
-default = ["json_files"]
-json_files = ["leptos_i18n_parser/json_files"]
-yaml_files = ["leptos_i18n_parser/yaml_files"]
-json5_files = ["leptos_i18n_parser/json5_files"]
+default = []
+islands = ["leptos_i18n_codegen/islands"]
+dynamic_load = ["leptos_i18n_codegen/dynamic_load"]
+hydrate = ["leptos_i18n_codegen/hydrate"]
+csr = ["leptos_i18n_codegen/csr"]
+ssr = ["leptos_i18n_codegen/ssr"]
+plurals = ["leptos_i18n_parser/plurals", "leptos_i18n_codegen/plurals"]
+format_datetime = [
+  "leptos_i18n_parser/format_datetime",
+  "leptos_i18n_codegen/format_datetime",
+]
+format_list = [
+  "leptos_i18n_parser/format_list",
+  "leptos_i18n_codegen/format_list",
+]
+format_nums = [
+  "leptos_i18n_parser/format_nums",
+  "leptos_i18n_codegen/format_nums",
+]
+format_currency = [
+  "leptos_i18n_parser/format_currency",
+  "format_nums",
+  "leptos_i18n_codegen/format_currency",
+]
+
+# This is to format the code after codegen, helpfull for debugging
+pretty_print = ["dep:prettyplease"]

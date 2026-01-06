@@ -1,0 +1,37 @@
+[package]
+name = "leptos_i18n_codegen"
+version = { workspace = true }
+edition = "2024"
+authors = ["Baptiste de Montangon"]
+license = "MIT"
+repository = "https://github.com/Baptistemontan/leptos_i18n"
+description = "codegen crate for the leptos_i18n crate"
+readme = "../README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = "2.0"
+icu_locale = { workspace = true, features = ["compiled_data"] }
+leptos_i18n_parser = { workspace = true }
+tinystr = { workspace = true }
+
+[features]
+default = []
+islands = []
+dynamic_load = []
+hydrate = []
+csr = []
+ssr = []
+plurals = ["leptos_i18n_parser/plurals"]
+format_datetime = ["leptos_i18n_parser/format_datetime"]
+format_list = ["leptos_i18n_parser/format_list"]
+format_nums = ["leptos_i18n_parser/format_nums"]
+format_currency = ["leptos_i18n_parser/format_currency", "format_nums"]
+
+[package.metadata.cargo-all-features]
+# cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
+denylist = ["nightly"]

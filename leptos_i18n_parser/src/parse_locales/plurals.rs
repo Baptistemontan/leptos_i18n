@@ -3,16 +3,21 @@ use std::{
     fmt::Display,
 };
 
-use fixed_decimal::{FixedDecimal, FloatPrecision};
-use icu_plurals::{PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules};
+use fixed_decimal::{Decimal, FloatPrecision};
+use icu_plurals::{
+    PluralCategory, PluralOperands, PluralRuleType as IcuRuleType, PluralRules,
+    PluralRulesOptions as IcuPluralRulesOptions,
+};
 
 use super::{
-    error::{Error, Result},
-    parsed_value::Literal,
-    warning::{Warning, Warnings},
     StringIndexer,
+    error::{Error, Result, Warning},
+    parsed_value::Literal,
 };
-use crate::utils::{Key, KeyPath, UnwrapAt};
+use crate::{
+    parse_locales::error::Diagnostics,
+    utils::{Key, KeyPath, Loc, UnwrapAt},
+};
 
 use super::parsed_value::ParsedValue;
 
@@ -77,32 +82,38 @@ impl From<PluralRuleType> for IcuRuleType {
     }
 }
 
+impl From<PluralRuleType> for IcuPluralRulesOptions {
+    fn from(value: PluralRuleType) -> Self {
+        Self::default().with_type(value.into())
+    }
+}
+
 impl Plurals {
     fn get_plural_rules(&self, locale: &Key) -> Result<PluralRules> {
         let locale =
             locale
                 .name
-                .parse::<icu_locid::Locale>()
+                .parse::<icu_locale::Locale>()
                 .map_err(|err| Error::InvalidLocale {
                     locale: locale.name.clone(),
                     err,
                 })?;
-        PluralRules::try_new(&locale.into(), self.rule_type.into())
-            .map_err(Error::PluralRulesError)
-            .map_err(Box::new)
+        let plural_rules = PluralRules::try_new(locale.into(), self.rule_type.into())
+            .map_err(Error::PluralRulesError)?;
+
+        Ok(plural_rules)
     }
 
-    pub fn check_forms(&self, locale: &Key, key_path: &KeyPath, warnings: &Warnings) -> Result<()> {
-        let plural_rules = self.get_plural_rules(locale)?;
+    pub fn check_forms(&self, loc: &Loc, diag: &Diagnostics) -> Result<()> {
+        let plural_rules = self.get_plural_rules(loc.locale)?;
         let forms = self.forms.keys().copied().collect::<BTreeSet<_>>();
         let used_forms = plural_rules
             .categories()
             .map(PluralForm::from_icu_category)
             .collect::<BTreeSet<_>>();
         for form in forms.difference(&used_forms).copied() {
-            warnings.emit_warning(Warning::UnusedForm {
-                locale: locale.clone(),
-                key_path: key_path.to_owned(),
+            diag.emit_warning(Warning::UnusedForm {
+                loc: loc.into(),
                 form,
                 rule_type: self.rule_type,
             });
@@ -115,13 +126,12 @@ impl Plurals {
         new_key: Key,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<ParsedValue> {
-        let other = self.other.populate(args, foreign_key, locale, key_path)?;
+        let other = self.other.populate(args, foreign_key, loc)?;
         let mut forms = BTreeMap::new();
         for (form, value) in &self.forms {
-            let value = value.populate(args, foreign_key, locale, key_path)?;
+            let value = value.populate(args, foreign_key, loc)?;
             forms.insert(*form, value);
         }
 
@@ -133,12 +143,7 @@ impl Plurals {
         }))
     }
 
-    pub fn find_variable(
-        values: &[ParsedValue],
-        locale: &Key,
-        key_path: &KeyPath,
-        foreign_key: &KeyPath,
-    ) -> Result<Key> {
+    pub fn find_variable(values: &[ParsedValue], loc: &Loc, foreign_key: &KeyPath) -> Result<Key> {
         let mut iter = values.iter().peekable();
         while let Some(next) = iter.peek() {
             match next {
@@ -148,18 +153,16 @@ impl Plurals {
                 ParsedValue::Variable { .. } => break,
                 _ => {
                     return Err(Error::InvalidCountArg {
-                        locale: locale.clone(),
-                        key_path: key_path.to_owned(),
+                        loc: loc.into(),
                         foreign_key: foreign_key.to_owned(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }
         let Some(ParsedValue::Variable { key, .. }) = iter.next() else {
             return Err(Error::InvalidCountArg {
-                locale: locale.clone(),
-                key_path: key_path.to_owned(),
+                loc: loc.into(),
                 foreign_key: foreign_key.to_owned(),
             }
             .into());
@@ -170,11 +173,10 @@ impl Plurals {
                 ParsedValue::Literal(Literal::String(s, _)) if s.trim().is_empty() => continue,
                 _ => {
                     return Err(Error::InvalidCountArg {
-                        locale: locale.clone(),
-                        key_path: key_path.to_owned(),
+                        loc: loc.into(),
                         foreign_key: foreign_key.to_owned(),
                     }
-                    .into())
+                    .into());
                 }
             }
         }
@@ -187,8 +189,7 @@ impl Plurals {
         count_arg: &ParsedValue,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<ParsedValue> {
         fn get_category<I: Into<PluralOperands>>(
             plurals: &Plurals,
@@ -202,39 +203,40 @@ impl Plurals {
 
         let category = match count_arg {
             ParsedValue::Literal(Literal::Float(count)) => {
-                let count = FixedDecimal::try_from_f64(*count, FloatPrecision::Floating)
+                let count = Decimal::try_from_f64(*count, FloatPrecision::RoundTrip)
                     .unwrap_at("populate_with_count_arg_1");
-                get_category(self, locale, &count)
+                get_category(self, loc.locale, &count)
             }
-            ParsedValue::Literal(Literal::Unsigned(count)) => get_category(self, locale, *count),
-            ParsedValue::Literal(Literal::Signed(count)) => get_category(self, locale, *count),
+            ParsedValue::Literal(Literal::Unsigned(count)) => {
+                get_category(self, loc.locale, *count)
+            }
+            ParsedValue::Literal(Literal::Signed(count)) => get_category(self, loc.locale, *count),
             ParsedValue::Bloc(values) => {
-                let new_key = Self::find_variable(values, locale, key_path, foreign_key)?;
-                return self.populate_with_new_key(new_key, args, foreign_key, locale, key_path);
+                let new_key = Self::find_variable(values, loc, foreign_key)?;
+                return self.populate_with_new_key(new_key, args, foreign_key, loc);
             }
             ParsedValue::Variable { key, .. } => {
-                return self.populate_with_new_key(key.clone(), args, foreign_key, locale, key_path)
+                return self.populate_with_new_key(key.clone(), args, foreign_key, loc);
             }
             _ => {
                 return Err(Error::InvalidCountArg {
-                    locale: locale.clone(),
-                    key_path: key_path.to_owned(),
+                    loc: loc.into(),
                     foreign_key: foreign_key.to_owned(),
                 }
-                .into())
+                .into());
             }
         };
 
         let category = category?;
 
         match PluralForm::from_icu_category(category) {
-            PluralForm::Other => self.other.populate(args, foreign_key, locale, key_path),
-            other_cat => self.forms.get(&other_cat).unwrap_or(&self.other).populate(
-                args,
-                foreign_key,
-                locale,
-                key_path,
-            ),
+            PluralForm::Other => self.other.populate(args, foreign_key, loc),
+            other_cat => {
+                self.forms
+                    .get(&other_cat)
+                    .unwrap_or(&self.other)
+                    .populate(args, foreign_key, loc)
+            }
         }
     }
 
@@ -242,14 +244,13 @@ impl Plurals {
         &self,
         args: &BTreeMap<String, ParsedValue>,
         foreign_key: &KeyPath,
-        locale: &Key,
-        key_path: &KeyPath,
+        loc: &Loc,
     ) -> Result<ParsedValue> {
         if let Some(count_arg) = args.get("var_count") {
-            return self.populate_with_count_arg(count_arg, args, foreign_key, locale, key_path);
+            return self.populate_with_count_arg(count_arg, args, foreign_key, loc);
         }
 
-        self.populate_with_new_key(self.count_key.clone(), args, foreign_key, locale, key_path)
+        self.populate_with_new_key(self.count_key.clone(), args, foreign_key, loc)
     }
 
     pub fn index_strings(&mut self, strings: &mut StringIndexer) {

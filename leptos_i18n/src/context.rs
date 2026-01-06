@@ -7,15 +7,15 @@ use leptos::{
     prelude::*,
     tachys::{html::directive::IntoDirective, reactive_graph::OwnedView},
 };
-use leptos_meta::{provide_meta_context, Html};
+use leptos_meta::{Html, provide_meta_context};
 use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
 
 use crate::{
+    Scope,
     fetch_locale::{self, signal_maybe_once_then},
     locale_traits::*,
     scopes::ConstScope,
-    Scope,
 };
 
 pub use leptos_use::UseLocalesOptions;
@@ -132,18 +132,10 @@ fn init_context_inner<L: Locale>(
 ) -> I18nContext<L> {
     let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
-    // FIXME: RenderEffect is a work around, see https://github.com/leptos-rs/leptos/pull/3475
-    // Effect::new(move |_| {
-    //     let l = initial_locale.get();
-    //     locale_signal.set(l);
-    // });
-
-    let re = RenderEffect::new(move |_| {
+    Effect::new(move |_| {
         let l = initial_locale.get();
         locale_signal.set(l);
     });
-
-    on_cleanup(move || drop(re));
 
     Effect::new_isomorphic(move |_| {
         let new_lang = locale_signal.get();
@@ -449,7 +441,6 @@ macro_rules! fill_options {
 }
 
 #[track_caller]
-#[allow(clippy::too_many_arguments)]
 fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
     set_dir_attr_on_html: Option<bool>,
@@ -492,7 +483,6 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
 }
 
 #[doc(hidden)]
-#[allow(clippy::too_many_arguments)]
 #[track_caller]
 pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,

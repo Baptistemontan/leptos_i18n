@@ -2,15 +2,15 @@
 //! see <https://github.com/XAMPPRocky/fluent-templates>
 //!
 //! I then specialized it for the use case of this crate.
-use icu_locid::{
-    subtags::{Language, Variant},
+use icu_locale::{
     LanguageIdentifier,
+    subtags::{Language, Variant},
 };
 
 use crate::Locale;
 
 fn lang_matches(lhs: &Language, rhs: &Language, self_as_range: bool, other_as_range: bool) -> bool {
-    (self_as_range && lhs.is_empty()) || (other_as_range && rhs.is_empty()) || lhs == rhs
+    (self_as_range && lhs.is_unknown()) || (other_as_range && rhs.is_unknown()) || lhs == rhs
 }
 
 fn subtag_matches<P: PartialEq>(
@@ -31,15 +31,12 @@ fn subtags_match(
     (as_range1 && subtag1.is_empty()) || (as_range2 && subtag2.is_empty()) || subtag1 == subtag2
 }
 
-fn lang_id_matches<L: AsRef<LanguageIdentifier>, R: AsRef<LanguageIdentifier>>(
-    lhs: L,
-    rhs: R,
+fn lang_id_matches(
+    lhs: &LanguageIdentifier,
+    rhs: &LanguageIdentifier,
     self_as_range: bool,
     other_as_range: bool,
 ) -> bool {
-    let rhs = rhs.as_ref();
-    let lhs = lhs.as_ref();
-
     lang_matches(&lhs.language, &rhs.language, self_as_range, other_as_range)
         && subtag_matches(&lhs.script, &rhs.script, self_as_range, other_as_range)
         && subtag_matches(&lhs.region, &rhs.region, self_as_range, other_as_range)
@@ -56,7 +53,7 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
             ($self_as_range:expr) => {{
                 let mut match_found = false;
                 available_locales.retain(|locale| {
-                    if lang_id_matches(&locale, &req, $self_as_range, false) {
+                    if lang_id_matches(locale.as_langid(), &req, $self_as_range, false) {
                         match_found = true;
                         supported_locales.push(*locale);
                         return false;
@@ -74,36 +71,12 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
 
         // Per Unicode TR35, 4.4 Locale Matching, we don't add likely subtags to
         // requested locales, so we'll skip it from the rest of the steps.
-        if req.language.is_empty() {
+        if req.language.is_unknown() {
             continue;
         }
     }
 
-    supported_locales.sort_by(|x, y| {
-        let x_specificity = into_specificity(x.as_ref());
-        let y_specificity = into_specificity(y.as_ref());
-        x_specificity.cmp(&y_specificity).reverse()
-    });
-
     supported_locales
-}
-
-fn into_specificity(lang: &LanguageIdentifier) -> usize {
-    // let parts = lang.into_parts();
-    let mut specificity = 0;
-    // Script
-    if lang.script.is_some() {
-        specificity += 1;
-    }
-    // Region
-    if lang.region.is_some() {
-        specificity += 1;
-    }
-
-    // variant
-    specificity += lang.variants.len();
-
-    specificity
 }
 
 pub fn find_match<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
@@ -124,7 +97,7 @@ where
 {
     input
         .into_iter()
-        .filter_map(|t| LanguageIdentifier::try_from_bytes(t.as_ref()).ok())
+        .filter_map(|t| LanguageIdentifier::try_from_locale_bytes(t.as_ref()).ok())
         .collect()
 }
 
@@ -146,7 +119,7 @@ mod test {
     use super::{filter_matches, find_match};
     use i18n::Locale;
 
-    use icu_locid::langid;
+    use icu_locale::langid;
 
     #[test]
     fn test_hirarchy() {
@@ -169,5 +142,14 @@ mod test {
             &[Locale::de_DE, Locale::de, Locale::en_US, Locale::de_CH],
         );
         assert_eq!(res, Locale::de_DE);
+
+        let res = find_match(&[langid!("de-DE")], &[Locale::de, Locale::de_DE]);
+        assert_eq!(res, Locale::de_DE);
+
+        let res = find_match(
+            &[langid!("en"), langid!("de-DE")],
+            &[Locale::en, Locale::de_DE],
+        );
+        assert_eq!(res, Locale::en);
     }
 }

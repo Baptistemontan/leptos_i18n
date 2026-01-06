@@ -53,7 +53,7 @@ impl_build_lit_nums!(u64, i64, f64);
 
 #[doc(hidden)]
 #[diagnostic::on_unimplemented(
-    message = "Interpolated values can't be used inside t_string/t_display without the \"interpolate_display\" feature enabled."
+    message = "Interpolated values can't be used inside t_string/t_display without the \"interpolate_display\" option enabled."
 )]
 pub trait InterpolationStringBuilder
 where

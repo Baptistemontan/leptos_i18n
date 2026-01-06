@@ -1,6 +1,6 @@
-use crate::utils::formatter::Formatter;
+use leptos_i18n_parser::formatters::VarBounds;
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse_macro_input;
 
 use parsed_input::ParsedInput;
@@ -75,15 +75,15 @@ impl InputType {
 impl OutputType {
     fn to_output(
         self,
-        formatter: Formatter,
+        formatter: VarBounds,
         value_ident: &syn::Ident,
         locale_ident: &syn::Ident,
     ) -> TokenStream {
         match self {
             OutputType::View => formatter.var_to_view(value_ident, locale_ident),
-            OutputType::Display => formatter.var_to_display(value_ident, locale_ident),
+            OutputType::Display => formatter.var_to_impl_display(value_ident, locale_ident),
             OutputType::String => {
-                let ts = formatter.var_to_display(value_ident, locale_ident);
+                let ts = formatter.var_to_impl_display(value_ident, locale_ident);
                 quote! { std::string::ToString::to_string(&#ts) }
             }
         }

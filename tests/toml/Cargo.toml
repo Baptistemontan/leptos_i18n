@@ -1,0 +1,19 @@
+[package]
+name = "test_toml"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+leptos = { version = "0.8.15", features = ["ssr"] }
+tests_common = { path = "../common" }
+leptos_i18n = { path = "../../leptos_i18n" }
+
+[build-dependencies]
+leptos_i18n_build = { path = "../../leptos_i18n_build", features = [
+  "pretty_print",
+] }

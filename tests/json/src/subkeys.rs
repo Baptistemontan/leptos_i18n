@@ -1,4 +1,6 @@
 use crate::i18n::*;
+use leptos_i18n::display::{Attributes, DynDisplayFn};
+use std::fmt::{self, Formatter};
 use tests_common::*;
 
 #[test]
@@ -31,10 +33,8 @@ fn subkey_2() {
 
 #[test]
 fn subkey_2_string() {
-    let b = |f: &mut core::fmt::Formatter,
-             children: &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result|
-     -> core::fmt::Result {
-        write!(f, "<b>before ")?;
+    let b = |f: &mut Formatter, children: DynDisplayFn, attrs: Attributes| -> fmt::Result {
+        write!(f, "<b{attrs}>before ")?;
         children(f)?;
         write!(f, " after</b>")
     };
@@ -56,23 +56,4 @@ fn subkey_2_string() {
     assert_eq!(en, "<span id=\"my_id\">subkey_2</span>");
     let fr = td_string!(Locale::fr, subkeys.subkey_2, <b>);
     assert_eq!(fr, "<span id=\"my_id\">subkey_2</span>");
-}
-
-#[test]
-fn subkey_3() {
-    let count = || 0;
-    let en = td!(Locale::en, subkeys.subkey_3, count);
-    assert_eq_rendered!(en, "zero");
-    let fr = td!(Locale::fr, subkeys.subkey_3, count);
-    assert_eq_rendered!(fr, "0");
-    let count = || 1;
-    let en = td!(Locale::en, subkeys.subkey_3, count);
-    assert_eq_rendered!(en, "one");
-    let fr = td!(Locale::fr, subkeys.subkey_3, count);
-    assert_eq_rendered!(fr, "1");
-    let count = || 3;
-    let en = td!(Locale::en, subkeys.subkey_3, count);
-    assert_eq_rendered!(en, "3");
-    let fr = td!(Locale::fr, subkeys.subkey_3, count);
-    assert_eq_rendered!(fr, "3");
 }

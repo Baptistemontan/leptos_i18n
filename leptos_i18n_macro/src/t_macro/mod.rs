@@ -1,10 +1,10 @@
 use interpolate::InterpolatedValue;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse_macro_input;
 
 use self::parsed_input::ParsedInput;
-use crate::utils::Keys;
+use leptos_i18n_codegen::utils::Keys;
 
 pub mod interpolate;
 pub mod parsed_input;

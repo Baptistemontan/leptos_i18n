@@ -1,30 +1,36 @@
 use serde::de::MapAccess;
 
-use crate::utils::formatter::{Formatter, SKIP_ICU_CFG};
-use crate::utils::{Key, KeyPath, UnwrapAt};
-use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::fs::File;
-use std::io::{BufReader, Read};
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use crate::{
+    formatters::{Formatters, VarBounds},
+    parse_locales::options::{Config, FileFormat, ParseOptions},
+    utils::{Key, KeyPath, Loc, Location, UnwrapAt},
+};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashSet, btree_map::Entry},
+    fs::File,
+    io::BufReader,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
-use super::cfg_file::ConfigFile;
-use super::error::{Error, Result};
-use super::parsed_value::{ParsedValue, ParsedValueSeed};
-use super::plurals::{PluralForm, PluralRuleType, Plurals};
-use super::ranges::RangeType;
-use super::warning::{Warning, Warnings};
-use super::{ForeignKeysPaths, StringIndexer};
+use super::{
+    ForeignKeysPaths, StringIndexer,
+    error::{Diagnostics, Error, Result, Warning},
+    parsed_value::{ParsedValue, ParsedValueSeed},
+    plurals::{PluralForm, PluralRuleType, Plurals},
+    ranges::RangeType,
+};
+// use super::warning::{Warning, Warnings};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum SerdeError {
     Json(serde_json::Error),
     Yaml(serde_yaml::Error),
+    Toml(toml::de::Error),
     Json5(json5::Error),
+    Custom(String),
     Io(std::io::Error),
-    None,
-    Multiple,
 }
 
 impl std::fmt::Display for SerdeError {
@@ -32,56 +38,27 @@ impl std::fmt::Display for SerdeError {
         match self {
             SerdeError::Json(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Yaml(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Toml(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Json5(error) => std::fmt::Display::fmt(error, f),
             SerdeError::Io(error) => std::fmt::Display::fmt(error, f),
-            SerdeError::None => write!(f, "No file formats has been provided for leptos_i18n. Supported formats are: json, json5 and yaml."),
-            SerdeError::Multiple => write!(f, "Multiple file formats have been provided for leptos_i18n, choose only one. Supported formats are: json, json5 and yaml."),
+            SerdeError::Custom(err) => std::fmt::Display::fmt(err, f),
         }
     }
 }
 
-const fn get_files_exts() -> &'static [&'static str] {
-    if cfg!(feature = "json_files") {
-        &["json"]
-    } else if cfg!(feature = "yaml_files") {
-        &["yaml", "yml"]
-    } else if cfg!(feature = "json5_files") {
-        &["json5"]
-    } else {
-        &[]
+impl SerdeError {
+    pub fn custom<T: ToString>(err: T) -> Self {
+        SerdeError::Custom(err.to_string())
     }
 }
 
-const FILE_EXTS: &[&str] = get_files_exts();
-
-fn de_inner_json<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
-    serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json)
-}
-
-fn de_inner_json5<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut buff = String::new();
-    Read::read_to_string(&mut locale_file, &mut buff).map_err(SerdeError::Io)?;
-    let mut deserializer = json5::Deserializer::from_str(&buff).map_err(SerdeError::Json5)?;
-    serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json5)
-}
-
-fn de_inner_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
-    serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Yaml)
-}
-
-fn de_inner<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    if cfg!(feature = "json_files") {
-        de_inner_json(locale_file, seed)
-    } else if cfg!(feature = "yaml_files") {
-        de_inner_yaml(locale_file, seed)
-    } else if cfg!(feature = "json5_files") {
-        de_inner_json5(locale_file, seed)
-    } else {
-        unreachable!()
+impl From<std::io::Error> for SerdeError {
+    fn from(value: std::io::Error) -> Self {
+        SerdeError::Io(value)
     }
 }
+
+impl std::error::Error for SerdeError {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
@@ -112,13 +89,14 @@ pub enum LocalesOrNamespaces {
 
 #[derive(Debug, Default)]
 pub struct VarInfo {
-    pub formatters: BTreeSet<Formatter>,
+    pub bounds: BTreeSet<VarBounds>,
     pub range_count: Option<RangeOrPlural>,
 }
 
 #[derive(Debug, Default)]
 pub struct InterpolationKeys {
     components: BTreeSet<Key>,
+    components_self_closed: BTreeSet<Key>,
     variables: BTreeMap<Key, VarInfo>,
 }
 
@@ -214,32 +192,34 @@ pub enum BuildersKeys {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LocaleSeed<'a> {
     pub name: Key,
     pub top_locale_name: Key,
     pub key_path: KeyPath,
     pub foreign_keys_paths: &'a ForeignKeysPaths,
+    pub diag: &'a Diagnostics,
+    pub formatters: &'a Formatters,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum DefaultTo<'a> {
-    Explicit(&'a Key),
-    Implicit(&'a Key),
+#[derive(Debug, Clone)]
+pub enum DefaultTo {
+    Explicit(Key),
+    Implicit(Key),
 }
 
-impl DefaultTo<'_> {
-    pub fn get_key(self) -> Key {
+impl DefaultTo {
+    pub fn get_key(&self) -> &Key {
         match self {
-            DefaultTo::Explicit(key) | DefaultTo::Implicit(key) => key.clone(),
+            DefaultTo::Explicit(key) | DefaultTo::Implicit(key) => key,
         }
     }
 }
 
-fn find_file(path: &mut PathBuf) -> Result<File> {
+fn find_file(path: &mut PathBuf, file_format: &FileFormat) -> Result<File> {
     let mut errs = vec![];
 
-    for ext in FILE_EXTS {
+    for ext in file_format.get_files_exts() {
         path.set_extension(ext);
         #[allow(clippy::needless_borrows_for_generic_args)]
         // see https://github.com/rust-lang/rust-clippy/issues/12856
@@ -251,18 +231,7 @@ fn find_file(path: &mut PathBuf) -> Result<File> {
         };
     }
 
-    #[allow(clippy::const_is_empty)]
-    if !FILE_EXTS.is_empty() {
-        Err(Error::LocaleFileNotFound(errs).into())
-    } else if cfg!(any(
-        feature = "json_files",
-        feature = "yaml_files",
-        feature = "json5_files"
-    )) {
-        Err(Error::MultipleFilesFormats.into())
-    } else {
-        Err(Error::NoFileFormats.into())
-    }
+    Err(Error::LocaleFileNotFound(errs).into())
 }
 
 impl InterpolOrLit {
@@ -285,9 +254,13 @@ impl InterpolOrLit {
 }
 
 impl InterpolationKeys {
-    pub fn push_var(&mut self, key: Key, formatter: Formatter) {
+    pub fn push_var(&mut self, key: Key, bounds: VarBounds) {
         let var_infos = self.variables.entry(key).or_default();
-        var_infos.formatters.insert(formatter);
+        var_infos.bounds.insert(bounds);
+    }
+
+    pub fn push_comp_self_closed(&mut self, key: Key) {
+        self.components_self_closed.insert(key);
     }
 
     pub fn push_comp(&mut self, key: Key) {
@@ -307,13 +280,13 @@ impl InterpolationKeys {
             (Some(RangeOrPlural::Plural), RangeOrPlural::Range(_))
             | (Some(RangeOrPlural::Range(_)), RangeOrPlural::Plural) => {
                 Err(Error::RangeAndPluralsMix {
-                    key_path: std::mem::take(key_path),
+                    key_path: key_path.clone(),
                 }
                 .into())
             }
             (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) => {
                 Err(Error::RangeTypeMissmatch {
-                    key_path: std::mem::take(key_path),
+                    key_path: key_path.clone(),
                     type1: old,
                     type2: new,
                 }
@@ -334,6 +307,10 @@ impl InterpolationKeys {
 
     pub fn iter_comps(&self) -> impl Iterator<Item = Key> + '_ {
         self.components.iter().cloned()
+    }
+
+    pub fn iter_comps_self_closed(&self) -> impl Iterator<Item = Key> + '_ {
+        self.components_self_closed.iter().cloned()
     }
 }
 
@@ -356,8 +333,9 @@ impl Namespace {
         key: Key,
         locale_keys: &[Key],
         foreign_keys_paths: &ForeignKeysPaths,
-        warnings: &Warnings,
+        diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
+        options: &ParseOptions,
     ) -> Result<Self> {
         let mut locales = Vec::with_capacity(locale_keys.len());
         for locale in locale_keys.iter().cloned() {
@@ -365,7 +343,7 @@ impl Namespace {
             locales_dir_path.push(&*locale.name);
             locales_dir_path.push(file_path);
 
-            let locale_file = find_file(locales_dir_path)?;
+            let locale_file = find_file(locales_dir_path, &options.file_format)?;
 
             let locale = Locale::new(
                 locale_file,
@@ -373,8 +351,9 @@ impl Namespace {
                 locale,
                 Some(key.clone()),
                 foreign_keys_paths,
-                warnings,
+                diag,
                 tracked_files,
+                options,
             )?;
 
             locales.push(locale);
@@ -388,39 +367,40 @@ impl Namespace {
 impl LocalesOrNamespaces {
     pub fn new(
         manifest_dir_path: &mut PathBuf,
-        cfg_file: &ConfigFile,
         foreign_keys_paths: &ForeignKeysPaths,
-        warnings: &Warnings,
+        diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
+        cfg: &Config,
     ) -> Result<Self> {
-        let locale_keys = &cfg_file.locales;
-        manifest_dir_path.push(&*cfg_file.locales_dir);
-        if let Some(namespace_keys) = &cfg_file.name_spaces {
-            let mut namespaces = Vec::with_capacity(namespace_keys.len());
-            for namespace in namespace_keys {
+        manifest_dir_path.push(&cfg.locales_path);
+        if !cfg.namespaces.is_empty() {
+            let mut namespaces = Vec::with_capacity(cfg.namespaces.len());
+            for namespace in &cfg.namespaces {
                 namespaces.push(Namespace::new(
                     manifest_dir_path,
                     namespace.clone(),
-                    locale_keys,
+                    &cfg.locales,
                     foreign_keys_paths,
-                    warnings,
+                    diag,
                     tracked_files,
+                    &cfg.options,
                 )?);
             }
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
         } else {
-            let mut locales = Vec::with_capacity(locale_keys.len());
-            for locale in locale_keys.iter().cloned() {
+            let mut locales = Vec::with_capacity(cfg.locales.len());
+            for locale in cfg.locales.iter().cloned() {
                 manifest_dir_path.push(&*locale.name);
-                let locale_file = find_file(manifest_dir_path)?;
+                let locale_file = find_file(manifest_dir_path, &cfg.options.file_format)?;
                 let locale = Locale::new(
                     locale_file,
                     manifest_dir_path,
                     locale,
                     None,
                     foreign_keys_paths,
-                    warnings,
+                    diag,
                     tracked_files,
+                    &cfg.options,
                 )?;
                 locales.push(locale);
                 manifest_dir_path.pop();
@@ -432,13 +412,13 @@ impl LocalesOrNamespaces {
     pub fn merge_plurals_inner(
         locales: &mut [Locale],
         namespace: Option<Key>,
-        warnings: &Warnings,
+        diag: &Diagnostics,
     ) -> Result<()> {
         let mut key_path = KeyPath::new(namespace);
 
         for locale in locales {
             let top_locale = locale.name.clone();
-            locale.merge_plurals(top_locale.clone(), &mut key_path, warnings)?;
+            locale.merge_plurals(&top_locale, &mut key_path, diag)?;
         }
 
         Ok(())
@@ -446,30 +426,30 @@ impl LocalesOrNamespaces {
 
     // this step would be more optimized to be done during `check_locales` but plurals merging need to be done before foreign key resolution,
     // which also need to be done before `check_locales`.
-    pub fn merge_plurals(&mut self, warnings: &Warnings) -> Result<()> {
+    pub fn merge_plurals(&mut self, diag: &Diagnostics) -> Result<()> {
         match self {
             LocalesOrNamespaces::NameSpaces(namespaces) => {
                 for namespace in namespaces {
                     Self::merge_plurals_inner(
                         &mut namespace.locales,
                         Some(namespace.key.clone()),
-                        warnings,
+                        diag,
                     )?;
                 }
                 Ok(())
             }
             LocalesOrNamespaces::Locales(locales) => {
-                Self::merge_plurals_inner(&mut *locales, None, warnings)
+                Self::merge_plurals_inner(&mut *locales, None, diag)
             }
         }
     }
 
-    pub fn get_value_at(&self, top_locale: &Key, path: &KeyPath) -> Option<&'_ ParsedValue> {
-        let locale = match (&path.namespace, self) {
+    pub fn get_value_at(&self, loc: &Loc) -> Option<&'_ ParsedValue> {
+        let locale = match (&loc.key_path.namespace, self) {
             (None, LocalesOrNamespaces::NameSpaces(_))
             | (Some(_), LocalesOrNamespaces::Locales(_)) => None,
             (None, LocalesOrNamespaces::Locales(locales)) => {
-                locales.iter().find(|locale| &locale.name == top_locale)
+                locales.iter().find(|locale| &locale.name == loc.locale)
             }
             (Some(target_namespace), LocalesOrNamespaces::NameSpaces(namespaces)) => {
                 let namespace = namespaces.iter().find(|ns| &ns.key == target_namespace)?;
@@ -477,11 +457,11 @@ impl LocalesOrNamespaces {
                 namespace
                     .locales
                     .iter()
-                    .find(|locale| &locale.name == top_locale)
+                    .find(|locale| &locale.name == loc.locale)
             }
         }?;
 
-        locale.get_value_at(&path.path)
+        locale.get_value_at(&loc.key_path.path)
     }
 }
 
@@ -492,29 +472,39 @@ impl Locale {
         locale: Key,
         namespace: Option<Key>,
         foreign_keys_paths: &ForeignKeysPaths,
-        warnings: &Warnings,
+        diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
+        options: &ParseOptions,
     ) -> Result<Self> {
-        track_file(tracked_files, &locale, namespace.as_ref(), path, warnings);
+        track_file(tracked_files, &locale, namespace.as_ref(), path, diag);
 
         let seed = LocaleSeed {
             name: locale.clone(),
             top_locale_name: locale,
             key_path: KeyPath::new(namespace),
             foreign_keys_paths,
+            diag,
+            formatters: &options.formatters,
         };
 
-        Self::de(locale_file, path, seed)
+        Self::de(locale_file, path, seed, &options.file_format)
     }
 
-    fn de(locale_file: File, path: &mut PathBuf, seed: LocaleSeed) -> Result<Self> {
+    fn de(
+        locale_file: File,
+        path: &mut PathBuf,
+        seed: LocaleSeed,
+        file_format: &FileFormat,
+    ) -> Result<Self> {
         let reader = BufReader::new(locale_file);
-        de_inner(reader, seed)
-            .map_err(|err| Error::LocaleFileDeser {
-                path: std::mem::take(path),
-                err,
-            })
-            .map_err(Box::new)
+        let locale =
+            file_format
+                .deserialize(reader, path, seed)
+                .map_err(|err| Error::LocaleFileDeser {
+                    path: std::mem::take(path),
+                    err,
+                })?;
+        Ok(locale)
     }
 
     pub fn get_value_at(&self, path: &[Key]) -> Option<&'_ ParsedValue> {
@@ -527,8 +517,10 @@ impl Locale {
                     return None;
                 };
                 match subkeys {
-                    None => unreachable!("called get_value_at on empty subkeys. If you got this error please open an issue on github."),
-                    Some(subkeys) => subkeys.get_value_at(path)
+                    None => unreachable!(
+                        "called get_value_at on empty subkeys. If you got this error please open an issue on github."
+                    ),
+                    Some(subkeys) => subkeys.get_value_at(path),
                 }
             }
         }
@@ -552,9 +544,9 @@ impl Locale {
 
     pub fn merge_plurals(
         &mut self,
-        locale: Key,
+        locale: &Key,
         key_path: &mut KeyPath,
-        warnings: &Warnings,
+        diag: &Diagnostics,
     ) -> Result<()> {
         let keys = std::mem::take(&mut self.keys);
         #[allow(clippy::type_complexity)]
@@ -564,9 +556,8 @@ impl Locale {
         > = BTreeMap::new();
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
-                key_path.push_key(key.clone());
-                subkeys.merge_plurals(locale.clone(), key_path, warnings)?;
-                key_path.pop_key();
+                let mut pushed_key = key_path.push_key(key.clone());
+                subkeys.merge_plurals(locale, &mut pushed_key, diag)?;
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
@@ -590,11 +581,10 @@ impl Locale {
                 continue;
             };
             let key = Key::new(&base_key).unwrap_at("merge_plurals_1");
-            key_path.push_key(key);
-            if !cfg!(feature = "plurals") && !SKIP_ICU_CFG.get() {
+            let pushed_key = key_path.push_key(key);
+            if !cfg!(feature = "plurals") {
                 return Err(Error::DisabledPlurals {
-                    locale: locale.clone(),
-                    key_path: std::mem::take(key_path),
+                    loc: Location::new(locale.clone(), pushed_key.clone()),
                 }
                 .into());
             }
@@ -606,8 +596,7 @@ impl Locale {
                         Ok((form, value))
                     } else {
                         Err(Error::ConflictingPluralRuleType {
-                            locale: locale.clone(),
-                            key_path: std::mem::take(key_path),
+                            loc: Location::new(locale.clone(), pushed_key.clone()),
                         }
                         .into())
                     }
@@ -619,14 +608,17 @@ impl Locale {
                 count_key: Key::count(),
                 other: Box::new(other),
             };
-            plural.check_forms(&locale, key_path, warnings)?;
+            let loc = Loc {
+                locale,
+                key_path: &pushed_key,
+            };
+            plural.check_forms(&loc, diag)?;
             let value = ParsedValue::Plurals(plural);
-            let key = key_path.pop_key().unwrap_at("merge_plurals_3");
+            let key = pushed_key.pop().unwrap_at("merge_plurals_3");
             if self.keys.insert(key.clone(), value).is_some() {
-                key_path.push_key(key);
+                let pushed_key = key_path.push_key(key);
                 return Err(Error::PluralsAtNormalKey {
-                    locale,
-                    key_path: std::mem::take(key_path),
+                    loc: Location::new(locale.clone(), pushed_key.clone()),
                 }
                 .into());
             }
@@ -635,25 +627,24 @@ impl Locale {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn merge(
         &mut self,
         keys: &mut BuildersKeysInner,
         top_locale: Key,
-        default_to: DefaultTo,
+        default_to: &DefaultTo,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
-        warnings: &Warnings,
+        diag: &Diagnostics,
+        options: &ParseOptions,
     ) -> Result<()> {
         for (key, keys) in &mut keys.0 {
-            key_path.push_key(key.clone());
+            let mut pushed_key = key_path.push_key(key.clone());
             let entry = self.keys.entry(key.clone());
             let value = match entry {
                 Entry::Vacant(entry) => {
                     if matches!(default_to, DefaultTo::Implicit(_)) {
-                        warnings.emit_warning(Warning::MissingKey {
-                            locale: top_locale.clone(),
-                            key_path: key_path.clone(),
+                        diag.emit_warning(Warning::MissingKey {
+                            loc: Location::new(top_locale.clone(), pushed_key.clone()),
                         });
                     }
                     entry.insert(ParsedValue::Default)
@@ -664,23 +655,21 @@ impl Locale {
                 keys,
                 top_locale.clone(),
                 default_to,
-                key_path,
+                &mut pushed_key,
                 strings,
-                warnings,
+                diag,
+                options,
             )?;
-            key_path.pop_key();
         }
 
-        if !cfg!(feature = "suppress_key_warnings") {
+        if !options.suppress_key_warnings {
             // reverse key comparaison
             for key in self.keys.keys() {
                 if !keys.0.contains_key(key) {
-                    key_path.push_key(key.clone());
-                    warnings.emit_warning(Warning::SurplusKey {
-                        locale: top_locale.clone(),
-                        key_path: key_path.clone(),
+                    let pushed_key = key_path.push_key(key.clone());
+                    diag.emit_warning(Warning::SurplusKey {
+                        loc: Location::new(top_locale.clone(), pushed_key.clone()),
                     });
-                    key_path.pop_key();
                 }
             }
         }
@@ -696,9 +685,10 @@ impl Locale {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
             value.reduce();
-            key_path.push_key(key.clone());
-            let locale_value = value.make_locale_value(&self.top_locale_name, key_path, strings)?;
-            let key = key_path.pop_key().unwrap_at("make_builder_keys_1");
+            let mut pushed_key = key_path.push_key(key.clone());
+            let locale_value =
+                value.make_locale_value(&self.top_locale_name, &mut pushed_key, strings)?;
+            let key = pushed_key.pop().unwrap_at("make_builder_keys_1");
             keys.0.insert(key, locale_value);
         }
         Ok(keys)
@@ -751,15 +741,16 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
         let mut keys = BTreeMap::new();
 
         while let Some(locale_key) = map.next_key::<Key>()? {
-            self.key_path.push_key(locale_key.clone());
+            let pushed_key = self.key_path.push_key(locale_key.clone());
             let value = map.next_value_seed(ParsedValueSeed {
                 top_locale_name: &self.top_locale_name,
                 key: &locale_key,
-                key_path: &self.key_path,
+                key_path: &pushed_key,
                 in_range: false,
                 foreign_keys_paths: self.foreign_keys_paths,
+                diag: self.diag,
+                formatters: self.formatters,
             })?;
-            self.key_path.pop_key();
             keys.insert(locale_key, value);
         }
 
@@ -779,12 +770,12 @@ fn track_file(
     locale: &Key,
     namespace: Option<&Key>,
     path: &Path,
-    warnings: &Warnings,
+    diag: &Diagnostics,
 ) {
     if let Some(path) = path.as_os_str().to_str().map(ToOwned::to_owned) {
         tracked_files.push(path);
     } else {
-        warnings.emit_warning(Warning::NonUnicodePath {
+        diag.emit_warning(Warning::NonUnicodePath {
             locale: locale.clone(),
             namespace: namespace.cloned(),
             path: path.to_owned(),

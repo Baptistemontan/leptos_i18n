@@ -1,7 +1,7 @@
 [package]
-name = "yaml"
+name = "test_yaml"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -9,15 +9,11 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos = { version = "0.7.0", features = ["ssr"] }
+leptos = { version = "0.8.15", features = ["ssr"] }
 tests_common = { path = "../common" }
-leptos_i18n = { path = "../../leptos_i18n", default-features = false, features = [
-  "yaml_files",
-  "icu_compiled_data",
-  "track_locale_files",
+leptos_i18n = { path = "../../leptos_i18n" }
+
+[build-dependencies]
+leptos_i18n_build = { path = "../../leptos_i18n_build", features = [
+  "pretty_print",
 ] }
-
-
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]

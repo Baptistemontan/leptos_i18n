@@ -16,7 +16,7 @@ Key names must be [valid Rust identifiers](https://doc.rust-lang.org/reference/i
 
 ## Same keys across files
 
-The keys must be the same across all files, else the `load_locales!` macro will emit warnings. The difference in keys is based on the default locale.
+The keys must be the same across all files, else the codegen will emit warnings. The difference in keys is based on the default locale.
 
 ### Missing key
 
@@ -42,7 +42,6 @@ You can specify multiple kinds of values:
 
 - Literals (String, Numbers, Boolean)
 - Interpolated String
-- Ranges
 - Plurals
 
 The next chapters of this section will cover them, apart from literals, those are self-explanatory.

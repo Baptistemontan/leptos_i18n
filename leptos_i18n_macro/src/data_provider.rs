@@ -1,15 +1,7 @@
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    if cfg!(feature = "icu_compiled_data") {
-        let ts = quote! {
-            std::compile_error!("Implementing this trait is useless with the \"icu_compiled_data\" feature enabled.");
-        };
-
-        return proc_macro::TokenStream::from(ts);
-    }
-
     let input = parse_macro_input!(input as DeriveInput);
 
     let name = input.ident;
@@ -19,10 +11,10 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
         quote! {
             fn try_new_num_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::decimal::options::FixedDecimalFormatterOptions
-            ) -> Result<leptos_i18n::reexports::icu::decimal::FixedDecimalFormatter, leptos_i18n::reexports::icu::decimal::DecimalError> {
-                leptos_i18n::reexports::icu::decimal::FixedDecimalFormatter::try_new_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                options: leptos_i18n::reexports::icu::decimal::options::DecimalFormatterOptions
+            ) -> Result<leptos_i18n::reexports::icu::decimal::DecimalFormatter, leptos_i18n::reexports::icu::provider::DataError> {
+                leptos_i18n::reexports::icu::decimal::DecimalFormatter::try_new_unstable(self, locale.into(), options)
             }
         }
     } else {
@@ -33,26 +25,42 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
         quote! {
             fn try_new_date_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::datetime::options::length::Date
-            ) -> Result<leptos_i18n::reexports::icu::datetime::DateFormatter, leptos_i18n::reexports::icu::datetime::DateTimeError> {
-                leptos_i18n::reexports::icu::datetime::DateFormatter::try_new_with_length_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                length: leptos_i18n::reexports::icu::datetime::options::Length,
+                alignment: leptos_i18n::reexports::icu::datetime::options::Alignment,
+                year_style: leptos_i18n::reexports::icu::datetime::options::YearStyle,
+            ) -> Result<leptos_i18n::reexports::icu::datetime::DateTimeFormatter<leptos_i18n::reexports::icu::datetime::fieldsets::YMD>, leptos_i18n::reexports::icu::datetime::DateTimeFormatterLoadError> {
+
+                let fset = leptos_i18n::reexports::icu::datetime::fieldsets::YMD::for_length(length)
+                    .with_alignment(alignment).with_year_style(year_style);
+                leptos_i18n::reexports::icu::datetime::DateTimeFormatter::try_new_unstable(self, locale.into(), fset)
             }
 
             fn try_new_time_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::datetime::options::length::Time
-            ) -> Result<leptos_i18n::reexports::icu::datetime::TimeFormatter, leptos_i18n::reexports::icu::datetime::DateTimeError> {
-                leptos_i18n::reexports::icu::datetime::TimeFormatter::try_new_with_length_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                length: leptos_i18n::reexports::icu::datetime::options::Length,
+                alignment: leptos_i18n::reexports::icu::datetime::options::Alignment,
+                time_precision: leptos_i18n::reexports::icu::datetime::options::TimePrecision,
+            ) -> Result<leptos_i18n::reexports::icu::datetime::NoCalendarFormatter<leptos_i18n::reexports::icu::datetime::fieldsets::T>, leptos_i18n::reexports::icu::datetime::DateTimeFormatterLoadError> {
+                let fset = leptos_i18n::reexports::icu::datetime::fieldsets::T::for_length(length)
+                    .with_alignment(alignment)
+                    .with_time_precision(time_precision);
+                leptos_i18n::reexports::icu::datetime::NoCalendarFormatter::try_new_unstable(self, locale.into(), fset)
             }
 
             fn try_new_datetime_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::datetime::options::DateTimeFormatterOptions
-            ) -> Result<leptos_i18n::reexports::icu::datetime::DateTimeFormatter, leptos_i18n::reexports::icu::datetime::DateTimeError> {
-                leptos_i18n::reexports::icu::datetime::DateTimeFormatter::try_new_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                length: leptos_i18n::reexports::icu::datetime::options::Length,
+                alignment: leptos_i18n::reexports::icu::datetime::options::Alignment,
+                time_precision: leptos_i18n::reexports::icu::datetime::options::TimePrecision,
+                year_style: leptos_i18n::reexports::icu::datetime::options::YearStyle,
+            ) -> Result<leptos_i18n::reexports::icu::datetime::DateTimeFormatter<leptos_i18n::reexports::icu::datetime::fieldsets::YMDT>, leptos_i18n::reexports::icu::datetime::DateTimeFormatterLoadError> {
+                let fset = leptos_i18n::reexports::icu::datetime::fieldsets::YMDT::for_length(length)
+                    .with_alignment(alignment)
+                    .with_time_precision(time_precision).with_year_style(year_style);
+                leptos_i18n::reexports::icu::datetime::DateTimeFormatter::try_new_unstable(self, locale.into(), fset)
             }
         }
     } else {
@@ -63,26 +71,29 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
         quote! {
             fn try_new_and_list_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::list::ListLength
-            ) -> Result<leptos_i18n::reexports::icu::list::ListFormatter, leptos_i18n::reexports::icu::list::ListError> {
-                leptos_i18n::reexports::icu::list::ListFormatter::try_new_and_with_length_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                length: leptos_i18n::reexports::icu::list::options::ListLength
+            ) -> Result<leptos_i18n::reexports::icu::list::ListFormatter, leptos_i18n::reexports::icu::provider::DataError> {
+                let options = leptos_i18n::reexports::icu::list::options::ListFormatterOptions::default().with_length(length);
+                leptos_i18n::reexports::icu::list::ListFormatter::try_new_and_unstable(self, locale.into(), options)
             }
 
             fn try_new_or_list_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::list::ListLength
-            ) -> Result<leptos_i18n::reexports::icu::list::ListFormatter, leptos_i18n::reexports::icu::list::ListError> {
-                leptos_i18n::reexports::icu::list::ListFormatter::try_new_or_with_length_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                length: leptos_i18n::reexports::icu::list::options::ListLength
+            ) -> Result<leptos_i18n::reexports::icu::list::ListFormatter, leptos_i18n::reexports::icu::provider::DataError> {
+                let options = leptos_i18n::reexports::icu::list::options::ListFormatterOptions::default().with_length(length);
+                leptos_i18n::reexports::icu::list::ListFormatter::try_new_or_unstable(self, locale.into(), options)
             }
 
             fn try_new_unit_list_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::list::ListLength
-            ) -> Result<leptos_i18n::reexports::icu::list::ListFormatter, leptos_i18n::reexports::icu::list::ListError> {
-                leptos_i18n::reexports::icu::list::ListFormatter::try_new_unit_with_length_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                length: leptos_i18n::reexports::icu::list::options::ListLength
+            ) -> Result<leptos_i18n::reexports::icu::list::ListFormatter, leptos_i18n::reexports::icu::provider::DataError> {
+                let options = leptos_i18n::reexports::icu::list::options::ListFormatterOptions::default().with_length(length);
+                leptos_i18n::reexports::icu::list::ListFormatter::try_new_unit_unstable(self, locale.into(), options)
             }
         }
     } else {
@@ -93,10 +104,11 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
         quote! {
             fn try_new_plural_rules(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
-                options: leptos_i18n::reexports::icu::plurals::PluralRuleType
-            ) -> Result<leptos_i18n::reexports::icu::plurals::PluralRules, leptos_i18n::reexports::icu::plurals::PluralsError> {
-                leptos_i18n::reexports::icu::plurals::PluralRules::try_new_unstable(self, locale, options)
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
+                rule_type: leptos_i18n::reexports::icu::plurals::PluralRuleType
+            ) -> Result<leptos_i18n::reexports::icu::plurals::PluralRules, leptos_i18n::reexports::icu::provider::DataError> {
+                let options = leptos_i18n::reexports::icu::plurals::PluralRulesOptions::default().with_type(rule_type);
+                leptos_i18n::reexports::icu::plurals::PluralRules::try_new_unstable(self, locale.into(), options)
             }
         }
     } else {
@@ -107,10 +119,10 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
         quote! {
                 fn try_new_currency_formatter(
                 &self,
-                locale: &leptos_i18n::reexports::icu::provider::DataLocale,
+                locale: &leptos_i18n::reexports::icu::locid::Locale,
                 options: leptos_i18n::reexports::icu::currency::options::CurrencyFormatterOptions
             ) -> Result<leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter, leptos_i18n::reexports::icu::provider::DataError> {
-                leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter::try_new_unstable(self, locale, options)
+                leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter::try_new_unstable(self, locale.into(), options)
             }
         }
     } else {

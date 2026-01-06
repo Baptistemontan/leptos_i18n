@@ -1,8 +1,5 @@
 #![deny(warnings)]
-leptos_i18n::load_locales!();
-
-#[cfg(test)]
-mod ranges;
+include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 
 #[cfg(test)]
 mod subkeys;

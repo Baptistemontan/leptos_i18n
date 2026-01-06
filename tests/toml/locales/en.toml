@@ -1,0 +1,8 @@
+click_to_change_lang = "Click to change language"
+click_count = "You clicked {{ count }} times"
+click_to_inc = "Click to increment the counter"
+defaulted_string = "this string is declared in locale en"
+defaulted_interpolation = "this interpolation is declared in locale {{ locale }}"
+[subkeys]
+subkey_1 = "subkey_1"
+subkey_2 = "<b>subkey_2</b>"

@@ -2,7 +2,7 @@
 
 Now that you have configured your locales, you can start writing your translations. This chapter covers where to put your files. We will cover how to write them in another section.
 
-By default, you must put your files in the `./locales` directory, and each file must be `%{locale}.json`:
+By default, you must put your files in the `./locales` directory, and each file must be `{locale}.json`:
 
 ```bash
 ./locales
@@ -12,13 +12,10 @@ By default, you must put your files in the `./locales` directory, and each file 
 
 ## Custom Directory
 
-You can change the path to the directory containing the files with the `locales-dir` field in the configuration, for example:
+You can change the path to the directory containing the files with the `locales_path` method on the config builder, for example:
 
-```toml
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]
-locales-dir = "./path/to/mylocales”
+```rust
+let cfg = Config::new("en")?.add_locale("fr")?.locales_path(".path/to/mylocales");
 ```
 
 will look for:
@@ -33,21 +30,13 @@ will look for:
 
 ## Other Formats
 
-JSON being the default, you can change that by first removing the default features and enabling the feature for the format you need:
+JSON is the default format, but other format are supported, we will see how to change that later, here is a list of supported formats:
 
-```toml
-# Cargo.toml
-
-[dependencies]
-leptos_i18n = {
-    default-features = false,
-    features = ["yaml_files"]
-}
-```
-
-| Format         | Feature      |
-| -------------- | ------------ |
-| JSON (default) | `json_files` |
-| YAML           | `yaml_files` |
+| Format         |
+| -------------- |
+| JSON (default) |
+| JSON5          |
+| YAML           |
+| TOML           |
 
 Other formats may be supported later.

@@ -1,7 +1,7 @@
 [package]
 name = "leptos_i18n"
 version = { workspace = true }
-edition = "2021"
+edition = "2024"
 authors = ["Baptiste de Montangon"]
 license = "MIT"
 repository = "https://github.com/Baptistemontan/leptos_i18n"
@@ -11,39 +11,39 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-leptos-use = { version = "0.15.7", default-features = false, features = [
+leptos-use = { version = "0.17.0", default-features = false, features = [
   "use_locales",
   "use_cookie",
 ] }
 leptos_i18n_macro = { workspace = true }
 leptos = { workspace = true }
 leptos_meta = { workspace = true }
-codee = "0.3"
-icu_locid = { workspace = true }
-icu_provider = { workspace = true, optional = true, features = [
-  "sync",
-  "experimental",
-] }
+codee = "0.3.5"
+icu_locale = { workspace = true }
+icu_provider = { workspace = true, optional = true, features = ["sync"] }
 icu_plurals = { workspace = true, optional = true }
 icu_datetime = { workspace = true, optional = true }
 icu_calendar = { workspace = true, optional = true }
 icu_list = { workspace = true, optional = true }
 icu_decimal = { workspace = true, optional = true }
-typed-builder = "0.20"
+typed-builder = "0.23"
 fixed_decimal = { workspace = true, optional = true, features = ["ryu"] }
 icu_experimental = { workspace = true, optional = true, features = ["ryu"] }
-writeable = "0.5"
+writeable = "0.6"
 serde = "1.0"
-async-once-cell = { version = "0.5.3", optional = true }
-js-sys = { version = "0.3.70", optional = true }
+async-once-cell = { version = "0.5.4", optional = true }
+js-sys = { version = "0.3.83", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
-futures = { version = "0.3.30", optional = true }
+futures = { version = "0.3.31", optional = true }
 default-struct-builder = "0.5"
-wasm-bindgen = "0.2.96"
+wasm-bindgen = "0.2.106"
 tinystr = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }
 
 [features]
-default = ["cookie", "json_files", "icu_compiled_data"]
+default = ["cookie", "icu_compiled_data"]
+
+
 cookie = []
 icu_compiled_data = [
   "icu_plurals?/compiled_data",
@@ -53,6 +53,16 @@ icu_compiled_data = [
   "icu_decimal?/compiled_data",
   "icu_experimental?/compiled_data",
   "leptos_i18n_macro/icu_compiled_data",
+]
+nightly = ["leptos/nightly"]
+
+# Formatting features
+all_formats = [
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
+  "format_currency",
 ]
 plurals = ["dep:icu_plurals", "dep:icu_provider", "leptos_i18n_macro/plurals"]
 format_datetime = [
@@ -79,6 +89,9 @@ format_currency = [
   "dep:icu_provider",
   "leptos_i18n_macro/format_currency",
 ]
+
+
+# Target features
 actix = ["ssr", "leptos-use/actix"]
 axum = ["ssr", "leptos-use/axum"]
 hydrate = [
@@ -95,26 +108,16 @@ ssr = [
   "leptos_i18n_macro/ssr",
 ]
 islands = ["leptos/islands", "leptos_i18n_macro/islands"]
-nightly = ["leptos/nightly", "leptos_i18n_macro/nightly"]
-
 dynamic_load = [
   "leptos_i18n_macro/dynamic_load",
   "dep:async-once-cell",
   "dep:futures",
+  "dep:serde_json",
 ]
 
 
-# macro features
-show_keys_only = ["leptos_i18n_macro/show_keys_only"]
-suppress_key_warnings = ["leptos_i18n_macro/suppress_key_warnings"]
-json_files = ["leptos_i18n_macro/json_files"]
-json5_files = ["leptos_i18n_macro/json5_files"]
-yaml_files = ["leptos_i18n_macro/yaml_files"]
-interpolate_display = ["leptos_i18n_macro/interpolate_display"]
-track_locale_files = ["leptos_i18n_macro/track_locale_files"]
-
-[package.metadata."docs.rs"]
 # Features needed for the doctests
+[package.metadata."docs.rs"]
 features = [
   "plurals",
   "format_datetime",
@@ -127,15 +130,13 @@ features = [
 [package.metadata.cargo-all-features]
 denylist = [
   # Always exclude:
-  "ssr",         # Should always be enabled via a server integration rather than directly
-  "yaml_files",  # See leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
-  "json5_files",
-
-  # Only passed through to `leptos_i18n_macros`, exclude to save time:
-  "serde",
-  "suppress_key_warnings",
-  "track_locale_files",
-  "show_keys_only",
+  "ssr", # Should always be enabled via a server integration rather than directly,
+  # formats, already enabled by the "all_formats" feature
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
+  "format_currency",
 ]
 skip_feature_sets = [
   # Axum and Actix features are incompatible with each other
@@ -174,13 +175,5 @@ skip_feature_sets = [
     "csr",
   ],
 ]
-# see leptos_i18n_macro manifest to see why "yaml_files" and other formats are in deny list and JSON is always included
-always_include_features = [
-  "json_files",
-  "icu_compiled_data",
-  "plurals",
-  "format_datetime",
-  "format_list",
-  "format_nums",
-  "format_currency",
-]
+
+always_include_features = ["icu_compiled_data", "all_formats"]

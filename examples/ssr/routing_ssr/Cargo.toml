@@ -1,7 +1,7 @@
 [package]
 name = "routing_ssr"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -9,23 +9,21 @@ crate-type = ["cdylib", "rlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.7", optional = true }
-leptos = { version = "0.7.0" }
-leptos_meta = { version = "0.7.0" }
-leptos_axum = { version = "0.7.0", optional = true }
-leptos_i18n = { path = "../../../leptos_i18n", features = [
-  "track_locale_files",
-] }
+axum = { version = "0.8.7", optional = true }
+leptos = { version = "0.8.15" }
+leptos_meta = { version = "0.8.5" }
+leptos_axum = { version = "0.8.7", optional = true }
+leptos_router = { version = "0.8.11" }
+leptos_i18n = { path = "../../../leptos_i18n" }
 leptos_i18n_router = { path = "../../../leptos_i18n_router" }
 serde = { version = "1", features = ["derive"] }
 console_error_panic_hook = { version = "0.1", optional = true }
 wasm-bindgen = "0.2"
-simple_logger = "4"
-tokio = { version = "1.35", features = ["rt-multi-thread"], optional = true }
+simple_logger = "5"
+tokio = { version = "1.48", features = ["rt-multi-thread"], optional = true }
 log = "0.4"
-tower = { version = "0.5.1", optional = true }
-tower-http = { version = "0.6.1", features = ["fs"], optional = true }
-leptos_router = { version = "0.7.0" }
+tower = { version = "0.5.2", optional = true }
+tower-http = { version = "0.6.8", features = ["fs"], optional = true }
 
 [features]
 default = ["hydrate", "ssr"]
@@ -33,6 +31,7 @@ hydrate = [
   "dep:console_error_panic_hook",
   "leptos/hydrate",
   "leptos_i18n/hydrate",
+  "leptos_i18n_build/hydrate",
 ]
 ssr = [
   "dep:axum",
@@ -45,11 +44,12 @@ ssr = [
   "leptos_i18n/axum",
   "leptos_router/ssr",
   "leptos_i18n_router/ssr",
+  "leptos_i18n_build/ssr",
 ]
 
-[package.metadata.leptos-i18n]
-default = "en"
-locales = ["en", "fr"]
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print"]
 
 [package.metadata.leptos]
 # The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name   

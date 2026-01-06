@@ -1,10 +1,10 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned, ToTokens};
+use quote::{ToTokens, quote, quote_spanned};
 use syn::parse_macro_input;
 
 use parsed_input::ParsedInput;
 
-use crate::load_locales::plurals::PluralRuleType;
+use leptos_i18n_codegen::load_locales::plurals::PluralRuleType;
 
 pub mod parsed_input;
 

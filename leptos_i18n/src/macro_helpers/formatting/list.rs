@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use super::data_provider::IcuDataProvider;
-use icu_list::{ListFormatter, ListLength};
+use icu_list::{ListFormatter, options::ListLength};
 use leptos::IntoView;
 use writeable::Writeable;
 
@@ -57,18 +57,18 @@ impl ListType {
     pub fn new_formatter(
         self,
         provider: &impl IcuDataProvider,
-        locale: &icu_locid::Locale,
+        locale: &icu_locale::Locale,
         length: ListLength,
     ) -> ListFormatter {
         match self {
             ListType::And => provider
-                .try_new_and_list_formatter(&locale.into(), length)
+                .try_new_and_list_formatter(locale, length)
                 .expect("A list formatter"),
             ListType::Or => provider
-                .try_new_or_list_formatter(&locale.into(), length)
+                .try_new_or_list_formatter(locale, length)
                 .expect("A list formatter"),
             ListType::Unit => provider
-                .try_new_unit_list_formatter(&locale.into(), length)
+                .try_new_unit_list_formatter(locale, length)
                 .expect("A list formatter"),
         }
     }
@@ -85,7 +85,7 @@ pub fn format_list_to_view<L: Locale>(
 
     move || {
         let list = list.to_list().into_iter();
-        list_formatter.format_to_string(list)
+        list_formatter.format(list).to_string()
     }
 }
 

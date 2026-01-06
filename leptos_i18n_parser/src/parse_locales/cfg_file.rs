@@ -5,7 +5,9 @@ use std::{
 };
 
 use super::error::{Error, Result};
-use crate::utils::Key;
+use crate::{parse_locales::options::Config, utils::Key};
+
+pub const DEFAULT_LOCALES_PATH: &str = "locales";
 
 #[derive(Debug)]
 pub struct ConfigFile {
@@ -79,6 +81,33 @@ impl ConfigFile {
         }
 
         duplicates
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<Config> for ConfigFile {
+    fn into(mut self) -> Config {
+        let locales_path = match self.locales_dir {
+            Cow::Borrowed(s) => Cow::Borrowed(s.as_ref()),
+            Cow::Owned(s) => Cow::Owned(s.into()),
+        };
+        let namespaces = self.name_spaces.unwrap_or_default();
+        let translations_uri = self.translations_uri.map(Cow::Owned);
+        let def_idx = self
+            .locales
+            .iter()
+            .position(|k| k == &self.default)
+            .expect("locales should contain the default locale");
+        self.locales.swap(def_idx, 0);
+        Config {
+            default_locale: self.default,
+            locales: self.locales,
+            locales_path,
+            namespaces,
+            translations_uri,
+            extensions: self.extensions,
+            options: Default::default(),
+        }
     }
 }
 
@@ -214,17 +243,17 @@ impl<'de> serde::de::Visitor<'de> for CfgFileVisitor {
 
         let locales_dir = locales_dir
             .map(Cow::Owned)
-            .unwrap_or(Cow::Borrowed("locales"));
+            .unwrap_or(Cow::Borrowed(DEFAULT_LOCALES_PATH));
 
         let extensions = extensions.unwrap_or_default();
 
         for (k, v) in &extensions {
             if !locales.contains(k) {
-                return Err(serde::de::Error::custom(format!("unknown locale {:?}", k)));
+                return Err(serde::de::Error::custom(format!("unknown locale {k:?}")));
             }
 
             if !locales.contains(v) {
-                return Err(serde::de::Error::custom(format!("unknown locale {:?}", v)));
+                return Err(serde::de::Error::custom(format!("unknown locale {v:?}")));
             }
         }
 

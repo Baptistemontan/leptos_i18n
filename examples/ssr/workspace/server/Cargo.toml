@@ -1,15 +1,15 @@
 [package]
 name = "server"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 actix-files = "0.6"
-actix-web = { version = "4.4", features = ["macros"] }
-leptos = { version = "0.7.0", features = ["ssr"] }
-leptos_meta = { version = "0.7.0", features = ["ssr"] }
-leptos_actix = { version = "0.7.0" }
+actix-web = { version = "4.12", features = ["macros"] }
+leptos = { version = "0.8.15", features = ["ssr"] }
+leptos_meta = { version = "0.8.5", features = ["ssr"] }
+leptos_actix = { version = "0.8.6" }
 serde = { version = "1", features = ["derive"] }
 client = { path = "../client", default-features = false, features = ["ssr"] }

@@ -1,7 +1,7 @@
 [package]
 name = "leptos_i18n_router"
 version = { workspace = true }
-edition = "2021"
+edition = "2024"
 authors = ["Baptiste de Montangon"]
 license = "MIT"
 repository = "https://github.com/Baptistemontan/leptos_i18n"
@@ -23,3 +23,6 @@ ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_i18n/ssr"]
 denylist = []
 skip_feature_sets = []
 always_include_features = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(erase_components)'] }

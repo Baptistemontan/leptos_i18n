@@ -23,12 +23,12 @@ assert_eq!(
 
 Variables expect anything that implements `Display`.
 
-If the key uses ranges, it expects the type of the count. If you set the type to `f32`, it expects a `f32`.
+If the key uses plurals, it expects the type of the count. If you set the type to `f32`, it expects a `f32`.
 
-Components expect a value that implements `leptos_i18::display::DisplayComponent`. You can find some types made to help with formatting in the `display` module,
-such as `DisplayComp`.
+Components expect a value that implements `leptos_i18::display::DisplayComponent<M>`. You can find some types made to help with formatting in the `display` module,
+such as `DisplayComp`. (`M` is a marker for `Fn` trait shenanigans, if you implement the trait yourself you can set it to `()`.)
 
-`String` and `&str` implement this trait such that
+`str`, `String`, and references to them implement this trait such that
 
 ```rust,ignore
 // hello_world = "Hello <b>World</b> !"
@@ -37,10 +37,10 @@ let hw = td_string(Locale::en, hello_world, <b> = "span");
 assert_eq!(hw, "Hello <span>World</span> !");
 ```
 
-The `DisplayComp` struct lets you pass leptos attributes:
+The `DisplayComp` struct lets you pass attributes:
 
 ```rust,ignore
-let attrs = [("id", leptos::Attribute::String("my_id".into()))];
+let attrs = [("id", "my_id")];
 let b = DisplayComp::new("div", &attrs);
 let hw = td_string!(Locale::en, hello_world, <b>);
 assert_eq!(hw, "Hello <div id=\"my_id\">World</div> !");
@@ -49,27 +49,31 @@ assert_eq!(hw, "Hello <div id=\"my_id\">World</div> !");
 If you want finer control over the formatting, you can create your own types implementing the `DisplayComponent` trait, or you can pass this abomination of a function:
 
 ```rust,ignore
-Fn(&mut core::fmt::Formatter, &dyn Fn(&mut core::fmt::Formatter) -> core::fmt::Result) -> core::fmt::Result
+Fn(&mut core::fmt::Formatter, leptos_i18n::display::Children, leptos_i18n::display::Attributes) -> core::fmt::Result
 ```
 
 which basically lets you do this:
 
 ```rust,ignore
 use core::fmt::{Formatter, Result};
+use leptos_i18n::display::{Attributes, Children};
 
-fn render_b(f: &mut Formatter, child: &dyn Fn(&mut Formatter) -> Result) -> Result {
-    write!(f, "<div id=\"some_id\">")?;
-    child(f)?; // format the children
-    write!(f, "</div>")
+fn render_b(f: &mut Formatter, child: Children, attrs: Attributes) -> Result {
+    write!(f, "<div{attrs} id=\"some_id\">{child}</div>")
 }
 
-// hello_world = "Hello <b>World</b> !"
-let hw = td_string!(Locale::en, hello_world, <b> = render_b);
-assert_eq!(hw, "Hello <div id=\"some_id\">World</div> !");
+// hello_world = "Hello <b foo={{ foo }}>World</b> !"
+let hw = td_string!(Locale::en, hello_world, foo = "bar", <b> = render_b);
+assert_eq!(hw, "Hello <div foo=\"bar\" id=\"some_id\">World</div> !");
 ```
+
+> _note_: values for attributes must implement the `leptos_i18n::display::AttributeValue` trait, already implemented for numbers (u\*, i\*, f\* and NonZero<N>), str, bools and `Option<impl AttributeValue>`
 
 If you look closely, there are no `Clone` or `'static` bounds for any arguments, but they are captured by the value returned by the macro,
 so the returned value has a lifetime bound to the "smallest" lifetime of the arguments.
+
+Components with children can accept `Fn(&mut Formatter, Children, Attributes)` or `Fn(&mut Formatter, Children)`,
+and self closed components can accept `Fn(&mut Formatter, Attributes)` or `Fn(&mut Formatter)`.
 
 # The `td_display!` Macro
 

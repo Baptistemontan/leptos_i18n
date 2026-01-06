@@ -4,6 +4,9 @@ members = ["client", "server"]
 
 [workspace.dependencies]
 leptos_i18n = { path = "../../../leptos_i18n" }
+leptos_i18n_build = { path = "../../../leptos_i18n_build", features = [
+    "pretty_print",
+] }
 
 [[workspace.metadata.leptos]]
 name = "counter"

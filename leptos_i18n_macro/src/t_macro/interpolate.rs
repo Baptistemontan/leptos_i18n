@@ -1,6 +1,6 @@
 use proc_macro2::{TokenStream, TokenTree};
-use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use syn::{buffer::Cursor, parse::ParseBuffer, Expr, Ident, Token};
+use quote::{ToTokens, TokenStreamExt, format_ident, quote};
+use syn::{Expr, Ident, Token, buffer::Cursor, parse::ParseBuffer};
 
 pub enum InterpolatedValue {
     // form t!(i18n, key, count)
@@ -22,6 +22,7 @@ pub enum InterpolatedValue {
         key: Ident,
         comp_name: Ident,
         attrs: TokenStream,
+        self_closed: bool,
     },
 }
 
@@ -61,10 +62,18 @@ impl syn::parse::Parse for InterpolatedValue {
         if is_comp {
             input.parse::<Token![<]>()?;
         }
+
         let key = input.parse::<Ident>()?;
+
+        let self_closed = input.peek(Token![/]);
+        if self_closed {
+            input.parse::<Token![/]>()?;
+        }
+
         if is_comp {
             input.parse::<Token![>]>()?;
         }
+
         let value = if input.peek(Token![=]) {
             input.parse::<Token![=]>()?;
             if input.peek(Token![<]) {
@@ -73,6 +82,7 @@ impl syn::parse::Parse for InterpolatedValue {
                     key,
                     comp_name,
                     attrs,
+                    self_closed,
                 }
             } else {
                 let value = input.parse()?;
@@ -129,9 +139,22 @@ impl InterpolatedValue {
                 key,
                 comp_name,
                 attrs,
+                self_closed,
             } => {
-                let ts = quote! {
-                    move |__children: leptos::children::ChildrenFn| { leptos::view! { <#comp_name #attrs>{move || __children()}</#comp_name> } }
+                let ts = if *self_closed {
+                    quote! {
+                        move |__attrs: leptos_i18n::__private::Attributes| {
+                            leptos::view! { <#comp_name {..__attrs} #attrs /> }
+                        }
+                    }
+                } else {
+                    quote! {
+                        move |__children: leptos::children::ChildrenFn, __attrs: leptos_i18n::__private::Attributes| {
+                            leptos::view! {
+                                <#comp_name {..__attrs} #attrs>{move || __children()}</#comp_name>
+                            }
+                        }
+                    }
                 };
                 let key = key.clone();
                 *self = InterpolatedValue::Comp(key.clone());

@@ -1,9 +1,7 @@
 use super::{IntoFixedDecimal, NumberFormatterInputFn};
 use crate::Locale;
 use core::fmt::{self, Display};
-use icu_experimental::dimension::currency::{
-    formatter::CurrencyCode, options::Width as CurrencyWidth,
-};
+use icu_experimental::dimension::currency::{CurrencyCode, options::Width as CurrencyWidth};
 use leptos::IntoView;
 
 use serde::{Deserialize, Serialize};
@@ -12,21 +10,16 @@ use writeable::Writeable;
 // TODO: this struct should be removed in version ICU4x v2
 // Reference: https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html
 // Issue: https://github.com/unicode-org/icu4x/pull/6100
-#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 #[doc(hidden)]
 pub enum Width {
+    #[default]
     #[serde(rename = "short")]
     Short,
 
     #[serde(rename = "narrow")]
     Narrow,
-}
-
-impl Default for Width {
-    fn default() -> Self {
-        Self::Short
-    }
 }
 
 impl From<CurrencyWidth> for Width {

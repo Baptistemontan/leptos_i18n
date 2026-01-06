@@ -102,11 +102,13 @@ pub fn Foo() -> impl IntoView {
     let count = move || counter.get();
 
     view! {
-        {/* "click_count": "you clicked <b>{{ count }}</b> times" */}
-        <p>{t!(i18n, click_count, count, <b> = |children| view!{ <b>{children}</b> })}</p>
+        {/* "click_count": "you clicked <b>{{ count }}</b> times<br/>Keep going!" */}
+        <p>{t!(i18n, click_count, count, <br/> = || view! { <br/> }, <b> = |children| view!{ <b>{children}</b> })}</p>
     }
 }
 ```
+
+Please note usage of self-closed components.
 
 If your variable has the same name as the component, you can pass it directly:
 
@@ -124,13 +126,13 @@ pub fn Foo() -> impl IntoView {
     let b = |children| view!{ <b>{children}</b> };
 
     view! {
-        {/* "click_count": "you clicked <b>{{ count }}</b> times" */}
-        <p>{t!(i18n, click_count, count, <b>)}</p>
+        {/* "click_count": "you clicked <b>{{ count }}</b> times<br/>Keep going!" */}
+        <p>{t!(i18n, click_count, count, <b>, <br/> = <br/>)}</p>
     }
 }
 ```
 
-You can pass anything that implements `Fn(leptos::ChildrenFn) -> V + Clone + 'static` where `V: IntoView`.
+You can pass anything that implements `Fn(leptos::ChildrenFn) -> V + Clone + 'static` where `V: IntoView` for normal components or `Fn() -> V + Clone + 'static` where `V: IntoView` for self-closed components.
 
 Any missing components will generate an error.
 
@@ -151,13 +153,49 @@ t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, cou
 
 Basically `<name .../>` expands to `move |children| view! { <name ...>{children}</name> }`
 
-## Ranges
+## Components attributes
 
-Ranges expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` is the specified type of the range (default is `i32`).
+If you declared attributes with your components
 
-```rust,ignore
-t!(i18n, key_to_range, count = count);
+```json
+{
+  "highlight_me": "highlight <b id={{ id }}>me</b>"
+}
 ```
+
+You can either retrieve them with a closure:
+
+```rust
+use leptos::children::ChildrenFn;
+use leptos::attr::any_attribute::AnyAttribute;
+let b = |children: ChildrenFn, attr: Vec<AnyAttribute>| view!{ <b {..attr} >{children}</b> }
+t!(i18n, highlight_me, id = "my_id", <b>)
+```
+
+Or they will be passed to direct components alongside code defined attributes:
+
+```rust
+// this will spread the attributes into `b` alongside the given attributes
+t!(i18n, highlight_me, id = "my_id", <b> = <b attr:foo="bar" />)
+```
+
+Work the same for self closed components, for the closure syntax you can take the attributes as the only argument:
+
+```json
+{
+  "foo": "before<br id={{ id }} />after"
+}
+```
+
+```rust
+let br = |attr: Vec<AnyAttribute>| view!{ <br {..attr} /> }
+t!(i18n, highlight_me, id = "my_id", <br>)
+```
+
+> _note_: variables to attributes expect the value to implement `leptos::attr::AttributeValue`.
+
+Components with children can accept `Fn(ChildrenFn, Vec<AnyAttribute>)` or `Fn(ChildrenFn)`,
+and self closed components can accept `Fn()` or `Fn(Vec<AnyAttribute>)`.
 
 ## Plurals
 

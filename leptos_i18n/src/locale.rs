@@ -4,8 +4,9 @@ use codee::string::FromToStringCodec;
 use leptos::prelude::*;
 
 use crate::{
-    context::{I18nContextOptions, ENABLE_COOKIE},
-    fetch_locale, Locale,
+    Locale,
+    context::{ENABLE_COOKIE, I18nContextOptions},
+    fetch_locale,
 };
 
 /// Same as `resolve_locale` but with some cookies options.

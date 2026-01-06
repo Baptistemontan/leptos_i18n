@@ -72,10 +72,10 @@ leptos_i18n_build = "0.5.0"
 use leptos_i18n_build::TranslationsInfos;
 
 fn main() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed=Cargo.toml");
 
-    let translations_infos = TranslationsInfos::parse().unwrap();
+    let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
 
     translations_infos.rerun_if_locales_changed();
 
@@ -122,12 +122,10 @@ Then if you are using Trunk you just have to add the directory to the build pipe
 ```
 
 Now the translations will be available at `i18n/{locale}.json`
-To inform `leptos_i18n` where to find those translations you need to supply the `translations-path` field under `[package.metadata.leptos-i18n]`:
+To inform `leptos_i18n` where to find those translations you need to supply the `translations_uri` to the config builder:
 
-```toml
-# Cargo.toml
-[package.metadata.leptos-i18n]
-translations-path = "i18n/{locale}.json" # or "i18n/{namespace}/{locale}.json" when using namespaces
+```rust
+let cfg = cfg.translations_uri("i18n/{locale}.json"); // or "i18n/{namespace}/{locale}.json" when using namespaces
 ```
 
 And this is it!
