@@ -11,7 +11,7 @@ use leptos_i18n_build::{TranslationsInfos, Config};
 use std::path::PathBuf;
 use std::error::Error;
 
-fn main() -> Resul<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
   println!("cargo::rerun-if-changed=build.rs");
   println!("cargo::rerun-if-changed=Cargo.toml");
 
