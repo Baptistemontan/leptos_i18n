@@ -7,7 +7,7 @@ What it does is manage a prefix on the URL such that
 
 ```rust,ignore
 use crate::i18n::Locale;
-use leptos_i18n_router::I118nRoute;
+use leptos_i18n_router::I18nRoute;
 use leptos::prelude::*;
 use leptos_router::*;
 
