@@ -1,7 +1,7 @@
 # Scoping
 
 If you are using subkeys or namespaces, access keys can get pretty big and repetitive,
-wouldn't it be nice to scope a context to a namespace or subkeys ?
+wouldn't it be nice to scope a context to a namespace or subkeys?
 
 Well, this page explains how to do it!
 
@@ -17,8 +17,8 @@ t!(i18n, namespace.subkeys.more_subkeys.subvalue);
 t!(i18n, namespace.subkeys.more_subkeys.another_subvalue);
 ```
 
-This only uses `namespace.subkeys.*`, but we have to repeat it everywhere. Well,
-well here comes the `scope_i18n!` macro. You can rewrite it to:
+This only uses `namespace.subkeys.*`, but we have to repeat it everywhere. 
+Here comes the `scope_i18n!` macro. You can rewrite it to:
 
 ```rust,ignore
 let i18n = use_i18n();
@@ -98,7 +98,7 @@ fn foo(locale: Locale) {
 
 ## Caveat
 
-Unfortunately, it looks too good to be true... What's the catch ? Where is the tradeoff ?
+Unfortunately, it looks too good to be true... What's the catch? Where is the tradeoff?
 
 To make this possible, it uses a typestate pattern, but some of the types are hard to access as a user as they are defined deep in the generated `i18n` module.
 This makes it difficult to write the type of a scoped context or a scoped locale.
