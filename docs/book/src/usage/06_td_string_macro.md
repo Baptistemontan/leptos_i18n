@@ -19,7 +19,7 @@ assert_eq!(
 )
 ```
 
-### Expected values
+### Expected Values
 
 Variables expect anything that implements `Display`.
 
