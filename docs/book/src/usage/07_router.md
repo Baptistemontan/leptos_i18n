@@ -66,7 +66,7 @@ and the history will look like you directly navigated from `"/fr/counter"` to `"
 
 ## Localized path segments
 
-You can use inside the `i18nRoute` the `i18n_path!` to create localized path segments:
+You can use the `i18n_path!` macro inside the `I18nRoute` to create localized path segments:
 
 ```rust,ignore
 use leptos_i18n_router::i18n_path;
@@ -82,7 +82,7 @@ If you have `segment_path_name = "search"` for English, and `segment_path_name =
 - "/en/search"
 - "/fr/rechercher"
 
-It can be used at any depth, and if not used inside a `i18nRoute` it will default to the default locale.
+It can be used at any depth, and if not used inside an `i18nRoute` it will default to the default locale.
 
 ## Caveat
 
