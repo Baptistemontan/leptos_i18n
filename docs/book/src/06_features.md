@@ -8,7 +8,7 @@ This feature must be enabled when building the server with the actix backend.
 
 #### `axum`
 
-This feature must be enabled when building the server with the actix backend.
+This feature must be enabled when building the server with the axum backend.
 
 ### `ssr`
 

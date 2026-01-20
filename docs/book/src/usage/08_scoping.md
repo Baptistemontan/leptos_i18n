@@ -1,11 +1,11 @@
 # Scoping
 
 If you are using subkeys or namespaces, access keys can get pretty big and repetitive,
-wouldn't it be nice to scope a context to a namespace or subkeys ?
+wouldn't it be nice to scope a context to a namespace or subkeys?
 
 Well, this page explains how to do it!
 
-## The `scope_i18n!` macro
+## The `scope_i18n!` Macro
 
 Using namespaces and subkeys can make things quite cumbersome very fast. Imagine you have this:
 
@@ -17,8 +17,8 @@ t!(i18n, namespace.subkeys.more_subkeys.subvalue);
 t!(i18n, namespace.subkeys.more_subkeys.another_subvalue);
 ```
 
-This only uses `namespace.subkeys.*`, but we have to repeat it everywhere. Well,
-well here comes the `scope_i18n!` macro. You can rewrite it to:
+This only uses `namespace.subkeys.*`, but we have to repeat it everywhere. 
+Here comes the `scope_i18n!` macro. You can rewrite it to:
 
 ```rust,ignore
 let i18n = use_i18n();
@@ -43,7 +43,7 @@ t!(i18n, subvalue);
 t!(i18n, another_subvalue);
 ```
 
-## The `use_i18n_scoped!` macro
+## The `use_i18n_scoped!` Macro
 
 In the above example, we do `let i18n = use_i18n();` but only access the context to scope it afterward. We could do
 
@@ -61,7 +61,7 @@ t!(i18n, more_subkeys.subvalue);
 t!(i18n, more_subkeys.another_subvalue);
 ```
 
-## The `scope_locale!` macro
+## The `scope_locale!` Macro
 
 The above examples are to scope a context, but maybe you use `td!` a lot and run into the same problems:
 
@@ -98,7 +98,7 @@ fn foo(locale: Locale) {
 
 ## Caveat
 
-Unfortunately, it looks too good to be true... What's the catch ? Where is the tradeoff ?
+Unfortunately, it looks too good to be true... What's the catch? Where is the tradeoff?
 
 To make this possible, it uses a typestate pattern, but some of the types are hard to access as a user as they are defined deep in the generated `i18n` module.
 This makes it difficult to write the type of a scoped context or a scoped locale.

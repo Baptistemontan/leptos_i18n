@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
   // emit the errors and warnings found during parsing
   translations_infos.emit_diagnostics();
 
-  // emit "cargo::rerun-if-changed" for every translations files
+  // emit "cargo::rerun-if-changed" for every translation file
   translations_infos.rerun_if_locales_changed();
 
   // codegen
@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-## The `i18n` module
+## The `i18n` Module
 
 You can then import the generated code with:
 
@@ -68,7 +68,7 @@ There are more optional values you can supply:
 - `add_namespace`: This is to split your translations into multiple files, we will cover it in a later chapter
 - `locales_path`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
 - `translations_uri`: Used in a CSR application with the `dynamic_load` feature, more information in a later chapter.
-- `extend_locale`: Allow to describe inheritance structure for locales, covered in a later chapter.
+- `extend_locale`: Allows you to describe the inheritance structure for locales, covered in a later chapter.
 - `parse_options`: Parsing options, covered in the next segment
 
 Once this configuration is done, you can start writing your translations.
@@ -108,7 +108,7 @@ There are other options:
 
 - `suppress_key_warnings`: remove warnings emitted by missing keys or surplus keys
 - `interpolate_display`: generates extra code for each interpolation to allow rendering them as a string instead of a `View`
-- `show_keys_only`: This feature makes every translation to only display its corresponding key, this is useful to track untranslated strings in your application.
+- `show_keys_only`: This feature makes every translation display only its corresponding key; this is useful for tracking untranslated strings in your application.
 
 example:
 
@@ -120,7 +120,7 @@ let options = ParseOptions::default()
   .show_keys_only(true);
 ```
 
-There is also a way to inject your own formatter, this need it's own chapter that you can find in an appendix.
+There is also a way to inject your own formatter, this needs its own chapter, which you can find in an appendix.
 
 ## Codegen Options
 

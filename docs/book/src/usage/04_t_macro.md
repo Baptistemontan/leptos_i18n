@@ -1,6 +1,6 @@
 # The `t!` Macro
 
-To access your translations, the `t!` macro is used. You can access a string with a simple `t!(i18n, $key)`:
+To access your translations, use the `t!` macro. You can access a string with a simple `t!(i18n, $key)`:
 
 ```rust,ignore
 use crate::i18n::*;
@@ -38,7 +38,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-If your variable has the same name as the value, you can pass it directly:
+If your variable has the same name as the placeholder, you can pass it directly:
 
 ```rust,ignore
 use crate::i18n::*;
@@ -86,7 +86,7 @@ pub fn Foo() -> impl IntoView {
 
 Any missing values will generate an error.
 
-## Interpolate components
+## Interpolate Components
 
 If some components are declared for this key, you can pass them like this:
 
@@ -108,7 +108,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-Please note usage of self-closed components.
+Please note usage of self-closing components.
 
 If your variable has the same name as the component, you can pass it directly:
 
@@ -153,7 +153,7 @@ t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, cou
 
 Basically `<name .../>` expands to `move |children| view! { <name ...>{children}</name> }`
 
-## Components attributes
+## Components Attributes
 
 If you declared attributes with your components
 
@@ -179,7 +179,7 @@ Or they will be passed to direct components alongside code defined attributes:
 t!(i18n, highlight_me, id = "my_id", <b> = <b attr:foo="bar" />)
 ```
 
-Work the same for self closed components, for the closure syntax you can take the attributes as the only argument:
+The same works for self-closing components; for the closure syntax you can take the attributes as the only argument:
 
 ```json
 {
@@ -195,7 +195,7 @@ t!(i18n, highlight_me, id = "my_id", <br>)
 > _note_: variables to attributes expect the value to implement `leptos::attr::AttributeValue`.
 
 Components with children can accept `Fn(ChildrenFn, Vec<AnyAttribute>)` or `Fn(ChildrenFn)`,
-and self closed components can accept `Fn()` or `Fn(Vec<AnyAttribute>)`.
+and self-closing components can accept  `Fn()` or `Fn(Vec<AnyAttribute>)`.
 
 ## Plurals
 
@@ -205,7 +205,7 @@ Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` 
 t!(i18n, key_to_plurals, count = count);
 ```
 
-## Access subkeys
+## Access Subkeys
 
 You can access subkeys by simply separating the path with `.`:
 
@@ -228,7 +228,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-## Access namespaces
+## Access Namespaces
 
 Namespaces are implemented as subkeys. You first access the namespace, then the keys in that namespace:
 

@@ -59,7 +59,7 @@ en (default)
 
 ### 2. Explicit Inheritance (Manual)
 
-When automatic inheritance isn't sufficient, you can manually specify inheritance relationships using the `inherits` configuration.
+When automatic inheritance is not sufficient, you can manually specify inheritance relationships using the `inherits` configuration.
 
 #### Configuration
 
@@ -95,7 +95,7 @@ en (default)
 
 ## Missing Key Warnings
 
-The inheritance system affects how missing key warnings are handled:
+The inheritance system affects how missing key warnings are handled.
 
 ### When Warnings Are Suppressed
 

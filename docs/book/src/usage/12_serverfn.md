@@ -1,7 +1,7 @@
-# Server functions
+# Server Functions
 
 There is no context in server functions, so you can't call `use_i18n`. You could provide a context if you want,
-and it would work as expected, but if you just want to access what locale the user is using you can use the `resolve_locale` function:
+and it would work as expected, but if you just want to access the user's locale, you can use the `resolve_locale` function:
 
 ```rust
 #[server]

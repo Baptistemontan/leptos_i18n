@@ -1,6 +1,7 @@
 # `t_format!`
 
-You may want to use the formatting capability without the need to create an entry in your translations; you can use the `t_format!` macro for that:
+You may want to use the formatting capability without needing to create an entry in your translations. 
+You can use the `t_format!` macro for that:
 
 ```rust,ignore
 use crate::i18n::*;

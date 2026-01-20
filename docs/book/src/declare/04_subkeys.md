@@ -1,6 +1,6 @@
 # Subkeys
 
-You can declare subkeys by just giving a map to the key:
+You can declare subkeys by assigning a map to the key:
 
 ```json
 {
@@ -16,5 +16,5 @@ You can declare subkeys by just giving a map to the key:
 
 ```rust,ignore
 t!(i18n, subkeys.subkey_1); // -> "This is subkey_1"
-t!(i18n, subkeys.nested_subkeys.nested_subkey_1) // -> "you can nest subkeys"
+t!(i18n, subkeys.nested_subkeys.nested_subkey_1); // -> "you can nest subkeys"
 ```

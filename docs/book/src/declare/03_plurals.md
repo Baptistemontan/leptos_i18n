@@ -1,10 +1,10 @@
 # Plurals
 
-## What are plurals ?
+## What Are Plurals?
 
-Plurals are a standardized way to deal with numbers. For example, the English language deals with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
+Plurals are a standardized way to deal with quantities. For example, English uses with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
 
-If you were to have
+If you have
 
 ```json
 {
@@ -12,7 +12,7 @@ If you were to have
 }
 ```
 
-this would produce "1 items", which is not good English.
+this would produce "1 items", which is incorrect English.
 
 This can be solved by defining 2 plural forms:
 
@@ -23,7 +23,7 @@ This can be solved by defining 2 plural forms:
 }
 ```
 
-Providing the count to the `t!` macro, this will result in:
+When providing the count to the `t!` macro, this will result in:
 
 ```rust,ignore
 let i18n = use_i18n();
@@ -44,11 +44,11 @@ t!(i18n, items, count = || 4) // -> "4 items"
 }
 ```
 
-This will still need you to supply the `count` variable: `t!(i18n, items, count = ...)`.
+This will still require you to supply the `count` variable: `t!(i18n, items, count = ...)`.
 
-## Why bother ?
+## Why Bother?
 
-Why bother and not just do
+Why bother, instead of just doing:
 
 ```rust,ignore
 if item_count == 1 {
@@ -58,15 +58,15 @@ if item_count == 1 {
 }
 ```
 
-Because all languages don't use the same plurals!
+Because not all languages use the same plural rules.
 
-For example, in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is bad French (except in certain conditions, because French, exceptions are everywhere).
+For example, in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is incorrect in French (with some exceptions — French has many of them).
 
-## Ordinal plurals
+## Ordinal Plurals
 
-What I describe above are "Cardinal" plurals, but they don't work with like "1st place", "2nd place", etc.
+What I described above are "cardinal" plurals, but they don’t work for cases like "1st place", "2nd place", etc.
 
-The English language uses 4 ordinal plurals, and French 2:
+The English language uses 4 ordinal plural forms, while French uses 2:
 
 - one: "1st place", "21st place"
 - two: "2nd place", "22nd place"
@@ -78,7 +78,7 @@ And French:
 - one: "1ère place"
 - other: "2ème place", "21ème place"
 
-You can use them by using the `_ordinal` suffix:
+You can use ordinal plurals by using the `_ordinal` suffix:
 
 ```json
 {
@@ -91,11 +91,11 @@ You can use them by using the `_ordinal` suffix:
 
 > The `_ordinal` suffix is removed, in this example you access it with `t!(i18n, key, count = ..)`
 
-## How to know which to use:
+## How to Know Which to Use
 
-There are resources online to help you find what you should use, my personal favorite is the [Unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
+There are online resources that help determine which plural rules to use, my personal favorite is the [Unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
 
-## What if I need multiple counts ?
+## What if I Need Multiple Counts?
 
 If you need multiple counts, for example:
 
@@ -105,8 +105,8 @@ If you need multiple counts, for example:
 }
 ```
 
-There isn't a way to represent this in a single key, you will need `Foreign keys` that you can read about in a next chapter.
+There isn't a way to represent this in a single key, you will need `Foreign keys`, which you can read about in a later chapter.
 
-## Activate the feature
+## Activate the Feature
 
 To use plurals in your translations, enable the "plurals" feature.

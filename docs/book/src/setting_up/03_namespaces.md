@@ -1,13 +1,13 @@
 # Namespaces
 
-Translations files can grow quite rapidly and become very big, and avoiding key collisions can be hard without avoiding long names.
+Translation files can grow quite rapidly and become very large. Avoiding key collisions can be difficult without the use of long names.
 To avoid this situation, you can declare namespaces in the configuration:
 
 ```rust
 let cfg = Config::new("en")?.add_locale("fr")?.add_namespaces(["common", "home"]);
 ```
 
-Then your file structures must look like this in the `/locales` directory:
+Then your file structure must look like this in the `/locales` directory:
 
 ```bash
 ./locales

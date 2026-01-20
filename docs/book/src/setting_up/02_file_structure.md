@@ -15,7 +15,7 @@ By default, you must put your files in the `./locales` directory, and each file 
 You can change the path to the directory containing the files with the `locales_path` method on the config builder, for example:
 
 ```rust
-let cfg = Config::new("en")?.add_locale("fr")?.locales_path(".path/to/mylocales");
+let cfg = Config::new("en")?.add_locale("fr")?.locales_path("./path/to/mylocales");
 ```
 
 will look for:
@@ -30,7 +30,7 @@ will look for:
 
 ## Other Formats
 
-JSON is the default format, but other format are supported, we will see how to change that later, here is a list of supported formats:
+JSON is the default format, but other formats are supported. We will see how to change that later. Here is a list of supported formats:
 
 | Format         |
 | -------------- |
@@ -39,4 +39,4 @@ JSON is the default format, but other format are supported, we will see how to c
 | YAML           |
 | TOML           |
 
-Other formats may be supported later.
+Additional formats may be supported in the future.
