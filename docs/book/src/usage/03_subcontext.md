@@ -1,11 +1,11 @@
 # Sub Context
 
-You may want to have sections of your application to use the translations but be isolated from the "main" locale, this is what sub-contexts are for.
+You may want to have sections of your application use translations but be isolated from the "main" locale; this is what sub-contexts are for.
 
 ## Why not just use `I18nContextProvider` ?
 
 `I18nContextProvider` does not shadow any context if one already exists,
-this is because it should only be one "main" context, or they will battle for the cookie, the "lang" attribute, the routing, etc.
+this is because there should only be one "main" context, or they will conflict over the cookie, the "lang" attribute, the routing, etc.
 
 `init_i18n_subcontext_*` functions create a context that does not battle with the main context and makes it more obvious that a sub-context is created, improving code clarity.
 
@@ -76,7 +76,7 @@ fn Home() -> impl IntoView {
 
 This will actually make the sub-context provided in the `<Sub />` component replace the parent context and leak into the `<Home />` component.
 
-`leptos::provide_context` has a section about shadowing in there docs. The best approach is to use a provider:
+`leptos::provide_context` has a section about shadowing in their docs. The best approach is to use a provider:
 
 ```rust,ignore
 #[component]
@@ -121,8 +121,8 @@ fn Sub() -> impl IntoView {
 
 Same as with the normal context, sub-contexts have behavior control options; they all take the `initial_locale: Option<Signal<L>>` as their first argument.
 
-`init_i18n_subcontext_with_options` takes options as a cookie;
+`init_i18n_subcontext_with_options` takes cookie options;
 that function is useless without the `cookie` feature.
 
-- `cookie_name` is an option to a name for a cookie to be set to keep state of the chosen locale.
-- `cookie_options` is an option to some options for a cookie.
+- `cookie_name` is an option for a cookie name to be set to keep the state of the chosen locale.
+- `cookie_options` is an option for cookie options.
