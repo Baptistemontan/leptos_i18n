@@ -33,7 +33,7 @@ Or use self-closing components:
 }
 ```
 
-## Use both
+## Use Both
 
 You can use both interpolated values and interpolated components together:
 
@@ -43,7 +43,7 @@ You can use both interpolated values and interpolated components together:
 }
 ```
 
-## Components attributes
+## Components Attributes
 
 You can pass attributes to the components:
 
