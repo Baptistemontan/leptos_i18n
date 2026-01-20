@@ -29,7 +29,7 @@ If you have `en` and `fr` as your routes, the generated routes will be: `/`, `/c
 
 This component provides the `I18nContext` if not already provided, and sets the locale accordingly.
 
-## Locale resolution
+## Locale Resolution
 
 The locale prefix in the URL is considered to have the biggest priority. When accessing `"/en/*“`, the locale will be set to `en` no matter what.
 
@@ -43,11 +43,11 @@ If a locale is found those ways and it is not the default locale, this will trig
 
 This means if you access `"/counter"` with the cookie set to `fr` (default being `en`), then you will be redirected to `"/fr/counter"`.
 
-## Switching locale
+## Switching Locale
 
 Switching locale updates the prefix accordingly. Switching from `en` to `fr` will set the prefix to `fr`, but switching to the default locale will remove the locale prefix entirely.
 
-## State keeping
+## State Keeping
 
 Switching locale will trigger a navigation, update the `Location` returned by `use_location`, but will not refresh the component tree.
 
@@ -64,7 +64,7 @@ This redirection also sets `NavigateOptions.replace` to `true` so the intermedia
 Basically, if you are at `"/fr/counter"` and trigger a redirection to `"/"`, this will trigger another redirection to `"/fr"`
 and the history will look like you directly navigated from `"/fr/counter"` to `"/fr"`.
 
-## Localized path segments
+## Localized Path Segments
 
 You can use the `i18n_path!` macro inside the `I18nRoute` to create localized path segments:
 
