@@ -2,10 +2,10 @@
 
 ## Interpolate Values
 
-There may be situations where you must interpolate a value inside your translations, for example, a dynamic number.
+There may be situations where you need to interpolate a value in your translations, for example, a dynamic number.
 You could declare 2 translations and use them with that number, but this is not an elegant solution.
 
-To declare a value that will be interpolated in your translations, simply give it a name surrounded by `{{ }}`:
+To declare a value that will be interpolated in your translations, simply place its name inside `{{ }}`:
 
 ```json
 {
@@ -15,7 +15,7 @@ To declare a value that will be interpolated in your translations, simply give i
 
 ## Interpolate Components
 
-There may also be situations where you want to wrap part of your translation into a component, for example, to highlight it.
+There may also be situations where you want to wrap part of your translation in a component, for example, to highlight it.
 
 You can declare a component with HTML-like syntax:
 
@@ -25,7 +25,7 @@ You can declare a component with HTML-like syntax:
 }
 ```
 
-Or self-closed components:
+Or use self-closing components:
 
 ```json
 {
@@ -35,7 +35,7 @@ Or self-closed components:
 
 ## Use both
 
-You can mix both interpolated values and interpolated components:
+You can use both interpolated values and interpolated components together:
 
 ```json
 {
@@ -60,7 +60,7 @@ The values the attributes accept are:
 - numbers (signed, unsigned, floats),
 - variables
 
-The syntax for variables:
+The syntax for using variables:
 
 ```json
 {
@@ -70,4 +70,4 @@ The syntax for variables:
 
 ## Values Names
 
-Values names must follow the same rules as [keys](./01_key_value.md#keys).
+Value names must follow the same rules as [keys](./01_key_value.md#keys).
