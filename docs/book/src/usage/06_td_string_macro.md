@@ -1,7 +1,7 @@
 # The `td_string!` Macro
 
-The `td_string!` macro is to use interpolations outside the context of rendering views. It lets you give a different kind of values and return a `&'static str` or a `String` depending on the value of the key.
-If the value is a plain string or a boolean, it returns a `&'static str`. If it's an interpolation or a number, it returns a `String`.
+The `td_string!` macro is used for interpolations outside the context of rendering views. It lets you provide different kinds of values and returns either a `&'static str` or a `String` depending on the value of the key.
+If the value is a plain string or boolean, it returns a `&'static str`. If it's an interpolation or a number, it returns a `String`.
 
 This requires the `interpolate_display` feature to be enabled to work with interpolations.
 
@@ -33,7 +33,7 @@ such as `DisplayComp`. (`M` is a marker for `Fn` trait shenanigans, if you imple
 ```rust,ignore
 // hello_world = "Hello <b>World</b> !"
 
-let hw = td_string(Locale::en, hello_world, <b> = "span");
+let hw = td_string!(Locale::en, hello_world, <b> = "span");
 assert_eq!(hw, "Hello <span>World</span> !");
 ```
 
@@ -73,7 +73,7 @@ If you look closely, there are no `Clone` or `'static` bounds for any arguments,
 so the returned value has a lifetime bound to the "smallest" lifetime of the arguments.
 
 Components with children can accept `Fn(&mut Formatter, Children, Attributes)` or `Fn(&mut Formatter, Children)`,
-and self closed components can accept `Fn(&mut Formatter, Attributes)` or `Fn(&mut Formatter)`.
+and self-closing components can accept `Fn(&mut Formatter, Attributes)` or `Fn(&mut Formatter)`.
 
 # The `td_display!` Macro
 
