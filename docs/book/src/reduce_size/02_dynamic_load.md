@@ -1,6 +1,6 @@
-# Dynamic loading of translations
+# Dynamic Loading of Translations
 
-## Why use it ?
+## Why Use It?
 
 By default, the translations are loaded at compile time and are baked into the binary.
 This has some performance advantages but comes at a cost: binary size.
@@ -11,15 +11,15 @@ The `"dynamic_load"` feature reduces this binary size increase by removing the b
 The way it does that is by using a server function to request the translations in a given "translation unit".
 What I call "translation unit" is a group of translations; they are either one unit per locale or one unit per locale per namespaces if you use them.
 
-## How it works
+## How It Works
 
 When using SSR, the server will register every unit used for a given request and bake only the used one in the sent HTML.
 They are then parsed when the client hydrates, so no request for translations is done on page load.
 When the client needs access to an unloaded unit, it will request it from the server and will update the view when received.
 
-## What changes ?
+## What Changes?
 
-### Async accessors
+### Async Accessors
 
 For obvious reasons, with the `"dynamic_load"` accessing a value is now async, `t!`, `td!` and `tu!` still return `impl Fn() -> impl IntoView`, as the async part is handled inside of it with some optimizations, but the `*_display!` and `*_string!` variants now return a future and need to be awaited.
 
