@@ -18,7 +18,7 @@ Effect::new(|| {
 })
 ```
 
-This will print "one" with locale "fr" but "other" with locale "en".
+This will print "one" with the "fr" locale but "other" with the "en" locale.
 Accepted forms are: `zero`, `one`, `two`, `few`, `many`, `other`, and `_`.
 
 This macro is for cardinal plurals; if you want to match against ordinal plurals, use the `t_plural_ordinal!` macro.
