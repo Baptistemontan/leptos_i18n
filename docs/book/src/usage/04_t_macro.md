@@ -86,7 +86,7 @@ pub fn Foo() -> impl IntoView {
 
 Any missing values will generate an error.
 
-## Interpolate components
+## Interpolate Components
 
 If some components are declared for this key, you can pass them like this:
 
@@ -153,7 +153,7 @@ t!(i18n, key, <b> = <span attr:id="my_id" on:click=|_| { /* do stuff */} />, cou
 
 Basically `<name .../>` expands to `move |children| view! { <name ...>{children}</name> }`
 
-## Components attributes
+## Components Attributes
 
 If you declared attributes with your components
 
@@ -205,7 +205,7 @@ Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` 
 t!(i18n, key_to_plurals, count = count);
 ```
 
-## Access subkeys
+## Access Subkeys
 
 You can access subkeys by simply separating the path with `.`:
 
@@ -228,7 +228,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-## Access namespaces
+## Access Namespaces
 
 Namespaces are implemented as subkeys. You first access the namespace, then the keys in that namespace:
 
