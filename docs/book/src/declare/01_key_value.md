@@ -18,7 +18,7 @@ Key names must be [valid Rust identifiers](https://doc.rust-lang.org/reference/i
 
 The keys must be the same across all files; otherwise, the codegen will emit warnings. Any difference in keys is based on the default locale.
 
-### Missing key
+### Missing Key
 
 If a key is present in the default locale but not in another locale, the other locale will use the value from the default locale and emit a warning that a key is missing in that locale.
 
@@ -32,7 +32,7 @@ If you want to explicitly indicate that this value should use the value from the
 
 This will prevent a warning from being triggered for that key.
 
-### Surplus key
+### Surplus Key
 
 If a key is present in another locale but not in the default locale, the key will be ignored and a warning will be emitted.
 
