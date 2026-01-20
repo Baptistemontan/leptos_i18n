@@ -5,7 +5,7 @@ wouldn't it be nice to scope a context to a namespace or subkeys?
 
 Well, this page explains how to do it!
 
-## The `scope_i18n!` macro
+## The `scope_i18n!` Macro
 
 Using namespaces and subkeys can make things quite cumbersome very fast. Imagine you have this:
 
@@ -43,7 +43,7 @@ t!(i18n, subvalue);
 t!(i18n, another_subvalue);
 ```
 
-## The `use_i18n_scoped!` macro
+## The `use_i18n_scoped!` Macro
 
 In the above example, we do `let i18n = use_i18n();` but only access the context to scope it afterward. We could do
 
@@ -61,7 +61,7 @@ t!(i18n, more_subkeys.subvalue);
 t!(i18n, more_subkeys.another_subvalue);
 ```
 
-## The `scope_locale!` macro
+## The `scope_locale!` Macro
 
 The above examples are to scope a context, but maybe you use `td!` a lot and run into the same problems:
 
