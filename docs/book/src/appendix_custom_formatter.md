@@ -37,7 +37,7 @@ pub trait Formatter {
 }
 ```
 
-When the translations parser finds a formatter syntax (`{{ var, formatter(arg_name: value, no_value_arg)}}`)
+When the translations parser finds a formatter syntax (`{{ var, formatter(arg_name: value; no_value_arg)}}`)
 it will look for a formatter with a matching name, this is the name you put to `NAME`.
 
 It will then create the builder with the `builder` function.
