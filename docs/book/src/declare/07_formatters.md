@@ -87,7 +87,7 @@ let num = move || 100_000;
 t!(i18n, number_formatter, num);
 ```
 
-## Currency (experimental)
+## Currency (Experimental)
 
 ```json
 {
