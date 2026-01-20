@@ -35,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-## The `i18n` module
+## The `i18n` Module
 
 You can then import the generated code with:
 
