@@ -4,7 +4,7 @@ The `I18nContext` type is here to make all your application reactive to the chan
 
 The context is a wrapper around a `RwSignal` of the current locale. Every getter/setter must be used with the same reasoning as signals.
 
-## Provide the context
+## Provide the Context
 
 The generated code contain the `I18nContextProvider` component in the `i18n` module,
 you can use this component to make the context accessible to all child components.
@@ -24,7 +24,7 @@ pub fn App() -> impl IntoView {
 }
 ```
 
-## Access the context
+## Access the Context
 
 Once provided, you can access it with the `use_i18n` function, also generated in the `i18n` module.
 
@@ -43,7 +43,7 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-## Access the current locale
+## Access the Current Locale
 
 With the context, you can access the current locale with the `get_locale` method:
 
@@ -77,7 +77,7 @@ If you enable the `nightly` feature, you can directly call the context: `let loc
 
 A non-reactive counterpart to `get_locale` exists: `get_locale_untracked`.
 
-## Change the locale
+## Change the Locale
 
 With the context, you can change the current locale with the `set_locale` method. For example, this component will switch between `en` and `fr` with a button:
 
@@ -107,13 +107,13 @@ If you enable the `nightly` feature, you can directly call the context`i18n(new_
 
 A non-reactive counterpart to `set_locale` exists: `set_locale_untracked`.
 
-## `cookie` feature
+## `cookie` Feature
 
 When using the `cookie` feature, the context will set a cookie whenever the locale changes,
 this cookie will be used to decide what locale to use on the page load in CSR,
 and on request to the server in SSR by looking at the request headers.
 
-## Context options
+## Context Options
 
 The `I18nContextProvider` component accepts multiple props, all optional (except children):
 
@@ -124,7 +124,7 @@ The `I18nContextProvider` component accepts multiple props, all optional (except
 - `cookie_name`: give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
 - `cookie_options`: options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
 
-## Note on island
+## Note on Island
 
 If you use the `islands` feature from Leptos, the `I18nContextProvider` loses two props: `cookie_options` and `ssr_lang_header_getter`, because they are not serializable. If you need them, you can use the `init_context_with_options` function and provide the context yourself:
 
@@ -162,7 +162,7 @@ fn MyI18nProvider(
 }
 ```
 
-## "lang" and "dir" HTML attributes
+## "lang" and "dir" HTML Attributes
 
 You may want to add a "lang" or/and "dir" attribute on an HTML element such that
 
