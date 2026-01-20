@@ -1,8 +1,8 @@
 # Formatters
 
-For interpolation, every variables (other than `count` for plurals) are expected to be of type `impl IntoView + Clone + 'static`.
+For interpolation, every variable (other than `count` for plurals) is expected to be of type `impl IntoView + Clone + 'static`.
 
-But some values have different ways to be represented based on the locale:
+However, some values can be represented differently depending on the locale:
 
 - Number
 - Currency
@@ -18,7 +18,7 @@ You can specify the kind of value you are going to supply like this:
 }
 ```
 
-Some of the formatters can take arguments to better suits the format you need:
+Some of the formatters can take arguments to better suit the format you need:
 
 ```json
 {
@@ -39,7 +39,7 @@ Here are all the formatters:
 ```
 
 Will format the number based on the locale.
-This makes the variable needed to be `impl leptos_i18n::formatting::NumberFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoFixedDecimal`.
+This means the variable must be `impl leptos_i18n::formatting::NumberFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoFixedDecimal`.
 `IntoFixedDecimal` is a trait to turn a value into a `fixed_decimal::Decimal`, which is a type used by `icu` to format numbers. That trait is currently implemented for:
 
 - Decimal
@@ -98,7 +98,7 @@ t!(i18n, number_formatter, num);
 Will format the currency based on the locale.
 The variable should be the same as [number](#number).
 
-Enable the "format_currency" feature to use the number formatter.
+Enable the "format_currency" feature to use the currency formatter.
 
 ### Arguments
 
@@ -132,7 +132,7 @@ t!(i18n, currency_formatter, num);
 ```
 
 Will format the date based on the locale.
-This makes the variable needed to be `impl leptos_i18n::formatting::DateFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDate`.
+This means the variable must be `impl leptos_i18n::formatting::DateFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDate`.
 `IntoIcuDate` is a trait to turn a value into a `impl icu::datetime::input::Date`, which is a trait used by `icu` to format dates. The `IntoIcuDate` trait is currently implemented for `T: ConvertCalendar<Converted<'a> = Date<Ref<'a, AnyCalendar>>>`.
 You can use `icu::datetime::input::{Date, DateTime}`, or implement that trait for anything you want.
 
@@ -201,7 +201,7 @@ t!(i18n, date_formatter, date_var);
 ```
 
 Will format the time based on the locale.
-This makes the variable needed to be `impl leptos_i18n::formatting::TimeFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuTime`.
+This means the variable must be `impl leptos_i18n::formatting::TimeFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuTime`.
 `IntoIcuTime` is a trait to turn a value into a `impl icu::datetime::input::Time`, which is a trait used by `icu` to format time. The `IntoIcuTime` trait is currently implemented for `T: ConvertCalendar<Converted<'a> = Time> + InFixedCalendar<()> + AllInputMarkers<fieldsets::T>`.
 You can use `icu::datetime::input::{Time, DateTime}`, or implement that trait for anything you want.
 
@@ -264,7 +264,7 @@ t!(i18n, time_formatter, time_var);
 ```
 
 Will format the datetime based on the locale.
-This makes the variable needed to be `impl leptos_i18n::formatting::DateTimeFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDateTime`.
+This means the variable must be `impl leptos_i18n::formatting::DateTimeFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDateTime`.
 `IntoIcuDateTime` is a trait to turn a value into a `impl icu::datetime::input::DateTime` which is a trait used by `icu` to format datetimes. The `IntoIcuDateTime` trait is currently implemented for `T: ConvertCalendar<Converted<'a> = DateTime<Ref<'a, AnyCalendar>>>`.
 You can use `icu::datetime::input::DateTime`, or implement that trait for anything you want.
 
@@ -272,7 +272,7 @@ Enable the "format_datetime" feature to use the datetime formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the datetime formatter: `length`, `alignment`, `time_presision` and `year_style` that behave exactly the same as the one above.
+There are four arguments at the moment for the datetime formatter: `length`, `alignment`, `time_presision` and `year_style` that behave exactly the same as the one above.
 
 ```json
 {
@@ -306,7 +306,7 @@ t!(i18n, datetime_formatter, datetime_var);
 ```
 
 Will format the list based on the locale.
-This makes the variable needed to be `impl leptos_i18n::formatting::ListFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::WriteableList`.
+This means the variable must be `impl leptos_i18n::formatting::ListFormatterInputFn`, which is automatically implemented for `impl Fn() -> T + Clone + 'static where T: leptos_i18n::formatting::WriteableList`.
 `WriteableList` is a trait to turn a value into an `impl Iterator<Item = impl writeable::Writeable>`.
 
 Enable the "format_list" feature to use the list formatter.
@@ -319,7 +319,7 @@ There are two arguments at the moment for the list formatter: `list_type` and `l
 
 - and
 - or
-- unit (Default)
+- unit (default)
 
 `list_length` takes 3 possible values:
 
@@ -327,7 +327,7 @@ There are two arguments at the moment for the list formatter: `list_type` and `l
 - short
 - narrow
 
-See [`Intl.ListFormat`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/Intl/ListFormat) documentation. `icu` is used to do the formatting, but I found the Mozilla doc to have more details.
+See the [`Intl.ListFormat`](https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/Intl/ListFormat) documentation. `icu` is used to do the formatting, but I found the Mozilla doc to have more details.
 
 ```json
 {
@@ -349,7 +349,7 @@ t!(i18n, list_formatter, list_var);
 
 ## Notes
 
-Formatter can _not_ be used inside components attributes, this is **_NOT_** allowed:
+Formatters _cannot_ be used inside component attributes, this is **_NOT_** allowed:
 
 ```json
 {
