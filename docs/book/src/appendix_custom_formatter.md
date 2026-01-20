@@ -1,15 +1,15 @@
-# Custom formatter
+# Custom Formatter
 
-If you find the formatters provided by the library lacking some features you can either:
+If you find the formatters provided by the library lacking some features, you can either:
 
-- Open an issue, we will gladly look into your needs and see if we can accomodate you
+- Open an issue; we will gladly look into your needs and see if we can accommodate you
 - Make your own formatter
 
 This chapter is about how to do the later.
 
 Buckle up, we are going to dig into the internals of the parser/codegen.
 
-## Formatter trait
+## Formatter Trait
 
 The name is misleading, this is'nt the formatter itself but the parser, the trait look like this:
 
@@ -37,7 +37,7 @@ pub trait Formatter {
 }
 ```
 
-When the translations parser find a formatter syntax (`{{ var, formatter(arg_name: value, no_value_arg)}}`)
+When the translations parser finds a formatter syntax (`{{ var, formatter(arg_name: value, no_value_arg)}}`)
 it will look for a formatter with a matching name, this is the name you put to `NAME`.
 
 It will then create the builder with the `builder` function.
@@ -50,9 +50,9 @@ by calling `parse_arg`.
 
 The two last steps are repeated for each arguments until no arguments are left to be parsed.
 
-it will then call `build` with the builder to validate it and get the `Self::ToTokens`.
+It will then call `build` with the builder to validate it and get the `Self::ToTokens`.
 
-## The `FormatterToTokens` trait
+## The `FormatterToTokens` Trait
 
 This is where we touch the internals, this is where you inject what is done with the value, and what the value should be:
 
@@ -71,7 +71,7 @@ The `to_*` functions are how the values are used, `key` is the ident of the valu
 the `*_bounds` functions are how you restrict the type of the values being formatted, those functions must return some traits to bound the value,
 for example `Copy + ToString`.
 
-## Implementation example
+## Implementation Example
 
 Let's implement a simple formatter, it can pad left or right, such that we can have:
 
@@ -95,7 +95,7 @@ struct PaddingFormatterBuilder {
     total_len: Option<u32>,
 }
 
-// The direction to pas
+// The direction to pad
 #[derive(Debug, Clone, Copy, Default)]
 enum PadDirection {
     #[default]
@@ -146,7 +146,7 @@ impl Formatter for PaddingFormatterParser {
         field: &mut Self::Field<'_>,
         arg: Option<&str>,
     ) -> Result<(), Self::ParseError> {
-        // we don't have marker arguments here, so wer can unwrap the value
+        // we don't have marker arguments here, so we can unwrap the value
         let Some(arg) = arg else {
             return Err("missing value"); // Same as above, position, arg_name and arg value are reported with the error.
         };
@@ -177,8 +177,8 @@ impl Formatter for PaddingFormatterParser {
                     Ok(())
                 }
             }
-            // we already validated the field, we can't get random values here.
-            // would'nt need it if we used an enum for the fields.
+            // We already validated the field, we can't get random values here.
+            // Wouldn't need this if we used an enum for the fields.
             _ => unreachable!(),
         }
     }
@@ -323,7 +323,7 @@ so we can bound like this:
 
 ```rust
 fn fmt_bounds(&self) -> TokenStream {
-    quote!(crate::ToDisplayFn) // does'nt need to be at the root
+    quote!(crate::ToDisplayFn) // doesn't need to be at the root
 }
 ```
 
@@ -342,9 +342,9 @@ fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
     }
 ```
 
-And now the above code with the signal will compile fine and be reactive !
+And now the above code with the signal will compile fine and be reactive!
 
-## Inject the formatter
+## Inject the Formatter
 
 In your `build.rs` file, simply pass your formatter to the `ParseOptions`:
 
@@ -354,13 +354,13 @@ let cfg = cfg.parse_options(options);
 let translations_infos = TranslationsInfos::parse(cfg).unwrap();
 ```
 
-> note that `add_formatter` will panic if a formatter with the same name is already present. it also comes already loaded with all builtins formatters.
+> Note that `add_formatter` will panic if a formatter with the same name is already present. It also comes already loaded with all built-in formatters.
 
 ## Notes
 
-### Disabled formatters
+### Disabled Formatters
 
-You can disable a formatter by setting the `DISABLED` constant in the `Formatter` trait (`None` by default) with an error message:
+You can disable a formatter by setting the `DISABLED` constant in the `Formatter` trait (defaults to `None`) with an error message:
 
 ```rust
 impl FormatterToTokens for PaddingFormatter {
@@ -378,11 +378,11 @@ impl FormatterToTokens for PaddingFormatter {
 
 This is used internally to still have the builtin formatters active but able to emit diagnostics on how to enable them.
 
-### Continue on error
+### Continue on Error
 
-When driving the parser, if an error occur on a argument name parsing, it will stop for that argument and emit an error but continue to the next argument,
-if it fails to parse the value for an argument, it will also emit an error and continue to the next argument.
-This is done to give as much diagnostics as possible and not report one single error when multiple could be present.
+When driving the parser, if an error occurs on an argument name parsing, it will stop for that argument and emit an error but continue to the next argument.
+If it fails to parse the value for an argument, it will also emit an error and continue to the next argument.
+This is done to provide as much diagnostic information as possible and not report only a single error when multiple could be present.
 If any error is emitted, it will not call the final `build` method.
 
 ### Diagnostics
@@ -401,7 +401,6 @@ fn parse_with_diagnostics(
         todo!()
     }
 ```
+You can now have fine-grained control over the parsing and the diagnostics emitted.
 
-You can now have fine grain control on the parsing and the diagnostics emitted.
-
-If `None` is returned, no error will be emitted and a "dummy" formatter will be set that accept any value and do nothing, so the error must comes from the diagnostics.
+If `None` is returned, no error will be emitted and a "dummy" formatter will be set that accepts any value and does nothing, so the error must comes from the diagnostics.
