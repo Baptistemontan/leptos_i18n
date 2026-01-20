@@ -2,14 +2,14 @@
 
 You may want to have sections of your application use translations but be isolated from the "main" locale; this is what sub-contexts are for.
 
-## Why not just use `I18nContextProvider` ?
+## Why Not Just Use `I18nContextProvider` ?
 
 `I18nContextProvider` does not shadow any context if one already exists,
 this is because there should only be one "main" context, or they will conflict over the cookie, the "lang" attribute, the routing, etc.
 
 `init_i18n_subcontext_*` functions create a context that does not battle with the main context and makes it more obvious that a sub-context is created, improving code clarity.
 
-## Initialize a sub-context
+## Initialize a Sub-context
 
 `leptos_i18n::context::init_i18n_subcontext` takes an `initial_locale: Option<Signal<L>>` argument, this is so you can control the sub-context locale outside of it, you can for example make it so the locale of the sub-context is always the opposite of the "main" one:
 
@@ -34,11 +34,11 @@ fn opposite_context() {
 
 If it is not supplied, it takes the parent context locale as a default, and if no parent context exists (yes, you can use sub-context as a "main" context if you want), it uses the same locale resolution as the normal context.
 
-## Providing a sub-context
+## Providing a Sub-context
 
 There is no `provide_i18n_subcontext`. It does exist but is marked as deprecated; it is not actually deprecated, it is only there as an information point, although it does what you think.
 
-#### Shadowing correctly
+#### Shadowing Correctly
 
 Shadowing a context is not as easy as it sounds:
 
