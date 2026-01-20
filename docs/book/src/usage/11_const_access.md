@@ -10,7 +10,7 @@ If you have
 
 ```json
 {
-  "subkeys:": {
+  "subkeys": {
     "key": "my value"
   }
 }
