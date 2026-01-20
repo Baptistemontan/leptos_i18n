@@ -4,7 +4,7 @@ This library uses ICU4X as a backend for formatters and plurals, and the default
 
 ## Disable compiled data
 
-The first step to remove those excess informations is to disable the default data provider; it is activated by the `"icu_compiled_data"` feature that is enabled by default. So turn off default features or remove this feature.
+The first step to remove this excess information is to disable the default data provider. It is activated by the `"icu_compiled_data"` feature, which is enabled by default. So turn off default features or remove this feature.
 
 ## Custom provider
 
@@ -25,7 +25,7 @@ pub struct MyDataProvider;
 impl_data_provider!(MyDataProvider);
 ```
 
-you will also need some depedencies:
+you will also need some dependencies:
 
 ```toml
 [dependencies]
@@ -177,8 +177,8 @@ If you need both, `Options` can be turned into the needed keys:
 ```rust,ignore
 use leptos_i18n_build::Options;
 
-let mut markers = &[icu::plurals::provider::MARKERS]
-let markers.extend(Options::FormatDateTime.into_data_markers())
+let mut markers = &[icu::plurals::provider::MARKERS];
+let markers.extend(Options::FormatDateTime.into_data_markers());
 
 // markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
 
@@ -201,7 +201,7 @@ Enable the "experimental" feature for `icu`:
 
 ```toml
 # Cargo.toml
-[depedencies]
+[dependencies]
 icu = {
     version = "1.5.0",
     default-features = false,
@@ -213,13 +213,13 @@ icu = {
 
 ```toml
 # Cargo.toml
-[depedencies]
+[dependencies]
 icu_pattern = "0.2.0" # for databake
 ```
 
 ### Import the `alloc` crate
 
-The macro directly use the `alloc` crate instead of the std, so you must bring it into scope:
+The macro directly uses the `alloc` crate instead of std, so you must bring it into scope:
 
 ```rust,ignore
 extern crate alloc;
