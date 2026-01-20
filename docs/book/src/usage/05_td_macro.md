@@ -51,4 +51,4 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
-But the above scale is better.
+But the above approach scales better.
