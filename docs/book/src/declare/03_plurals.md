@@ -1,6 +1,6 @@
 # Plurals
 
-## What are plurals?
+## What Are Plurals?
 
 Plurals are a standardized way to deal with quantities. For example, English uses with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
 
@@ -46,7 +46,7 @@ t!(i18n, items, count = || 4) // -> "4 items"
 
 This will still require you to supply the `count` variable: `t!(i18n, items, count = ...)`.
 
-## Why bother?
+## Why Bother?
 
 Why bother, instead of just doing:
 
@@ -62,7 +62,7 @@ Because not all languages use the same plural rules.
 
 For example, in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is incorrect in French (with some exceptions — French has many of them).
 
-## Ordinal plurals
+## Ordinal Plurals
 
 What I described above are "cardinal" plurals, but they don’t work for cases like "1st place", "2nd place", etc.
 
@@ -91,11 +91,11 @@ You can use ordinal plurals by using the `_ordinal` suffix:
 
 > The `_ordinal` suffix is removed, in this example you access it with `t!(i18n, key, count = ..)`
 
-## How to know which to use:
+## How to Know Which to Use
 
 There are online resources that help determine which plural rules to use, my personal favorite is the [Unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
 
-## What if I need multiple counts?
+## What if I Need Multiple Counts?
 
 If you need multiple counts, for example:
 
@@ -107,6 +107,6 @@ If you need multiple counts, for example:
 
 There isn't a way to represent this in a single key, you will need `Foreign keys`, which you can read about in a later chapter.
 
-## Activate the feature
+## Activate the Feature
 
 To use plurals in your translations, enable the "plurals" feature.
