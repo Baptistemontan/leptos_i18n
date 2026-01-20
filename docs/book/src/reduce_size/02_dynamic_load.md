@@ -2,10 +2,10 @@
 
 ## Why use it ?
 
-By default, the translations are loaded at compile time and are baked into the binary,
-this has some performance advantages but comes at a cost: binary size.
+By default, the translations are loaded at compile time and are baked into the binary.
+This has some performance advantages but comes at a cost: binary size.
 This is fine when the number of keys and locales is small and the values are not long,
-but when supporting a high number of locales and with a lot of keys, binary sizes start to increase highly.
+but when supporting many locales and a lot of keys, binary size can increase significantly.
 
 The `"dynamic_load"` feature reduces this binary size increase by removing the baked translations in the binary and lazy loading them on the client.
 The way it does that is by using a server function to request the translations in a given "translation unit".
@@ -86,7 +86,7 @@ fn main() {
 }
 ```
 
-This will generate the need JSON files in the given directory, for exemple you could generate them in `target/i18n`, giving this file structure:
+This will generate the necessary JSON files in the given directory. For example, you could generate them in `target/i18n`, resulting in this file structure:
 
 ```bash
 ./target
@@ -121,8 +121,8 @@ Then if you are using Trunk you just have to add the directory to the build pipe
 </html>
 ```
 
-Now the translations will be available at `i18n/{locale}.json`
-To inform `leptos_i18n` where to find those translations you need to supply the `translations_uri` to the config builder:
+Now the translations will be available at `i18n/{locale}.json`.
+To inform `leptos_i18n` where to find those translations, you need to supply the `translations_uri` to the config builder:
 
 ```rust
 let cfg = cfg.translations_uri("i18n/{locale}.json"); // or "i18n/{namespace}/{locale}.json" when using namespaces
@@ -134,6 +134,6 @@ And this is it!
 
 1.  There is a chance that enabling this feature actually increases binary sizes if there aren’t many translations,
     as there is additional code being generated to request, parse, and load the translations. But this is mostly a fixed cost,
-    so with enough translations, the trade will be beneficial. So do some testing.
+    so with enough translations, so with enough translations, the trade-off will be beneficial. So do some testing.
 
 2.  Only the raw strings are removed from the binary; the code to render each key is still baked in it, whatever the locale or the namespace.
