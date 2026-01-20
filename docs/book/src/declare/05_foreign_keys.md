@@ -1,4 +1,4 @@
-# Foreign keys
+# Foreign Keys
 
 Foreign keys let you re-use already declared translations:
 
@@ -19,7 +19,7 @@ When using namespaces, you _must_ specify the namespace of the key you are looki
 
 You can point to explicitly defaulted keys, but not implicitly defaulted ones.
 
-## Supply arguments
+## Supply Arguments
 
 You can also supply arguments to fill variables of the pointed key:
 
@@ -57,7 +57,7 @@ t!(i18n, interpolated_arg, new_arg = "a value"); // -> "value: a value"
 t!(i18n, foreign_key_arg, new_arg = "a value"); // -> "value: value: a value"
 ```
 
-## `"count"` arg for plurals
+## `"count"` Arg for Plurals
 
 If you have a plural like
 
