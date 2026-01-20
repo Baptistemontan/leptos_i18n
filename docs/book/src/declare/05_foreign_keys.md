@@ -9,11 +9,11 @@ Foreign keys let you re-use already declared translations:
 }
 ```
 
-This will replace `$t(hello_world)` by the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
+This will replace `$t(hello_world)` with the value of the key `hello_world`, making `reuse` equal to `"message: Hello World!"`.
 
 You can point to any key other than keys containing subkeys.
 
-To point to subkeys, you give the path by separating the key by `.`: `$t(key.subkey.subsubkey)`.
+To point to subkeys, you give the path by separating the keys with `.`: `$t(key.subkey.subsubkey)`.
 
 When using namespaces, you _must_ specify the namespace of the key you are looking for, using `:`: `$t(namespace:key)`.
 
@@ -30,9 +30,9 @@ You can also supply arguments to fill variables of the pointed key:
 }
 ```
 
-This will result in `clicked_twice` to have the value `"You clicked two times"`.
+This will result in `clicked_twice` having the value `"You clicked two times"`.
 
-Arguments must be strings, delimited by either single quotes or double quotes.
+Arguments must be strings, delimited by double quotes. JSON only supports double quotes.
 
 > **Note**: Any argument with no matching variable is just discarded; they will not emit any warning/error.
 
@@ -68,7 +68,7 @@ If you have a plural like
 }
 ```
 
-You can supply the count as a foreign key in 2 ways, as a variable:
+You can supply the count as a foreign key in two ways, the first as a variable:
 
 ```json
 {
@@ -83,7 +83,7 @@ t!(i18n, new_key, new_count = move || 1); // -> "one item"
 t!(i18n, new_key, new_count = move || 2); // -> "2 items"
 ```
 
-> **note**: for the `count` arg to plurals, the value provided must be a single variable (whitespaces around are supported though).
+> **note**: For the `count` arg to plurals, the value provided must be a single variable (whitespaces around it is supported).
 
 Or by an actual value:
 
@@ -99,8 +99,7 @@ t!(i18n, singular_key); // -> "one item"
 t!(i18n, multiple_key); // -> "6 items"
 ```
 
-> **note**: while floats are supported, they don't carry all the information once deserialized such as leading 0, so some truncation may occur.
-
+> **note**: While floats are supported, they don't carry all the information once deserialized (such as leading zeros), so some truncation may occur. 
 ## Multi counts plurals
 
 If you need multiple counts for a plural, like for example:
