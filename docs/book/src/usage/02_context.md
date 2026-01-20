@@ -118,8 +118,8 @@ and on request to the server in SSR by looking at the request headers.
 The `I18nContextProvider` component accepts multiple props, all optional (except children):
 
 - `children`: obviously
-- `set_lang_attr_on_html`: should or not set the "lang" attribute on the root `<html>` element (default to true)
-- `set_dir_attr_on_html`: should or not set the "dir" attribute on the root `<html>` element (default to true)
+- `set_lang_attr_on_html`: whether to set the "lang" attribute on the root `<html>` element (default to true)
+- `set_dir_attr_on_html`: whether to set the "dir" attribute on the root `<html>` element (default to true)
 - `enable_cookie`: should set a cookie to keep track of the locale when the page reloads (default to true) (do nothing without the "cookie" feature)
 - `cookie_name`: give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
 - `cookie_options`: options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
@@ -183,4 +183,4 @@ view! {
 ```
 
 And it will set the "lang" and "dir" attributes for you on the `<div>` element !
-_Note :_ Use directives don't work on the server, so don't rely on this for server-side rendering.
+_Note:_ Use directives don't work on the server, so don't rely on this for server-side rendering.
