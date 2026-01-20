@@ -68,7 +68,7 @@ There are more optional values you can supply:
 - `add_namespace`: This is to split your translations into multiple files, we will cover it in a later chapter
 - `locales_path`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
 - `translations_uri`: Used in a CSR application with the `dynamic_load` feature, more information in a later chapter.
-- `extend_locale`: "Allows you to describe the inheritance structure for locales, covered in a later chapter.
+- `extend_locale`: Allows you to describe the inheritance structure for locales, covered in a later chapter.
 - `parse_options`: Parsing options, covered in the next segment
 
 Once this configuration is done, you can start writing your translations.
