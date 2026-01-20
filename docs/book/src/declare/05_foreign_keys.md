@@ -100,7 +100,7 @@ t!(i18n, multiple_key); // -> "6 items"
 ```
 
 > **note**: While floats are supported, they don't carry all the information once deserialized (such as leading zeros), so some truncation may occur. 
-## Multi counts plurals
+## Multi Counts Plurals
 
 If you need multiple counts for a plural, like for example:
 
