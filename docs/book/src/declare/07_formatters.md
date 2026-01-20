@@ -18,7 +18,7 @@ You can specify the kind of value you are going to supply like this:
 }
 ```
 
-Some of the formatters can take arguments to better suit the format you need:
+Some of the formatters can take arguments to better suit your formatting needs:
 
 ```json
 {
@@ -109,7 +109,7 @@ There are two arguments at the moment for the currency formatter: `width` and `c
 - short (default)
 - narrow
 
-`currency_code` value should be a [currency code](https://www.iban.com/currency-codes), such as USD or EUR. The USD is the default value.
+`currency_code` value should be a [currency code](https://www.iban.com/currency-codes), such as USD or EUR. USD is the default value.
 
 ### Example
 
@@ -272,7 +272,7 @@ Enable the "format_datetime" feature to use the datetime formatter.
 
 ### Arguments
 
-There are four arguments at the moment for the datetime formatter: `length`, `alignment`, `time_presision` and `year_style` that behave exactly the same as the one above.
+There are four arguments at the moment for the datetime formatter: `length`, `alignment`, `time_precision` and `year_style`, which behave exactly the same as the ones above.
 
 ```json
 {
