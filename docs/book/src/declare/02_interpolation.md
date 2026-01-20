@@ -68,6 +68,6 @@ The syntax for variables:
 }
 ```
 
-## Values Names.
+## Values Names
 
 Values names must follow the same rules as [keys](./01_key_value.md#keys).
