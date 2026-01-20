@@ -1,10 +1,10 @@
 # Plurals
 
-## What are plurals ?
+## What are plurals?
 
-Plurals are a standardized way to deal with numbers. For example, the English language deals with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
+Plurals are a standardized way to deal with quantities. For example, English deals with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
 
-If you were to have
+If you have
 
 ```json
 {
@@ -23,7 +23,7 @@ This can be solved by defining 2 plural forms:
 }
 ```
 
-Providing the count to the `t!` macro, this will result in:
+When providing the count to the `t!` macro, this will result in:
 
 ```rust,ignore
 let i18n = use_i18n();
@@ -44,11 +44,11 @@ t!(i18n, items, count = || 4) // -> "4 items"
 }
 ```
 
-This will still need you to supply the `count` variable: `t!(i18n, items, count = ...)`.
+This will still require you to supply the `count` variable: `t!(i18n, items, count = ...)`.
 
-## Why bother ?
+## Why bother?
 
-Why bother and not just do
+Why bother, instead of just doing:
 
 ```rust,ignore
 if item_count == 1 {
@@ -58,15 +58,15 @@ if item_count == 1 {
 }
 ```
 
-Because all languages don't use the same plurals!
+Because not all languages use the same plural rules.
 
-For example, in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is bad French (except in certain conditions, because French, exceptions are everywhere).
+For example, in French, 0 is considered singular, so this could produce "0 choses" instead of "0 chose", which is incorrect in French (with some exceptions — French has many of them).
 
 ## Ordinal plurals
 
-What I describe above are "Cardinal" plurals, but they don't work with like "1st place", "2nd place", etc.
+What I describe above are "Cardinal" plurals, but they don’t work for cases like “1st place”, "2nd place", etc.
 
-The English language uses 4 ordinal plurals, and French 2:
+The English language uses 4 ordinal plural forms, while French uses 2:
 
 - one: "1st place", "21st place"
 - two: "2nd place", "22nd place"
@@ -93,9 +93,9 @@ You can use them by using the `_ordinal` suffix:
 
 ## How to know which to use:
 
-There are resources online to help you find what you should use, my personal favorite is the [Unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
+There are online resources that help determine which plural rules to use, my personal favorite is the [Unicode CLDR Charts](https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html).
 
-## What if I need multiple counts ?
+## What if I need multiple counts?
 
 If you need multiple counts, for example:
 
