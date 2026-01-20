@@ -2,7 +2,7 @@
 
 ## What are plurals?
 
-Plurals are a standardized way to deal with quantities. For example, English deals with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
+Plurals are a standardized way to deal with quantities. For example, English uses with 2 plurals: _"one"_ (1) and _"other"_ (0, 2, 3, ..).
 
 If you have
 
@@ -12,7 +12,7 @@ If you have
 }
 ```
 
-this would produce "1 items", which is not good English.
+this would produce "1 items", which is incorrect English.
 
 This can be solved by defining 2 plural forms:
 
@@ -64,7 +64,7 @@ For example, in French, 0 is considered singular, so this could produce "0 chose
 
 ## Ordinal plurals
 
-What I describe above are "Cardinal" plurals, but they don’t work for cases like “1st place”, "2nd place", etc.
+What I described above are "cardinal" plurals, but they don’t work for cases like "1st place", "2nd place", etc.
 
 The English language uses 4 ordinal plural forms, while French uses 2:
 
@@ -78,7 +78,7 @@ And French:
 - one: "1ère place"
 - other: "2ème place", "21ème place"
 
-You can use them by using the `_ordinal` suffix:
+You can use ordinal plurals by using the `_ordinal` suffix:
 
 ```json
 {
@@ -105,7 +105,7 @@ If you need multiple counts, for example:
 }
 ```
 
-There isn't a way to represent this in a single key, you will need `Foreign keys` that you can read about in a next chapter.
+There isn't a way to represent this in a single key, you will need `Foreign keys`, which you can read about in a later chapter.
 
 ## Activate the feature
 
