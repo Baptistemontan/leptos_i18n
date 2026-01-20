@@ -55,7 +55,7 @@ You can pass attributes to the components:
 
 The values the attributes accept are:
 
-- Strings
+- strings
 - booleans
 - numbers (signed, unsigned, floats),
 - variables
