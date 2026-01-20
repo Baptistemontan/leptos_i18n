@@ -1,4 +1,4 @@
-# Access translations in a const context
+# Access Translations in a Const Context
 
 You can access the translations in a const context if you have those things:
 
