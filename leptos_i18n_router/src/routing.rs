@@ -784,7 +784,7 @@ where
 
     fn generate_path(&self, path: &mut Vec<PathSegment>) {
         for part in self.segments_for_current_locale() {
-            path.push(PathSegment::Static(part.into()));
+            path..generate_path(path);
         }
     }
 }
