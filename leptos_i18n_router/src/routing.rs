@@ -729,13 +729,15 @@ impl<L: Locale, F> I18nPath<L, F>
 where
     F: Fn(L) -> &'static str,
 {
-    fn segments_for_current_locale(&self) -> Vec<&'static str> {
+    fn segments_for_current_locale(
+        &self,
+    ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
         let locale = get_current_route_locale::<L>();
         let s = (self.func)(locale);
 
         s.split('/')
             .filter(|p| !p.is_empty())
-            .map(StaticSegment)
+            .map(leptos_router::StaticSegment)
     }
 }
 
@@ -748,12 +750,11 @@ where
     }
 
     fn test<'a>(&self, path: &'a str) -> Option<leptos_router::PartialPathMatch<'a>> {
-        use leptos_router::{PartialPathMatch, StaticSegment};
+        use leptos_router::PartialPathMatch;
 
-        let parts = self.segments_for_current_locale();
+        let segments: Vec<_> = self.segments_for_current_locale().collect();
 
-        // No localized segments -> behave like unit match
-        if parts.is_empty() {
+        if segments.is_empty() {
             return ().test(path);
         }
 
@@ -761,9 +762,7 @@ where
         let mut all_params = Vec::new();
         let mut matched_len = 0usize;
 
-        for part in parts {
-            let static_seg = StaticSegment(part);
-
+        for static_seg in &segments {
             let pm = match static_seg.test(remaining) {
                 Some(p) => p,
                 None => return None,
@@ -780,12 +779,6 @@ where
             all_params,
             &path[..matched_len],
         ))
-    }
-
-    fn generate_path(&self, path: &mut Vec<PathSegment>) {
-        for part in self.segments_for_current_locale() {
-            path..generate_path(path);
-        }
     }
 }
 
