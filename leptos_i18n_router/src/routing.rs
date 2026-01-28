@@ -735,7 +735,7 @@ where
 
         s.split('/')
             .filter(|p| !p.is_empty())
-            .collect()
+            .map(StaticSegment)
     }
 }
 
