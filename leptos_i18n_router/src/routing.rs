@@ -212,12 +212,12 @@ fn get_new_path<L: Locale>(
         }
     });
     location.hash.with_untracked(|hash| {
-    if !hash.is_empty() {
-        // Remove leading '#' if present
-        let hash = hash.trim_start_matches('#');
-        new_path.push('#');
-        new_path.push_str(hash);
-    }
+        if !hash.is_empty() {
+            // Remove leading '#' if present
+            let hash = hash.trim_start_matches('#');
+            new_path.push('#');
+            new_path.push_str(hash);
+        }
     });
     new_path
 }
