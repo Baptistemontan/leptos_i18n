@@ -752,7 +752,7 @@ where
     fn test<'a>(&self, path: &'a str) -> Option<leptos_router::PartialPathMatch<'a>> {
         use leptos_router::PartialPathMatch;
 
-        let segments: Vec<_> = self.segments_for_current_locale().collect();
+        let mut segments = self.segments_for_current_locale().peekable();
 
         if segments.is_empty() {
             return ().test(path);
