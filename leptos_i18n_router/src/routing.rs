@@ -762,7 +762,7 @@ where
         let mut all_params = Vec::new();
         let mut matched_len = 0usize;
 
-        for static_seg in &segments {
+        for static_seg in segments {
             let pm = match static_seg.test(remaining) {
                 Some(p) => p,
                 None => return None,
