@@ -780,6 +780,12 @@ where
             &path[..matched_len],
         ))
     }
+
+    fn generate_path(&self, path: &mut Vec<PathSegment>) {
+        for static_seg in self.segments_for_current_locale() {
+            static_seg.generate_path(path);
+        }
+    }
 }
 
 #[doc(hidden)]

@@ -15,9 +15,7 @@ pub use components::I18nRoute;
 /// ```
 #[macro_export]
 macro_rules! i18n_path {
-    ($t:ty, $func:expr) => {{
-        $crate::__private::make_i18n_path::<$t, _>($func)
-    }};
+    ($t:ty, $func:expr) => {{ $crate::__private::make_i18n_path::<$t, _>($func) }};
 }
 
 #[doc(hidden)]
