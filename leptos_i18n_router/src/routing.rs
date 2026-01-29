@@ -754,7 +754,7 @@ where
 
         let mut segments = self.segments_for_current_locale().peekable();
 
-        if segments.is_empty() {
+        if segments.peek().is_none() {
             return ().test(path);
         }
 
