@@ -62,7 +62,7 @@ test.describe("when locale is the default locale (en-GB)", () => {
   test("history check", ({ page, i18n }) => history_check(page, i18n));
   test("counter check", ({ page, i18n }) => counter_check(page, i18n));
   test("redirection check", ({ page, i18n }) => redirection_check(page, i18n, "counter", "counter_path"));
-  test("redirection check multi segment", ({ page, i18n }) => redirection_check(page, i18n, "multi/counter", "counter_multi_path"));
+  test("redirection check multi segment", ({ page, i18n }) => redirection_check(page, i18n, "multi/segments/counter", "counter_multi_path"));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
