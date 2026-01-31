@@ -83,10 +83,11 @@ fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
         .trim_start_matches('/')
         .strip_prefix(base_path)?
         .trim_start_matches('/');
+    let (to_match, _) = stripped_path.split_once('/').unwrap_or((stripped_path, ""));
     L::get_all()
         .iter()
         .copied()
-        .find(|l| stripped_path.starts_with(l.as_str()))
+        .find(|l| l.as_str() == to_match)
 }
 
 fn construct_path_segments<'b, 'p: 'b>(
@@ -765,10 +766,7 @@ where
         let mut matched_len = 0usize;
 
         for static_seg in segments {
-            let pm = match static_seg.test(remaining) {
-                Some(p) => p,
-                None => return None,
-            };
+            let pm = static_seg.test(remaining)?;
 
             let matched = pm.matched();
             matched_len += matched.len();
