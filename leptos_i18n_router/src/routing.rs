@@ -505,14 +505,16 @@ impl<L, View, Chil> I18nNestedRoute<L, View, Chil> {
     }
 }
 
-// what you will see after this comment is an absolute fuckery.
+// what you will see after this comment is a bit of a hack.
 // The goal here is to create N + 1 routes where N is the number of locales (last being for empty).
 // not very difficult.
-// but if you do it the "normal" way, changing locales will rebuild the entire tree, making the application loose state when it does'nt need to.
-// So, we want to create N + 1 routes, that are "the same"
-// Leptos differentiate them with their "RouteId"
-// So we basically create N+1 route with the same route id
-// All the stupidity you will see under this comment is done just to archieve this.
+// but if you do it the "normal" way, changing locales will rebuild the entire tree, making the application
+// lose state when it doesn't need to.
+// So, we want to create N + 1 routes that are "the same".
+// Leptos differentiates them with their "RouteId".
+// So we basically create N+1 routes with the same route id.
+// All the complexity you will see under this comment is done just to achieve this.
+
 #[doc(hidden)]
 pub type BaseRoute<View, Chil> = NestedRoute<StaticSegment<&'static str>, Chil, (), View>;
 
