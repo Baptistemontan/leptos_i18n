@@ -4,5 +4,7 @@
   "click_count": "You clicked <b>{{ count }}</b> times",
   "click_to_inc": "Click to increment the counter",
   "go_home": "Homepage",
-  "go_counter": "Counter"
+  "go_counter": "Counter",
+  "counter_path": "counter",
+  "counter_multi_path": "multi/segments/counter"
 }

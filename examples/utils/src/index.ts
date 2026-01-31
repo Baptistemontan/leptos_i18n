@@ -212,8 +212,8 @@ class I18n<L extends Locales, N extends Namespaces<L>> {
     this.locale_change_cb = cb;
   }
 
-  public get_url(path?: string): string {
-    let stripped_path = path || "";
+  public get_url(path?: string | Record<keyof L, string>): string {
+    let stripped_path = path ? typeof path == "string" ? path : path[this.current_locale] : "";
     while (stripped_path.startsWith("/")) {
       stripped_path = stripped_path.substring(1);
     }

@@ -6,7 +6,7 @@ import { fail_windows_webkit, createI18nFixture } from "../../../utils";
 const LNG_BUTTON_XPATH = "xpath=//html/body/button";
 
 const TITLE_XPATH = "xpath=//html/body/h1";
-const COUNTER_ANCHOR_XPATH = "xpath=//html/body/a";
+const COUNTER_ANCHOR_XPATH = "xpath=//html/body/a[1]";
 
 const COUNTER_XPATH = "xpath=//html/body/div/p";
 const INC_BUTTON_XPATH = "xpath=//html/body/div/button";
@@ -61,7 +61,8 @@ test.describe("when locale is the default locale (en-GB)", () => {
   test("main check", ({ page, i18n }) => main_check(page, i18n));
   test("history check", ({ page, i18n }) => history_check(page, i18n));
   test("counter check", ({ page, i18n }) => counter_check(page, i18n));
-  test("redirection check", ({ page, i18n }) => redirection_check(page, i18n));
+  test("redirection check", ({ page, i18n }) => redirection_check(page, i18n, "counter", "counter_path"));
+  test("redirection check multi segment", ({ page, i18n }) => redirection_check(page, i18n, "multi/segments/counter", "counter_multi_path"));
 });
 
 test.describe("when locale is set to french (fr-FR)", () => {
@@ -91,7 +92,7 @@ async function main_check(page: Page, i18n: I18n) {
 
   await page.locator(COUNTER_ANCHOR_XPATH).click();
 
-  await expect(page).toHaveURL(i18n.get_url("counter"));
+  await expect(page).toHaveURL(i18n.get_url(i18n.t("counter_path")));
 
   await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
     i18n.t("click_to_change_lang")
@@ -143,7 +144,7 @@ async function history_check(page: Page, i18n: I18n) {
 async function counter_check(page: Page, i18n: I18n) {
   await page.goto("/counter");
 
-  await expect(page).toHaveURL(i18n.get_url("counter"));
+  await expect(page).toHaveURL(i18n.get_url(i18n.t("counter_path")));
 
   await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
     i18n.t("click_to_change_lang")
@@ -161,17 +162,17 @@ async function counter_check(page: Page, i18n: I18n) {
 
   await switch_lang(i18n);
 
-  await expect(page).toHaveURL(i18n.get_url("counter"));
+  await expect(page).toHaveURL(i18n.get_url(i18n.t("counter_path")));
 
   await expect(page.locator(COUNTER_XPATH)).toHaveText(
     i18n.t("click_count", { count: 3 })
   );
 }
 
-async function redirection_check(page: Page, i18n: I18n) {
-  await page.goto("/en/counter");
+async function redirection_check(page: Page, i18n: I18n, path: string, key: string) {
+  await page.goto(`/en/${path}`);
 
-  await expect(page).toHaveURL("/en/counter");
+  await expect(page).toHaveURL(`/en/${i18n.td("en", key)}`);
 
   await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
     i18n.t("click_to_change_lang")
@@ -179,7 +180,7 @@ async function redirection_check(page: Page, i18n: I18n) {
 
   await switch_lang(i18n);
 
-  await expect(page).toHaveURL("/fr/counter");
+  await expect(page).toHaveURL(`/fr/${i18n.td("fr", key)}`);
 
   await expect(page.locator(LNG_BUTTON_XPATH)).toHaveText(
     i18n.t("click_to_change_lang")

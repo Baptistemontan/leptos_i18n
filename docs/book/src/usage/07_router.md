@@ -84,6 +84,10 @@ If you have `segment_path_name = "search"` for English, and `segment_path_name =
 
 It can be used at any depth, and if not used inside an `i18nRoute` it will default to the default locale.
 
+Multi segments path are supported, meaning you can have `segment_path_name = "some/path"` for English, and `segment_path_name = "un/chemin"` for French and work as expected.
+
+> _note_: the number of segments must be the same for all locales or a runtime error will be thrown. Empty segments don't count, meaning `segment_path_name = "path"` for English, and `segment_path_name = ""` for French will create an error.
+
 ## Caveat
 
 If you have a layout like this:
