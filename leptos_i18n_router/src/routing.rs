@@ -716,6 +716,7 @@ where
     }
 }
 
+#[doc(hidden)]
 #[derive(Clone, Copy)]
 pub struct I18nPath<L, F> {
     func: F,
