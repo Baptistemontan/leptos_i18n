@@ -61,9 +61,6 @@ fn match_path_segments(
 ) -> Option<LocalizedPathMatch> {
     // This hurt my eyes
 
-    leptos::logging::log!("match: {:?}", segments);
-    leptos::logging::log!("match: {:?}", old_segments);
-
     let mut matches = LocalizedPathMatch::default();
     let mut optional_idx = 0;
 
@@ -121,10 +118,6 @@ fn construct_path_segments<'b, 'p: 'b>(
     path_builder: &mut PathBuilder<'b>,
     matches: &LocalizedPathMatch,
 ) {
-    leptos::logging::log!("construct: {:?}", segments);
-    leptos::logging::log!("construct: {:?}", new_segments);
-    leptos::logging::log!("construct: {:?}", matches);
-
     let mut params = matches.params.iter();
     let mut optional_idx = 0;
 
