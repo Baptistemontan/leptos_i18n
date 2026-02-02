@@ -1,0 +1,2193 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title></title>
+        <meta name="robots" content="noindex" />
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="02_getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="setting_up/index.html"><strong aria-hidden="true">3.</strong> Setting Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setting_up/01_configuration.html"><strong aria-hidden="true">3.1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="setting_up/02_file_structure.html"><strong aria-hidden="true">3.2.</strong> File structure</a></li><li class="chapter-item expanded "><a href="setting_up/03_namespaces.html"><strong aria-hidden="true">3.3.</strong> Namespaces</a></li><li class="chapter-item expanded "><a href="setting_up/04_inheritance.html"><strong aria-hidden="true">3.4.</strong> Inheritance</a></li></ol></li><li class="chapter-item expanded "><a href="declare/index.html"><strong aria-hidden="true">4.</strong> Declare Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="declare/01_key_value.html"><strong aria-hidden="true">4.1.</strong> Key-Value Pairs</a></li><li class="chapter-item expanded "><a href="declare/02_interpolation.html"><strong aria-hidden="true">4.2.</strong> Interpolation</a></li><li class="chapter-item expanded "><a href="declare/03_plurals.html"><strong aria-hidden="true">4.3.</strong> Plurals</a></li><li class="chapter-item expanded "><a href="declare/04_subkeys.html"><strong aria-hidden="true">4.4.</strong> Subkeys</a></li><li class="chapter-item expanded "><a href="declare/05_foreign_keys.html"><strong aria-hidden="true">4.5.</strong> Foreign keys</a></li><li class="chapter-item expanded "><a href="declare/06_mix_kinds.html"><strong aria-hidden="true">4.6.</strong> Mixing Kinds</a></li><li class="chapter-item expanded "><a href="declare/07_formatters.html"><strong aria-hidden="true">4.7.</strong> Formatters</a></li></ol></li><li class="chapter-item expanded "><a href="usage/index.html"><strong aria-hidden="true">5.</strong> Use Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/02_context.html"><strong aria-hidden="true">5.1.</strong> I18nContext</a></li><li class="chapter-item expanded "><a href="usage/03_subcontext.html"><strong aria-hidden="true">5.2.</strong> Sub-context</a></li><li class="chapter-item expanded "><a href="usage/04_t_macro.html"><strong aria-hidden="true">5.3.</strong> t! Macro</a></li><li class="chapter-item expanded "><a href="usage/05_td_macro.html"><strong aria-hidden="true">5.4.</strong> td! Macro</a></li><li class="chapter-item expanded "><a href="usage/06_td_string_macro.html"><strong aria-hidden="true">5.5.</strong> td_string! Macro</a></li><li class="chapter-item expanded "><a href="usage/07_router.html"><strong aria-hidden="true">5.6.</strong> I18nRoute</a></li><li class="chapter-item expanded "><a href="usage/08_scoping.html"><strong aria-hidden="true">5.7.</strong> Scoping</a></li><li class="chapter-item expanded "><a href="usage/09_t_format.html"><strong aria-hidden="true">5.8.</strong> t_format!</a></li><li class="chapter-item expanded "><a href="usage/10_t_plural.html"><strong aria-hidden="true">5.9.</strong> t_plural!</a></li><li class="chapter-item expanded "><a href="usage/11_const_access.html"><strong aria-hidden="true">5.10.</strong> Constant Access</a></li><li class="chapter-item expanded "><a href="usage/12_serverfn.html"><strong aria-hidden="true">5.11.</strong> Server functions</a></li></ol></li><li class="chapter-item expanded "><a href="infos/index.html"><strong aria-hidden="true">6.</strong> More Informations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="infos/01_locale_resol.html"><strong aria-hidden="true">6.1.</strong> Locale Resolution</a></li></ol></li><li class="chapter-item expanded "><a href="reduce_size/index.html"><strong aria-hidden="true">7.</strong> Reduce Binary Size</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="reduce_size/01_datagen.html"><strong aria-hidden="true">7.1.</strong> ICU4X Datagen</a></li><li class="chapter-item expanded "><a href="reduce_size/02_dynamic_load.html"><strong aria-hidden="true">7.2.</strong> Lazy Load The Translations</a></li></ol></li><li class="chapter-item expanded "><a href="06_features.html"><strong aria-hidden="true">8.</strong> Features</a></li><li class="chapter-item expanded "><a href="appendix_i18n_ally.html"><strong aria-hidden="true">9.</strong> Appendix: i18n Ally extension for VSC</a></li><li class="chapter-item expanded "><a href="appendix_custom_formatter.html"><strong aria-hidden="true">10.</strong> Appendix: Custom formatters</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>This book is intended as an introduction to the <a href="https://github.com/Baptistemontan/leptos_i18n">Leptos_i18n</a> crate.</p>
+<p>This crate is made to simplify Internationalization in a <a href="https://crates.io/crates/leptos">Leptos</a> application that loads locales at <strong><em>compile time</em></strong> and provides compile-time checks for translation keys, interpolation keys, and the selected locale.</p>
+<p>This guide does assume you know some basics about <code>Leptos</code>, but the majority of the guide is about declaring the translations and how to use them. You can find the <code>Leptos</code> book <a href="https://leptos-rs.github.io/leptos/">here</a>.</p>
+<blockquote>
+<p>The source code for the book is available <a href="https://github.com/Baptistemontan/leptos_i18n/tree/master/docs/book">here</a>. PRs for typos or clarification are always welcome.</p>
+</blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-started"><a class="header" href="#getting-started">Getting started</a></h1>
+<p>First thing we need is a <code>Leptos</code> project, you can find documentation on how to set one up in the <code>Leptos</code> <a href="https://leptos-rs.github.io/leptos/02_getting_started.html">book</a>.</p>
+<p>Once you have set one up, you can add this crate to your project with</p>
+<pre><code class="language-bash">cargo add leptos_i18n leptos_i18n_build
+</code></pre>
+<p>Or by adding this line to your <code>Cargo.toml</code>:</p>
+<pre><code class="language-toml">[dependencies]
+leptos_i18n = &quot;0.6&quot;
+
+[build-dependencies]
+leptos_i18n_build = &quot;0.6&quot;
+</code></pre>
+<p>We actually need 2 crates, we will talk about the second one later</p>
+<h2 id="actix-web-backend"><a class="header" href="#actix-web-backend"><code>actix-web</code> Backend</a></h2>
+<p>When compiling for the backend using <code>actix-web</code>, enable the <code>actix</code> feature for the <code>leptos_i18n</code> crate:</p>
+<pre><code class="language-toml"># Cargo.toml
+
+[features]
+ssr = [
+    &quot;leptos_i18n/actix&quot;,
+    &quot;leptos_i18n_build/ssr&quot;,
+]
+</code></pre>
+<h2 id="axum-backend"><a class="header" href="#axum-backend"><code>axum</code> Backend</a></h2>
+<p>When compiling for the backend using <code>axum</code>, enable the <code>axum</code> feature for the <code>leptos_i18n</code> crate:</p>
+<pre><code class="language-toml"># Cargo.toml
+
+[features]
+ssr = [
+    &quot;leptos_i18n/axum&quot;,
+    &quot;leptos_i18n_build/ssr&quot;,
+]
+</code></pre>
+<h2 id="hydrate"><a class="header" href="#hydrate">Hydrate</a></h2>
+<p>When compiling for the client, enable the <code>hydrate</code> feature:</p>
+<pre><code class="language-toml"># Cargo.toml
+
+[features]
+hydrate = [
+    &quot;leptos_i18n/hydrate&quot;,
+    &quot;leptos_i18n_build/hydrate&quot;,
+]
+</code></pre>
+<h2 id="client-side-rendering"><a class="header" href="#client-side-rendering">Client Side Rendering</a></h2>
+<p>When compiling for the client, enable the <code>csr</code> feature:</p>
+<pre><code class="language-toml"># Cargo.toml
+
+[dependencies.leptos_i18n]
+features = [&quot;csr&quot;]
+
+
+[build-dependencies.leptos_i18n_build]
+features = [&quot;csr&quot;]
+</code></pre>
+<p>You can find examples using CSR on the <a href="https://github.com/Baptistemontan/leptos_i18n/tree/master/examples/csr">github repo</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="setting-up"><a class="header" href="#setting-up">Setting Up</a></h1>
+<p>his first section introduces the configuration you need to use <code>leptos_i18n</code>. By the end of this section, you will be able to set up the basics to start using translations in your <code>Leptos</code> application.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="load-the-translations"><a class="header" href="#load-the-translations">Load The Translations</a></h1>
+<p>To load the translations we need codegen, and for that you can use the <code>leptos_i18n_build</code> package.</p>
+<p>You use it with a <code>build.rs</code> file to generate the code to properly use you translations:</p>
+<pre><code class="language-rust ignore">// build.rs
+
+use leptos_i18n_build::{TranslationsInfos, Config};
+use std::path::PathBuf;
+use std::error::Error;
+
+fn main() -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
+  println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+  println!(&quot;cargo::rerun-if-changed=Cargo.toml&quot;);
+
+  // where to generate the translations
+  let i18n_mod_directory = PathBuf::from(std::env::var_os(&quot;OUT_DIR&quot;).unwrap()).join(&quot;i18n&quot;);
+
+  let cfg = Config::new(&quot;en&quot;)?.add_locale(&quot;fr&quot;)?; // &quot;en&quot; is the default locale, &quot;fr&quot; is another locale.
+
+  let translations_infos = TranslationsInfos::parse(cfg)?;
+
+  // emit the errors and warnings found during parsing
+  translations_infos.emit_diagnostics();
+
+  // emit &quot;cargo::rerun-if-changed&quot; for every translation file
+  translations_infos.rerun_if_locales_changed();
+
+  // codegen
+  translations_infos.generate_i18n_module(i18n_mod_directory)?;
+
+  Ok(())
+}</code></pre>
+<h2 id="the-i18n-module"><a class="header" href="#the-i18n-module">The <code>i18n</code> Module</a></h2>
+<p>You can then import the generated code with:</p>
+<pre><code class="language-rust  ignore">include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/i18n/mod.rs&quot;));</code></pre>
+<p>This will include a module called <code>i18n</code>. This module contains everything you need to use your translations.</p>
+<pre><code class="language-rust  ignore">include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/i18n/mod.rs&quot;));
+use i18n::*;</code></pre>
+<h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>This crate is basically entirely based around the code generated in a build script. We will cover it in a later chapter, but for now just know that it looks at your translation files and generates code for them.</p>
+<p>To load those translations it first needs to know what to look for, so you need to declare what locales you are supporting and which one is the default.
+To do that you use the <code>Config</code> builder:</p>
+<p>To declare <code>en</code> and <code>fr</code> as locales, with <code>en</code> being the default you would write:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = Config::new(&quot;en&quot;)?.add_locale(&quot;fr&quot;)?;
+<span class="boring">}</span></code></pre></pre>
+<p>There are more optional values you can supply:</p>
+<ul>
+<li><code>add_namespace</code>: This is to split your translations into multiple files, we will cover it in a later chapter</li>
+<li><code>locales_path</code>: This is to have a custom path to the directory containing the locales files, it defaults to <code>&quot;./locales&quot;</code>.</li>
+<li><code>translations_uri</code>: Used in a CSR application with the <code>dynamic_load</code> feature, more information in a later chapter.</li>
+<li><code>extend_locale</code>: Allows you to describe the inheritance structure for locales, covered in a later chapter.</li>
+<li><code>parse_options</code>: Parsing options, covered in the next segment</li>
+</ul>
+<p>Once this configuration is done, you can start writing your translations.</p>
+<h2 id="parsing-options"><a class="header" href="#parsing-options">Parsing Options</a></h2>
+<p><code>Config</code> can take some options as an argument, for now we use the default but you can import the <code>ParseOptions</code> struct to tell the parser what to expect and produce, here we change the file format to <code>yaml</code>:</p>
+<pre><code class="language-rust  ignore">use leptos_i18n_build::{FileFormat, ParseOptions, TranslationsInfos};
+use std::path::PathBuf;
+use std::error::Error;
+
+fn main() -&gt; Resul&lt;(), Box&lt;dyn Error&gt;&gt; {
+    println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+    println!(&quot;cargo::rerun-if-changed=Cargo.toml&quot;);
+
+    let i18n_mod_directory = PathBuf::from(std::env::var_os(&quot;OUT_DIR&quot;).unwrap()).join(&quot;i18n&quot;);
+
+    let options = ParseOptions::default().file_format(FileFormat::Yaml);
+
+    let cfg = Config::new(&quot;en&quot;)?.add_locale(&quot;fr&quot;)?.parse_options(options);
+
+    let translations_infos = TranslationsInfos::parse(cfg)?;
+
+    translations_infos.emit_diagnostics();
+
+    translations_infos.rerun_if_locales_changed();
+
+    translations_infos.generate_i18n_module(i18n_mod_directory)?;
+
+    Ok(())
+}</code></pre>
+<p>There are other options:</p>
+<ul>
+<li><code>suppress_key_warnings</code>: remove warnings emitted by missing keys or surplus keys</li>
+<li><code>interpolate_display</code>: generates extra code for each interpolation to allow rendering them as a string instead of a <code>View</code></li>
+<li><code>show_keys_only</code>: This feature makes every translation display only its corresponding key; this is useful for tracking untranslated strings in your application.</li>
+</ul>
+<p>example:</p>
+<pre><code class="language-rust  ignore">let options = ParseOptions::default()
+  .file_format(FileFormat::Json5)
+  .suppress_key_warnings(true)
+  .interpolate_display(true)
+  .show_keys_only(true);</code></pre>
+<p>There is also a way to inject your own formatter, this needs its own chapter, which you can find in an appendix.</p>
+<h2 id="codegen-options"><a class="header" href="#codegen-options">Codegen Options</a></h2>
+<p><code>TranslationsInfos::generate_i18n_module_with_options</code> can take a <code>CodegenOptions</code> argument that let you:</p>
+<ul>
+<li>Add some top level attributes for the generated module</li>
+<li>Customize the name of the generated file</li>
+</ul>
+<p>example:</p>
+<pre><code class="language-rust  ignore">use leptos_i18n_build::CodegenOptions;
+
+let attributes = &quot;#![allow(missing_docs)]&quot;.parse()?;
+
+let options = CodegenOptions::default()
+  .top_level_attributes(Some(attributes))
+  .module_file_name(&quot;i18n.rs&quot;); // &quot;mod.rs&quot; by default
+
+translations_infos.generate_i18n_module_with_options(options)?;</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="file-structure"><a class="header" href="#file-structure">File Structure</a></h1>
+<p>Now that you have configured your locales, you can start writing your translations. This chapter covers where to put your files. We will cover how to write them in another section.</p>
+<p>By default, you must put your files in the <code>./locales</code> directory, and each file must be <code>{locale}.json</code>:</p>
+<pre><code class="language-bash">./locales
+├── en.json
+└── fr.json
+</code></pre>
+<h2 id="custom-directory"><a class="header" href="#custom-directory">Custom Directory</a></h2>
+<p>You can change the path to the directory containing the files with the <code>locales_path</code> method on the config builder, for example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = Config::new(&quot;en&quot;)?.add_locale(&quot;fr&quot;)?.locales_path(&quot;./path/to/mylocales&quot;);
+<span class="boring">}</span></code></pre></pre>
+<p>will look for:</p>
+<pre><code class="language-bash">./path
+└── to
+    └── mylocales
+        ├── en.json
+        └── fr.json
+</code></pre>
+<h2 id="other-formats"><a class="header" href="#other-formats">Other Formats</a></h2>
+<p>JSON is the default format, but other formats are supported. We will see how to change that later. Here is a list of supported formats:</p>
+<div class="table-wrapper"><table><thead><tr><th>Format</th></tr></thead><tbody>
+<tr><td>JSON (default)</td></tr>
+<tr><td>JSON5</td></tr>
+<tr><td>YAML</td></tr>
+<tr><td>TOML</td></tr>
+</tbody></table>
+</div>
+<p>Additional formats may be supported in the future.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="namespaces"><a class="header" href="#namespaces">Namespaces</a></h1>
+<p>Translation files can grow quite rapidly and become very large. Avoiding key collisions can be difficult without the use of long names.
+To avoid this situation, you can declare namespaces in the configuration:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = Config::new(&quot;en&quot;)?.add_locale(&quot;fr&quot;)?.add_namespaces([&quot;common&quot;, &quot;home&quot;]);
+<span class="boring">}</span></code></pre></pre>
+<p>Then your file structure must look like this in the <code>/locales</code> directory:</p>
+<pre><code class="language-bash">./locales
+├── en
+│   ├── common.json
+│   └── home.json
+└── fr
+    ├── common.json
+    └── home.json
+</code></pre>
+<p>You can now make smaller files, with one for each section of the website, for example.
+This also allows the <code>common</code> namespace to use keys that the <code>home</code> namespace also uses, without colliding.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="locale-inheritance"><a class="header" href="#locale-inheritance">Locale Inheritance</a></h1>
+<p>Locale inheritance allows you to create specialized locales that build upon more general ones, reducing duplication and making maintenance easier. Instead of defining every key for each locale, you can override only the keys that differ while inheriting the rest from a parent locale.</p>
+<h2 id="what-is-locale-inheritance"><a class="header" href="#what-is-locale-inheritance">What is Locale Inheritance?</a></h2>
+<p>Imagine you have an English locale (<code>en</code>) with all your application's text. Now you want to create an American English locale (<code>en-US</code>) that uses most of the same text but changes a few specific terms (like &quot;colour&quot; to &quot;color&quot;).</p>
+<p>With inheritance, the <code>en-US</code> locale will:</p>
+<ul>
+<li>Use its own keys when they exist</li>
+<li>Fall back to the <code>en</code> locale's keys when they don't exist</li>
+</ul>
+<p>This means you only need to define the differences in <code>en-US</code>, not duplicate everything.</p>
+<h2 id="how-inheritance-works"><a class="header" href="#how-inheritance-works">How Inheritance Works</a></h2>
+<p>There are two types of inheritance in this crate:</p>
+<h3 id="1-implicit-inheritance-automatic"><a class="header" href="#1-implicit-inheritance-automatic">1. Implicit Inheritance (Automatic)</a></h3>
+<p>The crate automatically creates inheritance relationships based on locale structure. It follows a simple rule: more specific locales inherit from more general ones.</p>
+<p><strong>Matching Pattern</strong>: <code>language[-region][-anything-else]</code> inherits from <code>language[-region]</code></p>
+<h4 id="example-inheritance-tree"><a class="header" href="#example-inheritance-tree">Example Inheritance Tree</a></h4>
+<p>Given these locales:</p>
+<ul>
+<li><code>en</code> (default)</li>
+<li><code>en-US</code></li>
+<li><code>en-Latn</code></li>
+<li><code>en-Valencia</code></li>
+<li><code>en-Latn-US-Valencia</code></li>
+<li><code>en-Latn-US-Valencia-u-ca-buddhist</code></li>
+<li><code>en-Latn-US-u-ca-buddhist</code></li>
+<li><code>fr</code></li>
+<li><code>fr-FR</code></li>
+<li><code>fr-FR-u-ca-buddhist</code></li>
+<li><code>fr-u-ca-buddhist</code></li>
+</ul>
+<p>The automatic inheritance tree becomes:</p>
+<pre><code>en (default)
+├── en-US
+│   ├── en-Latn-US-Valencia
+│   ├── en-Latn-US-Valencia-u-ca-buddhist
+│   └── en-Latn-US-u-ca-buddhist
+├── en-Valencia
+├── en-Latn
+└── fr
+    ├── fr-FR
+    │   └── fr-FR-u-ca-buddhist
+    └── fr-u-ca-buddhist
+</code></pre>
+<p><strong>Important Note</strong>: Scripts, variants, and extensions are ignored in automatic matching. For example, <code>en-Latn-US-Valencia-u-ca-buddhist</code> inherits from <code>en-US</code> (not <code>en-Latn-US-Valencia</code>) because the system only considers the language (<code>en</code>) and region (<code>US</code>) parts.</p>
+<h3 id="2-explicit-inheritance-manual"><a class="header" href="#2-explicit-inheritance-manual">2. Explicit Inheritance (Manual)</a></h3>
+<p>When automatic inheritance is not sufficient, you can manually specify inheritance relationships using the <code>inherits</code> configuration.</p>
+<h4 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h4>
+<p>Add inheritance rules with the config builder:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = cfg.extend_locale(&quot;child-locale&quot;, &quot;parent-locale&quot;)?;
+<span class="boring">}</span></code></pre></pre>
+<h4 id="example"><a class="header" href="#example">Example</a></h4>
+<p>To make <code>en-Latn-US-Valencia-u-ca-buddhist</code> inherit from <code>en-Latn-US-Valencia</code> instead of <code>en-US</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = cfg.extend_locale(&quot;en-Latn-US-Valencia-u-ca-buddhist&quot;, &quot;en-Latn-US-Valencia&quot;)?;
+<span class="boring">}</span></code></pre></pre>
+<p>This changes the inheritance tree to:</p>
+<pre><code>en (default)
+├── en-US
+│   ├── en-Latn-US-Valencia
+│   │   └── en-Latn-US-Valencia-u-ca-buddhist
+│   └── en-Latn-US-u-ca-buddhist
+├── en-Valencia
+├── en-Latn
+└── fr
+    ├── fr-FR
+    │   └── fr-FR-u-ca-buddhist
+    └── fr-u-ca-buddhist
+</code></pre>
+<h2 id="missing-key-warnings"><a class="header" href="#missing-key-warnings">Missing Key Warnings</a></h2>
+<p>The inheritance system affects how missing key warnings are handled.</p>
+<h3 id="when-warnings-are-suppressed"><a class="header" href="#when-warnings-are-suppressed">When Warnings Are Suppressed</a></h3>
+<ul>
+<li><strong>Child locales</strong>: If locale A inherits from locale B, no missing key warnings are emitted for locale A</li>
+<li><strong>Reason</strong>: Missing keys are expected to be provided by the parent locale</li>
+</ul>
+<h3 id="when-warnings-are-emitted"><a class="header" href="#when-warnings-are-emitted">When Warnings Are Emitted</a></h3>
+<ul>
+<li><strong>Root locales</strong>: Locales that don't inherit from others (except the default) will show warnings for missing keys</li>
+<li><strong>Example</strong>: In the tree above, <code>fr</code> will show warnings for keys present in <code>en</code> but missing in <code>fr</code></li>
+</ul>
+<h3 id="suppressing-warnings"><a class="header" href="#suppressing-warnings">Suppressing Warnings</a></h3>
+<p>You can suppress missing key warnings for a locale by explicitly setting it to inherit from the default locale:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = Config::new(&quot;en&quot;)?
+    .add_locale(&quot;fr&quot;)?
+    .add_locale(&quot;it&quot;)?
+    .extend_locale(&quot;it&quot;, &quot;en&quot;)?;
+<span class="boring">}</span></code></pre></pre>
+<p><strong>Result</strong>:</p>
+<ul>
+<li><code>it</code> locale: No missing key warnings (explicitly inherits from <code>en</code>)</li>
+<li><code>fr</code> locale: Will show missing key warnings (doesn't explicitly inherit)</li>
+</ul>
+<h2 id="important-rules-and-limitations"><a class="header" href="#important-rules-and-limitations">Important Rules and Limitations</a></h2>
+<h3 id="default-locale-cannot-inherit"><a class="header" href="#default-locale-cannot-inherit">Default Locale Cannot Inherit</a></h3>
+<p>The default locale is the root of the inheritance tree and cannot inherit from other locales.</p>
+<p><strong>This will cause an error</strong>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = Config::new(&quot;en&quot;)?
+    .add_locale(&quot;fr&quot;)?
+    .extend_locale(&quot;en&quot;, &quot;fr&quot;)?; // ❌ Error: default locale cannot inherit
+<span class="boring">}</span></code></pre></pre>
+<h3 id="inheritance-vs-defaulting"><a class="header" href="#inheritance-vs-defaulting">Inheritance vs. Defaulting</a></h3>
+<p>There's a distinction between:</p>
+<ul>
+<li><strong>Inheritance</strong>: Explicit parent-child relationships between related locales</li>
+<li><strong>Defaulting</strong>: Falling back to the default locale when no other option exists</li>
+</ul>
+<p>For example, while <code>fr</code> technically falls back to <code>en</code> (the default), this is considered defaulting, not inheritance. Therefore, <code>fr</code> can still generate missing key warnings.</p>
+<p>This inheritance system provides flexibility while maintaining simplicity for common use cases.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="declare-translations"><a class="header" href="#declare-translations">Declare translations</a></h1>
+<p>Now that we covered the configuration and where to put each file, we can now start writing the translations.
+This chapter covers this topic only for the <code>JSON</code> format.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="key-value-pairs"><a class="header" href="#key-value-pairs">Key-Value Pairs</a></h1>
+<p>As expected, translations are declared as key-value pairs:</p>
+<pre><code class="language-json">{
+  &quot;hello_world&quot;: &quot;Hello World!&quot;
+}
+</code></pre>
+<p>However, there are additional rules you must follow beyond those of the format you use.</p>
+<h2 id="keys"><a class="header" href="#keys">Keys</a></h2>
+<p>Key names must be <a href="https://doc.rust-lang.org/reference/identifiers.html">valid Rust identifiers</a>, with the exception that <code>-</code> will be converted to <code>_</code>, and do not support <a href="https://doc.rust-lang.org/reference/keywords.html#strict-keywords">strict</a> or <a href="https://doc.rust-lang.org/reference/keywords.html#reserved-keywords">reserved</a> keywords.</p>
+<h2 id="same-keys-across-files"><a class="header" href="#same-keys-across-files">Same Keys Across Files</a></h2>
+<p>The keys must be the same across all files; otherwise, the codegen will emit warnings. Any difference in keys is based on the default locale.</p>
+<h3 id="missing-key"><a class="header" href="#missing-key">Missing Key</a></h3>
+<p>If a key is present in the default locale but not in another locale, the other locale will use the value from the default locale and emit a warning that a key is missing in that locale.</p>
+<p>If you want to explicitly indicate that this value should use the value from the default locale, you can declare it as <code>null</code>:</p>
+<pre><code class="language-json">{
+  &quot;take_value_of_default&quot;: null
+}
+</code></pre>
+<p>This will prevent a warning from being triggered for that key.</p>
+<h3 id="surplus-key"><a class="header" href="#surplus-key">Surplus Key</a></h3>
+<p>If a key is present in another locale but not in the default locale, the key will be ignored and a warning will be emitted.</p>
+<h2 id="value-kinds"><a class="header" href="#value-kinds">Value Kinds</a></h2>
+<p>You can specify several kinds of values:</p>
+<ul>
+<li>Literals (String, Numbers, Boolean)</li>
+<li>Interpolated String</li>
+<li>Plurals</li>
+</ul>
+<p>The next chapters of this section will cover them (apart from literals, which are self-explanatory).</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="interpolation"><a class="header" href="#interpolation">Interpolation</a></h1>
+<h2 id="interpolate-values"><a class="header" href="#interpolate-values">Interpolate Values</a></h2>
+<p>There may be situations where you need to interpolate a value in your translations, for example, a dynamic number.
+You could declare 2 translations and use them with that number, but this is not an elegant solution.</p>
+<p>To declare a value that will be interpolated in your translations, simply place its name inside <code>{{ }}</code>:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: &quot;You clicked {{ count }} times&quot;
+}
+</code></pre>
+<h2 id="interpolate-components"><a class="header" href="#interpolate-components">Interpolate Components</a></h2>
+<p>There may also be situations where you want to wrap part of your translation in a component, for example, to highlight it.</p>
+<p>You can declare a component with HTML-like syntax:</p>
+<pre><code class="language-json">{
+  &quot;highlight_me&quot;: &quot;highlight &lt;b&gt;me&lt;/b&gt;&quot;
+}
+</code></pre>
+<p>Or use self-closing components:</p>
+<pre><code class="language-json">{
+  &quot;with_break&quot;: &quot;some line &lt;br /&gt; some other line&quot;
+}
+</code></pre>
+<h2 id="use-both"><a class="header" href="#use-both">Use Both</a></h2>
+<p>You can use both interpolated values and interpolated components together:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: &quot;You clicked &lt;b&gt;{{ count }}&lt;/b&gt; times&quot;
+}
+</code></pre>
+<h2 id="components-attributes"><a class="header" href="#components-attributes">Components Attributes</a></h2>
+<p>You can pass attributes to the components:</p>
+<pre><code class="language-json">{
+  &quot;highlight_me&quot;: &quot;highlight &lt;b id=\&quot;john\&quot;&gt;me&lt;/b&gt;&quot;
+}
+</code></pre>
+<p>The values the attributes accept are:</p>
+<ul>
+<li>strings</li>
+<li>booleans</li>
+<li>numbers (signed, unsigned, floats),</li>
+<li>variables</li>
+</ul>
+<p>The syntax for using variables:</p>
+<pre><code class="language-json">{
+  &quot;with_break&quot;: &quot;some line &lt;br id={{ id }} /&gt; some other line&quot;
+}
+</code></pre>
+<h2 id="values-names"><a class="header" href="#values-names">Values Names</a></h2>
+<p>Value names must follow the same rules as <a href="declare/./01_key_value.html#keys">keys</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="plurals"><a class="header" href="#plurals">Plurals</a></h1>
+<h2 id="what-are-plurals"><a class="header" href="#what-are-plurals">What Are Plurals?</a></h2>
+<p>Plurals are a standardized way to deal with quantities. For example, English uses with 2 plurals: <em>&quot;one&quot;</em> (1) and <em>&quot;other&quot;</em> (0, 2, 3, ..).</p>
+<p>If you have</p>
+<pre><code class="language-json">{
+  &quot;items&quot;: &quot;{{ count }} items&quot;
+}
+</code></pre>
+<p>this would produce &quot;1 items&quot;, which is incorrect English.</p>
+<p>This can be solved by defining 2 plural forms:</p>
+<pre><code class="language-json">{
+  &quot;items_one&quot;: &quot;{{ count }} item&quot;,
+  &quot;items_other&quot;: &quot;{{ count }} items&quot;
+}
+</code></pre>
+<p>When providing the count to the <code>t!</code> macro, this will result in:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+
+t!(i18n, items, count = || 0) // -&gt; &quot;0 items&quot;
+t!(i18n, items, count = || 1) // -&gt; &quot;1 item&quot;
+t!(i18n, items, count = || 4) // -&gt; &quot;4 items&quot;</code></pre>
+<blockquote>
+<p>All <code>items_*</code> are merged into the single key <code>items</code>.</p>
+</blockquote>
+<p><code>{{ count }}</code> is a special variable when using plurals. Even if you don't interpolate it, you must supply it:</p>
+<pre><code class="language-json">{
+  &quot;items_one&quot;: &quot;one item&quot;,
+  &quot;items_other&quot;: &quot;some items&quot;
+}
+</code></pre>
+<p>This will still require you to supply the <code>count</code> variable: <code>t!(i18n, items, count = ...)</code>.</p>
+<h2 id="why-bother"><a class="header" href="#why-bother">Why Bother?</a></h2>
+<p>Why bother, instead of just doing:</p>
+<pre><code class="language-rust ignore">if item_count == 1 {
+    t!(i18n, items_one)
+} else {
+    t!(i18n, items_other, count = move || item_count)
+}</code></pre>
+<p>Because not all languages use the same plural rules.</p>
+<p>For example, in French, 0 is considered singular, so this could produce &quot;0 choses&quot; instead of &quot;0 chose&quot;, which is incorrect in French (with some exceptions — French has many of them).</p>
+<h2 id="ordinal-plurals"><a class="header" href="#ordinal-plurals">Ordinal Plurals</a></h2>
+<p>What I described above are &quot;cardinal&quot; plurals, but they don’t work for cases like &quot;1st place&quot;, &quot;2nd place&quot;, etc.</p>
+<p>The English language uses 4 ordinal plural forms, while French uses 2:</p>
+<ul>
+<li>one: &quot;1st place&quot;, &quot;21st place&quot;</li>
+<li>two: &quot;2nd place&quot;, &quot;22nd place&quot;</li>
+<li>few: &quot;3rd place&quot;, &quot;33rd place&quot;</li>
+<li>other: &quot;4th place&quot;, &quot;5th place&quot;, &quot;7th place&quot;</li>
+</ul>
+<p>And French:</p>
+<ul>
+<li>one: &quot;1ère place&quot;</li>
+<li>other: &quot;2ème place&quot;, &quot;21ème place&quot;</li>
+</ul>
+<p>You can use ordinal plurals by using the <code>_ordinal</code> suffix:</p>
+<pre><code class="language-json">{
+  &quot;key_ordinal_one&quot;: &quot;{{ count }}st place&quot;,
+  &quot;key_ordinal_two&quot;: &quot;{{ count }}nd place&quot;,
+  &quot;key_ordinal_few&quot;: &quot;{{ count }}rd place&quot;,
+  &quot;key_ordinal_other&quot;: &quot;{{ count }}th place&quot;
+}
+</code></pre>
+<blockquote>
+<p>The <code>_ordinal</code> suffix is removed, in this example you access it with <code>t!(i18n, key, count = ..)</code></p>
+</blockquote>
+<h2 id="how-to-know-which-to-use"><a class="header" href="#how-to-know-which-to-use">How to Know Which to Use</a></h2>
+<p>There are online resources that help determine which plural rules to use, my personal favorite is the <a href="https://www.unicode.org/cldr/charts/44/supplemental/language_plural_rules.html">Unicode CLDR Charts</a>.</p>
+<h2 id="what-if-i-need-multiple-counts"><a class="header" href="#what-if-i-need-multiple-counts">What if I Need Multiple Counts?</a></h2>
+<p>If you need multiple counts, for example:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ boys_count }} boys and {{ girls_count }} girls&quot;
+}
+</code></pre>
+<p>There isn't a way to represent this in a single key, you will need <code>Foreign keys</code>, which you can read about in a later chapter.</p>
+<h2 id="activate-the-feature"><a class="header" href="#activate-the-feature">Activate the Feature</a></h2>
+<p>To use plurals in your translations, enable the &quot;plurals&quot; feature.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="subkeys"><a class="header" href="#subkeys">Subkeys</a></h1>
+<p>You can declare subkeys by assigning a map to the key:</p>
+<pre><code class="language-json">{
+  &quot;subkeys&quot;: {
+    &quot;subkey_1&quot;: &quot;This is subkey_1&quot;,
+    &quot;subkey_n&quot;: &quot;This is subkey &lt;b&gt;{{ n }}&lt;/b&gt;&quot;,
+    &quot;nested_subkeys&quot;: {
+      &quot;nested_subkey_1&quot;: &quot;you can nest subkeys&quot;
+    }
+  }
+}
+</code></pre>
+<pre><code class="language-rust ignore">t!(i18n, subkeys.subkey_1); // -&gt; &quot;This is subkey_1&quot;
+t!(i18n, subkeys.nested_subkeys.nested_subkey_1); // -&gt; &quot;you can nest subkeys&quot;</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="foreign-keys"><a class="header" href="#foreign-keys">Foreign Keys</a></h1>
+<p>Foreign keys let you re-use already declared translations:</p>
+<pre><code class="language-json">{
+  &quot;hello_world&quot;: &quot;Hello World!&quot;,
+  &quot;reuse&quot;: &quot;message: $t(hello_world)&quot;
+}
+</code></pre>
+<p>This will replace <code>$t(hello_world)</code> with the value of the key <code>hello_world</code>, making <code>reuse</code> equal to <code>&quot;message: Hello World!&quot;</code>.</p>
+<p>You can point to any key other than keys containing subkeys.</p>
+<p>To point to subkeys, you give the path by separating the keys with <code>.</code>: <code>$t(key.subkey.subsubkey)</code>.</p>
+<p>When using namespaces, you <em>must</em> specify the namespace of the key you are looking for, using <code>:</code>: <code>$t(namespace:key)</code>.</p>
+<p>You can point to explicitly defaulted keys, but not implicitly defaulted ones.</p>
+<h2 id="supply-arguments"><a class="header" href="#supply-arguments">Supply Arguments</a></h2>
+<p>You can also supply arguments to fill variables of the pointed key:</p>
+<pre><code class="language-json">{
+  &quot;click_count&quot;: &quot;You clicked {{ count }} times&quot;,
+  &quot;clicked_twice&quot;: &quot;$t(click_count, {\&quot;count\&quot;: \&quot;two\&quot;})&quot;
+}
+</code></pre>
+<p>This will result in <code>clicked_twice</code> having the value <code>&quot;You clicked two times&quot;</code>.</p>
+<p>Arguments must be strings, delimited by double quotes. JSON only supports double quotes.</p>
+<blockquote>
+<p><strong>Note</strong>: Any argument with no matching variable is just discarded; they will not emit any warning/error.</p>
+</blockquote>
+<p>Arguments can be anything that could be parsed as a normal key-value:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ arg }}&quot;,
+  &quot;string_arg&quot;: &quot;$t(key, {\&quot;arg\&quot;: \&quot;str\&quot;})&quot;,
+  &quot;boolean_arg&quot;: &quot;$t(key, {\&quot;arg\&quot;: true})&quot;,
+  &quot;number_arg&quot;: &quot;$t(key, {\&quot;arg\&quot;: 56})&quot;,
+  &quot;interpolated_arg&quot;: &quot;$t(key, {\&quot;arg\&quot;: \&quot;value: {{ new_arg }}\&quot;})&quot;,
+  &quot;foreign_key_arg&quot;: &quot;$t(key, {\&quot;arg\&quot;: \&quot;value: $t(interpolated_arg)\&quot;})&quot;
+}
+</code></pre>
+<pre><code class="language-rust ignore">t!(i18n, string_arg); // -&gt; &quot;str&quot;
+t!(i18n, boolean_arg); // -&gt; &quot;true&quot;
+t!(i18n, number_arg); // -&gt; &quot;56&quot;
+t!(i18n, interpolated_arg, new_arg = &quot;a value&quot;); // -&gt; &quot;value: a value&quot;
+t!(i18n, foreign_key_arg, new_arg = &quot;a value&quot;); // -&gt; &quot;value: value: a value&quot;</code></pre>
+<h2 id="count-arg-for-plurals"><a class="header" href="#count-arg-for-plurals"><code>&quot;count&quot;</code> Arg for Plurals</a></h2>
+<p>If you have a plural like</p>
+<pre><code class="language-json">{
+  &quot;key_one&quot;: &quot;one item&quot;,
+  &quot;key_other&quot;: &quot;{{ count }} items&quot;
+}
+</code></pre>
+<p>You can supply the count as a foreign key in two ways, the first as a variable:</p>
+<pre><code class="language-json">{
+  &quot;new_key&quot;: &quot;$t(key, {\&quot;count\&quot;: \&quot;{{ new_count }}\&quot;})&quot;
+}
+</code></pre>
+<p>This will just rename the key.</p>
+<pre><code class="language-rust ignore">t!(i18n, new_key, new_count = move || 1); // -&gt; &quot;one item&quot;
+t!(i18n, new_key, new_count = move || 2); // -&gt; &quot;2 items&quot;</code></pre>
+<blockquote>
+<p><strong>note</strong>: For the <code>count</code> arg to plurals, the value provided must be a single variable (whitespaces around it is supported).</p>
+</blockquote>
+<p>Or by an actual value:</p>
+<pre><code class="language-json">{
+  &quot;singular_key&quot;: &quot;$t(key, {\&quot;count\&quot;: 1})&quot;,
+  &quot;multiple_key&quot;: &quot;$t(key, {\&quot;count\&quot;: 6})&quot;
+}
+</code></pre>
+<pre><code class="language-rust ignore">t!(i18n, singular_key); // -&gt; &quot;one item&quot;
+t!(i18n, multiple_key); // -&gt; &quot;6 items&quot;</code></pre>
+<blockquote>
+<p><strong>note</strong>: While floats are supported, they don't carry all the information once deserialized (such as leading zeros), so some truncation may occur. </p>
+</blockquote>
+<h2 id="multi-counts-plurals"><a class="header" href="#multi-counts-plurals">Multi Counts Plurals</a></h2>
+<p>If you need multiple counts for a plural, like for example:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ boys_count }} boys and {{ girls_count }} girls&quot;
+}
+</code></pre>
+<p>You can use <code>Foreign keys</code> to construct a single key from multiple plurals by overriding their <code>&quot;count&quot;</code> variable:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;$t(key_boys, {\&quot;count\&quot;: \&quot;{{ boys_count }}\&quot;}) and $t(key_girls, {\&quot;count\&quot;: \&quot;{{ girls_count }}\&quot;})&quot;,
+  &quot;key_boys_one&quot;: &quot;{{ count }} boy&quot;,
+  &quot;key_boys_other&quot;: &quot;{{ count }} boys&quot;,
+  &quot;key_girls_one&quot;: &quot;{{ count }} girl&quot;,
+  &quot;key_girls_other&quot;: &quot;{{ count }} girls&quot;
+}
+</code></pre>
+<pre><code class="language-rust ignore">t!(i18n, key, boys_count = move || 0, girls_count = move || 0); // -&gt; &quot;0 boys and 0 girls&quot;
+t!(i18n, key, boys_count = move || 0, girls_count = move || 1); // -&gt; &quot;0 boys and 1 girl&quot;
+t!(i18n, key, boys_count = move || 1, girls_count = move || 0); // -&gt; &quot;1 boy and 0 girls&quot;
+t!(i18n, key, boys_count = move || 56, girls_count = move || 39); // -&gt; &quot;56 boys and 39 girls&quot;</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="mixing-kinds"><a class="header" href="#mixing-kinds">Mixing Kinds</a></h1>
+<p>What happens if for a key you declare plurals in one locale, interpolation in another, and a simple string in a third?</p>
+<p>Well, this is totally allowed, but you will still need to supply all values/components of every locale combined when using the translation, regardless of what the current locale is.</p>
+<p>What is not allowed to be mixed are subkeys. If a key has subkeys in one locale, it must have subkeys in all locales.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="formatters"><a class="header" href="#formatters">Formatters</a></h1>
+<p>For interpolation, every variable (other than <code>count</code> for plurals) is expected to be of type <code>impl IntoView + Clone + 'static</code>.</p>
+<p>However, some values can be represented differently depending on the locale:</p>
+<ul>
+<li>Number</li>
+<li>Currency</li>
+<li>Date</li>
+<li>Time</li>
+<li>List</li>
+</ul>
+<p>You can specify the kind of value you are going to supply like this:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ var, formatter }}&quot;
+}
+</code></pre>
+<p>Some of the formatters can take arguments to better suit your formatting needs:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ var, formatter(arg_name: value; arg_name2: value; ...) }}&quot;
+}
+</code></pre>
+<p>If an argument has a default value, not supplying that argument will make that arg take the default value.</p>
+<p>Here are all the formatters:</p>
+<h2 id="number"><a class="header" href="#number">Number</a></h2>
+<pre><code class="language-json">{
+  &quot;number_formatter&quot;: &quot;{{ num, number }}&quot;
+}
+</code></pre>
+<p>Will format the number based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::NumberFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoFixedDecimal</code>.
+<code>IntoFixedDecimal</code> is a trait to turn a value into a <code>fixed_decimal::Decimal</code>, which is a type used by <code>icu</code> to format numbers. That trait is currently implemented for:</p>
+<ul>
+<li>Decimal</li>
+<li>UnsignedDecimal</li>
+<li>Unsigned</li>
+<li>usize</li>
+<li>u8</li>
+<li>u16</li>
+<li>u32</li>
+<li>u64</li>
+<li>u128</li>
+<li>isize</li>
+<li>i8</li>
+<li>i16</li>
+<li>i32</li>
+<li>i64</li>
+<li>i128</li>
+<li>f32 *</li>
+<li>f64 *</li>
+</ul>
+<blockquote>
+<p>* Is implemented for convenience, but uses <a href="https://docs.rs/fixed_decimal/latest/fixed_decimal/type.Decimal.html#method.try_from_f64"><code>Decimal::try_from_f64</code></a> with the floating precision; you may want to use your own.</p>
+</blockquote>
+<p>The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through <code>Decimal</code> before being passed to the formatter.</p>
+<p>Enable the &quot;format_nums&quot; feature to use the number formatter.</p>
+<h3 id="arguments"><a class="header" href="#arguments">Arguments</a></h3>
+<p>There is one argument at the moment for the number formatter: <code>grouping_strategy</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/decimal/options/enum.GroupingStrategy.html"><code>icu::decimal::options::GroupingStrategy</code></a>, that can take 4 values:</p>
+<ul>
+<li>auto (default)</li>
+<li>never</li>
+<li>always</li>
+<li>min2</li>
+</ul>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let num = move || 100_000;
+
+t!(i18n, number_formatter, num);</code></pre>
+<h2 id="currency-experimental"><a class="header" href="#currency-experimental">Currency (Experimental)</a></h2>
+<pre><code class="language-json">{
+  &quot;currency_formatter&quot;: &quot;{{ num, currency }}&quot;
+}
+</code></pre>
+<p>Will format the currency based on the locale.
+The variable should be the same as <a href="declare/07_formatters.html#number">number</a>.</p>
+<p>Enable the &quot;format_currency&quot; feature to use the currency formatter.</p>
+<h3 id="arguments-1"><a class="header" href="#arguments-1">Arguments</a></h3>
+<p>There are two arguments at the moment for the currency formatter: <code>width</code> and <code>currency_code</code>, which are based on <a href="https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/options/enum.Width.html"><code>icu::experimental::dimension::currency::options::Width</code></a> and <a href="https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/struct.CurrencyCode.html"><code>icu::experimental::dimension::currency::CurrencyCode</code></a>.</p>
+<p><code>width</code> values:</p>
+<ul>
+<li>short (default)</li>
+<li>narrow</li>
+</ul>
+<p><code>currency_code</code> value should be a <a href="https://www.iban.com/currency-codes">currency code</a>, such as USD or EUR. USD is the default value.</p>
+<h3 id="example-2"><a class="header" href="#example-2">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let num = move || 100_000;
+
+t!(i18n, currency_formatter, num);</code></pre>
+<h2 id="date"><a class="header" href="#date">Date</a></h2>
+<pre><code class="language-json">{
+  &quot;date_formatter&quot;: &quot;{{ date_var, date }}&quot;
+}
+</code></pre>
+<p>Will format the date based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::DateFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDate</code>.
+<code>IntoIcuDate</code> is a trait to turn a value into a <code>impl icu::datetime::input::Date</code>, which is a trait used by <code>icu</code> to format dates. The <code>IntoIcuDate</code> trait is currently implemented for <code>T: ConvertCalendar&lt;Converted&lt;'a&gt; = Date&lt;Ref&lt;'a, AnyCalendar&gt;&gt;&gt;</code>.
+You can use <code>icu::datetime::input::{Date, DateTime}</code>, or implement that trait for anything you want.</p>
+<p>Enable the &quot;format_datetime&quot; feature to use the date formatter.</p>
+<h3 id="arguments-2"><a class="header" href="#arguments-2">Arguments</a></h3>
+<p><code>length</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Length.html"><code>icu::datetime::options::Length</code></a>, that can take 3 values:</p>
+<ul>
+<li>long</li>
+<li>medium (default)</li>
+<li>short</li>
+</ul>
+<p><code>alignment</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Alignment.html"><code>icu::datetime::options::Alignment</code></a>, that can take 2 values:</p>
+<ul>
+<li>auto (default)</li>
+<li>column</li>
+</ul>
+<p><code>time_precision</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.TimePrecision.html"><code>icu::datetime::options::TimePrecision</code></a>, that can take 13 values:</p>
+<ul>
+<li>hour</li>
+<li>minute</li>
+<li>second (default)</li>
+<li>subsecond_s1,</li>
+<li>subsecond_s2,</li>
+<li>subsecond_s3,</li>
+<li>subsecond_s4,</li>
+<li>subsecond_s5,</li>
+<li>subsecond_s6,</li>
+<li>subsecond_s7,</li>
+<li>subsecond_s8,</li>
+<li>subsecond_s9,</li>
+<li>minute_optional,</li>
+</ul>
+<p><code>year_style</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.YearStyle.html"><code>icu::datetime::options::YearStyle</code></a>, that can take 3 values:</p>
+<ul>
+<li>auto</li>
+<li>full</li>
+<li>with_era</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;short_date_formatter&quot;: &quot;{{ date_var, date(length: short) }}&quot;
+}
+</code></pre>
+<h3 id="example-3"><a class="header" href="#example-3">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::reexports::icu::datetime::input::Date;
+
+let i18n = use_i18n();
+
+let date_var = move || Date::try_new_iso(1970, 1, 2).unwrap().to_any();
+
+t!(i18n, date_formatter, date_var);</code></pre>
+<h2 id="time"><a class="header" href="#time">Time</a></h2>
+<pre><code class="language-json">{
+  &quot;time_formatter&quot;: &quot;{{ time_var, time }}&quot;
+}
+</code></pre>
+<p>Will format the time based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::TimeFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuTime</code>.
+<code>IntoIcuTime</code> is a trait to turn a value into a <code>impl icu::datetime::input::Time</code>, which is a trait used by <code>icu</code> to format time. The <code>IntoIcuTime</code> trait is currently implemented for <code>T: ConvertCalendar&lt;Converted&lt;'a&gt; = Time&gt; + InFixedCalendar&lt;()&gt; + AllInputMarkers&lt;fieldsets::T&gt;</code>.
+You can use <code>icu::datetime::input::{Time, DateTime}</code>, or implement that trait for anything you want.</p>
+<p>Enable the &quot;format_datetime&quot; feature to use the time formatter.</p>
+<h3 id="arguments-3"><a class="header" href="#arguments-3">Arguments</a></h3>
+<p><code>length</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Length.html"><code>icu::datetime::options::Length</code></a>, that can take 3 values:</p>
+<ul>
+<li>long</li>
+<li>medium (default)</li>
+<li>short</li>
+</ul>
+<p><code>alignment</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Alignment.html"><code>icu::datetime::options::Alignment</code></a>, that can take 2 values:</p>
+<ul>
+<li>auto (default)</li>
+<li>column</li>
+</ul>
+<p><code>time_precision</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.TimePrecision.html"><code>icu::datetime::options::TimePrecision</code></a>, that can take 13 values:</p>
+<ul>
+<li>hour</li>
+<li>minute</li>
+<li>second (default)</li>
+<li>subsecond_s1,</li>
+<li>subsecond_s2,</li>
+<li>subsecond_s3,</li>
+<li>subsecond_s4,</li>
+<li>subsecond_s5,</li>
+<li>subsecond_s6,</li>
+<li>subsecond_s7,</li>
+<li>subsecond_s8,</li>
+<li>subsecond_s9,</li>
+<li>minute_optional,</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;full_time_formatter&quot;: &quot;{{ time_var, time(length: long) }}&quot;
+}
+</code></pre>
+<h3 id="example-4"><a class="header" href="#example-4">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::reexports::icu::datetime::input::Time;
+
+let i18n = use_i18n();
+
+let time_var = move || Time::try_new(14, 34, 28, 0).unwrap();
+
+t!(i18n, time_formatter, time_var);</code></pre>
+<h2 id="datetime"><a class="header" href="#datetime">DateTime</a></h2>
+<pre><code class="language-json">{
+  &quot;datetime_formatter&quot;: &quot;{{ datetime_var, datetime }}&quot;
+}
+</code></pre>
+<p>Will format the datetime based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::DateTimeFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDateTime</code>.
+<code>IntoIcuDateTime</code> is a trait to turn a value into a <code>impl icu::datetime::input::DateTime</code> which is a trait used by <code>icu</code> to format datetimes. The <code>IntoIcuDateTime</code> trait is currently implemented for <code>T: ConvertCalendar&lt;Converted&lt;'a&gt; = DateTime&lt;Ref&lt;'a, AnyCalendar&gt;&gt;&gt;</code>.
+You can use <code>icu::datetime::input::DateTime</code>, or implement that trait for anything you want.</p>
+<p>Enable the &quot;format_datetime&quot; feature to use the datetime formatter.</p>
+<h3 id="arguments-4"><a class="header" href="#arguments-4">Arguments</a></h3>
+<p>There are four arguments at the moment for the datetime formatter: <code>length</code>, <code>alignment</code>, <code>time_precision</code> and <code>year_style</code>, which behave exactly the same as the ones above.</p>
+<pre><code class="language-json">{
+  &quot;short_date_long_time_formatter&quot;: &quot;{{ datetime_var, datetime(length: short; time_precision: minute) }}&quot;
+}
+</code></pre>
+<h3 id="example-5"><a class="header" href="#example-5">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::reexports::icu::datetime::input::{Date, DateTime, Time};
+
+let i18n = use_i18n();
+
+let datetime_var = move || {
+    let date = Date::try_new_iso(1970, 1, 2).unwrap().to_any();
+    let time = Time::try_new(14, 34, 28, 0).unwrap();
+    DateTime::new(date, time)
+};
+
+t!(i18n, datetime_formatter, datetime_var);</code></pre>
+<h2 id="list"><a class="header" href="#list">List</a></h2>
+<pre><code class="language-json">{
+  &quot;list_formatter&quot;: &quot;{{ list_var, list }}&quot;
+}
+</code></pre>
+<p>Will format the list based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::ListFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::WriteableList</code>.
+<code>WriteableList</code> is a trait to turn a value into an <code>impl Iterator&lt;Item = impl writeable::Writeable&gt;</code>.</p>
+<p>Enable the &quot;format_list&quot; feature to use the list formatter.</p>
+<h3 id="arguments-5"><a class="header" href="#arguments-5">Arguments</a></h3>
+<p>There are two arguments at the moment for the list formatter: <code>list_type</code> and <code>list_length</code>.</p>
+<p><code>list_type</code> takes 3 possible values:</p>
+<ul>
+<li>and</li>
+<li>or</li>
+<li>unit (default)</li>
+</ul>
+<p><code>list_length</code> takes 3 possible values:</p>
+<ul>
+<li>wide (default)</li>
+<li>short</li>
+<li>narrow</li>
+</ul>
+<p>See the <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/Intl/ListFormat"><code>Intl.ListFormat</code></a> documentation. <code>icu</code> is used to do the formatting, but I found the Mozilla doc to have more details.</p>
+<pre><code class="language-json">{
+  &quot;short_and_list_formatter&quot;: &quot;{{ list_var, list(list_type: and; list_length: short) }}&quot;
+}
+</code></pre>
+<h3 id="example-6"><a class="header" href="#example-6">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let list_var = move || [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;];
+
+t!(i18n, list_formatter, list_var);</code></pre>
+<h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
+<p>Formatters <em>cannot</em> be used inside component attributes, this is <strong><em>NOT</em></strong> allowed:</p>
+<pre><code class="language-json">{
+  &quot;highlight_me&quot;: &quot;highlight &lt;b id={{ id, number }}&gt;me&lt;/b&gt;&quot;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="how-to-use-in-code"><a class="header" href="#how-to-use-in-code">How to Use in Code</a></h1>
+<p>Now that we know how to declare our translations, we can incorporate them into the code. This chapter covers how to do that.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="i18ncontext"><a class="header" href="#i18ncontext"><code>I18nContext</code></a></h1>
+<p>The <code>I18nContext</code> type is here to make all your application reactive to the change of the locale. You will use it to access the current locale or change it.</p>
+<p>The context is a wrapper around a <code>RwSignal</code> of the current locale. Every getter/setter must be used with the same reasoning as signals.</p>
+<h2 id="provide-the-context"><a class="header" href="#provide-the-context">Provide the Context</a></h2>
+<p>The generated code contain the <code>I18nContextProvider</code> component in the <code>i18n</code> module,
+you can use this component to make the context accessible to all child components.</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+// root of the application
+#[component]
+pub fn App() -&gt; impl IntoView {
+    view! {
+        &lt;I18nContextProvider&gt;
+            /* */
+        &lt;/I18nContextProvider&gt;
+    }
+}</code></pre>
+<h2 id="access-the-context"><a class="header" href="#access-the-context">Access the Context</a></h2>
+<p>Once provided, you can access it with the <code>use_i18n</code> function, also generated in the <code>i18n</code> module.</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+// somewhere else in the application
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    view! {
+        /* */
+    }
+}</code></pre>
+<h2 id="access-the-current-locale"><a class="header" href="#access-the-current-locale">Access the Current Locale</a></h2>
+<p>With the context, you can access the current locale with the <code>get_locale</code> method:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    create_effect(|_| {
+        let locale = i18n.get_locale();
+        match locale {
+            Locale::en =&gt; {
+                log!(&quot;locale en&quot;);
+            },
+            Locale::fr =&gt; {
+                log!(&quot;locale fr&quot;);
+            }
+        }
+    })
+
+    view! {
+        /* */
+    }
+}</code></pre>
+<p>If you enable the <code>nightly</code> feature, you can directly call the context: <code>let locale = i18n();</code>.</p>
+<p>A non-reactive counterpart to <code>get_locale</code> exists: <code>get_locale_untracked</code>.</p>
+<h2 id="change-the-locale"><a class="header" href="#change-the-locale">Change the Locale</a></h2>
+<p>With the context, you can change the current locale with the <code>set_locale</code> method. For example, this component will switch between <code>en</code> and <code>fr</code> with a button:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    let on_switch = move |_| {
+        let new_locale = match i18n.get_locale() {
+            Locale::en =&gt; Locale::fr,
+            Locale::fr =&gt; Locale::en,
+        };
+        i18n.set_locale(new_locale);
+    };
+
+    view! {
+        &lt;button on:click=on_switch&gt;{t!(i18n, click_to_change_lang)}&lt;/button&gt;
+    }
+}</code></pre>
+<p>If you enable the <code>nightly</code> feature, you can directly call the context<code>i18n(new_locale);</code>.</p>
+<p>A non-reactive counterpart to <code>set_locale</code> exists: <code>set_locale_untracked</code>.</p>
+<h2 id="cookie-feature"><a class="header" href="#cookie-feature"><code>cookie</code> Feature</a></h2>
+<p>When using the <code>cookie</code> feature, the context will set a cookie whenever the locale changes,
+this cookie will be used to decide what locale to use on the page load in CSR,
+and on request to the server in SSR by looking at the request headers.</p>
+<h2 id="context-options"><a class="header" href="#context-options">Context Options</a></h2>
+<p>The <code>I18nContextProvider</code> component accepts multiple props, all optional (except children):</p>
+<ul>
+<li><code>children</code>: obviously</li>
+<li><code>set_lang_attr_on_html</code>: whether to set the &quot;lang&quot; attribute on the root <code>&lt;html&gt;</code> element (default to true)</li>
+<li><code>set_dir_attr_on_html</code>: whether to set the &quot;dir&quot; attribute on the root <code>&lt;html&gt;</code> element (default to true)</li>
+<li><code>enable_cookie</code>: should set a cookie to keep track of the locale when the page reloads (default to true) (do nothing without the &quot;cookie&quot; feature)</li>
+<li><code>cookie_name</code>: give a custom name to the cookie (default to the crate default value) (do nothing without the &quot;cookie&quot; feature or if <code>enable_cookie</code> is false)</li>
+<li><code>cookie_options</code>: options for the cookie, the value is of type <code>leptos_use::UseCookieOptions&lt;Locale&gt;</code> (default to <code>Default::default</code>)</li>
+</ul>
+<h2 id="note-on-island"><a class="header" href="#note-on-island">Note on Island</a></h2>
+<p>If you use the <code>islands</code> feature from Leptos, the <code>I18nContextProvider</code> loses two props: <code>cookie_options</code> and <code>ssr_lang_header_getter</code>, because they are not serializable. If you need them, you can use the <code>init_context_with_options</code> function and provide the context yourself:</p>
+<pre><code class="language-rust ignore">use leptos_i18n::init_i18n_context_with_options;
+use leptos_i18n::context::{CookieOptions, UseLocalesOptions};
+use leptos_meta::Html;
+use leptos::prelude::*;
+use crate::i18n::*;
+
+#[island]
+fn MyI18nProvider(
+    enable_cookie: Option&lt;bool&gt;,
+    cookie_name: Option&lt;&amp;str&gt;,
+    children: Children
+) -&gt; impl IntoView {
+    let my_cookie_options: CookieOptions&lt;Locale&gt; = /* create your options here */;
+    let ssr_lang_header_getter: UseLocalesOptions = /* create your options here */;
+    let i18n = init_i18n_context_with_options::&lt;Locale&gt;(
+        enable_cookie,
+        cookie_name,
+        Some(my_cookie_options),
+        Some(ssr_lang_header_getter)
+    );
+    provide_context(i18n);
+    let lang = move || i18n.get_locale().as_str();
+    let dir = move || i18n.get_locale().direction().as_str();
+    view! {
+        &lt;Html
+            attr:lang=lang
+            attr:dir=dir
+        /&gt;
+        {children}
+    }
+}</code></pre>
+<h2 id="lang-and-dir-html-attributes"><a class="header" href="#lang-and-dir-html-attributes">&quot;lang&quot; and &quot;dir&quot; HTML Attributes</a></h2>
+<p>You may want to add a &quot;lang&quot; or/and &quot;dir&quot; attribute on an HTML element such that</p>
+<pre><code class="language-html">&lt;div lang=&quot;fr&quot;&gt;&lt;/div&gt;
+</code></pre>
+<p>You could do it yourself by tracking the locale and setting the attribute yourself, but there is a simpler way:</p>
+<p>The <code>I18nContext</code> implements <code>Directive</code> from Leptos to set the &quot;lang&quot; attribute, so you can just do</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+
+view! {
+    &lt;div use:i18n /&gt;
+}</code></pre>
+<p>And it will set the &quot;lang&quot; and &quot;dir&quot; attributes for you on the <code>&lt;div&gt;</code> element !
+<em>Note:</em> Use directives don't work on the server, so don't rely on this for server-side rendering.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="sub-context"><a class="header" href="#sub-context">Sub Context</a></h1>
+<p>You may want to have sections of your application use translations but be isolated from the &quot;main&quot; locale; this is what sub-contexts are for.</p>
+<h2 id="why-not-just-use-i18ncontextprovider-"><a class="header" href="#why-not-just-use-i18ncontextprovider-">Why Not Just Use <code>I18nContextProvider</code> ?</a></h2>
+<p><code>I18nContextProvider</code> does not shadow any context if one already exists,
+this is because there should only be one &quot;main&quot; context, or they will conflict over the cookie, the &quot;lang&quot; attribute, the routing, etc.</p>
+<p><code>init_i18n_subcontext_*</code> functions create a context that does not battle with the main context and makes it more obvious that a sub-context is created, improving code clarity.</p>
+<h2 id="initialize-a-sub-context"><a class="header" href="#initialize-a-sub-context">Initialize a Sub-context</a></h2>
+<p><code>leptos_i18n::context::init_i18n_subcontext</code> takes an <code>initial_locale: Option&lt;Signal&lt;L&gt;&gt;</code> argument, this is so you can control the sub-context locale outside of it, you can for example make it so the locale of the sub-context is always the opposite of the &quot;main&quot; one:</p>
+<pre><code class="language-rust ignore">fn neg_locale(locale: Locale) -&gt; Locale {
+    match locale {
+        Locale::en =&gt; Locale::fr,
+        Locale::fr =&gt; Locale::en
+    }
+}
+
+fn neg_i18n_signal(i18n: I18nContext&lt;Locale&gt;) -&gt; Signal&lt;Locale&gt; {
+    Signal::derive(move || neg_locale(i18n.get()))
+}
+
+fn opposite_context() {
+    let i18n = use_i18n();
+    let ctx = init_i18n_subcontext(Some(neg_i18n_signal(i18n)));
+    // ..
+}</code></pre>
+<p>If it is not supplied, it takes the parent context locale as a default, and if no parent context exists (yes, you can use sub-context as a &quot;main&quot; context if you want), it uses the same locale resolution as the normal context.</p>
+<h2 id="providing-a-sub-context"><a class="header" href="#providing-a-sub-context">Providing a Sub-context</a></h2>
+<p>There is no <code>provide_i18n_subcontext</code>. It does exist but is marked as deprecated; it is not actually deprecated, it is only there as an information point, although it does what you think.</p>
+<h4 id="shadowing-correctly"><a class="header" href="#shadowing-correctly">Shadowing Correctly</a></h4>
+<p>Shadowing a context is not as easy as it sounds:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+use leptos_i18n::context::provide_i18n_subcontext;
+
+#[component]
+fn Foo() -&gt; impl IntoView {
+    view! {
+        &lt;I18nContextProvider&gt;
+            &lt;Sub /&gt;
+            &lt;Home /&gt;
+        &lt;/I18nContextProvider&gt;
+    }
+}
+
+#[component]
+fn Sub() -&gt; impl IntoView {
+    let i18n = provide_i18n_subcontext();
+    view! {
+        &lt;p&gt;{t!(i18n, sub)}&lt;/p&gt;
+    }
+}
+
+#[component]
+fn Home() -&gt; impl IntoView {
+    let i18n = use_i18n();
+    view! {
+        &lt;p&gt;{t!(i18n, home)}&lt;/p&gt;
+    }
+}</code></pre>
+<p>This will actually make the sub-context provided in the <code>&lt;Sub /&gt;</code> component replace the parent context and leak into the <code>&lt;Home /&gt;</code> component.</p>
+<p><code>leptos::provide_context</code> has a section about shadowing in their docs. The best approach is to use a provider:</p>
+<pre><code class="language-rust ignore">#[component]
+fn Sub() -&gt; impl IntoView {
+    let i18n = init_i18n_subcontext();
+    view! {
+        &lt;Provider value=i18n&gt;
+            &lt;p&gt;{t!(i18n, sub)}&lt;/p&gt;
+        &lt;/Provider&gt;
+    }
+}</code></pre>
+<p>So this crate has a <code>I18nSubContextProvider</code> generated in the <code>i18n</code> module:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+fn Foo() -&gt; impl IntoView {
+    view! {
+        &lt;I18nContextProvider&gt;
+            &lt;I18nSubContextProvider&gt;
+                &lt;Sub /&gt;
+            &lt;/I18nSubContextProvider&gt;
+            &lt;Home /&gt;
+        &lt;/I18nContextProvider&gt;
+    }
+}
+
+#[component]
+fn Sub() -&gt; impl IntoView {
+    let i18n = use_i18n();
+    view! {
+        &lt;p&gt;{t!(i18n, sub)}&lt;/p&gt;
+    }
+}</code></pre>
+<h2 id="options"><a class="header" href="#options">Options</a></h2>
+<p>Same as with the normal context, sub-contexts have behavior control options; they all take the <code>initial_locale: Option&lt;Signal&lt;L&gt;&gt;</code> as their first argument.</p>
+<p><code>init_i18n_subcontext_with_options</code> takes cookie options;
+that function is useless without the <code>cookie</code> feature.</p>
+<ul>
+<li><code>cookie_name</code> is an option for a cookie name to be set to keep the state of the chosen locale.</li>
+<li><code>cookie_options</code> is an option for cookie options.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-t-macro"><a class="header" href="#the-t-macro">The <code>t!</code> Macro</a></h1>
+<p>To access your translations, use the <code>t!</code> macro. You can access a string with a simple <code>t!(i18n, $key)</code>:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    view! {
+        {/* &quot;hello_world&quot;: &quot;Hello World!&quot; */}
+        &lt;p&gt;{t!(i18n, hello_world)}&lt;/p&gt;
+    }
+}</code></pre>
+<h2 id="interpolate-values-1"><a class="header" href="#interpolate-values-1">Interpolate Values</a></h2>
+<p>If some variables are declared for this key, you can pass them like this:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    let (counter, _set_counter) = signal(0);
+
+    view! {
+        {/* &quot;click_count&quot;: &quot;you clicked {{ count }} times&quot; */}
+        &lt;p&gt;{t!(i18n, click_count, count = move || counter.get())}&lt;/p&gt;
+    }
+}</code></pre>
+<p>If your variable has the same name as the placeholder, you can pass it directly:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    let (counter, _set_counter) = signal(0);
+
+    let count = move || counter.get();
+
+    view! {
+        {/* &quot;click_count&quot;: &quot;you clicked {{ count }} times&quot; */}
+        &lt;p&gt;{t!(i18n, click_count, count)}&lt;/p&gt;
+    }
+}</code></pre>
+<p>You can pass anything that implements <code>IntoView + Clone + 'static</code>, you can pass a view if you want:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    let (counter, _set_counter) = signal(0);
+
+    let count = view!{
+        &lt;b&gt;
+            { move || counter.get() }
+        &lt;/b&gt;
+    };
+
+    view! {
+        {/* &quot;click_count&quot;: &quot;you clicked {{ count }} times&quot; */}
+        &lt;p&gt;{t!(i18n, click_count, count)}&lt;/p&gt;
+    }
+}</code></pre>
+<p>Any missing values will generate an error.</p>
+<h2 id="interpolate-components-1"><a class="header" href="#interpolate-components-1">Interpolate Components</a></h2>
+<p>If some components are declared for this key, you can pass them like this:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    let (counter, _set_counter) = signal(0);
+    let count = move || counter.get();
+
+    view! {
+        {/* &quot;click_count&quot;: &quot;you clicked &lt;b&gt;{{ count }}&lt;/b&gt; times&lt;br/&gt;Keep going!&quot; */}
+        &lt;p&gt;{t!(i18n, click_count, count, &lt;br/&gt; = || view! { &lt;br/&gt; }, &lt;b&gt; = |children| view!{ &lt;b&gt;{children}&lt;/b&gt; })}&lt;/p&gt;
+    }
+}</code></pre>
+<p>Please note usage of self-closing components.</p>
+<p>If your variable has the same name as the component, you can pass it directly:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    let (counter, _set_counter) = signal(0);
+    let count = move || counter.get();
+
+    let b = |children| view!{ &lt;b&gt;{children}&lt;/b&gt; };
+
+    view! {
+        {/* &quot;click_count&quot;: &quot;you clicked &lt;b&gt;{{ count }}&lt;/b&gt; times&lt;br/&gt;Keep going!&quot; */}
+        &lt;p&gt;{t!(i18n, click_count, count, &lt;b&gt;, &lt;br/&gt; = &lt;br/&gt;)}&lt;/p&gt;
+    }
+}</code></pre>
+<p>You can pass anything that implements <code>Fn(leptos::ChildrenFn) -&gt; V + Clone + 'static</code> where <code>V: IntoView</code> for normal components or <code>Fn() -&gt; V + Clone + 'static</code> where <code>V: IntoView</code> for self-closed components.</p>
+<p>Any missing components will generate an error.</p>
+<p><code>|children| view! { &lt;b&gt;{children}&lt;/b&gt; }</code> can be verbose for simple components; you can use this syntax when the children are wrapped by a single component:</p>
+<pre><code class="language-rust ignore">// key = &quot;&lt;b&gt;{{ count }}&lt;/b&gt;&quot;
+t!(i18n, key, &lt;b&gt; = &lt;span /&gt;, count = 32);</code></pre>
+<p>This will render <code>&lt;span&gt;32&lt;/span&gt;</code>.</p>
+<p>You can set attributes, event handlers, props, etc.:</p>
+<pre><code class="language-rust ignore">t!(i18n, key, &lt;b&gt; = &lt;span attr:id=&quot;my_id&quot; on:click=|_| { /* do stuff */} /&gt;, count = 0);</code></pre>
+<p>Basically <code>&lt;name .../&gt;</code> expands to <code>move |children| view! { &lt;name ...&gt;{children}&lt;/name&gt; }</code></p>
+<h2 id="components-attributes-1"><a class="header" href="#components-attributes-1">Components Attributes</a></h2>
+<p>If you declared attributes with your components</p>
+<pre><code class="language-json">{
+  &quot;highlight_me&quot;: &quot;highlight &lt;b id={{ id }}&gt;me&lt;/b&gt;&quot;
+}
+</code></pre>
+<p>You can either retrieve them with a closure:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use leptos::children::ChildrenFn;
+use leptos::attr::any_attribute::AnyAttribute;
+let b = |children: ChildrenFn, attr: Vec&lt;AnyAttribute&gt;| view!{ &lt;b {..attr} &gt;{children}&lt;/b&gt; }
+t!(i18n, highlight_me, id = &quot;my_id&quot;, &lt;b&gt;)
+<span class="boring">}</span></code></pre></pre>
+<p>Or they will be passed to direct components alongside code defined attributes:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// this will spread the attributes into `b` alongside the given attributes
+t!(i18n, highlight_me, id = &quot;my_id&quot;, &lt;b&gt; = &lt;b attr:foo=&quot;bar&quot; /&gt;)
+<span class="boring">}</span></code></pre></pre>
+<p>The same works for self-closing components; for the closure syntax you can take the attributes as the only argument:</p>
+<pre><code class="language-json">{
+  &quot;foo&quot;: &quot;before&lt;br id={{ id }} /&gt;after&quot;
+}
+</code></pre>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let br = |attr: Vec&lt;AnyAttribute&gt;| view!{ &lt;br {..attr} /&gt; }
+t!(i18n, highlight_me, id = &quot;my_id&quot;, &lt;br&gt;)
+<span class="boring">}</span></code></pre></pre>
+<blockquote>
+<p><em>note</em>: variables to attributes expect the value to implement <code>leptos::attr::AttributeValue</code>.</p>
+</blockquote>
+<p>Components with children can accept <code>Fn(ChildrenFn, Vec&lt;AnyAttribute&gt;)</code> or <code>Fn(ChildrenFn)</code>,
+and self-closing components can accept  <code>Fn()</code> or <code>Fn(Vec&lt;AnyAttribute&gt;)</code>.</p>
+<h2 id="plurals-1"><a class="header" href="#plurals-1">Plurals</a></h2>
+<p>Plurals expect a variable <code>count</code> that implements <code>Fn() -&gt; N + Clone + 'static</code> where <code>N</code> implements <code>Into&lt;icu_plurals::PluralsOperands&gt;</code> (<a href="https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html"><code>PluralsOperands</code></a>). Integers and unsigned primitives implement it, along with <code>FixedDecimal</code>.</p>
+<pre><code class="language-rust ignore">t!(i18n, key_to_plurals, count = count);</code></pre>
+<h2 id="access-subkeys"><a class="header" href="#access-subkeys">Access Subkeys</a></h2>
+<p>You can access subkeys by simply separating the path with <code>.</code>:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    view! {
+        {/*
+            &quot;subkeys&quot;: {
+                &quot;subkey_1&quot;: &quot;This is subkeys.subkey_1&quot;
+            }
+        */}
+        &lt;p&gt;{t!(i18n, subkeys.subkey_1)}&lt;/p&gt;
+    }
+}</code></pre>
+<h2 id="access-namespaces"><a class="header" href="#access-namespaces">Access Namespaces</a></h2>
+<p>Namespaces are implemented as subkeys. You first access the namespace, then the keys in that namespace:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    view! {
+        &lt;p&gt;{t!(i18n, my_namespace.hello_world)}&lt;/p&gt;
+    }
+}</code></pre>
+<p>To avoid confusion with subkeys, you can use <code>::</code> to separate the namespace name from the rest of the path:</p>
+<pre><code class="language-rust ignore">t!(i18n, my_namespace::hello_world)</code></pre>
+<h2 id="tu"><a class="header" href="#tu"><code>tu!</code></a></h2>
+<p>The <code>tu!</code> macro is the same as <code>t!</code> but untracked.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-td-macro"><a class="header" href="#the-td-macro">The <code>td!</code> Macro</a></h1>
+<p>The <code>td!</code> macro works just like the <code>t!</code> macro but instead of taking the context as its first argument, it takes the desired locale:</p>
+<pre><code class="language-rust ignore">td!(Locale::fr, hello_world)</code></pre>
+<p>This is useful if, for example, you want the buttons to switch locale to always be in the language they switch to:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    view! {
+        &lt;For
+            each = Locale::get_all
+            key = |locale| **locale
+            let:locale
+        &gt;
+            &lt;button on:click = move|_| i18n.set_locale(*locale)&gt;
+                {td!(*locale, set_locale)}
+            &lt;/button&gt;
+        &lt;/For&gt;
+    }
+}</code></pre>
+<p>This could just be written as</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Foo() -&gt; impl IntoView {
+    let i18n = use_i18n();
+
+    view! {
+        &lt;button on:click = move|_| i18n.set_locale(Locale::en)&gt;
+            {td!(Locale::en, set_locale)}
+        &lt;/button&gt;
+        &lt;button on:click = move|_| i18n.set_locale(Locale::fr)&gt;
+            {td!(Locale::fr, set_locale)}
+        &lt;/button&gt;
+    }
+}</code></pre>
+<p>But the above approach scales better.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-td_string-macro"><a class="header" href="#the-td_string-macro">The <code>td_string!</code> Macro</a></h1>
+<p>The <code>td_string!</code> macro is used for interpolations outside the context of rendering views. It lets you provide different kinds of values and returns either a <code>&amp;'static str</code> or a <code>String</code> depending on the value of the key.
+If the value is a plain string or boolean, it returns a <code>&amp;'static str</code>. If it's an interpolation or a number, it returns a <code>String</code>.</p>
+<p>This requires the <code>interpolate_display</code> feature to be enabled to work with interpolations.</p>
+<p>It enables you to do this:</p>
+<pre><code class="language-rust ignore">// click_count = &quot;You clicked {{ count }} times&quot;
+assert_eq!(
+    td_string!(Locale::en, click_count, count = 10),
+    &quot;You clicked 10 times&quot;
+)
+assert_eq!(
+    td_string!(Locale::en, click_count, count = &quot;a lot of&quot;),
+    &quot;You clicked a lot of times&quot;
+)</code></pre>
+<h3 id="expected-values"><a class="header" href="#expected-values">Expected Values</a></h3>
+<p>Variables expect anything that implements <code>Display</code>.</p>
+<p>If the key uses plurals, it expects the type of the count. If you set the type to <code>f32</code>, it expects a <code>f32</code>.</p>
+<p>Components expect a value that implements <code>leptos_i18::display::DisplayComponent&lt;M&gt;</code>. You can find some types made to help with formatting in the <code>display</code> module,
+such as <code>DisplayComp</code>. (<code>M</code> is a marker for <code>Fn</code> trait shenanigans, if you implement the trait yourself you can set it to <code>()</code>.)</p>
+<p><code>str</code>, <code>String</code>, and references to them implement this trait such that</p>
+<pre><code class="language-rust ignore">// hello_world = &quot;Hello &lt;b&gt;World&lt;/b&gt; !&quot;
+
+let hw = td_string!(Locale::en, hello_world, &lt;b&gt; = &quot;span&quot;);
+assert_eq!(hw, &quot;Hello &lt;span&gt;World&lt;/span&gt; !&quot;);</code></pre>
+<p>The <code>DisplayComp</code> struct lets you pass attributes:</p>
+<pre><code class="language-rust ignore">let attrs = [(&quot;id&quot;, &quot;my_id&quot;)];
+let b = DisplayComp::new(&quot;div&quot;, &amp;attrs);
+let hw = td_string!(Locale::en, hello_world, &lt;b&gt;);
+assert_eq!(hw, &quot;Hello &lt;div id=\&quot;my_id\&quot;&gt;World&lt;/div&gt; !&quot;);</code></pre>
+<p>If you want finer control over the formatting, you can create your own types implementing the <code>DisplayComponent</code> trait, or you can pass this abomination of a function:</p>
+<pre><code class="language-rust ignore">Fn(&amp;mut core::fmt::Formatter, leptos_i18n::display::Children, leptos_i18n::display::Attributes) -&gt; core::fmt::Result</code></pre>
+<p>which basically lets you do this:</p>
+<pre><code class="language-rust ignore">use core::fmt::{Formatter, Result};
+use leptos_i18n::display::{Attributes, Children};
+
+fn render_b(f: &amp;mut Formatter, child: Children, attrs: Attributes) -&gt; Result {
+    write!(f, &quot;&lt;div{attrs} id=\&quot;some_id\&quot;&gt;{child}&lt;/div&gt;&quot;)
+}
+
+// hello_world = &quot;Hello &lt;b foo={{ foo }}&gt;World&lt;/b&gt; !&quot;
+let hw = td_string!(Locale::en, hello_world, foo = &quot;bar&quot;, &lt;b&gt; = render_b);
+assert_eq!(hw, &quot;Hello &lt;div foo=\&quot;bar\&quot; id=\&quot;some_id\&quot;&gt;World&lt;/div&gt; !&quot;);</code></pre>
+<blockquote>
+<p><em>note</em>: values for attributes must implement the <code>leptos_i18n::display::AttributeValue</code> trait, already implemented for numbers (u*, i*, f* and NonZero<N>), str, bools and <code>Option&lt;impl AttributeValue&gt;</code></p>
+</blockquote>
+<p>If you look closely, there are no <code>Clone</code> or <code>'static</code> bounds for any arguments, but they are captured by the value returned by the macro,
+so the returned value has a lifetime bound to the &quot;smallest&quot; lifetime of the arguments.</p>
+<p>Components with children can accept <code>Fn(&amp;mut Formatter, Children, Attributes)</code> or <code>Fn(&amp;mut Formatter, Children)</code>,
+and self-closing components can accept <code>Fn(&amp;mut Formatter, Attributes)</code> or <code>Fn(&amp;mut Formatter)</code>.</p>
+<h1 id="the-td_display-macro"><a class="header" href="#the-td_display-macro">The <code>td_display!</code> Macro</a></h1>
+<p>Just like the <code>td_string!</code> macro but returns either a struct implementing <code>Display</code> or a <code>&amp;'static str</code> instead of a <code>Cow&lt;'static, str&gt;</code>.</p>
+<p>This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary <code>String</code>.</p>
+<pre><code class="language-rust ignore">use crate::i18n::Locale;
+use leptos_i18n::td_display;
+
+// click_count = &quot;You clicked {{ count }} times&quot;
+let t = td_display!(Locale::en, click_count, count = 10); // this only returns the builder, no work has been done.
+assert_eq!(format!(&quot;before {t} after&quot;), &quot;before You clicked 10 times after&quot;);
+
+let t_str = t.to_string(); // can call `to_string` as the value implements `Display`
+assert_eq!(t_str, &quot;You clicked 10 times&quot;);</code></pre>
+<h1 id="t_string-t_display-tu_string-and-tu_display"><a class="header" href="#t_string-t_display-tu_string-and-tu_display"><code>t_string</code>, <code>t_display</code>, <code>tu_string</code> and <code>tu_display</code></a></h1>
+<p>They also exist, <code>td_string</code> was used here for easier demonstration. Remember that <code>t_string</code> accesses a signal reactively.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="i18nroute"><a class="header" href="#i18nroute"><code>I18nRoute</code></a></h1>
+<p>You can use the <code>leptos_i18n_router</code> crate that exports the <code>I18nRoute</code> component.
+This component acts exactly like a <code>leptos_router::Route</code> and takes the same args, except for the path.</p>
+<p>What it does is manage a prefix on the URL such that</p>
+<pre><code class="language-rust ignore">use crate::i18n::Locale;
+use leptos_i18n_router::I18nRoute;
+use leptos::prelude::*;
+use leptos_router::*;
+
+view! {
+    &lt;Router&gt;
+        &lt;Routes fallback=||&quot;Page not found&quot;&gt;
+            &lt;I18nRoute&lt;Locale, _, _&gt; view=Outlet&gt;
+                &lt;Route path=path!(&quot;&quot;) view=Home /&gt;
+                &lt;Route path=path!(&quot;counter&quot;) view=Counter /&gt;
+            &lt;/I18nRoute&lt;Locale, _, _&gt;&gt;
+        &lt;/Routes&gt;
+    &lt;/Router&gt;
+}</code></pre>
+<p>Produce default routes <code>&quot;/&quot;</code> and <code>&quot;/counter&quot;</code>, but also <code>&quot;:locale/&quot;</code> and <code>&quot;:locale/counter&quot;</code> for each locale.</p>
+<p>If you have <code>en</code> and <code>fr</code> as your routes, the generated routes will be: <code>/</code>, <code>/counter</code>, <code>/en</code>, <code>/en/counter</code>, <code>/fr</code> and <code>/fr/counter</code>.</p>
+<p>This component provides the <code>I18nContext</code> if not already provided, and sets the locale accordingly.</p>
+<h2 id="locale-resolution"><a class="header" href="#locale-resolution">Locale Resolution</a></h2>
+<p>The locale prefix in the URL is considered to have the biggest priority. When accessing <code>&quot;/en/*“</code>, the locale will be set to <code>en</code> no matter what.</p>
+<p>But accessing without a locale prefix such as <code>&quot;/counter“</code>, the locale will be resolved based on other factors like cookies, request <code>Accept-Language</code> header, or <code>navigator</code> API.</p>
+<p>See the <a href="usage/../infos/01_locale_resol.html">Locale Resolution</a> section.</p>
+<h3 id="redirection"><a class="header" href="#redirection">Redirection</a></h3>
+<p>If a locale is found those ways and it is not the default locale, this will trigger a navigation to the correct locale prefix.</p>
+<p>This means if you access <code>&quot;/counter&quot;</code> with the cookie set to <code>fr</code> (default being <code>en</code>), then you will be redirected to <code>&quot;/fr/counter&quot;</code>.</p>
+<h2 id="switching-locale"><a class="header" href="#switching-locale">Switching Locale</a></h2>
+<p>Switching locale updates the prefix accordingly. Switching from <code>en</code> to <code>fr</code> will set the prefix to <code>fr</code>, but switching to the default locale will remove the locale prefix entirely.</p>
+<h2 id="state-keeping"><a class="header" href="#state-keeping">State Keeping</a></h2>
+<p>Switching locale will trigger a navigation, update the <code>Location</code> returned by <code>use_location</code>, but will not refresh the component tree.</p>
+<p>This means that if <code>Counter</code> keeps a count as a state, and you switch locale from <code>fr</code> to <code>en</code>, this will trigger a navigation from <code>&quot;/fr/counter&quot;</code> to <code>&quot;/counter&quot;</code>,
+but the component will not be rerendered and the count state will be preserved.</p>
+<h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<p>With the way the default route is handled, if you have a <code>&lt;A href=.. /&gt;</code> link in your application or use <code>leptos_router::use_navigate</code>,
+you don't have to worry about removing the locale prefix as this will trigger a redirection to the correct locale.</p>
+<p>This redirection also sets <code>NavigateOptions.replace</code> to <code>true</code> so the intermediate location will not show in the history.</p>
+<p>Basically, if you are at <code>&quot;/fr/counter&quot;</code> and trigger a redirection to <code>&quot;/&quot;</code>, this will trigger another redirection to <code>&quot;/fr&quot;</code>
+and the history will look like you directly navigated from <code>&quot;/fr/counter&quot;</code> to <code>&quot;/fr&quot;</code>.</p>
+<h2 id="localized-path-segments"><a class="header" href="#localized-path-segments">Localized Path Segments</a></h2>
+<p>You can use the <code>i18n_path!</code> macro inside the <code>I18nRoute</code> to create localized path segments:</p>
+<pre><code class="language-rust ignore">use leptos_i18n_router::i18n_path;
+
+&lt;I18nRoute&lt;Locale, _, _&gt; view=Outlet&gt;
+    &lt;Route path=i18n_path!(Locale, |locale| td_string(locale, segment_path_name)) view={/* */} /&gt;
+&lt;/I18nRoute&lt;Locale, _, _&gt;&gt;</code></pre>
+<p>If you have <code>segment_path_name = &quot;search&quot;</code> for English, and <code>segment_path_name = &quot;rechercher&quot;</code> for French, the <code>I18nRoute</code> will produce 3 paths:</p>
+<ul>
+<li>&quot;/search&quot; (if default = &quot;en&quot;)</li>
+<li>&quot;/en/search&quot;</li>
+<li>&quot;/fr/rechercher&quot;</li>
+</ul>
+<p>It can be used at any depth, and if not used inside an <code>i18nRoute</code> it will default to the default locale.</p>
+<p>Multi segments path are supported, meaning you can have <code>segment_path_name = &quot;some/path&quot;</code> for English, and <code>segment_path_name = &quot;un/chemin&quot;</code> for French and work as expected.</p>
+<blockquote>
+<p><em>note</em>: the number of segments must be the same for all locales or a runtime error will be thrown. Empty segments don't count, meaning <code>segment_path_name = &quot;path&quot;</code> for English, and <code>segment_path_name = &quot;&quot;</code> for French will create an error.</p>
+</blockquote>
+<h2 id="caveat"><a class="header" href="#caveat">Caveat</a></h2>
+<p>If you have a layout like this:</p>
+<pre><code class="language-rust ignore">view! {
+    &lt;I18nContextProvider&gt;
+        &lt;Menu /&gt;
+        &lt;Router&gt;
+            &lt;Routes fallback=||&quot;Page not found&quot;&gt;
+                &lt;I18nRoute&lt;Locale, _, _&gt; view=Outlet&gt;
+                    &lt;Route path=path!(&quot;&quot;) view=Home /&gt;
+                &lt;/I18nRoute&lt;Locale, _, _&gt;&gt;
+            &lt;/Routes&gt;
+        &lt;/Router&gt;
+    &lt;/I18nContextProvider&gt;
+}</code></pre>
+<p>And the <code>Menu</code> component uses localization, you could be surprised to see that sometimes there is a mismatch between the locale used by the <code>Menu</code> and the one inside the router.
+This is due to the locale being read from the URL only when the <code>i18nRoute</code> is rendered. So the context may be initialized with another locale, and then hit the router that updates it.</p>
+<p>One solution would be to use the <code>Menu</code> component inside the <code>i18nRoute</code>:</p>
+<pre><code class="language-rust ignore">view! {
+    &lt;I18nContextProvider&gt;
+        &lt;Router&gt;
+            &lt;Routes fallback=||&quot;Page not found&quot;&gt;
+                &lt;I18nRoute&lt;Locale, _, _&gt; view=|| view! {
+                    &lt;Menu /&gt;
+                    &lt;Outlet /&gt;
+                }&gt;
+                    &lt;Route path=path!(&quot;&quot;) view=Home /&gt;
+                &lt;/I18nRoute&lt;Locale, _, _&gt;&gt;
+            &lt;/Routes&gt;
+        &lt;/Router&gt;
+    &lt;/I18nContextProvider&gt;
+}
+
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="scoping"><a class="header" href="#scoping">Scoping</a></h1>
+<p>If you are using subkeys or namespaces, access keys can get pretty big and repetitive,
+wouldn't it be nice to scope a context to a namespace or subkeys?</p>
+<p>Well, this page explains how to do it!</p>
+<h2 id="the-scope_i18n-macro"><a class="header" href="#the-scope_i18n-macro">The <code>scope_i18n!</code> Macro</a></h2>
+<p>Using namespaces and subkeys can make things quite cumbersome very fast. Imagine you have this:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+
+t!(i18n, namespace.subkeys.value);
+t!(i18n, namespace.subkeys.more_subkeys.subvalue);
+t!(i18n, namespace.subkeys.more_subkeys.another_subvalue);</code></pre>
+<p>This only uses <code>namespace.subkeys.*</code>, but we have to repeat it everywhere. 
+Here comes the <code>scope_i18n!</code> macro. You can rewrite it to:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+let i18n = scope_i18n!(i18n, namespace.subkeys);
+
+t!(i18n, value);
+t!(i18n, more_subkeys.subvalue);
+t!(i18n, more_subkeys.another_subvalue);</code></pre>
+<p>This macro can be chained:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+let i18n = scope_i18n!(i18n, namespace);
+let i18n = scope_i18n!(i18n, subkeys);
+
+t!(i18n, value);
+
+let i18n = scope_i18n!(i18n, more_subkeys);
+t!(i18n, subvalue);
+t!(i18n, another_subvalue);</code></pre>
+<h2 id="the-use_i18n_scoped-macro"><a class="header" href="#the-use_i18n_scoped-macro">The <code>use_i18n_scoped!</code> Macro</a></h2>
+<p>In the above example, we do <code>let i18n = use_i18n();</code> but only access the context to scope it afterward. We could do</p>
+<pre><code class="language-rust ignore">let i18n = scope_i18n!(use_i18n(), namespace.subkeys);</code></pre>
+<p>Well, this is what the <code>use_i18n_scoped!</code> macro is for:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n_scoped!(namespace.subkeys);
+
+t!(i18n, value);
+t!(i18n, more_subkeys.subvalue);
+t!(i18n, more_subkeys.another_subvalue);</code></pre>
+<h2 id="the-scope_locale-macro"><a class="header" href="#the-scope_locale-macro">The <code>scope_locale!</code> Macro</a></h2>
+<p>The above examples are to scope a context, but maybe you use <code>td!</code> a lot and run into the same problems:</p>
+<pre><code class="language-rust ignore">fn foo(locale: Locale) {
+    td!(locale, namespace.subkeys.value);
+    td!(locale, namespace.subkeys.more_subkeys.subvalue);
+    td!(locale, namespace.subkeys.more_subkeys.another_subvalue);
+}</code></pre>
+<p>You can use the <code>scope_locale!</code> macro here:</p>
+<pre><code class="language-rust ignore">fn foo(locale: Locale) {
+    let locale = scope_locale!(locale, namespace.subkeys);
+    td!(locale, value);
+    td!(locale, more_subkeys.subvalue);
+    td!(locale, more_subkeys.another_subvalue);
+}</code></pre>
+<p>And again, it is chainable:</p>
+<pre><code class="language-rust ignore">fn foo(locale: Locale) {
+    let locale = scope_locale!(locale, namespace.subkeys);
+    td!(locale, value);
+    let locale = scope_locale!(locale, more_subkeys);
+    td!(locale, subvalue);
+    td!(locale, another_subvalue);
+}</code></pre>
+<h2 id="caveat-1"><a class="header" href="#caveat-1">Caveat</a></h2>
+<p>Unfortunately, it looks too good to be true... What's the catch? Where is the tradeoff?</p>
+<p>To make this possible, it uses a typestate pattern, but some of the types are hard to access as a user as they are defined deep in the generated <code>i18n</code> module.
+This makes it difficult to write the type of a scoped context or a scoped locale.</p>
+<p>By default, <code>I18nContext&lt;L, S&gt;</code> is only generic over <code>L</code> because the <code>S</code> scope is the &quot;default&quot; one provided by <code>L</code>, so you can easily write <code>I18nContext&lt;Locale&gt;</code>.
+But once you scope it, the <code>S</code> parameters will look like <code>i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys</code>.</p>
+<p>Yes. This is the path to the struct holding the keys of <code>namespace.subkeys</code>.</p>
+<p>This makes it difficult to pass a scoped type around, as it would require writing <code>I18nContext&lt;Locale, i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys&gt;</code>.</p>
+<p>Maybe in the future there will be a macro to write this horrible path for you, but I don't think it is really needed for now.</p>
+<p>If you look at the generated code you will see this:</p>
+<pre><code class="language-rust ignore">let i18n = { leptos_i18n::__private::scope_ctx_util(use_i18n(), |_k| &amp;_k.$keys) };</code></pre>
+<p>Hmm, what is this closure for? It’s just here for type inference and key checking! The function parameter is even <code>_:fn(&amp;OS) -&gt; &amp;NS</code>, it's never used.
+The function is even const (not for <code>scope_locale</code> though, the only one that could really benefit from it lol, because trait functions can't be const...).</p>
+<p>But being a typestate using it or not actually results in the same code path.
+And with how aggressive Rust is with inlining small functions, it probably compiles to the exact same thing.
+So no runtime performance loss! Yeah!</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="t_format"><a class="header" href="#t_format"><code>t_format!</code></a></h1>
+<p>You may want to use the formatting capability without needing to create an entry in your translations. 
+You can use the <code>t_format!</code> macro for that:</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::formatting::t_format;
+
+let i18n = use_i18n();
+
+let num = move || 100_000;
+
+t_format!(i18n, num, formatter: number);</code></pre>
+<p>There are 9 variants, just like the <code>t!</code> macro, <code>td_format!</code>, <code>tu_format!</code>, <code>*_format_string</code>, and <code>*_format_display</code>.</p>
+<h3 id="example-7"><a class="header" href="#example-7">Example</a></h3>
+<pre><code class="language-rust ignore">let date = move || Date::try_new_iso(1970, 1, 2).unwrap().to_any();
+
+let en = td_format_string!(Locale::en, date, formatter: date);
+assert_eq!(en, &quot;Jan 2, 1970&quot;);
+let fr = td_format_string!(Locale::fr, date, formatter: date(date_length: long));
+assert_eq!(fr, &quot;2 janvier 1970&quot;);</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="t_plural"><a class="header" href="#t_plural"><code>t_plural!</code></a></h1>
+<p>You can use the <code>t_plural!</code> macro to match on the plural form of a given count:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+
+let form = t_plural! {
+    i18n,
+    count = || 0,
+    one =&gt; &quot;one&quot;,
+    _ =&gt; &quot;other&quot;
+};
+
+Effect::new(|| {
+    let s = form();
+    log!(&quot;{}&quot;, s);
+})</code></pre>
+<p>This will print &quot;one&quot; with the &quot;fr&quot; locale but &quot;other&quot; with the &quot;en&quot; locale.
+Accepted forms are: <code>zero</code>, <code>one</code>, <code>two</code>, <code>few</code>, <code>many</code>, <code>other</code>, and <code>_</code>.</p>
+<p>This macro is for cardinal plurals; if you want to match against ordinal plurals, use the <code>t_plural_ordinal!</code> macro.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="access-translations-in-a-const-context"><a class="header" href="#access-translations-in-a-const-context">Access Translations in a Const Context</a></h1>
+<p>You can access the translations in a const context if you have those things:</p>
+<ul>
+<li>Constant Locale</li>
+<li>No arguments</li>
+<li>No using the &quot;dynamic_load&quot; feature</li>
+</ul>
+<p>If you have</p>
+<pre><code class="language-json">{
+  &quot;subkeys&quot;: {
+    &quot;key&quot;: &quot;my value&quot;
+  }
+}
+</code></pre>
+<p>You can do</p>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+const MY_VALUE: &amp;str = Locale::en.get_keys_const().subkeys().key().inner();</code></pre>
+<p>If you want a macro:</p>
+<pre><code class="language-rust ignore">macro_rules! td_const {
+    ($locale:expr, $first_key:ident $(.$key:ident)*) =&gt; {
+        ($locale).get_keys_const()
+            .$first_key()
+            $(.$key())*
+            .inner()
+    };
+}
+
+const MY_VALUE: &amp;str = td_const(Locale::en, subkeys.key);
+
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="server-functions"><a class="header" href="#server-functions">Server Functions</a></h1>
+<p>There is no context in server functions, so you can't call <code>use_i18n</code>. You could provide a context if you want,
+and it would work as expected, but if you just want to access the user's locale, you can use the <code>resolve_locale</code> function:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[server]
+async fn get_locale() -&gt; Result&lt;Locale, ServerFnError&gt; {
+    let locale: Locale = leptos_i18n::locale::resolve_locale();
+    Ok(locale)
+}
+<span class="boring">}</span></code></pre></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="more-information"><a class="header" href="#more-information">More Information</a></h1>
+<p>This chapter covers more details about expected behaviors, such as how locale resolution is done.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="locale-resolution-1"><a class="header" href="#locale-resolution-1">Locale Resolution</a></h1>
+<p>This library handles the detection of what locale to use for you, but it can be done in a multitude of ways.</p>
+<p>Here is the list of detection methods, sorted in priorities:</p>
+<ol>
+<li>A locale prefix is present in the URL pathname when using <code>I18nRoute</code> (e.g. <code>/en/about</code>)</li>
+<li>A cookie is present that contains a previously detected locale</li>
+<li>A locale can be matched based on the <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Language"><code>Accept-Language</code> header</a> in SSR</li>
+<li>A locale can be matched based on the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Navigator/languages"><code>navigator.languages</code> API</a> in CSR</li>
+<li>As a last resort, the default locale is used.</li>
+</ol>
+<p>In SSR, it is always the server that resolves what locale to use; the client does not try to compute a locale when loading; the only locale changes that can happen are by explicitly setting it in the context.</p>
+<p><em>note</em>: The URL pathname locale has a behavior that can be unexpected; it only resolves when the <code>I18nRoute</code> component starts rendering, so if anything relied on the resolved locale before that,
+it may have used a different locale than it should. You can learn more on the <a href="infos/../usage/07_router.html#caveat">caveat section of the router chapter</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="how-to-reduce-binary-size"><a class="header" href="#how-to-reduce-binary-size">How To Reduce Binary Size</a></h1>
+<p>This chapter covers the options you have to reduce the binary footprint of this library, aside from compiler options such as <code>opt-level = &quot;z&quot;</code> and other settings that are common to all builds.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="icu4x-datagen"><a class="header" href="#icu4x-datagen">ICU4X Datagen</a></h1>
+<p>This library uses ICU4X as a backend for formatters and plurals, and the default baked data provider can take quite a lot of space as it contains information for <em>every possible locale</em>. So if you use only a few, this is a complete waste.</p>
+<h2 id="disable-compiled-data"><a class="header" href="#disable-compiled-data">Disable Compiled Data</a></h2>
+<p>The first step to remove this excess information is to disable the default data provider. It is activated by the <code>&quot;icu_compiled_data&quot;</code> feature, which is enabled by default. So turn off default features or remove this feature.</p>
+<h2 id="custom-provider"><a class="header" href="#custom-provider">Custom Provider</a></h2>
+<p>Great, we lost a lot of size, but now instead of having too much information, we have 0 information. You will now need to bring your own data provider. For that, you will need multiple things.</p>
+<h2 id="1-datagen"><a class="header" href="#1-datagen">1. Datagen</a></h2>
+<p>First, generate the information; you can use <a href="https://docs.rs/crate/icu4x-datagen/2.0.0"><code>icu_datagen</code></a> for that, either as a <a href="https://github.com/unicode-org/icu4x/blob/main/tutorials/data-management.md#2-generating-data">CLI</a> or with a <a href="https://github.com/unicode-org/icu4x/blob/main/tutorials/cargo.md">build.rs</a> (we will come back to it later).</p>
+<h2 id="2-load"><a class="header" href="#2-load">2. Load</a></h2>
+<p>Then you need to load those informations; this is as simple as</p>
+<pre><code class="language-rust ignore">include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/baked_data/mod.rs&quot;));
+
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);</code></pre>
+<p>you will also need some dependencies:</p>
+<pre><code class="language-toml">[dependencies]
+# &quot;default-features = false&quot; to turn off compiled_data
+icu_provider_baked = &quot;2.0.0&quot; # for databake
+icu_provider = &quot;2.0.0&quot; # for databake
+zerovec = &quot;0.11&quot; # for databake
+</code></pre>
+<p>This is explained more in depth in the <code>icu_datagen</code> doc.</p>
+<h2 id="3-supply-to-leptos_i18n-the-provider"><a class="header" href="#3-supply-to-leptos_i18n-the-provider">3. Supply to leptos_i18n the Provider.</a></h2>
+<p>You now just need to tell <code>leptos_i18n</code> what provider to use. For that, you first need to implement <code>IcuDataProvider</code> for your provider. You can do it manually as it is straightforward, but the lib comes with a derive macro:</p>
+<pre><code class="language-rust ignore">include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/baked_data/mod.rs&quot;));
+
+#[derive(leptos_i18n::custom_provider::IcuDataProvider)]
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);</code></pre>
+<p>And then pass it to the <code>set_icu_data_provider</code> function when the program starts,
+so for CSR apps in the main function:</p>
+<pre><code class="language-rust ignore">fn main() {
+    leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
+    console_error_panic_hook::set_once();
+    leptos::mount::mount_to_body(|| leptos::view! { &lt;App /&gt; })
+}</code></pre>
+<p>and for SSR apps in both on hydrate and on server startup:</p>
+<pre><code class="language-rust ignore">#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {
+    leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
+    console_error_panic_hook::set_once();
+    leptos::mount::hydrate_body(App);
+}</code></pre>
+<pre><code class="language-rust ignore">// example for actix
+#[actix_web::main]
+async fn main() -&gt; std::io::Result&lt;()&gt; {
+    leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
+    // ..
+}</code></pre>
+<h2 id="buildrs-datagen"><a class="header" href="#buildrs-datagen">Build.rs Datagen</a></h2>
+<p>The doc for ICU4X datagen can be quite intimidating, but it is actually quite straightforward. Your build.rs can look like this:</p>
+<pre><code class="language-rust ignore">use icu_provider_export::{
+    baked_exporter::{self, BakedExporter},
+    DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
+};
+use std::path::PathBuf;
+
+fn main() {
+    println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+
+    let mod_directory = PathBuf::from(std::env::var_os(&quot;OUT_DIR&quot;).unwrap()).join(&quot;baked_data&quot;);
+
+    let exporter = BakedExporter::new(mod_directory, {
+        let mut options = baked_exporter::Options::default();
+        options.overwrite = true;
+        options.use_internal_fallback = false;
+        options
+    })
+    .unwrap();
+
+    ExportDriver::new(
+        &amp;[locale!(&quot;en&quot;), locale!(&quot;fr&quot;)],
+        DeduplicationStrategy::None.into(),
+        LocaleFallbacker::new_without_data(),
+    )
+    .with_markers(&amp;[icu::plurals::provider::MARKERS]);
+}</code></pre>
+<p>Here we are generating the information for locales <code>&quot;en&quot;</code> and <code>&quot;fr&quot;</code>, with the data needed for plurals.</p>
+<h2 id="using-leptos_i18n_build-crate"><a class="header" href="#using-leptos_i18n_build-crate">Using <code>leptos_i18n_build</code> Crate</a></h2>
+<p>You can use the <code>leptos_i18n_build</code> crate that contains utils for the datagen.
+The problem with the above <code>build.rs</code> is that it can go out of sync with your translations,
+when all information is already in the translations.</p>
+<pre><code class="language-toml"># Cargo.toml
+[build-dependencies]
+leptos_i18n_build = &quot;0.6.0&quot;
+</code></pre>
+<pre><code class="language-rust ignore">use leptos_i18n_build::{TranslationsInfos, Config};
+use std::path::PathBuf;
+
+fn main() {
+    println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+    println!(&quot;cargo::rerun-if-changed=Cargo.toml&quot;);
+
+    let mod_directory = PathBuf::from(std::env::var_os(&quot;OUT_DIR&quot;).unwrap()).join(&quot;baked_data&quot;);
+
+    let cfg: Config = // ...;
+
+    let translations_infos = TranslationsInfos::parse(cfg).unwrap();
+
+    translations_infos.rerun_if_locales_changed();
+
+    translations_infos.generate_data(mod_directory).unwrap();
+}</code></pre>
+<p>This will parse the config and the translations and generate the data for you using the information gained when parsing the translations.
+This will trigger a rerun if the config or translations changed and be kept in sync.
+If your code uses plurals, it will build with information for plurals. If it uses a formatter, it will build with the information for that formatter.</p>
+<p>If you use more data somehow, like for example using <code>t*_format!</code> with a formatter not used in the translations, there are functions to either supply additional options or keys:</p>
+<pre><code class="language-rust ignore">use leptos_i18n_build::Options;
+
+translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();</code></pre>
+<p>This will inject the ICU <code>DataMarker</code>s needed for the <code>date</code>, <code>time</code>, and <code>datetime</code> formatters.</p>
+<pre><code class="language-rust ignore">use leptos_i18n_build::Options;
+
+translations_infos.generate_data_with_data_markers(
+    mod_directory,
+    &amp;[icu::plurals::provider::MARKERS]
+).unwrap();</code></pre>
+<p>This will inject the keys for cardinal and ordinal plurals.</p>
+<p>If you need both, <code>Options</code> can be turned into the needed keys:</p>
+<pre><code class="language-rust ignore">use leptos_i18n_build::Options;
+
+let mut markers = &amp;[icu::plurals::provider::MARKERS];
+let markers.extend(Options::FormatDateTime.into_data_markers());
+
+// markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
+
+translations_infos.generate_data_with_data_markers(mod_directory, markers).unwrap();</code></pre>
+<h2 id="is-it-worth-the-trouble"><a class="header" href="#is-it-worth-the-trouble">Is It Worth the Trouble?</a></h2>
+<p>YES. With <code>opt-level = &quot;z&quot;</code> and <code>lto = true</code>, the plurals example is at 394 kB (at the time of writing). Now, by just providing a custom provider tailored to the used locales (&quot;en&quot; and &quot;fr&quot;), it shrinks down to 248 kB! It almost cut in half the binary size!
+I highly suggest taking the time to implement this.</p>
+<h1 id="experimental-features"><a class="header" href="#experimental-features">Experimental Features</a></h1>
+<p>When using experimental features, such as &quot;format_currency&quot;, if you follow the step above you will probably have some compilation error in the <code>impl_data_provider!</code> macro.
+To solve them you will need those few things:</p>
+<h3 id="enable-experimental-feature"><a class="header" href="#enable-experimental-feature">Enable Experimental Feature</a></h3>
+<p>Enable the &quot;experimental&quot; feature for <code>icu</code>:</p>
+<pre><code class="language-toml"># Cargo.toml
+[dependencies]
+icu = {
+    version = &quot;1.5.0&quot;,
+    default-features = false,
+    features = [ &quot;experimental&quot;]
+}
+</code></pre>
+<h3 id="import-icu_pattern"><a class="header" href="#import-icu_pattern">Import <code>icu_pattern</code></a></h3>
+<pre><code class="language-toml"># Cargo.toml
+[dependencies]
+icu_pattern = &quot;0.2.0&quot; # for databake
+</code></pre>
+<h3 id="import-the-alloc-crate"><a class="header" href="#import-the-alloc-crate">Import the <code>alloc</code> Crate</a></h3>
+<p>The macro directly uses the <code>alloc</code> crate instead of std, so you must bring it into scope:</p>
+<pre><code class="language-rust ignore">extern crate alloc;
+
+include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/baked_data/mod.rs&quot;));
+
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);</code></pre>
+<h2 id="example-8"><a class="header" href="#example-8">Example</a></h2>
+<p>You can take a look at the <code>counter_icu_datagen</code> example. This is a copy of the <code>counter_plurals</code> example but with a custom provider.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="dynamic-loading-of-translations"><a class="header" href="#dynamic-loading-of-translations">Dynamic Loading of Translations</a></h1>
+<h2 id="why-use-it"><a class="header" href="#why-use-it">Why Use It?</a></h2>
+<p>By default, the translations are loaded at compile time and are baked into the binary.
+This has some performance advantages but comes at a cost: binary size.
+This is fine when the number of keys and locales is small and the values are not long,
+but when supporting many locales and a lot of keys, binary size can increase significantly.</p>
+<p>The <code>&quot;dynamic_load&quot;</code> feature reduces this binary size increase by removing the baked translations in the binary and lazy loading them on the client.
+The way it does that is by using a server function to request the translations in a given &quot;translation unit&quot;.
+What I call &quot;translation unit&quot; is a group of translations; they are either one unit per locale or one unit per locale per namespaces if you use them.</p>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
+<p>When using SSR, the server will register every unit used for a given request and bake only the used one in the sent HTML.
+They are then parsed when the client hydrates, so no request for translations is done on page load.
+When the client needs access to an unloaded unit, it will request it from the server and will update the view when received.</p>
+<h2 id="what-changes"><a class="header" href="#what-changes">What Changes?</a></h2>
+<h3 id="async-accessors"><a class="header" href="#async-accessors">Async Accessors</a></h3>
+<p>For obvious reasons, with the <code>&quot;dynamic_load&quot;</code> accessing a value is now async, <code>t!</code>, <code>td!</code> and <code>tu!</code> still return <code>impl Fn() -&gt; impl IntoView</code>, as the async part is handled inside of it with some optimizations, but the <code>*_display!</code> and <code>*_string!</code> variants now return a future and need to be awaited.</p>
+<p>You can turn them into some kind of <code>Signal&lt;Option&lt;String&gt;&gt;</code> using leptos <code>AsyncDerived</code>:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option&lt;&amp;'static str&gt;`</code></pre>
+<p>Feel free to make yourself a macro to wrap them:</p>
+<pre><code class="language-rust ignore">macro_rules! t_string_async {
+    ($($tt:tt),*) =&gt; {
+        leptos::prelude::AsyncDerived::new(move || leptos_i18n::t_string!($($tt),*))
+    }
+}</code></pre>
+<p>This could have been the design by default, but there are multiple ways to handle it so I decided to leave the choice to the user.</p>
+<p><em>note</em>: They are technically not needed to be async on the server, as translations are still baked in for them,
+but for the API to be the same on the client and the server they return the value wrapped in an async block.</p>
+<h3 id="server-fn"><a class="header" href="#server-fn">Server Fn</a></h3>
+<p>If you use a backend that needs to manually register server functions,
+you can use the <code>ServerFn</code> associated type on the <code>Locale</code> trait implemented by the generated <code>Locale</code> enum:</p>
+<pre><code class="language-rust ignore">use i18n::Locale;
+use leptos_i18n::Locale as LocaleTrait;
+
+register_server_fn::&lt;&lt;Locale as LocaleTrait&gt;::ServerFn&gt;();</code></pre>
+<h3 id="csr"><a class="header" href="#csr">CSR</a></h3>
+<p>With SSR the translations are served by a server functions, but they don't exist with CSR, so you will need to create a static JSON containing them, so a bit more work is needed.
+To do that you can use a build script and use the <code>leptos_i18n_build</code> crate:</p>
+<pre><code class="language-toml"># Cargo.toml
+[build-dependencies]
+leptos_i18n_build = &quot;0.6.0&quot;
+</code></pre>
+<pre><pre class="playground"><code class="language-rust">use leptos_i18n_build::TranslationsInfos;
+
+fn main() {
+    println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+    println!(&quot;cargo::rerun-if-changed=Cargo.toml&quot;);
+
+    let translations_infos = TranslationsInfos::parse(Default::default()).unwrap();
+
+    translations_infos.rerun_if_locales_changed();
+
+    translations_infos
+        .get_translations()
+        .write_to_dir(&quot;path/to/dir&quot;)
+        .unwrap();
+}</code></pre></pre>
+<p>This will generate the necessary JSON files in the given directory. For example, you could generate them in <code>target/i18n</code>, resulting in this file structure:</p>
+<pre><code class="language-bash">./target
+└── i18n
+    ├── locale1.json
+    └── locale2.json
+</code></pre>
+<p>If you are using namespaces it would have this one:</p>
+<pre><code class="language-bash">./target
+└── i18n
+    └── namespace1
+        ├── locale1.json
+        └── locale2.json
+    └── namespace2
+        ├── locale1.json
+        └── locale2.json
+</code></pre>
+<p>Then if you are using Trunk you just have to add the directory to the build pipeline:</p>
+<pre><code class="language-html">&lt;!-- index.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;link data-trunk rel=&quot;copy-dir&quot; href=&quot;./target/i18n&quot; /&gt;
+  &lt;/head&gt;
+  &lt;body&gt;&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>Now the translations will be available at <code>i18n/{locale}.json</code>.
+To inform <code>leptos_i18n</code> where to find those translations, you need to supply the <code>translations_uri</code> to the config builder:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let cfg = cfg.translations_uri(&quot;i18n/{locale}.json&quot;); // or &quot;i18n/{namespace}/{locale}.json&quot; when using namespaces
+<span class="boring">}</span></code></pre></pre>
+<p>And this is it!</p>
+<h2 id="disclaimers"><a class="header" href="#disclaimers">Disclaimers</a></h2>
+<ol>
+<li>
+<p>There is a chance that enabling this feature actually increases binary sizes if there aren’t many translations,
+as there is additional code being generated to request, parse, and load the translations. But this is mostly a fixed cost,
+so with enough translations, so with enough translations, the trade-off will be beneficial. So do some testing.</p>
+</li>
+<li>
+<p>Only the raw strings are removed from the binary; the code to render each key is still baked in it, whatever the locale or the namespace.</p>
+</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="features"><a class="header" href="#features">Features</a></h1>
+<p>You can find here all the available features of the crate.</p>
+<h4 id="actix"><a class="header" href="#actix"><code>actix</code></a></h4>
+<p>This feature must be enabled when building the server with the actix backend.</p>
+<h4 id="axum"><a class="header" href="#axum"><code>axum</code></a></h4>
+<p>This feature must be enabled when building the server with the axum backend.</p>
+<h3 id="ssr"><a class="header" href="#ssr"><code>ssr</code></a></h3>
+<p>This feature must be enabled when building the server. It is automatically enabled by the <code>actix</code> or <code>axum</code> features, but if you use another backend, you can use this feature and provide custom functions to get access to the request headers.</p>
+<h4 id="hydrate-1"><a class="header" href="#hydrate-1"><code>hydrate</code></a></h4>
+<p>This feature must be enabled when building the client in ssr mode.</p>
+<h4 id="csr-1"><a class="header" href="#csr-1"><code>csr</code></a></h4>
+<p>This feature must be enabled when building the client in csr mode.</p>
+<h4 id="cookie-default"><a class="header" href="#cookie-default"><code>cookie</code> (Default)</a></h4>
+<p>Set a cookie to remember the last chosen locale.</p>
+<h4 id="islands"><a class="header" href="#islands"><code>islands</code></a></h4>
+<p>This feature is, as its name says, experimental.
+This makes this lib somewhat usable when using <code>islands</code> with Leptos.</p>
+<h4 id="nightly"><a class="header" href="#nightly"><code>nightly</code></a></h4>
+<p>Enable the use of some nightly features, like directly calling the context to get/set the current locale
+and allow the <code>load_locale!</code> macro to emit better warnings.</p>
+<h4 id="icu_compiled_data-default"><a class="header" href="#icu_compiled_data-default"><code>icu_compiled_data</code> (Default)</a></h4>
+<p>ICU4X is used as a backend for formatting and plurals. They bring their own data to know what to do for each locale. This is great when starting up a project without knowing exactly what you need. This is why it is enabled by default, so things work right out of the box.
+But those baked data can take quite a lot of space in the final binary as they bring information for all possible locales, so if you want to reduce this footprint, you can disable this feature and provide your own data with selected information. See the datagen section in the reduce binary size chapter for more information.</p>
+<h4 id="plurals-2"><a class="header" href="#plurals-2"><code>plurals</code></a></h4>
+<p>Allow the use of plurals in translations.</p>
+<h4 id="format_datetime"><a class="header" href="#format_datetime"><code>format_datetime</code></a></h4>
+<p>Allow the use of the <code>date</code>, <code>time</code>, and <code>datetime</code> formatters.</p>
+<h4 id="format_list"><a class="header" href="#format_list"><code>format_list</code></a></h4>
+<p>Allow the use of the <code>list</code> formatter.</p>
+<h4 id="format_nums"><a class="header" href="#format_nums"><code>format_nums</code></a></h4>
+<p>Allow the use of the <code>number</code> formatter.</p>
+<h4 id="format_currency"><a class="header" href="#format_currency"><code>format_currency</code></a></h4>
+<p>Allow the use of the <code>currency</code> formatter.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="the-i18n-ally-vs-code-extension"><a class="header" href="#the-i18n-ally-vs-code-extension">The <code>i18n Ally</code> VS Code Extension</a></h1>
+<p>The <a href="https://marketplace.visualstudio.com/items?itemName=lokalise.i18n-ally"><code>i18n Ally</code></a> extension includes many features for managing, structuring, and automating translations, with the most notable being an overlay on translation keys in the code, displaying the corresponding translations.</p>
+<p>This is very helpful, and this section is a guide for a minimal setup to make this extension work with <code>Leptos i18n</code>.</p>
+<h2 id="custom-framework-setup"><a class="header" href="#custom-framework-setup">Custom Framework Setup</a></h2>
+<p>For obvious reasons, this lib is not supported by <code>i18n Ally</code> (one day maybe?), but the developers of that extension have provided <a href="https://github.com/lokalise/i18n-ally/wiki/Custom-Framework">a way</a> to make it work with custom frameworks.</p>
+<p>You will need to first create a file in your <code>.vscode</code> folder named <code>i18n-ally-custom-framework.yml</code> and put this in it:</p>
+<pre><code class="language-yaml">languageIds:
+  - rust
+
+usageMatchRegex:
+  - &quot;[^\\w\\d]t!\\(\\s*[\\w.:]*,\\s*([\\w.]*)&quot;
+  - &quot;[^\\w\\d]td!\\(\\s*[\\w.:]*,\\s*([\\w.]*)&quot;
+  - &quot;[^\\w\\d]td_string!\\(\\s*[\\w.:]*,\\s*([\\w.]*)&quot;
+  - &quot;[^\\w\\d]td_display!\\(\\s*[\\w.:]*,\\s*([\\w.]*)&quot;
+
+monopoly: true
+</code></pre>
+<p><code>languageIds</code> is the language you are using in your project. I'm no expert, but this is probably for a VSC API to know what files to check.</p>
+<p><code>usageMatchRegex</code> is the regex to use to find the translations keys; the above regex patterns are, in order: for <code>t!</code>, <code>td!</code>, <code>td_string!</code> and <code>td_display!</code>. If you don't use all translations macros, you can remove/comment out the regex for that macro. These regexes may not be perfect, and I am no expert, so there may be better or faster alternatives. If you encounter a problem with them, feel free to open an issue or discussion on GitHub.</p>
+<p><code>monopoly</code> disables all supported frameworks; if you use any other frameworks supported by the extension in your project, set it to <code>false</code>.</p>
+<h2 id="common-settings"><a class="header" href="#common-settings">Common Settings</a></h2>
+<p>There are multiple settings for the extension that you can set in <code>.vscode/settings.json</code>; those are all optional. Here is a non-exhaustive list with their defaults in parentheses:</p>
+<ul>
+<li>
+<p><code>i18n-ally.keystyle</code> (auto): This option can be <code>flat</code> (<code>&quot;a.b.c&quot;: &quot;...&quot;</code>) or <code>nested</code> (<code>&quot;a&quot;: { &quot;b&quot;: { &quot;c&quot;: &quot;...&quot; } }</code>). This is irrelevant if you don’t use subkeys, but if you do, set it to <code>&quot;nested&quot;</code> as this is the style that this library supports.</p>
+</li>
+<li>
+<p><code>i18n-ally.localesPaths</code>  (auto): This is the path to your locales; it can be a path or a list of paths. By default, it is set to <code>&quot;locales&quot;</code>, but if you use a custom locales path or a cargo workspace, you will have to supply the path here.</p>
+</li>
+<li>
+<p><code>i18n-ally.namespace</code> (false): Set this to <code>true</code> if you use namespaces. If you use namespaces with <code>i18n Ally</code>, I have not figured out (maybe you will?) how to make the <code>namespace::key</code> syntax work for the macros, so just use <code>namespace.key</code>.</p>
+</li>
+<li>
+<p><code>i18n-ally.sourceLanguage</code> (en): The primary language of the project; I suggest setting this to your default locale.</p>
+</li>
+<li>
+<p><code>i18n-ally.displayLanguage</code> (en): The locale that the overlay uses.</p>
+</li>
+</ul>
+<p>You can find other settings that may interest you in the <a href="https://github.com/lokalise/i18n-ally/wiki/Configurations">official documentation</a>, with more information about the settings mentioned above, along with their default values.</p>
+<h2 id="other-features"><a class="header" href="#other-features">Other Features</a></h2>
+<p>This extension offers other interesting features. I suggest you take a look at their  <a href="https://github.com/lokalise/i18n-ally/wiki">wiki</a> for more information.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="appendix-custom-formatters"><a class="header" href="#appendix-custom-formatters">Appendix: Custom formatters</a></h1>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </div>
+    </body>
+</html>

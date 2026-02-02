@@ -1,0 +1,354 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>ICU4X Datagen</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../02_getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../setting_up/index.html"><strong aria-hidden="true">3.</strong> Setting Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setting_up/01_configuration.html"><strong aria-hidden="true">3.1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../setting_up/02_file_structure.html"><strong aria-hidden="true">3.2.</strong> File structure</a></li><li class="chapter-item expanded "><a href="../setting_up/03_namespaces.html"><strong aria-hidden="true">3.3.</strong> Namespaces</a></li><li class="chapter-item expanded "><a href="../setting_up/04_inheritance.html"><strong aria-hidden="true">3.4.</strong> Inheritance</a></li></ol></li><li class="chapter-item expanded "><a href="../declare/index.html"><strong aria-hidden="true">4.</strong> Declare Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../declare/01_key_value.html"><strong aria-hidden="true">4.1.</strong> Key-Value Pairs</a></li><li class="chapter-item expanded "><a href="../declare/02_interpolation.html"><strong aria-hidden="true">4.2.</strong> Interpolation</a></li><li class="chapter-item expanded "><a href="../declare/03_plurals.html"><strong aria-hidden="true">4.3.</strong> Plurals</a></li><li class="chapter-item expanded "><a href="../declare/04_subkeys.html"><strong aria-hidden="true">4.4.</strong> Subkeys</a></li><li class="chapter-item expanded "><a href="../declare/05_foreign_keys.html"><strong aria-hidden="true">4.5.</strong> Foreign keys</a></li><li class="chapter-item expanded "><a href="../declare/06_mix_kinds.html"><strong aria-hidden="true">4.6.</strong> Mixing Kinds</a></li><li class="chapter-item expanded "><a href="../declare/07_formatters.html"><strong aria-hidden="true">4.7.</strong> Formatters</a></li></ol></li><li class="chapter-item expanded "><a href="../usage/index.html"><strong aria-hidden="true">5.</strong> Use Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/02_context.html"><strong aria-hidden="true">5.1.</strong> I18nContext</a></li><li class="chapter-item expanded "><a href="../usage/03_subcontext.html"><strong aria-hidden="true">5.2.</strong> Sub-context</a></li><li class="chapter-item expanded "><a href="../usage/04_t_macro.html"><strong aria-hidden="true">5.3.</strong> t! Macro</a></li><li class="chapter-item expanded "><a href="../usage/05_td_macro.html"><strong aria-hidden="true">5.4.</strong> td! Macro</a></li><li class="chapter-item expanded "><a href="../usage/06_td_string_macro.html"><strong aria-hidden="true">5.5.</strong> td_string! Macro</a></li><li class="chapter-item expanded "><a href="../usage/07_router.html"><strong aria-hidden="true">5.6.</strong> I18nRoute</a></li><li class="chapter-item expanded "><a href="../usage/08_scoping.html"><strong aria-hidden="true">5.7.</strong> Scoping</a></li><li class="chapter-item expanded "><a href="../usage/09_t_format.html"><strong aria-hidden="true">5.8.</strong> t_format!</a></li><li class="chapter-item expanded "><a href="../usage/10_t_plural.html"><strong aria-hidden="true">5.9.</strong> t_plural!</a></li><li class="chapter-item expanded "><a href="../usage/11_const_access.html"><strong aria-hidden="true">5.10.</strong> Constant Access</a></li><li class="chapter-item expanded "><a href="../usage/12_serverfn.html"><strong aria-hidden="true">5.11.</strong> Server functions</a></li></ol></li><li class="chapter-item expanded "><a href="../infos/index.html"><strong aria-hidden="true">6.</strong> More Informations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../infos/01_locale_resol.html"><strong aria-hidden="true">6.1.</strong> Locale Resolution</a></li></ol></li><li class="chapter-item expanded "><a href="../reduce_size/index.html"><strong aria-hidden="true">7.</strong> Reduce Binary Size</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../reduce_size/01_datagen.html" class="active"><strong aria-hidden="true">7.1.</strong> ICU4X Datagen</a></li><li class="chapter-item expanded "><a href="../reduce_size/02_dynamic_load.html"><strong aria-hidden="true">7.2.</strong> Lazy Load The Translations</a></li></ol></li><li class="chapter-item expanded "><a href="../06_features.html"><strong aria-hidden="true">8.</strong> Features</a></li><li class="chapter-item expanded "><a href="../appendix_i18n_ally.html"><strong aria-hidden="true">9.</strong> Appendix: i18n Ally extension for VSC</a></li><li class="chapter-item expanded "><a href="../appendix_custom_formatter.html"><strong aria-hidden="true">10.</strong> Appendix: Custom formatters</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="icu4x-datagen"><a class="header" href="#icu4x-datagen">ICU4X Datagen</a></h1>
+<p>This library uses ICU4X as a backend for formatters and plurals, and the default baked data provider can take quite a lot of space as it contains information for <em>every possible locale</em>. So if you use only a few, this is a complete waste.</p>
+<h2 id="disable-compiled-data"><a class="header" href="#disable-compiled-data">Disable Compiled Data</a></h2>
+<p>The first step to remove this excess information is to disable the default data provider. It is activated by the <code>&quot;icu_compiled_data&quot;</code> feature, which is enabled by default. So turn off default features or remove this feature.</p>
+<h2 id="custom-provider"><a class="header" href="#custom-provider">Custom Provider</a></h2>
+<p>Great, we lost a lot of size, but now instead of having too much information, we have 0 information. You will now need to bring your own data provider. For that, you will need multiple things.</p>
+<h2 id="1-datagen"><a class="header" href="#1-datagen">1. Datagen</a></h2>
+<p>First, generate the information; you can use <a href="https://docs.rs/crate/icu4x-datagen/2.0.0"><code>icu_datagen</code></a> for that, either as a <a href="https://github.com/unicode-org/icu4x/blob/main/tutorials/data-management.md#2-generating-data">CLI</a> or with a <a href="https://github.com/unicode-org/icu4x/blob/main/tutorials/cargo.md">build.rs</a> (we will come back to it later).</p>
+<h2 id="2-load"><a class="header" href="#2-load">2. Load</a></h2>
+<p>Then you need to load those informations; this is as simple as</p>
+<pre><code class="language-rust ignore">include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/baked_data/mod.rs&quot;));
+
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);</code></pre>
+<p>you will also need some dependencies:</p>
+<pre><code class="language-toml">[dependencies]
+# &quot;default-features = false&quot; to turn off compiled_data
+icu_provider_baked = &quot;2.0.0&quot; # for databake
+icu_provider = &quot;2.0.0&quot; # for databake
+zerovec = &quot;0.11&quot; # for databake
+</code></pre>
+<p>This is explained more in depth in the <code>icu_datagen</code> doc.</p>
+<h2 id="3-supply-to-leptos_i18n-the-provider"><a class="header" href="#3-supply-to-leptos_i18n-the-provider">3. Supply to leptos_i18n the Provider.</a></h2>
+<p>You now just need to tell <code>leptos_i18n</code> what provider to use. For that, you first need to implement <code>IcuDataProvider</code> for your provider. You can do it manually as it is straightforward, but the lib comes with a derive macro:</p>
+<pre><code class="language-rust ignore">include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/baked_data/mod.rs&quot;));
+
+#[derive(leptos_i18n::custom_provider::IcuDataProvider)]
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);</code></pre>
+<p>And then pass it to the <code>set_icu_data_provider</code> function when the program starts,
+so for CSR apps in the main function:</p>
+<pre><code class="language-rust ignore">fn main() {
+    leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
+    console_error_panic_hook::set_once();
+    leptos::mount::mount_to_body(|| leptos::view! { &lt;App /&gt; })
+}</code></pre>
+<p>and for SSR apps in both on hydrate and on server startup:</p>
+<pre><code class="language-rust ignore">#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {
+    leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
+    console_error_panic_hook::set_once();
+    leptos::mount::hydrate_body(App);
+}</code></pre>
+<pre><code class="language-rust ignore">// example for actix
+#[actix_web::main]
+async fn main() -&gt; std::io::Result&lt;()&gt; {
+    leptos_i18n::custom_provider::set_icu_data_provider(MyDataProvider);
+    // ..
+}</code></pre>
+<h2 id="buildrs-datagen"><a class="header" href="#buildrs-datagen">Build.rs Datagen</a></h2>
+<p>The doc for ICU4X datagen can be quite intimidating, but it is actually quite straightforward. Your build.rs can look like this:</p>
+<pre><code class="language-rust ignore">use icu_provider_export::{
+    baked_exporter::{self, BakedExporter},
+    DataLocaleFamily, DeduplicationStrategy, ExportDriver, ExportMetadata,
+};
+use std::path::PathBuf;
+
+fn main() {
+    println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+
+    let mod_directory = PathBuf::from(std::env::var_os(&quot;OUT_DIR&quot;).unwrap()).join(&quot;baked_data&quot;);
+
+    let exporter = BakedExporter::new(mod_directory, {
+        let mut options = baked_exporter::Options::default();
+        options.overwrite = true;
+        options.use_internal_fallback = false;
+        options
+    })
+    .unwrap();
+
+    ExportDriver::new(
+        &amp;[locale!(&quot;en&quot;), locale!(&quot;fr&quot;)],
+        DeduplicationStrategy::None.into(),
+        LocaleFallbacker::new_without_data(),
+    )
+    .with_markers(&amp;[icu::plurals::provider::MARKERS]);
+}</code></pre>
+<p>Here we are generating the information for locales <code>&quot;en&quot;</code> and <code>&quot;fr&quot;</code>, with the data needed for plurals.</p>
+<h2 id="using-leptos_i18n_build-crate"><a class="header" href="#using-leptos_i18n_build-crate">Using <code>leptos_i18n_build</code> Crate</a></h2>
+<p>You can use the <code>leptos_i18n_build</code> crate that contains utils for the datagen.
+The problem with the above <code>build.rs</code> is that it can go out of sync with your translations,
+when all information is already in the translations.</p>
+<pre><code class="language-toml"># Cargo.toml
+[build-dependencies]
+leptos_i18n_build = &quot;0.6.0&quot;
+</code></pre>
+<pre><code class="language-rust ignore">use leptos_i18n_build::{TranslationsInfos, Config};
+use std::path::PathBuf;
+
+fn main() {
+    println!(&quot;cargo::rerun-if-changed=build.rs&quot;);
+    println!(&quot;cargo::rerun-if-changed=Cargo.toml&quot;);
+
+    let mod_directory = PathBuf::from(std::env::var_os(&quot;OUT_DIR&quot;).unwrap()).join(&quot;baked_data&quot;);
+
+    let cfg: Config = // ...;
+
+    let translations_infos = TranslationsInfos::parse(cfg).unwrap();
+
+    translations_infos.rerun_if_locales_changed();
+
+    translations_infos.generate_data(mod_directory).unwrap();
+}</code></pre>
+<p>This will parse the config and the translations and generate the data for you using the information gained when parsing the translations.
+This will trigger a rerun if the config or translations changed and be kept in sync.
+If your code uses plurals, it will build with information for plurals. If it uses a formatter, it will build with the information for that formatter.</p>
+<p>If you use more data somehow, like for example using <code>t*_format!</code> with a formatter not used in the translations, there are functions to either supply additional options or keys:</p>
+<pre><code class="language-rust ignore">use leptos_i18n_build::Options;
+
+translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();</code></pre>
+<p>This will inject the ICU <code>DataMarker</code>s needed for the <code>date</code>, <code>time</code>, and <code>datetime</code> formatters.</p>
+<pre><code class="language-rust ignore">use leptos_i18n_build::Options;
+
+translations_infos.generate_data_with_data_markers(
+    mod_directory,
+    &amp;[icu::plurals::provider::MARKERS]
+).unwrap();</code></pre>
+<p>This will inject the keys for cardinal and ordinal plurals.</p>
+<p>If you need both, <code>Options</code> can be turned into the needed keys:</p>
+<pre><code class="language-rust ignore">use leptos_i18n_build::Options;
+
+let mut markers = &amp;[icu::plurals::provider::MARKERS];
+let markers.extend(Options::FormatDateTime.into_data_markers());
+
+// markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
+
+translations_infos.generate_data_with_data_markers(mod_directory, markers).unwrap();</code></pre>
+<h2 id="is-it-worth-the-trouble"><a class="header" href="#is-it-worth-the-trouble">Is It Worth the Trouble?</a></h2>
+<p>YES. With <code>opt-level = &quot;z&quot;</code> and <code>lto = true</code>, the plurals example is at 394 kB (at the time of writing). Now, by just providing a custom provider tailored to the used locales (&quot;en&quot; and &quot;fr&quot;), it shrinks down to 248 kB! It almost cut in half the binary size!
+I highly suggest taking the time to implement this.</p>
+<h1 id="experimental-features"><a class="header" href="#experimental-features">Experimental Features</a></h1>
+<p>When using experimental features, such as &quot;format_currency&quot;, if you follow the step above you will probably have some compilation error in the <code>impl_data_provider!</code> macro.
+To solve them you will need those few things:</p>
+<h3 id="enable-experimental-feature"><a class="header" href="#enable-experimental-feature">Enable Experimental Feature</a></h3>
+<p>Enable the &quot;experimental&quot; feature for <code>icu</code>:</p>
+<pre><code class="language-toml"># Cargo.toml
+[dependencies]
+icu = {
+    version = &quot;1.5.0&quot;,
+    default-features = false,
+    features = [ &quot;experimental&quot;]
+}
+</code></pre>
+<h3 id="import-icu_pattern"><a class="header" href="#import-icu_pattern">Import <code>icu_pattern</code></a></h3>
+<pre><code class="language-toml"># Cargo.toml
+[dependencies]
+icu_pattern = &quot;0.2.0&quot; # for databake
+</code></pre>
+<h3 id="import-the-alloc-crate"><a class="header" href="#import-the-alloc-crate">Import the <code>alloc</code> Crate</a></h3>
+<p>The macro directly uses the <code>alloc</code> crate instead of std, so you must bring it into scope:</p>
+<pre><code class="language-rust ignore">extern crate alloc;
+
+include!(concat!(env!(&quot;OUT_DIR&quot;), &quot;/baked_data/mod.rs&quot;));
+
+pub struct MyDataProvider;
+impl_data_provider!(MyDataProvider);</code></pre>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<p>You can take a look at the <code>counter_icu_datagen</code> example. This is a copy of the <code>counter_plurals</code> example but with a custom provider.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../reduce_size/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../reduce_size/02_dynamic_load.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../reduce_size/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../reduce_size/02_dynamic_load.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

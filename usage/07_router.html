@@ -1,0 +1,288 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>I18nRoute</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../02_getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../setting_up/index.html"><strong aria-hidden="true">3.</strong> Setting Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setting_up/01_configuration.html"><strong aria-hidden="true">3.1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../setting_up/02_file_structure.html"><strong aria-hidden="true">3.2.</strong> File structure</a></li><li class="chapter-item expanded "><a href="../setting_up/03_namespaces.html"><strong aria-hidden="true">3.3.</strong> Namespaces</a></li><li class="chapter-item expanded "><a href="../setting_up/04_inheritance.html"><strong aria-hidden="true">3.4.</strong> Inheritance</a></li></ol></li><li class="chapter-item expanded "><a href="../declare/index.html"><strong aria-hidden="true">4.</strong> Declare Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../declare/01_key_value.html"><strong aria-hidden="true">4.1.</strong> Key-Value Pairs</a></li><li class="chapter-item expanded "><a href="../declare/02_interpolation.html"><strong aria-hidden="true">4.2.</strong> Interpolation</a></li><li class="chapter-item expanded "><a href="../declare/03_plurals.html"><strong aria-hidden="true">4.3.</strong> Plurals</a></li><li class="chapter-item expanded "><a href="../declare/04_subkeys.html"><strong aria-hidden="true">4.4.</strong> Subkeys</a></li><li class="chapter-item expanded "><a href="../declare/05_foreign_keys.html"><strong aria-hidden="true">4.5.</strong> Foreign keys</a></li><li class="chapter-item expanded "><a href="../declare/06_mix_kinds.html"><strong aria-hidden="true">4.6.</strong> Mixing Kinds</a></li><li class="chapter-item expanded "><a href="../declare/07_formatters.html"><strong aria-hidden="true">4.7.</strong> Formatters</a></li></ol></li><li class="chapter-item expanded "><a href="../usage/index.html"><strong aria-hidden="true">5.</strong> Use Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/02_context.html"><strong aria-hidden="true">5.1.</strong> I18nContext</a></li><li class="chapter-item expanded "><a href="../usage/03_subcontext.html"><strong aria-hidden="true">5.2.</strong> Sub-context</a></li><li class="chapter-item expanded "><a href="../usage/04_t_macro.html"><strong aria-hidden="true">5.3.</strong> t! Macro</a></li><li class="chapter-item expanded "><a href="../usage/05_td_macro.html"><strong aria-hidden="true">5.4.</strong> td! Macro</a></li><li class="chapter-item expanded "><a href="../usage/06_td_string_macro.html"><strong aria-hidden="true">5.5.</strong> td_string! Macro</a></li><li class="chapter-item expanded "><a href="../usage/07_router.html" class="active"><strong aria-hidden="true">5.6.</strong> I18nRoute</a></li><li class="chapter-item expanded "><a href="../usage/08_scoping.html"><strong aria-hidden="true">5.7.</strong> Scoping</a></li><li class="chapter-item expanded "><a href="../usage/09_t_format.html"><strong aria-hidden="true">5.8.</strong> t_format!</a></li><li class="chapter-item expanded "><a href="../usage/10_t_plural.html"><strong aria-hidden="true">5.9.</strong> t_plural!</a></li><li class="chapter-item expanded "><a href="../usage/11_const_access.html"><strong aria-hidden="true">5.10.</strong> Constant Access</a></li><li class="chapter-item expanded "><a href="../usage/12_serverfn.html"><strong aria-hidden="true">5.11.</strong> Server functions</a></li></ol></li><li class="chapter-item expanded "><a href="../infos/index.html"><strong aria-hidden="true">6.</strong> More Informations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../infos/01_locale_resol.html"><strong aria-hidden="true">6.1.</strong> Locale Resolution</a></li></ol></li><li class="chapter-item expanded "><a href="../reduce_size/index.html"><strong aria-hidden="true">7.</strong> Reduce Binary Size</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../reduce_size/01_datagen.html"><strong aria-hidden="true">7.1.</strong> ICU4X Datagen</a></li><li class="chapter-item expanded "><a href="../reduce_size/02_dynamic_load.html"><strong aria-hidden="true">7.2.</strong> Lazy Load The Translations</a></li></ol></li><li class="chapter-item expanded "><a href="../06_features.html"><strong aria-hidden="true">8.</strong> Features</a></li><li class="chapter-item expanded "><a href="../appendix_i18n_ally.html"><strong aria-hidden="true">9.</strong> Appendix: i18n Ally extension for VSC</a></li><li class="chapter-item expanded "><a href="../appendix_custom_formatter.html"><strong aria-hidden="true">10.</strong> Appendix: Custom formatters</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="i18nroute"><a class="header" href="#i18nroute"><code>I18nRoute</code></a></h1>
+<p>You can use the <code>leptos_i18n_router</code> crate that exports the <code>I18nRoute</code> component.
+This component acts exactly like a <code>leptos_router::Route</code> and takes the same args, except for the path.</p>
+<p>What it does is manage a prefix on the URL such that</p>
+<pre><code class="language-rust ignore">use crate::i18n::Locale;
+use leptos_i18n_router::I18nRoute;
+use leptos::prelude::*;
+use leptos_router::*;
+
+view! {
+    &lt;Router&gt;
+        &lt;Routes fallback=||&quot;Page not found&quot;&gt;
+            &lt;I18nRoute&lt;Locale, _, _&gt; view=Outlet&gt;
+                &lt;Route path=path!(&quot;&quot;) view=Home /&gt;
+                &lt;Route path=path!(&quot;counter&quot;) view=Counter /&gt;
+            &lt;/I18nRoute&lt;Locale, _, _&gt;&gt;
+        &lt;/Routes&gt;
+    &lt;/Router&gt;
+}</code></pre>
+<p>Produce default routes <code>&quot;/&quot;</code> and <code>&quot;/counter&quot;</code>, but also <code>&quot;:locale/&quot;</code> and <code>&quot;:locale/counter&quot;</code> for each locale.</p>
+<p>If you have <code>en</code> and <code>fr</code> as your routes, the generated routes will be: <code>/</code>, <code>/counter</code>, <code>/en</code>, <code>/en/counter</code>, <code>/fr</code> and <code>/fr/counter</code>.</p>
+<p>This component provides the <code>I18nContext</code> if not already provided, and sets the locale accordingly.</p>
+<h2 id="locale-resolution"><a class="header" href="#locale-resolution">Locale Resolution</a></h2>
+<p>The locale prefix in the URL is considered to have the biggest priority. When accessing <code>&quot;/en/*“</code>, the locale will be set to <code>en</code> no matter what.</p>
+<p>But accessing without a locale prefix such as <code>&quot;/counter“</code>, the locale will be resolved based on other factors like cookies, request <code>Accept-Language</code> header, or <code>navigator</code> API.</p>
+<p>See the <a href="../infos/01_locale_resol.html">Locale Resolution</a> section.</p>
+<h3 id="redirection"><a class="header" href="#redirection">Redirection</a></h3>
+<p>If a locale is found those ways and it is not the default locale, this will trigger a navigation to the correct locale prefix.</p>
+<p>This means if you access <code>&quot;/counter&quot;</code> with the cookie set to <code>fr</code> (default being <code>en</code>), then you will be redirected to <code>&quot;/fr/counter&quot;</code>.</p>
+<h2 id="switching-locale"><a class="header" href="#switching-locale">Switching Locale</a></h2>
+<p>Switching locale updates the prefix accordingly. Switching from <code>en</code> to <code>fr</code> will set the prefix to <code>fr</code>, but switching to the default locale will remove the locale prefix entirely.</p>
+<h2 id="state-keeping"><a class="header" href="#state-keeping">State Keeping</a></h2>
+<p>Switching locale will trigger a navigation, update the <code>Location</code> returned by <code>use_location</code>, but will not refresh the component tree.</p>
+<p>This means that if <code>Counter</code> keeps a count as a state, and you switch locale from <code>fr</code> to <code>en</code>, this will trigger a navigation from <code>&quot;/fr/counter&quot;</code> to <code>&quot;/counter&quot;</code>,
+but the component will not be rerendered and the count state will be preserved.</p>
+<h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<p>With the way the default route is handled, if you have a <code>&lt;A href=.. /&gt;</code> link in your application or use <code>leptos_router::use_navigate</code>,
+you don't have to worry about removing the locale prefix as this will trigger a redirection to the correct locale.</p>
+<p>This redirection also sets <code>NavigateOptions.replace</code> to <code>true</code> so the intermediate location will not show in the history.</p>
+<p>Basically, if you are at <code>&quot;/fr/counter&quot;</code> and trigger a redirection to <code>&quot;/&quot;</code>, this will trigger another redirection to <code>&quot;/fr&quot;</code>
+and the history will look like you directly navigated from <code>&quot;/fr/counter&quot;</code> to <code>&quot;/fr&quot;</code>.</p>
+<h2 id="localized-path-segments"><a class="header" href="#localized-path-segments">Localized Path Segments</a></h2>
+<p>You can use the <code>i18n_path!</code> macro inside the <code>I18nRoute</code> to create localized path segments:</p>
+<pre><code class="language-rust ignore">use leptos_i18n_router::i18n_path;
+
+&lt;I18nRoute&lt;Locale, _, _&gt; view=Outlet&gt;
+    &lt;Route path=i18n_path!(Locale, |locale| td_string(locale, segment_path_name)) view={/* */} /&gt;
+&lt;/I18nRoute&lt;Locale, _, _&gt;&gt;</code></pre>
+<p>If you have <code>segment_path_name = &quot;search&quot;</code> for English, and <code>segment_path_name = &quot;rechercher&quot;</code> for French, the <code>I18nRoute</code> will produce 3 paths:</p>
+<ul>
+<li>&quot;/search&quot; (if default = &quot;en&quot;)</li>
+<li>&quot;/en/search&quot;</li>
+<li>&quot;/fr/rechercher&quot;</li>
+</ul>
+<p>It can be used at any depth, and if not used inside an <code>i18nRoute</code> it will default to the default locale.</p>
+<p>Multi segments path are supported, meaning you can have <code>segment_path_name = &quot;some/path&quot;</code> for English, and <code>segment_path_name = &quot;un/chemin&quot;</code> for French and work as expected.</p>
+<blockquote>
+<p><em>note</em>: the number of segments must be the same for all locales or a runtime error will be thrown. Empty segments don't count, meaning <code>segment_path_name = &quot;path&quot;</code> for English, and <code>segment_path_name = &quot;&quot;</code> for French will create an error.</p>
+</blockquote>
+<h2 id="caveat"><a class="header" href="#caveat">Caveat</a></h2>
+<p>If you have a layout like this:</p>
+<pre><code class="language-rust ignore">view! {
+    &lt;I18nContextProvider&gt;
+        &lt;Menu /&gt;
+        &lt;Router&gt;
+            &lt;Routes fallback=||&quot;Page not found&quot;&gt;
+                &lt;I18nRoute&lt;Locale, _, _&gt; view=Outlet&gt;
+                    &lt;Route path=path!(&quot;&quot;) view=Home /&gt;
+                &lt;/I18nRoute&lt;Locale, _, _&gt;&gt;
+            &lt;/Routes&gt;
+        &lt;/Router&gt;
+    &lt;/I18nContextProvider&gt;
+}</code></pre>
+<p>And the <code>Menu</code> component uses localization, you could be surprised to see that sometimes there is a mismatch between the locale used by the <code>Menu</code> and the one inside the router.
+This is due to the locale being read from the URL only when the <code>i18nRoute</code> is rendered. So the context may be initialized with another locale, and then hit the router that updates it.</p>
+<p>One solution would be to use the <code>Menu</code> component inside the <code>i18nRoute</code>:</p>
+<pre><code class="language-rust ignore">view! {
+    &lt;I18nContextProvider&gt;
+        &lt;Router&gt;
+            &lt;Routes fallback=||&quot;Page not found&quot;&gt;
+                &lt;I18nRoute&lt;Locale, _, _&gt; view=|| view! {
+                    &lt;Menu /&gt;
+                    &lt;Outlet /&gt;
+                }&gt;
+                    &lt;Route path=path!(&quot;&quot;) view=Home /&gt;
+                &lt;/I18nRoute&lt;Locale, _, _&gt;&gt;
+            &lt;/Routes&gt;
+        &lt;/Router&gt;
+    &lt;/I18nContextProvider&gt;
+}
+
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/06_td_string_macro.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../usage/08_scoping.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/06_td_string_macro.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../usage/08_scoping.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
