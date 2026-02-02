@@ -35,6 +35,15 @@ impl<'a> PathBuilder<'a> {
         PathBuilder(vec![""])
     }
 
+    pub fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = &'a str>,
+    {
+        for seg in iter {
+            self.push(seg);
+        }
+    }
+
     pub fn push(&mut self, s: &'a str) {
         let s = s.trim_matches('/');
         if !s.is_empty() {
@@ -135,17 +144,11 @@ fn construct_path_segments<'b, 'p: 'b>(
                 optional_idx += 1;
             }
             PathSegment::Static(to_push) => {
-                if !to_push.is_empty() {
-                    path_builder.push(to_push);
-                }
+                path_builder.push(to_push);
             }
             PathSegment::Splat(_) => {
-                let start_idx = matches.splat;
-                for seg in &segments[start_idx..] {
-                    if !seg.is_empty() {
-                        path_builder.push(seg);
-                    }
-                }
+                let iter = segments[matches.splat..].iter().copied();
+                path_builder.extend(iter);
                 break;
             }
         }
@@ -157,25 +160,28 @@ fn localize_path<'b, 'p: 'b>(
     old_locale_segments: &[Vec<PathSegment>],
     new_locale_segments: &'p [Vec<PathSegment>],
     path_builder: &mut PathBuilder<'b>,
-) -> Option<()> {
+) -> bool {
     let path_segments = path
         .split('/')
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>();
 
-    let (pos, path_matches) =
-        old_locale_segments
-            .iter()
-            .enumerate()
-            .find_map(|(pos, old_segments)| {
-                match_path_segments(&path_segments, old_segments).map(|op| (pos, op))
-            })?;
+    let res = old_locale_segments
+        .iter()
+        .enumerate()
+        .find_map(|(pos, old_segments)| {
+            match_path_segments(&path_segments, old_segments).map(|op| (pos, op))
+        });
+
+    let Some((pos, path_matches)) = res else {
+        return false;
+    };
 
     let new_segments = &new_locale_segments[pos];
 
     construct_path_segments(&path_segments, new_segments, path_builder, &path_matches);
 
-    Some(())
+    true
 }
 
 fn get_new_path<L: Locale>(
@@ -212,8 +218,7 @@ fn get_new_path<L: Locale>(
                     old_locale_segments,
                     new_locale_segments,
                     &mut path_builder,
-                )
-                .is_some(),
+                ),
                 _ => false,
             };
 
