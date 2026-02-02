@@ -6,5 +6,5 @@
   "go_home": "Accueil",
   "go_counter": "Compteur",
   "counter_path": "compteur",
-  "counter_multi_path": "multiple/segments/compteur"
+  "counter_multi_path": "multiple/compteur"
 }
