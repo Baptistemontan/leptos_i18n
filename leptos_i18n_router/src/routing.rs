@@ -83,10 +83,11 @@ fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
         .trim_start_matches('/')
         .strip_prefix(base_path)?
         .trim_start_matches('/');
+    let (to_match, _) = stripped_path.split_once('/').unwrap_or((stripped_path, ""));
     L::get_all()
         .iter()
         .copied()
-        .find(|l| stripped_path.starts_with(l.as_str()))
+        .find(|l| l.as_str() == to_match)
 }
 
 fn construct_path_segments<'b, 'p: 'b>(
@@ -213,6 +214,8 @@ fn get_new_path<L: Locale>(
     });
     location.hash.with_untracked(|hash| {
         if !hash.is_empty() {
+            // Remove leading '#' if present
+            let hash = hash.trim_start_matches('#');
             new_path.push('#');
             new_path.push_str(hash);
         }
@@ -502,20 +505,37 @@ impl<L, View, Chil> I18nNestedRoute<L, View, Chil> {
     }
 }
 
-// what you will see after this comment is an absolute fuckery.
+// what you will see after this comment is a bit of a hack.
 // The goal here is to create N + 1 routes where N is the number of locales (last being for empty).
 // not very difficult.
-// but if you do it the "normal" way, changing locales will rebuild the entire tree, making the application loose state when it does'nt need to.
-// So, we want to create N + 1 routes, that are "the same"
-// Leptos differentiate them with their "RouteId"
-// So we basically create N+1 route with the same route id
-// All the stupidity you will see under this comment is done just to archieve this.
+// but if you do it the "normal" way, changing locales will rebuild the entire tree, making the application
+// lose state when it doesn't need to.
+// So, we want to create N + 1 routes that are "the same".
+// Leptos differentiates them with their "RouteId".
+// So we basically create N+1 routes with the same route id.
+// All the complexity you will see under this comment is done just to achieve this.
 
 #[doc(hidden)]
 pub type BaseRoute<View, Chil> = NestedRoute<StaticSegment<&'static str>, Chil, (), View>;
 
 thread_local! {
     static CURRENT_ROUTE_LOCALE: RefCell<Option<&'static str>> = const { RefCell::new(None) };
+}
+
+fn set_current_route_locale<L: Locale>(new_locale: L) {
+    CURRENT_ROUTE_LOCALE.with_borrow_mut(|locale| {
+        *locale = Some(new_locale.as_str());
+    })
+}
+
+fn reset_current_route_locale() {
+    CURRENT_ROUTE_LOCALE.with_borrow_mut(|locale| *locale = None);
+}
+
+fn get_current_route_locale<L: Locale>() -> L {
+    CURRENT_ROUTE_LOCALE
+        .with_borrow(|locale| locale.as_ref().and_then(|locale| L::from_str(locale).ok()))
+        .unwrap_or_default()
 }
 
 #[doc(hidden)]
@@ -698,68 +718,84 @@ where
 
 #[doc(hidden)]
 #[derive(Clone, Copy)]
-pub struct I18nSegment<L, F> {
+pub struct I18nPath<L, F> {
     func: F,
     marker: PhantomData<L>,
 }
 
-impl<L, F> Debug for I18nSegment<L, F> {
+impl<L, F> Debug for I18nPath<L, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("I18nSegment").finish()
+        f.debug_struct("I18nPath").finish()
     }
 }
 
-fn set_current_route_locale<L: Locale>(new_locale: L) {
-    CURRENT_ROUTE_LOCALE.with_borrow_mut(|locale| {
-        *locale = Some(new_locale.as_str());
-    })
-}
-
-fn reset_current_route_locale() {
-    CURRENT_ROUTE_LOCALE.with_borrow_mut(|locale| *locale = None);
-}
-
-fn get_current_route_locale<L: Locale>() -> L {
-    CURRENT_ROUTE_LOCALE
-        .with_borrow(|locale| locale.as_ref().and_then(|locale| L::from_str(locale).ok()))
-        .unwrap_or_default()
-}
-
-impl<L: Locale, F> I18nSegment<L, F>
+impl<L: Locale, F> I18nPath<L, F>
 where
     F: Fn(L) -> &'static str,
 {
-    fn get_segment(&self) -> StaticSegment<&'static str> {
-        let locale = get_current_route_locale();
-        let seg = (self.func)(locale);
-        StaticSegment(seg)
+    fn segments_for_current_locale(
+        &self,
+    ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
+        let locale = get_current_route_locale::<L>();
+        let s = (self.func)(locale);
+
+        s.split('/')
+            .filter(|p| !p.is_empty())
+            .map(leptos_router::StaticSegment)
     }
 }
 
-impl<L: Locale, F> PossibleRouteMatch for I18nSegment<L, F>
+impl<L: Locale, F> PossibleRouteMatch for I18nPath<L, F>
 where
     F: Fn(L) -> &'static str,
 {
+    fn optional(&self) -> bool {
+        false
+    }
+
     fn test<'a>(&self, path: &'a str) -> Option<leptos_router::PartialPathMatch<'a>> {
-        self.get_segment().test(path)
+        use leptos_router::PartialPathMatch;
+
+        let mut segments = self.segments_for_current_locale().peekable();
+
+        if segments.peek().is_none() {
+            return ().test(path);
+        }
+
+        let mut remaining = path;
+        let mut all_params = Vec::new();
+        let mut matched_len = 0usize;
+
+        for static_seg in segments {
+            let pm = static_seg.test(remaining)?;
+
+            let matched = pm.matched();
+            matched_len += matched.len();
+            remaining = pm.remaining();
+            all_params.extend(pm.params());
+        }
+
+        Some(PartialPathMatch::new(
+            remaining,
+            all_params,
+            &path[..matched_len],
+        ))
     }
 
     fn generate_path(&self, path: &mut Vec<PathSegment>) {
-        self.get_segment().generate_path(path);
-    }
-
-    fn optional(&self) -> bool {
-        false
+        for static_seg in self.segments_for_current_locale() {
+            static_seg.generate_path(path);
+        }
     }
 }
 
 #[doc(hidden)]
-pub fn make_i18n_segment<L, F>(f: F) -> I18nSegment<L, F>
+pub fn make_i18n_path<L, F>(f: F) -> I18nPath<L, F>
 where
     L: Locale,
     F: Fn(L) -> &'static str + Clone + 'static,
 {
-    I18nSegment {
+    I18nPath {
         func: f,
         marker: PhantomData,
     }
