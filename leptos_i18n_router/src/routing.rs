@@ -723,6 +723,16 @@ pub struct I18nPath<L, F> {
     marker: PhantomData<L>,
 }
 
+impl<L: Locale, F> std::fmt::Display for I18nPath<L, F>
+where
+    F: Fn(L) -> &'static str,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let locale = get_current_route_locale::<L>();
+        write!(f, "{}", (self.func)(locale))
+    }
+}
+
 impl<L, F> Debug for I18nPath<L, F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("I18nPath").finish()
