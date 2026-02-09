@@ -14,16 +14,20 @@ readme = "../README.md"
 proc-macro = true
 
 [dependencies]
-serde = { version = "1", features = ["rc"] }
-serde_json = { version = "1" }
-proc-macro2 = "1"
-quote = "1"
-syn = "2.0"
-toml = "0.9"
-icu_locale = { workspace = true, features = ["compiled_data"] }
-fixed_decimal = { workspace = true, features = ["ryu"] }
+serde = { features = ["rc"], workspace = true, default-features = true }
+serde_json = { workspace = true, default-features = true }
+proc-macro2 = { workspace = true, default-features = true }
+quote = { workspace = true, default-features = true }
+syn = { workspace = true, default-features = true }
+toml = { workspace = true, default-features = true }
+icu_locale = { workspace = true, features = [
+  "compiled_data",
+], default-features = false }
+fixed_decimal = { workspace = true, features = [
+  "ryu",
+], default-features = false }
 leptos_i18n_parser = { workspace = true }
-tinystr = { workspace = true }
+tinystr = { workspace = true, default-features = false }
 leptos_i18n_codegen = { workspace = true, default-features = true }
 
 [features]

@@ -14,6 +14,7 @@ exclude = ["examples", "tests"]
 version = "0.6.0"
 
 [workspace.dependencies]
+# members
 # pin macro, codegen and parser version, those don't follow semver internally so a version missmatch with the main crate can cause problems.
 leptos_i18n_macro = { path = "./leptos_i18n_macro", default-features = false, version = "=0.6.0" }
 leptos_i18n_parser = { path = "./leptos_i18n_parser", default-features = false, version = "=0.6.0" }
@@ -22,6 +23,7 @@ leptos_i18n = { path = "./leptos_i18n", version = "0.6.0", default-features = fa
 leptos_i18n_router = { path = "./leptos_i18n_router", version = "0.6.0", default-features = false }
 leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.6.0", default-features = false }
 
+# non-members
 # leptos
 leptos = { version = "0.8.15", default-features = false }
 leptos_router = { version = "0.8.11", default-features = false }
@@ -40,4 +42,24 @@ icu_calendar = { version = "2.1.1", default-features = false }
 icu_list = { version = "2.1.1", default-features = false }
 icu_decimal = { version = "2.1.1", default-features = false }
 icu_experimental = { version = "0.4.0", default-features = false }
-tinystr = "0.8.2"
+tinystr = { default-features = false, version = "0.8.2" }
+
+default-struct-builder = { default-features = false, version = "0.5" }
+serde_json = { default-features = false, version = "1" }
+futures = { default-features = false, version = "0.3.31" }
+leptos-use = { default-features = false, version = "0.17.0" }
+writeable = { default-features = false, version = "0.6" }
+prettyplease = { default-features = false, version = "0.2" }
+serde-wasm-bindgen = { default-features = false, version = "0.6.5" }
+serde_yaml = { default-features = false, version = "0.9" }
+codee = { default-features = false, version = "0.3.5" }
+json5 = { default-features = false, version = "1.3" }
+quote = { default-features = false, version = "1" }
+toml = { default-features = false, version = "0.9" }
+async-once-cell = { default-features = false, version = "0.5.4" }
+wasm-bindgen = { default-features = false, version = "0.2.106" }
+syn = { default-features = false, version = "2.0" }
+typed-builder = { default-features = false, version = "0.23" }
+proc-macro2 = { default-features = false, version = "1" }
+serde = { default-features = false, version = "1.0" }
+js-sys = { default-features = false, version = "0.3.83" }

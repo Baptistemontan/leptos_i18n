@@ -9,7 +9,7 @@ description = "build.rs utilities for the leptos_i18n crate"
 readme = "../README.md"
 
 [dependencies]
-proc-macro2 = "1"
+proc-macro2 = { workspace = true, default-features = true }
 
 leptos_i18n_parser = { workspace = true }
 leptos_i18n_codegen = { workspace = true, default-features = true }
@@ -17,19 +17,23 @@ leptos_i18n_codegen = { workspace = true, default-features = true }
 icu_provider_export = { workspace = true, features = [
   "baked_exporter",
   "rayon",
-] }
+], default-features = false }
 icu_provider_source = { workspace = true, features = [
   "networking",
   "use_wasm",
   "experimental",
-] }
-icu = { workspace = true, features = ["experimental"] }
-icu_provider = { workspace = true }
-icu_locale = { workspace = true }
+], default-features = false }
+icu = { workspace = true, features = [
+  "experimental",
+], default-features = false }
+icu_provider = { workspace = true, default-features = false }
+icu_locale = { workspace = true, default-features = false }
 
 
-prettyplease = { version = "0.2", features = ["verbatim"], optional = true }
-syn = { version = "2.0" }
+prettyplease = { features = [
+  "verbatim",
+], optional = true, workspace = true, default-features = true }
+syn = { workspace = true, default-features = true }
 
 [features]
 default = []

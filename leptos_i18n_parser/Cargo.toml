@@ -9,19 +9,23 @@ description = "parser for the leptos_i18n crate"
 readme = "../README.md"
 
 [dependencies]
-icu_provider = { workspace = true }
-icu_locale = { workspace = true }
-icu_plurals = { workspace = true, features = ["compiled_data"] }
-serde = { version = "1", features = ["rc"] }
-serde_json = { version = "1" }
-serde_yaml = { version = "0.9" }
-toml = "0.9"
-fixed_decimal = { workspace = true, features = ["ryu"] }
-json5 = { version = "1.3" }
-quote = { version = "1" }
-syn = { version = "2.0" }
-proc-macro2 = { version = "1" }
-tinystr = { workspace = true }
+icu_provider = { workspace = true, default-features = false }
+icu_locale = { workspace = true, default-features = true }
+icu_plurals = { workspace = true, features = [
+  "compiled_data",
+], default-features = false }
+serde = { features = ["rc"], workspace = true, default-features = true }
+serde_json = { workspace = true, default-features = true }
+serde_yaml = { workspace = true, default-features = true }
+toml = { workspace = true, default-features = true }
+fixed_decimal = { workspace = true, features = [
+  "ryu",
+], default-features = false }
+json5 = { workspace = true, default-features = true }
+quote = { workspace = true, default-features = true }
+syn = { workspace = true, default-features = true }
+proc-macro2 = { workspace = true, default-features = true }
+tinystr = { workspace = true, default-features = false }
 
 [features]
 plurals = []
