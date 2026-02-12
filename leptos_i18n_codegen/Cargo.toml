@@ -12,12 +12,14 @@ readme = "../README.md"
 
 
 [dependencies]
-proc-macro2 = "1"
-quote = "1"
-syn = "2.0"
-icu_locale = { workspace = true, features = ["compiled_data"] }
+proc-macro2 = { workspace = true, default-features = true }
+quote = { workspace = true, default-features = true }
+syn = { workspace = true, default-features = true }
+icu_locale = { workspace = true, features = [
+  "compiled_data",
+], default-features = false }
 leptos_i18n_parser = { workspace = true }
-tinystr = { workspace = true }
+tinystr = { workspace = true, default-features = false }
 
 [features]
 default = []

@@ -12,8 +12,8 @@ readme = "../README.md"
 
 [dependencies]
 leptos_i18n = { workspace = true }
-leptos = { workspace = true }
-leptos_router = { workspace = true }
+leptos = { workspace = true, default-features = false }
+leptos_router = { workspace = true, default-features = false }
 
 [features]
 ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_i18n/ssr"]
