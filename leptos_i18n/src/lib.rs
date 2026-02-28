@@ -131,13 +131,13 @@ pub use macro_helpers::formatting;
 
 pub use locale_traits::{Direction, Locale, LocaleKeys};
 
-pub use context::{I18nContext, use_i18n_context};
+pub use context::{I18nContext, use_i18n_context, use_i18n_with_scope};
 
 #[allow(deprecated)]
 pub use context::provide_i18n_context;
 
 pub use leptos_i18n_macro::IcuDataProvider;
-pub use scopes::{ConstScope, Scope};
+pub use scopes::Scope;
 
 /// This module contain utilities for plurals.
 #[cfg(feature = "plurals")]

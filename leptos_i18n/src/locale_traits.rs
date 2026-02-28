@@ -5,7 +5,11 @@ use std::{
     str::FromStr,
 };
 
-use crate::langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match};
+use crate::{
+    Scope,
+    langid::{convert_vec_str_to_langids_lossy, filter_matches, find_match},
+    scopes::ScopedLocale,
+};
 
 /// Trait implemented the enum representing the supported locales of the application
 ///
@@ -88,6 +92,11 @@ pub trait Locale<L: Locale = Self>:
     /// Map the locale with another value, this is useful to change the locale of a scope.
     fn map_locale(self, locale: L) -> Self {
         Self::from_base_locale(locale)
+    }
+
+    /// Scope the locale to the given scope
+    fn scope<S: Scope<L>>(self) -> ScopedLocale<L, S> {
+        ScopedLocale::new(self.to_base_locale())
     }
 
     /// Associated `#[server]` function to request the translations

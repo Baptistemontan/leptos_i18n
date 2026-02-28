@@ -15,7 +15,6 @@ use crate::{
     Scope,
     fetch_locale::{self, signal_maybe_once_then},
     locale_traits::*,
-    scopes::ConstScope,
 };
 
 pub use leptos_use::UseLocalesOptions;
@@ -85,8 +84,7 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
 
     /// Map the context to a new scope
     #[inline]
-    pub const fn scope<NS: Scope<L>>(self, scope: ConstScope<L, NS>) -> I18nContext<L, NS> {
-        let _ = scope;
+    pub const fn scope<NS: Scope<L>>(self) -> I18nContext<L, NS> {
         I18nContext {
             locale_signal: self.locale_signal,
             scope_marker: PhantomData,
@@ -411,6 +409,18 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
 #[track_caller]
 pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
     use_context().expect("I18n context is missing")
+}
+
+/// Return the `I18nContext` previously set.
+///
+/// Is scoped to the given scope.
+///
+/// ## Panic
+///
+/// Panics if the context is missing.
+#[track_caller]
+pub fn use_i18n_with_scope<L: Locale, S: Scope<L>>() -> I18nContext<L, S> {
+    use_i18n_context::<L>().scope()
 }
 
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
