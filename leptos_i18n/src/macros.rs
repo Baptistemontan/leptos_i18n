@@ -512,8 +512,7 @@ macro_rules! scope_locale {
 
 /// Create a marker type that can be used to scope a locale or a context.
 ///
-#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
-#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
+/// ```rust, no_run
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       default: "en",
@@ -526,25 +525,24 @@ macro_rules! scope_locale {
 /// #           },
 /// #       },
 /// #   };
-/// # use i18n::*;
+/// use i18n::*;
 ///
 /// // With a locale:
-/// type NamespaceScope = define_scope!(i18n, namespace);
+/// type NamespaceScope = define_scope!(i18n, namespace); // first arg is the path to the i18n module
 ///
 /// let locale = Locale::en;
-/// let namespace_locale = locale.scope_to::<NamespaceScope>;
+/// let namespace_locale = locale.scope::<NamespaceScope>();
 ///
 /// // normally `td!(locale, namespace.subkeys.value)`
 /// td!(namespace_locale, subkeys.value);
 ///
 /// // With a context:
-///
 /// type SubkeysScope = define_scope!(i18n, namespace.subkeys);
 ///
 /// let i18n = use_i18n_scoped::<SubkeysScope>();
 /// // let i18n = use_i18n().scope::<SubkeysScope>()
 ///
-/// t!(i18n, value)
+/// t!(i18n, value);
 /// ```
 #[macro_export]
 macro_rules! define_scope {
