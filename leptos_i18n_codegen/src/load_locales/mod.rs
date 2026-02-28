@@ -588,7 +588,7 @@ fn create_scopes_module(keys: &BuildersKeys) -> TokenStream {
                         #[doc(hidden)]
                         pub mod __sk_self {
                             #[allow(unused)]
-                            use super::super::super::namespaces::#ns_mod_ident::subkeys::*;
+                            pub use super::super::super::namespaces::#ns_mod_ident::subkeys::*;
                         }
 
                         #[doc(hidden)]
