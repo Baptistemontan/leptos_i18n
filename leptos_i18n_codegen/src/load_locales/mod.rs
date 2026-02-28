@@ -613,6 +613,7 @@ fn create_scopes_module(keys: &BuildersKeys) -> TokenStream {
                 pub mod scopes {
                     #[doc(hidden)]
                     pub mod __sk_self {
+                        #[allow(unused)]
                         pub use super::super::subkeys::*;
                     }
 
@@ -640,7 +641,7 @@ fn create_scopes_module_inner(
                 pub mod #key {
                     #[doc(hidden)]
                     pub mod __sk_self {
-                        #[allow(non_camel_case_types, non_snake_case, unused)]
+                        #[allow(unused)]
                         pub use super::super::__sk_self::#mod_ident::subkeys::*;
                     }
 
