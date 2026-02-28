@@ -137,7 +137,7 @@ pub use context::{I18nContext, use_i18n_context, use_i18n_with_scope};
 pub use context::provide_i18n_context;
 
 pub use leptos_i18n_macro::IcuDataProvider;
-pub use scopes::Scope;
+pub use scopes::{Scope, ScopedLocale};
 
 /// This module contain utilities for plurals.
 #[cfg(feature = "plurals")]

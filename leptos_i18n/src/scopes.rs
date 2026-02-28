@@ -19,12 +19,15 @@ impl<K: LocaleKeys> Scope<K::Locale> for K {
     type Keys = K;
 }
 
+/// A struct representing a scoped locale
 pub struct ScopedLocale<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
+    /// Base locale
     pub locale: L,
     scope_marker: PhantomData<S>,
 }
 
 impl<L: Locale, S: Scope<L>> ScopedLocale<L, S> {
+    /// Create a new `ScopedLocale` with the given base locale
     pub const fn new(locale: L) -> Self {
         ScopedLocale {
             locale,

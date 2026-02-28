@@ -17,7 +17,7 @@ t!(i18n, namespace.subkeys.more_subkeys.subvalue);
 t!(i18n, namespace.subkeys.more_subkeys.another_subvalue);
 ```
 
-This only uses `namespace.subkeys.*`, but we have to repeat it everywhere. 
+This only uses `namespace.subkeys.*`, but we have to repeat it everywhere.
 Here comes the `scope_i18n!` macro. You can rewrite it to:
 
 ```rust,ignore
@@ -96,7 +96,51 @@ fn foo(locale: Locale) {
 }
 ```
 
-## Caveat
+## The `define_scope!` Macro
+
+Allow to define a marker type that represent a scope, it takes a path to the `i18n` module and the key path:
+
+```rust, ignore
+type SubkeysScope = define_scope!(crate::i18n, namespace.subkeys);
+
+fn foo(locale: Locale) {
+    let locale = locale.scope::<SubkeysScope>();
+    td!(locale, value);
+
+    let locale = scope_locale!(locale, more_subkeys);
+    td!(locale, subvalue);
+    td!(locale, another_subvalue);
+}
+
+fn bar() -> impl IntoView {
+    let i18n = use_i18n_scoped::<SubkeysScope>();
+    // equivalent to `use_i18n().scope::<SubkeysScope>()`
+
+    t!(i18n, value)
+}
+```
+
+Unfortunately, can't be extended (yet ?).
+
+This is usefull when you have namespaces/subkeys for large parts of your frontend, you have types to reuse:
+
+```rust, ignore
+type SubkeysScope = define_scope!(crate::i18n, namespace.subkeys);
+
+type SubkeysCtx = I18nContext<Locale, SubkeysScope>;
+
+let i18n: SubkeysCtx = use_i18n_scoped();
+```
+
+Also allow const scoping of `Locale`, still quite cumbersome though:
+
+```rust, ignore
+use leptos_i18n::ConstLocale;
+
+const FR_SUBKEYS: ConstLocale<Locale, SubkeysScope> = ConstLocale::new(Locale::fr);
+```
+
+## How it works (for nerds only)
 
 Unfortunately, it looks too good to be true... What's the catch? Where is the tradeoff?
 
@@ -110,17 +154,16 @@ Yes. This is the path to the struct holding the keys of `namespace.subkeys`.
 
 This makes it difficult to pass a scoped type around, as it would require writing `I18nContext<Locale, i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys>`.
 
-Maybe in the future there will be a macro to write this horrible path for you, but I don't think it is really needed for now.
+That's the type the `define_scope!` macro returns, it recreate the path and retrieve the underlying type.
 
-If you look at the generated code you will see this:
+If you look at the generated code for `use_i18n_scoped!` you will see something like this:
 
 ```rust,ignore
 let i18n = { leptos_i18n::__private::scope_ctx_util(use_i18n(), |_k| &_k.$keys) };
 ```
 
 Hmm, what is this closure for? It’s just here for type inference and key checking! The function parameter is even `_:fn(&OS) -> &NS`, it's never used.
-The function is even const (not for `scope_locale` though, the only one that could really benefit from it lol, because trait functions can't be const...).
+The function is even const (not for `scope_locale!` though).
 
-But being a typestate using it or not actually results in the same code path.
+But being a typestate, using it or not actually results in the same code path.
 And with how aggressive Rust is with inlining small functions, it probably compiles to the exact same thing.
-So no runtime performance loss! Yeah!
