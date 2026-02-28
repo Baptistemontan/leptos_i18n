@@ -78,7 +78,7 @@ fn define_scope_inner(input: DefineScopeParsedInput) -> TokenStream {
     match keys {
         Keys::SingleKey(ident) => quote! { #path::scopes::#ident::__this },
         Keys::Subkeys(idents) => {
-            quote! { #path::scopes::#(#idents::)*::__this }
+            quote! { #path::scopes::#(#idents)::*::__this }
         }
     }
 }
