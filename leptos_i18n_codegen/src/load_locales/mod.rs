@@ -78,6 +78,7 @@ pub fn load_locales(
         &translation_unit_enum_ident,
         &cfg.locales,
     )?;
+    let scopes_mod = create_scopes_module(builder_keys);
 
     let mut macros_reexport = vec![
         quote!(t),
@@ -86,6 +87,7 @@ pub fn load_locales(
         quote!(use_i18n_scoped),
         quote!(scope_i18n),
         quote!(scope_locale),
+        quote!(define_scope),
         quote!(t_string),
         quote!(tu_string),
         quote!(t_display),
@@ -238,10 +240,18 @@ pub fn load_locales(
 
             #locale_type
 
+            #scopes_mod
+
             #[inline]
             #[track_caller]
             pub fn use_i18n() -> l_i18n_crate::I18nContext<#enum_ident> {
                 l_i18n_crate::use_i18n_context()
+            }
+
+            #[inline]
+            #[track_caller]
+            pub fn use_i18n_scoped<S: l_i18n_crate::Scope<#enum_ident>>() -> l_i18n_crate::I18nContext<#enum_ident, S> {
+                l_i18n_crate::use_i18n_with_scope()
             }
 
             #[deprecated(
@@ -541,9 +551,17 @@ struct Subkeys<'a> {
 }
 
 impl<'a> Subkeys<'a> {
+    pub fn mod_ident(key: &Key) -> Ident {
+        format_ident!("sk_{}", key)
+    }
+
+    pub fn item_ident(key: &Key) -> Ident {
+        format_ident!("{}_subkeys", key)
+    }
+
     pub fn new(key: Key, locales: &'a [Locale], keys: &'a BuildersKeysInner) -> Self {
-        let mod_key = format_ident!("sk_{}", key);
-        let new_key = format_ident!("{}_subkeys", key);
+        let mod_key = Self::mod_ident(&key);
+        let new_key = Self::item_ident(&key);
         Subkeys {
             original_key: key,
             key: new_key,
@@ -556,6 +574,86 @@ impl<'a> Subkeys<'a> {
 
 fn strings_accessor_method_name(locale: &Locale) -> Ident {
     format_ident!("__get_{}_translations__", locale.top_locale_name)
+}
+
+fn create_scopes_module(keys: &BuildersKeys) -> TokenStream {
+    match keys {
+        BuildersKeys::NameSpaces { keys, .. } => {
+            let inner_scopes = keys.iter().map(|(key, keys)| {
+                let ns_mod_ident = create_namespace_mod_ident(&key.ident);
+                let inner_scopes = create_scopes_module_inner(&keys.0);
+                quote! {
+
+                    pub mod #key {
+                        #[doc(hidden)]
+                        pub mod __sk_self {
+                            #[allow(unused)]
+                            pub use super::super::super::namespaces::#ns_mod_ident::subkeys::*;
+                        }
+
+                        #[doc(hidden)]
+                        #[allow(non_camel_case_types, non_snake_case, unused)]
+                        pub use super::super::namespaces::#ns_mod_ident::#key as __this;
+
+
+                        #(#inner_scopes)*
+                    }
+                }
+            });
+
+            quote! {
+                pub mod scopes {
+                    #(#inner_scopes)*
+                }
+            }
+        }
+        BuildersKeys::Locales { keys, .. } => {
+            let inner_scopes = create_scopes_module_inner(&keys.0);
+            quote! {
+                pub mod scopes {
+                    #[doc(hidden)]
+                    pub mod __sk_self {
+                        #[allow(unused)]
+                        pub use super::super::subkeys::*;
+                    }
+
+                    #(#inner_scopes)*
+                }
+            }
+        }
+    }
+}
+
+fn create_scopes_module_inner(
+    keys: &BTreeMap<Key, LocaleValue>,
+) -> impl Iterator<Item = TokenStream> {
+    keys.iter()
+        .filter_map(|(key, value)| match value {
+            LocaleValue::Subkeys { keys, .. } => Some((key, &keys.0)),
+            _ => None,
+        })
+        .map(|(key, keys)| {
+            let inner_scopes = create_scopes_module_inner(keys);
+            let item_ident = Subkeys::item_ident(key);
+            let mod_ident = Subkeys::mod_ident(key);
+
+            quote! {
+                pub mod #key {
+                    #[doc(hidden)]
+                    pub mod __sk_self {
+                        #[allow(unused)]
+                        pub use super::super::__sk_self::#mod_ident::subkeys::*;
+                    }
+
+                    #[doc(hidden)]
+                    #[allow(non_camel_case_types, non_snake_case, unused)]
+                    pub use super::__sk_self::#mod_ident::#item_ident as __this;
+
+
+                    #(#inner_scopes)*
+                }
+            }
+        })
 }
 
 fn create_locale_type_inner<const IS_TOP: bool>(
@@ -754,18 +852,17 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         }
     });
 
-    let subkeys_module = subkeys.is_empty().not().then(move || {
-        quote! {
-            #[doc(hidden)]
-            pub mod subkeys {
-                use super::{#enum_ident, l_i18n_crate};
+    let subkeys_module = quote! {
+        #[doc(hidden)]
+        pub mod subkeys {
+            #[allow(unused)]
+            use super::{#enum_ident, l_i18n_crate};
 
-                #(
-                    #subkeys_ts
-                )*
-            }
+            #(
+                #subkeys_ts
+            )*
         }
-    });
+    };
 
     let builders = keys
         .iter()

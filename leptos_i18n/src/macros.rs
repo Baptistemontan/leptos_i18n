@@ -510,6 +510,47 @@ macro_rules! scope_locale {
     };
 }
 
+/// Create a marker type that can be used to scope a locale or a context.
+///
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           namespace: {
+/// #               subkeys: {
+/// #                   value: "",
+/// #               },
+/// #           },
+/// #       },
+/// #   };
+/// use i18n::*;
+///
+/// // With a locale:
+/// type NamespaceScope = define_scope!(i18n, namespace); // first arg is the path to the i18n module
+///
+/// let locale = Locale::en;
+/// let namespace_locale = locale.scope::<NamespaceScope>();
+///
+/// // normally `td!(locale, namespace.subkeys.value)`
+/// td!(namespace_locale, subkeys.value);
+///
+/// // With a context:
+/// type SubkeysScope = define_scope!(i18n, namespace.subkeys);
+///
+/// let i18n = use_i18n_scoped::<SubkeysScope>();
+/// // let i18n = use_i18n().scope::<SubkeysScope>()
+///
+/// t!(i18n, value);
+/// ```
+#[macro_export]
+macro_rules! define_scope {
+    ($($tt:tt)*) => {
+        $crate::__private::macros_reexport::define_scope!{$($tt)*}
+    };
+}
+
 /// Format a given value with a given formatter and return a `impl IntoView`.
 ///
 #[cfg_attr(
