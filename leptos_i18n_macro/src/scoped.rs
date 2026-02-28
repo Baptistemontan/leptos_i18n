@@ -52,3 +52,33 @@ fn scope_locale_inner(input: ScopeParsedInput) -> TokenStream {
     } = input;
     quote! {{ leptos_i18n::__private::scope_locale_util(#locale, |_k| _k.#keys()) }}
 }
+
+struct DefineScopeParsedInput {
+    pub path: syn::Path,
+    pub keys: Keys,
+}
+
+impl syn::parse::Parse for DefineScopeParsedInput {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let path = input.parse()?;
+        input.parse::<syn::token::Comma>()?;
+        let keys = input.parse()?;
+        Ok(DefineScopeParsedInput { path, keys })
+    }
+}
+
+pub fn define_scope(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(tokens as DefineScopeParsedInput);
+    define_scope_inner(input).into()
+}
+
+fn define_scope_inner(input: DefineScopeParsedInput) -> TokenStream {
+    let DefineScopeParsedInput { path, keys } = input;
+
+    match keys {
+        Keys::SingleKey(ident) => quote! { #path::scopes::#ident::__this },
+        Keys::Subkeys(idents) => {
+            quote! { #path::scopes::#(#idents::)*::__this }
+        }
+    }
+}

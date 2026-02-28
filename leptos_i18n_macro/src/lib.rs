@@ -95,6 +95,11 @@ pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream 
 }
 
 #[proc_macro]
+pub fn define_scope(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    scoped::define_scope(tokens)
+}
+
+#[proc_macro]
 pub fn t_format(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     t_format::t_format(
         tokens,
