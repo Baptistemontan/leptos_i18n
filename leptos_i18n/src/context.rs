@@ -19,6 +19,7 @@ use crate::{
 
 pub use leptos_use::UseLocalesOptions;
 
+#[cfg(feature = "unified_contexts")]
 #[derive(Debug, Clone, Copy)]
 struct AnyLocale(&'static str);
 
@@ -344,10 +345,7 @@ fn init_subcontext_with_options<L: Locale>(
     let fetch_locale_memo =
         fetch_locale::fetch_locale(None, ssr_lang_header_getter.unwrap_or_default());
 
-    let parent_locale = use_context::<RwSignal<AnyLocale>>().map(|locale_signal| {
-        let any_loc = locale_signal.get_untracked();
-        L::from_str(any_loc.0).unwrap_or_default()
-    });
+    let parent_locale = I18nContext::<L>::from_context().map(|ctx| ctx.get_locale_untracked());
 
     let parent_locale = signal_maybe_once_then(parent_locale, fetch_locale_memo);
 
@@ -429,7 +427,7 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 #[track_caller]
 pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     let ctx = init_i18n_subcontext::<L>(initial_locale);
-    provide_context(ctx.locale_signal);
+    I18nContext::provide(ctx);
     ctx
 }
 
@@ -441,7 +439,7 @@ fn run_as_children<L: Locale, Chil: IntoView>(
         .expect("no current reactive Owner found")
         .child();
     let children = owner.with(|| {
-        provide_context(ctx.locale_signal);
+        I18nContext::provide(ctx);
         children()
     });
     OwnedView::new_with_owner(children, owner)
