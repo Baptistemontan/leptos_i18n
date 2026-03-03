@@ -5,7 +5,7 @@
 /// - `Locale`: an enum representing the available locales of the application.
 /// - `I18nKeys`: a struct representing the translation keys.
 #[macro_export]
-#[deprecated = "Deprecated in favor of build.rs code gen"]
+#[deprecated(note = "Deprecated in favor of build.rs code gen", since = "0.6.0")]
 macro_rules! load_locales {
     ($($tt:tt)*) => {
         $crate::__private::macros_reexport::load_locales!{$($tt)*}

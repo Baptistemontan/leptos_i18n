@@ -289,6 +289,7 @@ pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
 ///
 /// If called when a context is already present it will not overwrite it and just return the current context.
 #[deprecated(
+    since = "0.6.0",
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
 #[track_caller]
@@ -311,6 +312,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
 
 /// Same as `provide_i18n_context`  but with some cookies options.
 #[deprecated(
+    since = "0.6.0",
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
 #[track_caller]
@@ -423,7 +425,7 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 /// The recommended way is to use the `I18nSubContextProvider`.
 ///
 /// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with `Provider` or `provide_context`.
-#[deprecated = "see function documentation"]
+#[deprecated(note = "see function documentation", since = "0.6.0")]
 #[track_caller]
 pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     let ctx = init_i18n_subcontext::<L>(initial_locale);
