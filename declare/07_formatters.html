@@ -1,0 +1,469 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Formatters</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../02_getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../setting_up/index.html"><strong aria-hidden="true">3.</strong> Setting Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setting_up/01_configuration.html"><strong aria-hidden="true">3.1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../setting_up/02_file_structure.html"><strong aria-hidden="true">3.2.</strong> File structure</a></li><li class="chapter-item expanded "><a href="../setting_up/03_namespaces.html"><strong aria-hidden="true">3.3.</strong> Namespaces</a></li><li class="chapter-item expanded "><a href="../setting_up/04_inheritance.html"><strong aria-hidden="true">3.4.</strong> Inheritance</a></li></ol></li><li class="chapter-item expanded "><a href="../declare/index.html"><strong aria-hidden="true">4.</strong> Declare Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../declare/01_key_value.html"><strong aria-hidden="true">4.1.</strong> Key-Value Pairs</a></li><li class="chapter-item expanded "><a href="../declare/02_interpolation.html"><strong aria-hidden="true">4.2.</strong> Interpolation</a></li><li class="chapter-item expanded "><a href="../declare/03_plurals.html"><strong aria-hidden="true">4.3.</strong> Plurals</a></li><li class="chapter-item expanded "><a href="../declare/04_subkeys.html"><strong aria-hidden="true">4.4.</strong> Subkeys</a></li><li class="chapter-item expanded "><a href="../declare/05_foreign_keys.html"><strong aria-hidden="true">4.5.</strong> Foreign keys</a></li><li class="chapter-item expanded "><a href="../declare/06_mix_kinds.html"><strong aria-hidden="true">4.6.</strong> Mixing Kinds</a></li><li class="chapter-item expanded "><a href="../declare/07_formatters.html" class="active"><strong aria-hidden="true">4.7.</strong> Formatters</a></li></ol></li><li class="chapter-item expanded "><a href="../usage/index.html"><strong aria-hidden="true">5.</strong> Use Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/02_context.html"><strong aria-hidden="true">5.1.</strong> I18nContext</a></li><li class="chapter-item expanded "><a href="../usage/03_subcontext.html"><strong aria-hidden="true">5.2.</strong> Sub-context</a></li><li class="chapter-item expanded "><a href="../usage/04_t_macro.html"><strong aria-hidden="true">5.3.</strong> t! Macro</a></li><li class="chapter-item expanded "><a href="../usage/05_td_macro.html"><strong aria-hidden="true">5.4.</strong> td! Macro</a></li><li class="chapter-item expanded "><a href="../usage/06_td_string_macro.html"><strong aria-hidden="true">5.5.</strong> td_string! Macro</a></li><li class="chapter-item expanded "><a href="../usage/07_router.html"><strong aria-hidden="true">5.6.</strong> I18nRoute</a></li><li class="chapter-item expanded "><a href="../usage/08_scoping.html"><strong aria-hidden="true">5.7.</strong> Scoping</a></li><li class="chapter-item expanded "><a href="../usage/09_t_format.html"><strong aria-hidden="true">5.8.</strong> t_format!</a></li><li class="chapter-item expanded "><a href="../usage/10_t_plural.html"><strong aria-hidden="true">5.9.</strong> t_plural!</a></li><li class="chapter-item expanded "><a href="../usage/11_const_access.html"><strong aria-hidden="true">5.10.</strong> Constant Access</a></li><li class="chapter-item expanded "><a href="../usage/12_serverfn.html"><strong aria-hidden="true">5.11.</strong> Server functions</a></li></ol></li><li class="chapter-item expanded "><a href="../infos/index.html"><strong aria-hidden="true">6.</strong> More Informations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../infos/01_locale_resol.html"><strong aria-hidden="true">6.1.</strong> Locale Resolution</a></li></ol></li><li class="chapter-item expanded "><a href="../reduce_size/index.html"><strong aria-hidden="true">7.</strong> Reduce Binary Size</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../reduce_size/01_datagen.html"><strong aria-hidden="true">7.1.</strong> ICU4X Datagen</a></li><li class="chapter-item expanded "><a href="../reduce_size/02_dynamic_load.html"><strong aria-hidden="true">7.2.</strong> Lazy Load The Translations</a></li></ol></li><li class="chapter-item expanded "><a href="../06_features.html"><strong aria-hidden="true">8.</strong> Features</a></li><li class="chapter-item expanded "><a href="../appendix_i18n_ally.html"><strong aria-hidden="true">9.</strong> Appendix: i18n Ally extension for VSC</a></li><li class="chapter-item expanded "><a href="../appendix_custom_formatter.html"><strong aria-hidden="true">10.</strong> Appendix: Custom formatters</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="formatters"><a class="header" href="#formatters">Formatters</a></h1>
+<p>For interpolation, every variable (other than <code>count</code> for plurals) is expected to be of type <code>impl IntoView + Clone + 'static</code>.</p>
+<p>However, some values can be represented differently depending on the locale:</p>
+<ul>
+<li>Number</li>
+<li>Currency</li>
+<li>Date</li>
+<li>Time</li>
+<li>List</li>
+</ul>
+<p>You can specify the kind of value you are going to supply like this:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ var, formatter }}&quot;
+}
+</code></pre>
+<p>Some of the formatters can take arguments to better suit your formatting needs:</p>
+<pre><code class="language-json">{
+  &quot;key&quot;: &quot;{{ var, formatter(arg_name: value; arg_name2: value; ...) }}&quot;
+}
+</code></pre>
+<p>If an argument has a default value, not supplying that argument will make that arg take the default value.</p>
+<p>Here are all the formatters:</p>
+<h2 id="number"><a class="header" href="#number">Number</a></h2>
+<pre><code class="language-json">{
+  &quot;number_formatter&quot;: &quot;{{ num, number }}&quot;
+}
+</code></pre>
+<p>Will format the number based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::NumberFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoFixedDecimal</code>.
+<code>IntoFixedDecimal</code> is a trait to turn a value into a <code>fixed_decimal::Decimal</code>, which is a type used by <code>icu</code> to format numbers. That trait is currently implemented for:</p>
+<ul>
+<li>Decimal</li>
+<li>UnsignedDecimal</li>
+<li>Unsigned</li>
+<li>usize</li>
+<li>u8</li>
+<li>u16</li>
+<li>u32</li>
+<li>u64</li>
+<li>u128</li>
+<li>isize</li>
+<li>i8</li>
+<li>i16</li>
+<li>i32</li>
+<li>i64</li>
+<li>i128</li>
+<li>f32 *</li>
+<li>f64 *</li>
+</ul>
+<blockquote>
+<p>* Is implemented for convenience, but uses <a href="https://docs.rs/fixed_decimal/latest/fixed_decimal/type.Decimal.html#method.try_from_f64"><code>Decimal::try_from_f64</code></a> with the floating precision; you may want to use your own.</p>
+</blockquote>
+<p>The formatter itself doesn’t provide formatting options such as maximum significant digits, but those can be customized through <code>Decimal</code> before being passed to the formatter.</p>
+<p>Enable the &quot;format_nums&quot; feature to use the number formatter.</p>
+<h3 id="arguments"><a class="header" href="#arguments">Arguments</a></h3>
+<p>There is one argument at the moment for the number formatter: <code>grouping_strategy</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/decimal/options/enum.GroupingStrategy.html"><code>icu::decimal::options::GroupingStrategy</code></a>, that can take 4 values:</p>
+<ul>
+<li>auto (default)</li>
+<li>never</li>
+<li>always</li>
+<li>min2</li>
+</ul>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let num = move || 100_000;
+
+t!(i18n, number_formatter, num);</code></pre>
+<h2 id="currency-experimental"><a class="header" href="#currency-experimental">Currency (Experimental)</a></h2>
+<pre><code class="language-json">{
+  &quot;currency_formatter&quot;: &quot;{{ num, currency }}&quot;
+}
+</code></pre>
+<p>Will format the currency based on the locale.
+The variable should be the same as <a href="#number">number</a>.</p>
+<p>Enable the &quot;format_currency&quot; feature to use the currency formatter.</p>
+<h3 id="arguments-1"><a class="header" href="#arguments-1">Arguments</a></h3>
+<p>There are two arguments at the moment for the currency formatter: <code>width</code> and <code>currency_code</code>, which are based on <a href="https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/options/enum.Width.html"><code>icu::experimental::dimension::currency::options::Width</code></a> and <a href="https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/struct.CurrencyCode.html"><code>icu::experimental::dimension::currency::CurrencyCode</code></a>.</p>
+<p><code>width</code> values:</p>
+<ul>
+<li>short (default)</li>
+<li>narrow</li>
+</ul>
+<p><code>currency_code</code> value should be a <a href="https://www.iban.com/currency-codes">currency code</a>, such as USD or EUR. USD is the default value.</p>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let num = move || 100_000;
+
+t!(i18n, currency_formatter, num);</code></pre>
+<h2 id="date"><a class="header" href="#date">Date</a></h2>
+<pre><code class="language-json">{
+  &quot;date_formatter&quot;: &quot;{{ date_var, date }}&quot;
+}
+</code></pre>
+<p>Will format the date based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::DateFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDate</code>.
+<code>IntoIcuDate</code> is a trait to turn a value into a <code>impl icu::datetime::input::Date</code>, which is a trait used by <code>icu</code> to format dates. The <code>IntoIcuDate</code> trait is currently implemented for <code>T: ConvertCalendar&lt;Converted&lt;'a&gt; = Date&lt;Ref&lt;'a, AnyCalendar&gt;&gt;&gt;</code>.
+You can use <code>icu::datetime::input::{Date, DateTime}</code>, or implement that trait for anything you want.</p>
+<p>Enable the &quot;format_datetime&quot; feature to use the date formatter.</p>
+<h3 id="arguments-2"><a class="header" href="#arguments-2">Arguments</a></h3>
+<p><code>length</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Length.html"><code>icu::datetime::options::Length</code></a>, that can take 3 values:</p>
+<ul>
+<li>long</li>
+<li>medium (default)</li>
+<li>short</li>
+</ul>
+<p><code>alignment</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Alignment.html"><code>icu::datetime::options::Alignment</code></a>, that can take 2 values:</p>
+<ul>
+<li>auto (default)</li>
+<li>column</li>
+</ul>
+<p><code>time_precision</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.TimePrecision.html"><code>icu::datetime::options::TimePrecision</code></a>, that can take 13 values:</p>
+<ul>
+<li>hour</li>
+<li>minute</li>
+<li>second (default)</li>
+<li>subsecond_s1,</li>
+<li>subsecond_s2,</li>
+<li>subsecond_s3,</li>
+<li>subsecond_s4,</li>
+<li>subsecond_s5,</li>
+<li>subsecond_s6,</li>
+<li>subsecond_s7,</li>
+<li>subsecond_s8,</li>
+<li>subsecond_s9,</li>
+<li>minute_optional,</li>
+</ul>
+<p><code>year_style</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.YearStyle.html"><code>icu::datetime::options::YearStyle</code></a>, that can take 3 values:</p>
+<ul>
+<li>auto</li>
+<li>full</li>
+<li>with_era</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;short_date_formatter&quot;: &quot;{{ date_var, date(length: short) }}&quot;
+}
+</code></pre>
+<h3 id="example-2"><a class="header" href="#example-2">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::reexports::icu::datetime::input::Date;
+
+let i18n = use_i18n();
+
+let date_var = move || Date::try_new_iso(1970, 1, 2).unwrap().to_any();
+
+t!(i18n, date_formatter, date_var);</code></pre>
+<h2 id="time"><a class="header" href="#time">Time</a></h2>
+<pre><code class="language-json">{
+  &quot;time_formatter&quot;: &quot;{{ time_var, time }}&quot;
+}
+</code></pre>
+<p>Will format the time based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::TimeFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuTime</code>.
+<code>IntoIcuTime</code> is a trait to turn a value into a <code>impl icu::datetime::input::Time</code>, which is a trait used by <code>icu</code> to format time. The <code>IntoIcuTime</code> trait is currently implemented for <code>T: ConvertCalendar&lt;Converted&lt;'a&gt; = Time&gt; + InFixedCalendar&lt;()&gt; + AllInputMarkers&lt;fieldsets::T&gt;</code>.
+You can use <code>icu::datetime::input::{Time, DateTime}</code>, or implement that trait for anything you want.</p>
+<p>Enable the &quot;format_datetime&quot; feature to use the time formatter.</p>
+<h3 id="arguments-3"><a class="header" href="#arguments-3">Arguments</a></h3>
+<p><code>length</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Length.html"><code>icu::datetime::options::Length</code></a>, that can take 3 values:</p>
+<ul>
+<li>long</li>
+<li>medium (default)</li>
+<li>short</li>
+</ul>
+<p><code>alignment</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.Alignment.html"><code>icu::datetime::options::Alignment</code></a>, that can take 2 values:</p>
+<ul>
+<li>auto (default)</li>
+<li>column</li>
+</ul>
+<p><code>time_precision</code>, which is based on <a href="https://docs.rs/icu/2.0.0/icu/datetime/options/enum.TimePrecision.html"><code>icu::datetime::options::TimePrecision</code></a>, that can take 13 values:</p>
+<ul>
+<li>hour</li>
+<li>minute</li>
+<li>second (default)</li>
+<li>subsecond_s1,</li>
+<li>subsecond_s2,</li>
+<li>subsecond_s3,</li>
+<li>subsecond_s4,</li>
+<li>subsecond_s5,</li>
+<li>subsecond_s6,</li>
+<li>subsecond_s7,</li>
+<li>subsecond_s8,</li>
+<li>subsecond_s9,</li>
+<li>minute_optional,</li>
+</ul>
+<pre><code class="language-json">{
+  &quot;full_time_formatter&quot;: &quot;{{ time_var, time(length: long) }}&quot;
+}
+</code></pre>
+<h3 id="example-3"><a class="header" href="#example-3">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::reexports::icu::datetime::input::Time;
+
+let i18n = use_i18n();
+
+let time_var = move || Time::try_new(14, 34, 28, 0).unwrap();
+
+t!(i18n, time_formatter, time_var);</code></pre>
+<h2 id="datetime"><a class="header" href="#datetime">DateTime</a></h2>
+<pre><code class="language-json">{
+  &quot;datetime_formatter&quot;: &quot;{{ datetime_var, datetime }}&quot;
+}
+</code></pre>
+<p>Will format the datetime based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::DateTimeFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::IntoIcuDateTime</code>.
+<code>IntoIcuDateTime</code> is a trait to turn a value into a <code>impl icu::datetime::input::DateTime</code> which is a trait used by <code>icu</code> to format datetimes. The <code>IntoIcuDateTime</code> trait is currently implemented for <code>T: ConvertCalendar&lt;Converted&lt;'a&gt; = DateTime&lt;Ref&lt;'a, AnyCalendar&gt;&gt;&gt;</code>.
+You can use <code>icu::datetime::input::DateTime</code>, or implement that trait for anything you want.</p>
+<p>Enable the &quot;format_datetime&quot; feature to use the datetime formatter.</p>
+<h3 id="arguments-4"><a class="header" href="#arguments-4">Arguments</a></h3>
+<p>There are four arguments at the moment for the datetime formatter: <code>length</code>, <code>alignment</code>, <code>time_precision</code> and <code>year_style</code>, which behave exactly the same as the ones above.</p>
+<pre><code class="language-json">{
+  &quot;short_date_long_time_formatter&quot;: &quot;{{ datetime_var, datetime(length: short; time_precision: minute) }}&quot;
+}
+</code></pre>
+<h3 id="example-4"><a class="header" href="#example-4">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+use leptos_i18n::reexports::icu::datetime::input::{Date, DateTime, Time};
+
+let i18n = use_i18n();
+
+let datetime_var = move || {
+    let date = Date::try_new_iso(1970, 1, 2).unwrap().to_any();
+    let time = Time::try_new(14, 34, 28, 0).unwrap();
+    DateTime::new(date, time)
+};
+
+t!(i18n, datetime_formatter, datetime_var);</code></pre>
+<h2 id="list"><a class="header" href="#list">List</a></h2>
+<pre><code class="language-json">{
+  &quot;list_formatter&quot;: &quot;{{ list_var, list }}&quot;
+}
+</code></pre>
+<p>Will format the list based on the locale.
+This means the variable must be <code>impl leptos_i18n::formatting::ListFormatterInputFn</code>, which is automatically implemented for <code>impl Fn() -&gt; T + Clone + 'static where T: leptos_i18n::formatting::WriteableList</code>.
+<code>WriteableList</code> is a trait to turn a value into an <code>impl Iterator&lt;Item = impl writeable::Writeable&gt;</code>.</p>
+<p>Enable the &quot;format_list&quot; feature to use the list formatter.</p>
+<h3 id="arguments-5"><a class="header" href="#arguments-5">Arguments</a></h3>
+<p>There are two arguments at the moment for the list formatter: <code>list_type</code> and <code>list_length</code>.</p>
+<p><code>list_type</code> takes 3 possible values:</p>
+<ul>
+<li>and</li>
+<li>or</li>
+<li>unit (default)</li>
+</ul>
+<p><code>list_length</code> takes 3 possible values:</p>
+<ul>
+<li>wide (default)</li>
+<li>short</li>
+<li>narrow</li>
+</ul>
+<p>See the <a href="https://developer.mozilla.org/fr/docs/Web/JavaScript/Reference/Global_Objects/Intl/ListFormat"><code>Intl.ListFormat</code></a> documentation. <code>icu</code> is used to do the formatting, but I found the Mozilla doc to have more details.</p>
+<pre><code class="language-json">{
+  &quot;short_and_list_formatter&quot;: &quot;{{ list_var, list(list_type: and; list_length: short) }}&quot;
+}
+</code></pre>
+<h3 id="example-5"><a class="header" href="#example-5">Example</a></h3>
+<pre><code class="language-rust ignore">use crate::i18n::*;
+
+let i18n = use_i18n();
+
+let list_var = move || [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;];
+
+t!(i18n, list_formatter, list_var);</code></pre>
+<h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
+<p>Formatters <em>cannot</em> be used inside component attributes, this is <strong><em>NOT</em></strong> allowed:</p>
+<pre><code class="language-json">{
+  &quot;highlight_me&quot;: &quot;highlight &lt;b id={{ id, number }}&gt;me&lt;/b&gt;&quot;
+}
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../declare/06_mix_kinds.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next" href="../usage/index.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../declare/06_mix_kinds.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next" href="../usage/index.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
