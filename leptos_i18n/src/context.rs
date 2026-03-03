@@ -19,6 +19,9 @@ use crate::{
 
 pub use leptos_use::UseLocalesOptions;
 
+#[derive(Debug, Clone, Copy)]
+struct AnyLocale(&'static str);
+
 /// This context is the heart of the i18n system:
 ///
 /// It servers as a signal to the current locale and enable reactivity to locale change.
@@ -26,7 +29,8 @@ pub use leptos_use::UseLocalesOptions;
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug)]
 pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
-    locale_signal: RwSignal<L>,
+    locale_signal: RwSignal<AnyLocale>,
+    locale_marker: PhantomData<L>,
     scope_marker: PhantomData<S>,
 }
 
@@ -43,14 +47,16 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     #[inline]
     #[track_caller]
     pub fn get_locale(self) -> L {
-        self.locale_signal.get()
+        let any_loc = self.locale_signal.get();
+        L::from_str(any_loc.0).unwrap_or_default()
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
     #[track_caller]
     pub fn get_locale_untracked(self) -> L {
-        self.locale_signal.get_untracked()
+        let any_loc = self.locale_signal.get_untracked();
+        L::from_str(any_loc.0).unwrap_or_default()
     }
 
     /// Return the keys for the current locale subscribing to any changes
@@ -71,7 +77,7 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     #[inline]
     #[track_caller]
     pub fn set_locale(self, lang: L) {
-        self.locale_signal.set(lang)
+        self.locale_signal.set(AnyLocale(lang.as_str()))
     }
 
     /// Set the locale but does not notify the subscribers
@@ -79,7 +85,7 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     #[track_caller]
     pub fn set_locale_untracked(self, lang: L) {
         let mut guard = self.locale_signal.write_untracked();
-        *guard = lang;
+        *guard = AnyLocale(lang.as_str());
     }
 
     /// Map the context to a new scope
@@ -87,6 +93,15 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     pub const fn scope<NS: Scope<L>>(self) -> I18nContext<L, NS> {
         I18nContext {
             locale_signal: self.locale_signal,
+            locale_marker: PhantomData,
+            scope_marker: PhantomData,
+        }
+    }
+
+    const fn new_from_any(locale_signal: RwSignal<AnyLocale>) -> Self {
+        Self {
+            locale_signal,
+            locale_marker: PhantomData,
             scope_marker: PhantomData,
         }
     }
@@ -128,21 +143,24 @@ fn init_context_inner<L: Locale>(
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
 ) -> I18nContext<L> {
-    let locale_signal = RwSignal::new(initial_locale.get_untracked());
+    let init_loc = AnyLocale(initial_locale.get_untracked().as_str());
+    let locale_signal = RwSignal::new(init_loc);
 
     Effect::new(move |_| {
         let l = initial_locale.get();
-        locale_signal.set(l);
+        locale_signal.set(AnyLocale(l.as_str()));
     });
 
     Effect::new_isomorphic(move |_| {
-        let new_lang = locale_signal.get();
+        let new_lang_any = locale_signal.get();
+        let new_lang = L::from_str(new_lang_any.0).unwrap_or_default();
         set_lang_cookie.set(Some(new_lang));
     });
 
     I18nContext::<L> {
         locale_signal,
         scope_marker: PhantomData,
+        locale_marker: PhantomData,
     }
 }
 
@@ -227,11 +245,13 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     options: I18nContextOptions<L>,
 ) -> I18nContext<L> {
     provide_meta_context();
-    use_context().unwrap_or_else(move || {
-        let ctx = init_i18n_context_with_options(options);
-        provide_context(ctx);
-        ctx
-    })
+    use_context()
+        .map(I18nContext::new_from_any)
+        .unwrap_or_else(move || {
+            let ctx = init_i18n_context_with_options(options);
+            provide_context(ctx.locale_signal);
+            ctx
+        })
 }
 
 /// Same as `provide_i18n_context`  but with some cookies options.
@@ -270,7 +290,10 @@ fn init_subcontext_with_options<L: Locale>(
     let fetch_locale_memo =
         fetch_locale::fetch_locale(None, ssr_lang_header_getter.unwrap_or_default());
 
-    let parent_locale = use_context::<I18nContext<L>>().map(|ctx| ctx.get_locale_untracked());
+    let parent_locale = use_context::<RwSignal<AnyLocale>>().map(|locale_signal| {
+        let any_loc = locale_signal.get_untracked();
+        L::from_str(any_loc.0).unwrap_or_default()
+    });
 
     let parent_locale = signal_maybe_once_then(parent_locale, fetch_locale_memo);
 
@@ -352,7 +375,7 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 #[track_caller]
 pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     let ctx = init_i18n_subcontext::<L>(initial_locale);
-    provide_context(ctx);
+    provide_context(ctx.locale_signal);
     ctx
 }
 
@@ -364,7 +387,7 @@ fn run_as_children<L: Locale, Chil: IntoView>(
         .expect("no current reactive Owner found")
         .child();
     let children = owner.with(|| {
-        provide_context(ctx);
+        provide_context(ctx.locale_signal);
         children()
     });
     OwnedView::new_with_owner(children, owner)
@@ -408,7 +431,9 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
 #[inline]
 #[track_caller]
 pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
-    use_context().expect("I18n context is missing")
+    use_context()
+        .map(I18nContext::new_from_any)
+        .expect("I18n context is missing")
 }
 
 /// Return the `I18nContext` previously set.
