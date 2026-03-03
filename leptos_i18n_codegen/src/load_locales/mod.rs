@@ -73,8 +73,9 @@ pub fn load_locales(
         &cfg.options,
     );
     let locale_enum = create_locales_enum(
-        &enum_ident,
+        builder_keys,
         &keys_ident,
+        &enum_ident,
         &translation_unit_enum_ident,
         &cfg.locales,
     )?;
@@ -287,8 +288,9 @@ pub fn load_locales(
 }
 
 fn create_locales_enum(
-    enum_ident: &syn::Ident,
+    keys: &BuildersKeys,
     keys_ident: &syn::Ident,
+    enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     locales: &[Key],
 ) -> Result<TokenStream> {
@@ -414,7 +416,32 @@ fn create_locales_enum(
         }
     });
 
+    let mut docs = String::from("## Supported locales:\n");
+
+    for (i, key) in locales.iter().enumerate() {
+        use core::fmt::Write;
+        if i == 0 {
+            writeln!(&mut docs, "- {} (default)", key).unwrap();
+        } else {
+            writeln!(&mut docs, "- {}", key).unwrap();
+        }
+    }
+
+    match keys {
+        BuildersKeys::NameSpaces { namespaces, .. } => {
+            use core::fmt::Write;
+            writeln!(&mut docs, "\n## Namespaces :").unwrap();
+            for ns in namespaces {
+                writeln!(&mut docs, "- {}", ns.key).unwrap();
+            }
+        }
+        BuildersKeys::Locales { keys, .. } => {
+            gen_keys_doc(&mut docs, &keys.0).unwrap();
+        }
+    };
+
     let ts = quote! {
+        #[doc = #docs]
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Default)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
@@ -844,11 +871,13 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         let original_key = &sk.original_key;
         let key = &sk.key;
         let mod_ident = &sk.mod_key;
+        let mut docs = String::new();
+        gen_keys_doc(&mut docs, &sk.keys.0).unwrap();
         quote! {
+            #[doc = #docs]
             pub const fn #original_key(self) -> subkeys::#mod_ident::#key {
                 subkeys::#mod_ident::#key::__new_internal(self.0)
             }
-
         }
     });
 
@@ -1260,7 +1289,11 @@ fn create_namespaces_types(
         .iter()
         .map(|(namespace, namespace_module_ident)| {
             let key = &namespace.key;
+            let keys = keys.get(key).unwrap_at("create_namespaces_types_2");
+            let mut docs = String::new();
+            gen_keys_doc(&mut docs, &keys.0).unwrap();
             quote! {
+                #[doc = #docs]
                 pub fn #key(self) -> namespaces::#namespace_module_ident::#key {
                     namespaces::#namespace_module_ident::#key::__new_internal(self.0)
                 }
@@ -1469,4 +1502,39 @@ fn create_locale_type(
             options,
         ),
     }
+}
+
+fn gen_keys_doc(docs: &mut String, keys: &BTreeMap<Key, LocaleValue>) -> core::fmt::Result {
+    use core::fmt::Write;
+    let mut keys_iter = keys
+        .iter()
+        .filter_map(|(key, value)| match value {
+            LocaleValue::Value { .. } => Some(key),
+            LocaleValue::Subkeys { .. } => None,
+        })
+        .peekable();
+
+    if keys_iter.peek().is_some() {
+        writeln!(docs, "\n## Keys :")?;
+        for key in keys_iter {
+            writeln!(docs, "- {}", key)?;
+        }
+    }
+
+    let mut keys_iter = keys
+        .iter()
+        .filter_map(|(key, value)| match value {
+            LocaleValue::Value { .. } => None,
+            LocaleValue::Subkeys { .. } => Some(key),
+        })
+        .peekable();
+
+    if keys_iter.peek().is_some() {
+        writeln!(docs, "## Subkeys :")?;
+        for key in keys_iter {
+            writeln!(docs, "- {}", key)?;
+        }
+    }
+
+    Ok(())
 }
