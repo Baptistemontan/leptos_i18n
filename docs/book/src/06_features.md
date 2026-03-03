@@ -60,3 +60,11 @@ Allow the use of the `number` formatter.
 #### `format_currency`
 
 Allow the use of the `currency` formatter.
+
+#### `unified_contexts`
+
+By default the context are exclusive to their `Locale` enum, this means that one `i18n` module will have a different context than another `i18n` module.
+This can either be great if you want them to be kept seperate, or it can be a nightmare to sync all of them.
+By enabling the `unified_contexts` feature they all get unified, this means you can provide the context with one `Locale`, and other can still tap into the same context.
+If there is a mismatch in supported locale, for example one module support "en" and "fr", and another support "en" and "de", then if the first one set the context to "fr",
+the second one will use the default locale.
