@@ -221,8 +221,8 @@ mod test {
         }
         let fr_ssk = td_const!(Locale::fr, sk.ssk);
         assert!(check_str_eq_const(fr_ssk, "test fr"));
-        let fr_ssk = td_const!(Locale::en, sk.ssk);
-        assert!(check_str_eq_const(fr_ssk, "test en"));
+        let en_ssk = td_const!(Locale::en, sk.ssk);
+        assert!(check_str_eq_const(en_ssk, "test en"));
     };
 
     #[test]
