@@ -48,8 +48,7 @@ serde_json = { optional = true, workspace = true, default-features = true }
 
 [features]
 default = ["cookie", "icu_compiled_data"]
-
-
+unified_contexts = []
 cookie = []
 icu_compiled_data = [
   "icu_plurals?/compiled_data",

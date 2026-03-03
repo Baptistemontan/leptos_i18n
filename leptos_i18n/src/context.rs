@@ -29,7 +29,10 @@ struct AnyLocale(&'static str);
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug)]
 pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
+    #[cfg(feature = "unified_contexts")]
     locale_signal: RwSignal<AnyLocale>,
+    #[cfg(not(feature = "unified_contexts"))]
+    locale_signal: RwSignal<L>,
     locale_marker: PhantomData<L>,
     scope_marker: PhantomData<S>,
 }
@@ -47,16 +50,30 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     #[inline]
     #[track_caller]
     pub fn get_locale(self) -> L {
-        let any_loc = self.locale_signal.get();
-        L::from_str(any_loc.0).unwrap_or_default()
+        #[cfg(feature = "unified_contexts")]
+        {
+            let any_loc = self.locale_signal.get();
+            L::from_str(any_loc.0).unwrap_or_default()
+        }
+        #[cfg(not(feature = "unified_contexts"))]
+        {
+            self.locale_signal.get()
+        }
     }
 
     /// Return the current locale but does not subscribe to changes
     #[inline]
     #[track_caller]
     pub fn get_locale_untracked(self) -> L {
-        let any_loc = self.locale_signal.get_untracked();
-        L::from_str(any_loc.0).unwrap_or_default()
+        #[cfg(feature = "unified_contexts")]
+        {
+            let any_loc = self.locale_signal.get_untracked();
+            L::from_str(any_loc.0).unwrap_or_default()
+        }
+        #[cfg(not(feature = "unified_contexts"))]
+        {
+            self.locale_signal.get_untracked()
+        }
     }
 
     /// Return the keys for the current locale subscribing to any changes
@@ -77,15 +94,26 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     #[inline]
     #[track_caller]
     pub fn set_locale(self, lang: L) {
-        self.locale_signal.set(AnyLocale(lang.as_str()))
+        #[cfg(feature = "unified_contexts")]
+        return self.locale_signal.set(AnyLocale(lang.as_str()));
+        #[cfg(not(feature = "unified_contexts"))]
+        self.locale_signal.set(lang);
     }
 
     /// Set the locale but does not notify the subscribers
     #[inline]
     #[track_caller]
     pub fn set_locale_untracked(self, lang: L) {
-        let mut guard = self.locale_signal.write_untracked();
-        *guard = AnyLocale(lang.as_str());
+        #[cfg(feature = "unified_contexts")]
+        {
+            let mut guard = self.locale_signal.write_untracked();
+            *guard = AnyLocale(lang.as_str());
+        }
+        #[cfg(not(feature = "unified_contexts"))]
+        {
+            let mut guard = self.locale_signal.write_untracked();
+            *guard = lang;
+        }
     }
 
     /// Map the context to a new scope
@@ -98,12 +126,27 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
         }
     }
 
-    const fn new_from_any(locale_signal: RwSignal<AnyLocale>) -> Self {
-        Self {
-            locale_signal,
-            locale_marker: PhantomData,
-            scope_marker: PhantomData,
+    pub(crate) fn from_context() -> Option<Self> {
+        #[cfg(feature = "unified_contexts")]
+        {
+            let locale_signal = use_context::<RwSignal<AnyLocale>>()?;
+            Some(Self {
+                locale_signal,
+                locale_marker: PhantomData,
+                scope_marker: PhantomData,
+            })
         }
+        #[cfg(not(feature = "unified_contexts"))]
+        {
+            use_context()
+        }
+    }
+
+    pub(crate) fn provide(this: Self) {
+        #[cfg(feature = "unified_contexts")]
+        provide_context(this.locale_signal);
+        #[cfg(not(feature = "unified_contexts"))]
+        provide_context(this);
     }
 }
 
@@ -143,17 +186,30 @@ fn init_context_inner<L: Locale>(
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
 ) -> I18nContext<L> {
-    let init_loc = AnyLocale(initial_locale.get_untracked().as_str());
-    let locale_signal = RwSignal::new(init_loc);
+    #[cfg(feature = "unified_contexts")]
+    let locale_signal = {
+        let init_loc = AnyLocale(initial_locale.get_untracked().as_str());
+        RwSignal::new(init_loc)
+    };
+    #[cfg(not(feature = "unified_contexts"))]
+    let locale_signal = RwSignal::new(initial_locale.get_untracked());
 
     Effect::new(move |_| {
         let l = initial_locale.get();
+        #[cfg(feature = "unified_contexts")]
         locale_signal.set(AnyLocale(l.as_str()));
+        #[cfg(not(feature = "unified_contexts"))]
+        locale_signal.set(l);
     });
 
     Effect::new_isomorphic(move |_| {
-        let new_lang_any = locale_signal.get();
-        let new_lang = L::from_str(new_lang_any.0).unwrap_or_default();
+        #[cfg(feature = "unified_contexts")]
+        let new_lang = {
+            let new_lang_any = locale_signal.get();
+            L::from_str(new_lang_any.0).unwrap_or_default()
+        };
+        #[cfg(not(feature = "unified_contexts"))]
+        let new_lang = locale_signal.get();
         set_lang_cookie.set(Some(new_lang));
     });
 
@@ -245,13 +301,11 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     options: I18nContextOptions<L>,
 ) -> I18nContext<L> {
     provide_meta_context();
-    use_context()
-        .map(I18nContext::new_from_any)
-        .unwrap_or_else(move || {
-            let ctx = init_i18n_context_with_options(options);
-            provide_context(ctx.locale_signal);
-            ctx
-        })
+    I18nContext::from_context().unwrap_or_else(move || {
+        let ctx = init_i18n_context_with_options(options);
+        I18nContext::provide(ctx);
+        ctx
+    })
 }
 
 /// Same as `provide_i18n_context`  but with some cookies options.
@@ -431,9 +485,7 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
 #[inline]
 #[track_caller]
 pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
-    use_context()
-        .map(I18nContext::new_from_any)
-        .expect("I18n context is missing")
+    I18nContext::from_context().expect("I18n context is missing")
 }
 
 /// Return the `I18nContext` previously set.
