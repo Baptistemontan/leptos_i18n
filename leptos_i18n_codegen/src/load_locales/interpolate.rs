@@ -40,6 +40,7 @@ impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A,
 pub struct Interpolation {
     pub ident: syn::Ident,
     pub imp: TokenStream,
+    pub docs: String,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -374,10 +375,63 @@ impl Interpolation {
             #dummy_impl
         };
 
+        let mut docs = String::new();
+        Self::gen_fields_docs(&mut docs, &fields).unwrap();
+
         Self {
             imp,
             ident: dummy_ident,
+            docs,
         }
+    }
+
+    fn gen_fields_docs(docs: &mut String, fields: &[Field]) -> core::fmt::Result {
+        use core::fmt::Write;
+        let mut variables = fields
+            .iter()
+            .filter_map(|field| match &field.var_or_comp {
+                VarOrComp::Var { bounds, plural } => {
+                    let key = field.key.name.strip_prefix("var_")?;
+                    Some((key, bounds.as_slice(), plural.as_ref()))
+                }
+                VarOrComp::Comp { .. } => None,
+            })
+            .peekable();
+
+        if variables.peek().is_some() {
+            writeln!(docs, "## Vars :")?;
+            for (key, bounds, plural) in variables {
+                let _ = bounds;
+                match plural {
+                    Some(_) => writeln!(docs, "- `{}` (plural count)", key)?,
+                    None => writeln!(docs, "- `{}`", key)?,
+                }
+            }
+        }
+
+        let mut components = fields
+            .iter()
+            .filter_map(|field| match &field.var_or_comp {
+                VarOrComp::Var { .. } => None,
+                VarOrComp::Comp { self_closed, .. } => {
+                    let key = field.key.name.strip_prefix("comp_")?;
+                    Some((key, *self_closed))
+                }
+            })
+            .peekable();
+
+        if components.peek().is_some() {
+            writeln!(docs, "## Components :")?;
+            for (key, self_closed) in components {
+                if self_closed {
+                    writeln!(docs, "- `<{}/>`", key)?;
+                } else {
+                    writeln!(docs, "-  `<{}>`", key)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn builder_string_build_fns(

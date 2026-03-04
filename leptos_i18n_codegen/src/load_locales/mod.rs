@@ -911,7 +911,9 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let builder_accessors = builders.iter().map(|(key, inter)| {
         let inter_ident = &inter.ident;
+        let docs = &inter.docs;
         quote! {
+            #[doc = #docs]
             pub const fn #key(self) -> builders::#inter_ident {
                 builders::#inter_ident::new(self.0)
             }
