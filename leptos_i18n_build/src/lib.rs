@@ -263,6 +263,7 @@ impl TranslationsInfos {
             options.crate_path.as_ref(),
             false,
             options.top_level_attributes.as_ref(),
+            options.gen_docs,
         )?;
 
         #[cfg(feature = "pretty_print")]
