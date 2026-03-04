@@ -1,0 +1,80 @@
+name: Setup CI Environment
+description: Install Rust, Node, cache dependencies, install cargo binaries, and cache Playwright
+
+inputs:
+  rust_toolchain:
+    description: Rust toolchain to use by default (stable/nightly)
+    required: false
+    default: "stable"
+  node_version:
+    description: Node version to install
+    required: false
+    default: 18
+  example_path:
+    description: Path to example (for npm/node_modules cache)
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+        targets: wasm32-unknown-unknown
+
+    - name: Setup Rust nightly
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: clippy, rustfmt
+        targets: wasm32-unknown-unknown
+
+    - shell: bash
+      run: rustup default stable # use stable by default for compiling the tools
+
+    - name: Cache Rust tools
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo
+        key: cargo-tools-${{ runner.os }}
+
+    - name: Install cargo-leptos
+      shell: bash
+      run: |
+        cargo install cargo-leptos --locked
+
+    - name: Install trunk
+      shell: bash
+      run: |
+        cargo install trunk --locked
+
+    - name: Install cargo-all-features
+      shell: bash
+      run: |
+        cargo install cargo-all-features --locked
+
+    - name: Set default toolchain to ${{ inputs.rust_toolchain }}
+      shell: bash
+      run: rustup default ${{ inputs.rust_toolchain }}
+
+    - name: Build e2e utils
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: examples/utils
+      run: npm install
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-browsers
+
+    - name: Install Playwright
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: ${{ inputs.example_path }}
+      run: |
+        npm install
+        npx playwright install --with-deps
