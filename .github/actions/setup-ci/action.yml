@@ -30,23 +30,36 @@ runs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-
 
-    - name: Install cargo tools
+    - name: Install cargo-leptos
       shell: bash
       run: |
         if ! command -v cargo-leptos >/dev/null; then
           cargo install cargo-leptos --locked
         fi
+
+    - name: Install trunk
+      shell: bash
+      run: |
         if ! command -v trunk >/dev/null; then
           cargo install trunk --locked
         fi
+
+    - name: Install cargo-all-features
+      shell: bash
+      run: |
         if ! command -v cargo-all-features >/dev/null; then
-          cargo install cargo-all-features
+          cargo install cargo-all-features --locked
         fi
 
     - name: Setup Node
       uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node_version }}
+
+    - name: Build e2e utils
+      shell: bash
+      working-directory: examples/utils
+      run: npm install
 
     - name: Cache Playwright browsers
       uses: actions/cache@v4
