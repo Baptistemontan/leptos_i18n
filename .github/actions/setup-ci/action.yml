@@ -57,6 +57,10 @@ runs:
           cargo install cargo-all-features --locked
         fi
 
+    - name: Pre-build workspace
+      shell: bash
+      run: cargo build --workspace --locked
+
     - name: Setup Node
       uses: actions/setup-node@v6
       with:
