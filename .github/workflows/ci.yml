@@ -15,11 +15,8 @@ jobs:
   # LIB TEST
   ########################################
   lib_test:
-    name: Test leptos_i18n package (chunk ${{ matrix.chunk }})
+    name: Test leptos_i18n package
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        chunk: [0, 1, 2, 3]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -31,15 +28,13 @@ jobs:
 
       - name: Run clippy
         working-directory: leptos_i18n
-        run: cargo all-features clippy --n-chunks 4 --chunks ${{ matrix.chunk }}
+        run: cargo all-features clippy
 
       - name: Test all features
         working-directory: leptos_i18n
-        run: cargo all-features test --n-chunks 4 --chunks ${{ matrix.chunk }}
+        run: cargo all-features test
 
       - name: Check format
-        # only run it once
-        if: ${{ matrix.chunk == 0 }}
         run: cargo fmt --check
 
   ########################################
