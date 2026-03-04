@@ -40,7 +40,7 @@ impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A,
 pub struct Interpolation {
     pub ident: syn::Ident,
     pub imp: TokenStream,
-    pub docs: String,
+    pub docs: TokenStream,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -275,6 +275,7 @@ impl Interpolation {
         locale_type_ident: &syn::Ident,
         defaults: &DefaultedLocales,
         options: &ParseOptions,
+        gen_docs: bool,
     ) -> Self {
         // filter defaulted locales
         let locales = locales
@@ -375,8 +376,15 @@ impl Interpolation {
             #dummy_impl
         };
 
-        let mut docs = String::new();
-        Self::gen_fields_docs(&mut docs, &fields).unwrap();
+        let docs = if gen_docs {
+            let mut docs = String::new();
+            Self::gen_fields_docs(&mut docs, &fields).unwrap();
+            quote! {
+                #[doc = #docs]
+            }
+        } else {
+            quote! {}
+        };
 
         Self {
             imp,
