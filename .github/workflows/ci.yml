@@ -40,20 +40,26 @@ jobs:
         run: |
           cargo install cargo-leptos --locked
           cargo install trunk --locked
-          cargo install cargo-all-features
+          cargo install cargo-all-features --locked
 
       - name: Pre-build workspace
         run: cargo build --workspace --locked
 
-      - name: Archive environment
-        run: |
-          tar -czf ci-env.tar.gz ~/.cargo target
+      - name: Archive cargo
+        run: tar -czf cargo.tar.gz -C $HOME .cargo
 
-      - name: Upload environment
-        uses: actions/upload-artifact@v4
+      - name: Archive target
+        run: tar -czf target.tar.gz target
+
+      - uses: actions/upload-artifact@v4
         with:
-          name: ci-env
-          path: ci-env.tar.gz
+          name: cargo-env
+          path: cargo.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-env
+          path: target.tar.gz
 
   ########################################
   # LIB TEST

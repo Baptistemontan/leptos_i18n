@@ -4,12 +4,20 @@ description: Restore prebuilt Rust toolchain and dependencies
 runs:
   using: "composite"
   steps:
-    - name: Download prepared environment
+    - name: Download prepared cargo environment
       uses: actions/download-artifact@v4
       with:
-        name: ci-env
+        name: cargo-env
 
-    - name: Extract environment
+    - name: Download prepared target environment
+      uses: actions/download-artifact@v4
+      with:
+        name: target-env
+
+    - name: Extract cargo environment
       shell: bash
-      run: |
-        tar -xzf ci-env.tar.gz -C /
+      run: tar -xzf cargo.tar.gz -C $HOME
+
+    - name: Extract target environment
+      shell: bash
+      run: tar -xzf target.tar.gz
