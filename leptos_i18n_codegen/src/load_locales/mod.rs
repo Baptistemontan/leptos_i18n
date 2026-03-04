@@ -600,6 +600,7 @@ impl<'a> Subkeys<'a> {
 
     pub fn new(
         key: Key,
+        key_path: &KeyPath,
         locales: &'a [Locale],
         keys: &'a BuildersKeysInner,
         gen_docs: bool,
@@ -607,7 +608,8 @@ impl<'a> Subkeys<'a> {
         let mod_key = Self::mod_ident(&key);
         let new_key = Self::item_ident(&key);
         let docs = if gen_docs {
-            let mut docs = String::new();
+            let path = key_path.to_string_with_key(&key);
+            let mut docs = format!("Full path: `{}`\n", path);
             gen_keys_doc(&mut docs, &keys.0).unwrap();
             quote! {
                 #[doc = #docs]
@@ -866,7 +868,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         .iter()
         .filter_map(|(key, value)| match value {
             LocaleValue::Subkeys { locales, keys } => {
-                Some(Subkeys::new(key.clone(), locales, keys, gen_docs))
+                Some(Subkeys::new(key.clone(), key_path, locales, keys, gen_docs))
             }
             _ => None,
         })
@@ -1302,7 +1304,7 @@ fn create_namespaces_types(
             let namespace_module_ident = create_namespace_mod_ident(&ns.key.ident);
             let docs = if gen_docs {
                 let keys = keys.get(&ns.key).unwrap_at("create_namespaces_types_2");
-                let mut docs = String::new();
+                let mut docs = format!("Full path: `{}`\n", ns.key);
                 gen_keys_doc(&mut docs, &keys.0).unwrap();
                 quote! {
                     #[doc = #docs]
