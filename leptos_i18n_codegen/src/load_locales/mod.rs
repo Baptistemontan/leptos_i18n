@@ -586,6 +586,7 @@ struct Subkeys<'a> {
     mod_key: syn::Ident,
     locales: &'a [Locale],
     keys: &'a BuildersKeysInner,
+    docs: TokenStream,
 }
 
 impl<'a> Subkeys<'a> {
@@ -597,15 +598,30 @@ impl<'a> Subkeys<'a> {
         format_ident!("{}_subkeys", key)
     }
 
-    pub fn new(key: Key, locales: &'a [Locale], keys: &'a BuildersKeysInner) -> Self {
+    pub fn new(
+        key: Key,
+        locales: &'a [Locale],
+        keys: &'a BuildersKeysInner,
+        gen_docs: bool,
+    ) -> Self {
         let mod_key = Self::mod_ident(&key);
         let new_key = Self::item_ident(&key);
+        let docs = if gen_docs {
+            let mut docs = String::new();
+            gen_keys_doc(&mut docs, &keys.0).unwrap();
+            quote! {
+                #[doc = #docs]
+            }
+        } else {
+            quote! {}
+        };
         Subkeys {
             original_key: key,
             key: new_key,
             mod_key,
             locales,
             keys,
+            docs,
         }
     }
 }
@@ -705,6 +721,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     namespace_name: Option<&str>,
     translations_uri: Option<&str>,
     options: &ParseOptions,
+    docs: &TokenStream,
     gen_docs: bool,
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
@@ -849,7 +866,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         .iter()
         .filter_map(|(key, value)| match value {
             LocaleValue::Subkeys { locales, keys } => {
-                Some(Subkeys::new(key.clone(), locales, keys))
+                Some(Subkeys::new(key.clone(), locales, keys, gen_docs))
             }
             _ => None,
         })
@@ -869,6 +886,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
             namespace_name,
             translations_uri,
             options,
+            &sk.docs,
             gen_docs,
         );
         quote! {
@@ -884,15 +902,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
         let original_key = &sk.original_key;
         let key = &sk.key;
         let mod_ident = &sk.mod_key;
-        let docs = if gen_docs {
-            let mut docs = String::new();
-            gen_keys_doc(&mut docs, &sk.keys.0).unwrap();
-            quote! {
-                #[doc = #docs]
-            }
-        } else {
-            quote! {}
-        };
+        let docs = &sk.docs;
         quote! {
             #docs
             pub const fn #original_key(self) -> subkeys::#mod_ident::#key {
@@ -1204,6 +1214,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     };
 
     quote! {
+        #docs
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #type_ident(#enum_ident);
@@ -1272,17 +1283,40 @@ fn create_namespaces_types(
     options: &ParseOptions,
     gen_docs: bool,
 ) -> TokenStream {
+    let docs = if gen_docs {
+        use core::fmt::Write;
+        let mut docs = String::from("# Namespaces :\n");
+        for ns in namespaces {
+            writeln!(&mut docs, "- `{}`", ns.key.name).unwrap();
+        }
+        quote! {
+            #[doc = #docs]
+        }
+    } else {
+        quote! {}
+    };
+
     let namespaces = namespaces
         .iter()
         .map(|ns| {
             let namespace_module_ident = create_namespace_mod_ident(&ns.key.ident);
-            (ns, namespace_module_ident)
+            let docs = if gen_docs {
+                let keys = keys.get(&ns.key).unwrap_at("create_namespaces_types_2");
+                let mut docs = String::new();
+                gen_keys_doc(&mut docs, &keys.0).unwrap();
+                quote! {
+                    #[doc = #docs]
+                }
+            } else {
+                quote! {}
+            };
+            (ns, namespace_module_ident, docs)
         })
         .collect::<Vec<_>>();
 
     let namespaces_ts = namespaces
         .iter()
-        .map(|(namespace, namespace_module_ident)| {
+        .map(|(namespace, namespace_module_ident, docs)| {
             let keys = keys
                 .get(&namespace.key)
                 .unwrap_at("create_namespaces_types_1");
@@ -1298,6 +1332,7 @@ fn create_namespaces_types(
                 Some(&namespace.key.name),
                 translations_uri,
                 options,
+                docs,
                 gen_docs,
             );
 
@@ -1310,31 +1345,22 @@ fn create_namespaces_types(
             }
         });
 
-    let namespaces_accessors = namespaces
-        .iter()
-        .map(|(namespace, namespace_module_ident)| {
-            let key = &namespace.key;
-            let docs = if gen_docs {
-                let keys = keys.get(key).unwrap_at("create_namespaces_types_2");
-                let mut docs = String::new();
-                gen_keys_doc(&mut docs, &keys.0).unwrap();
+    let namespaces_accessors =
+        namespaces
+            .iter()
+            .map(|(namespace, namespace_module_ident, docs)| {
+                let key = &namespace.key;
                 quote! {
-                    #[doc = #docs]
+                    #docs
+                    pub fn #key(self) -> namespaces::#namespace_module_ident::#key {
+                        namespaces::#namespace_module_ident::#key::__new_internal(self.0)
+                    }
                 }
-            } else {
-                quote! {}
-            };
-            quote! {
-                #docs
-                pub fn #key(self) -> namespaces::#namespace_module_ident::#key {
-                    namespaces::#namespace_module_ident::#key::__new_internal(self.0)
-                }
-            }
-        });
+            });
 
-    let translations_unit_variants = namespaces.iter().map(|(ns, _)| ns.key.to_token_stream());
+    let translations_unit_variants = namespaces.iter().map(|(ns, _, _)| ns.key.to_token_stream());
 
-    let as_str_match_arms = namespaces.iter().map(|(ns, _)| {
+    let as_str_match_arms = namespaces.iter().map(|(ns, _, _)| {
         let ns_ident = &ns.key.ident;
         let ns_name = &ns.key.name;
         quote! {
@@ -1342,7 +1368,7 @@ fn create_namespaces_types(
         }
     });
 
-    let deserialize_match_arms = namespaces.iter().map(|(ns, _)| {
+    let deserialize_match_arms = namespaces.iter().map(|(ns, _, _)| {
         let ns_ident = &ns.key.ident;
         let ns_name = &ns.key.name;
         quote! {
@@ -1350,7 +1376,7 @@ fn create_namespaces_types(
         }
     });
 
-    let get_strings_match_arms = namespaces.iter().map(|(ns, namespace_module_ident)| {
+    let get_strings_match_arms = namespaces.iter().map(|(ns, namespace_module_ident, _)| {
         let ns_ident = &ns.key.ident;
         let maybe_await = cfg!(all(feature = "dynamic_load", feature = "csr")).then(|| quote!(.await));
         quote! {
@@ -1378,7 +1404,7 @@ fn create_namespaces_types(
     };
 
     let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
-        let match_arms = namespaces.iter().map(|(ns, namespace_module_ident)| {
+        let match_arms = namespaces.iter().map(|(ns, namespace_module_ident, _)| {
             let ns_ident = &ns.key.ident;
             quote! {
                 #translation_unit_enum_ident::#ns_ident => namespaces::#namespace_module_ident::#ns_ident::__init_translations__(locale, (), values)
@@ -1424,9 +1450,9 @@ fn create_namespaces_types(
             #(
                 #namespaces_ts
             )*
-
         }
 
+        #docs
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_snake_case)]
         pub struct #keys_ident(#enum_ident);
@@ -1523,19 +1549,31 @@ fn create_locale_type(
             options,
             gen_docs,
         ),
-        BuildersKeys::Locales { locales, keys } => create_locale_type_inner::<true>(
-            keys_ident,
-            None,
-            enum_ident,
-            translation_unit_enum_ident,
-            locales,
-            &keys.0,
-            &mut KeyPath::new(None),
-            None,
-            translations_uri,
-            options,
-            gen_docs,
-        ),
+        BuildersKeys::Locales { locales, keys } => {
+            let docs = if gen_docs {
+                let mut docs = String::new();
+                gen_keys_doc(&mut docs, &keys.0).unwrap();
+                quote! {
+                    #[doc = #docs]
+                }
+            } else {
+                quote! {}
+            };
+            create_locale_type_inner::<true>(
+                keys_ident,
+                None,
+                enum_ident,
+                translation_unit_enum_ident,
+                locales,
+                &keys.0,
+                &mut KeyPath::new(None),
+                None,
+                translations_uri,
+                options,
+                &docs,
+                gen_docs,
+            )
+        }
     }
 }
 
