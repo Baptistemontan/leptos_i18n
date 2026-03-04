@@ -25,7 +25,7 @@ runs:
         targets: wasm32-unknown-unknown
 
     - name: Setup Rust nightly
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@nightly
       with:
         components: clippy, rustfmt
         targets: wasm32-unknown-unknown
