@@ -1,0 +1,15 @@
+name: Restore CI Environment
+description: Restore prebuilt Rust toolchain and dependencies
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download prepared environment
+      uses: actions/download-artifact@v4
+      with:
+        name: ci-env
+
+    - name: Extract environment
+      shell: bash
+      run: |
+        tar -xzf ci-env.tar.gz -C /
