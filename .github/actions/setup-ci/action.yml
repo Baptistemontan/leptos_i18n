@@ -1,0 +1,64 @@
+name: Setup CI Environment
+description: Install Rust, Node, cache dependencies, install cargo binaries, and cache Playwright
+
+inputs:
+  node_version:
+    description: Node version to install
+    required: false
+    default: 18
+  example_path:
+    description: Path to example (for npm/node_modules cache)
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.cargo/bin
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+
+    - name: Install cargo tools
+      shell: bash
+      run: |
+        if ! command -v cargo-leptos >/dev/null; then
+          cargo install cargo-leptos --locked
+        fi
+        if ! command -v trunk >/dev/null; then
+          cargo install trunk --locked
+        fi
+        if ! command -v cargo-all-features >/dev/null; then
+          cargo install cargo-all-features
+        fi
+
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node_version }}
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-browsers
+
+    - name: Cache node_modules (optional)
+      if: ${{ inputs.example_path != '' }}
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.example_path }}/node_modules
+        key: ${{ runner.os }}-npm-${{ inputs.example_path }}-${{ hashFiles('${{ inputs.example_path }}/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-${{ inputs.example_path }}-

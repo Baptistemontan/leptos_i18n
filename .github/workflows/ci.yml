@@ -11,67 +11,15 @@ env:
 
 jobs:
   ########################################
-  # BOOTSTRAP (runs once)
-  ########################################
-
-  bootstrap:
-    name: Bootstrap toolchain & deps
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-          targets: wasm32-unknown-unknown
-
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install Rust tools
-        run: |
-          cargo install cargo-leptos --locked
-          cargo install trunk --locked
-          cargo install cargo-all-features --locked
-
-      - name: Pre-build workspace
-        run: cargo build --workspace --locked
-
-      - name: Archive cargo
-        run: tar -czf cargo.tar.gz -C $HOME .cargo
-
-      - name: Archive target
-        run: tar -czf target.tar.gz target
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cargo-env
-          path: cargo.tar.gz
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: target-env
-          path: target.tar.gz
-
-  ########################################
   # LIB TEST
   ########################################
-
   lib_test:
-    needs: bootstrap
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/restore-ci
+
+      # Setup Rust + Node + Playwright caches
+      - uses: ./.github/actions/setup-ci
 
       - name: Run clippy
         working-directory: leptos_i18n
@@ -87,15 +35,12 @@ jobs:
   ########################################
   # SSR EXAMPLES
   ########################################
-
   test_ssr_examples:
-    needs: bootstrap
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        examples:
+        example:
           [
             hello_world_actix,
             hello_world_axum,
@@ -106,83 +51,81 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/restore-ci
 
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-ci
         with:
-          node-version: 18
-          cache: npm
+          example_path: examples/ssr/${{ matrix.example }}
 
       - name: Build example
-        working-directory: examples/ssr/${{ matrix.examples }}
+        working-directory: examples/ssr/${{ matrix.example }}
         run: cargo leptos build
 
-      - name: Install e2e deps
-        working-directory: examples/ssr/${{ matrix.examples }}
+      - name: Install Playwright
+        working-directory: examples/ssr/${{ matrix.example }}
         run: |
           npm install
           npx playwright install --with-deps
 
       - name: Run e2e
         id: e2e
-        working-directory: examples/ssr/${{ matrix.examples }}
+        working-directory: examples/ssr/${{ matrix.example }}
         run: npx playwright test
 
       - name: Upload e2e report
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
         uses: actions/upload-artifact@v6
         with:
-          name: playwright-report-${{ matrix.examples }}
-          path: examples/ssr/${{ matrix.examples }}/playwright-report/
+          name: playwright-report-${{ matrix.example }}
+          path: examples/ssr/${{ matrix.example }}/playwright-report/
 
   ########################################
   # DYNAMIC SSR EXAMPLES
   ########################################
-
   test_ssr_dyn_load_examples:
-    needs: bootstrap
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        examples: [hello_world_actix, hello_world_axum, axum_island, namespaces]
+        example: [hello_world_actix, hello_world_axum, axum_island, namespaces]
 
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/restore-ci
 
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-ci
         with:
-          node-version: 18
-          cache: npm
+          example_path: examples/dynamic_load/${{ matrix.example }}
 
       - name: Build example
-        working-directory: examples/dynamic_load/${{ matrix.examples }}
+        working-directory: examples/dynamic_load/${{ matrix.example }}
         run: cargo leptos build
 
-      - name: Install e2e deps
-        working-directory: examples/dynamic_load/${{ matrix.examples }}
+      - name: Install Playwright
+        working-directory: examples/dynamic_load/${{ matrix.example }}
         run: |
           npm install
           npx playwright install --with-deps
 
       - name: Run e2e
+        id: e2e
         run: npx playwright test
-        working-directory: examples/dynamic_load/${{ matrix.examples }}
+        working-directory: examples/dynamic_load/${{ matrix.example }}
+
+      - name: Upload e2e report
+        if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-${{ matrix.example }}
+          path: examples/dynamic_load/${{ matrix.example }}/playwright-report/
 
   ########################################
   # CSR EXAMPLES
   ########################################
-
   test_csr_examples:
-    needs: bootstrap
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        examples:
+        example:
           [
             counter,
             counter_icu_datagen,
@@ -198,44 +141,48 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/restore-ci
 
-      - uses: actions/setup-node@v6
+      - uses: ./.github/actions/setup-ci
         with:
-          node-version: 18
-          cache: npm
+          example_path: examples/csr/${{ matrix.example }}
 
       - name: Build example
-        working-directory: examples/csr/${{ matrix.examples }}
+        working-directory: examples/csr/${{ matrix.example }}
         run: trunk build
 
-      - name: Install e2e deps
-        working-directory: examples/csr/${{ matrix.examples }}
+      - name: Install Playwright
+        working-directory: examples/csr/${{ matrix.example }}
         run: |
           npm install
           npx playwright install --with-deps
 
       - name: Run e2e
+        id: e2e
         run: npx playwright test
-        working-directory: examples/csr/${{ matrix.examples }}
+        working-directory: examples/csr/${{ matrix.example }}
+
+      - name: Upload e2e report
+        if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-${{ matrix.example }}
+          path: examples/csr/${{ matrix.example }}/playwright-report/
 
   ########################################
   # TEST SUITES
   ########################################
-
   test_suite:
-    needs: bootstrap
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        tests_suites: [json, json5, yaml, toml, namespaces]
+        suite: [json, json5, yaml, toml, namespaces]
 
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/restore-ci
+
+      - uses: ./.github/actions/setup-ci
 
       - name: Run test suite
-        working-directory: tests/${{ matrix.tests_suites }}
+        working-directory: tests/${{ matrix.suite }}
         run: cargo test
