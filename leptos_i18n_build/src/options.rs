@@ -16,6 +16,9 @@ pub struct CodegenOptions<'a> {
     pub module_file_name: &'a Path,
     /// Path to the `leptos_i18n` crate, usefull if the crate is not a direct depedency of the pacakage and is behind a reexport.
     pub crate_path: Option<syn::Path>,
+    /// Generate docs on `Locale` enum, subkeys, namespaces keys, and interpolations to display available keys or required arguments.
+    /// `true` by default
+    pub gen_docs: bool,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -34,6 +37,7 @@ impl<'a> CodegenOptions<'a> {
             top_level_attributes: None,
             module_file_name: DEFAULT_FILE_NAME.as_ref(),
             crate_path: None,
+            gen_docs: true,
         }
     }
 
@@ -66,5 +70,10 @@ impl<'a> CodegenOptions<'a> {
     /// Path to the `leptos_i18n` crate, usefull if the crate is not a direct depedency of the pacakage and is behind a reexport.
     pub fn crate_path(self, crate_path: Option<syn::Path>) -> Self {
         Self { crate_path, ..self }
+    }
+
+    /// Allow to generate docs on `Locale` enum, subkeys, namespaces keys, and interpolations to display available keys or required arguments.
+    pub fn gen_docs(self, gen_docs: bool) -> Self {
+        Self { gen_docs, ..self }
     }
 }

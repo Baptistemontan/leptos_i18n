@@ -18,11 +18,13 @@ pub fn gen_code(
     crate_path: Option<&syn::Path>,
     emit_diagnostics: bool,
     top_level_attributes: Option<&TokenStream>,
+    gen_docs: bool,
 ) -> Result<TokenStream> {
     load_locales::load_locales(
         parsed_locales,
         crate_path,
         emit_diagnostics,
         top_level_attributes,
+        gen_docs,
     )
 }

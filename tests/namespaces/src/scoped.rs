@@ -27,3 +27,19 @@ fn scoped_sub_subkeys() {
     let fr = td!(fr_scope, subkey_3, count = 4);
     assert_eq_rendered!(fr, "4");
 }
+
+#[test]
+fn defined_scope() {
+    type FirstNamespaceScope = define_scope!(crate::i18n, first_namespace);
+
+    let locale = Locale::en.scope::<FirstNamespaceScope>();
+
+    let en = td!(locale, click_to_change_lang);
+    assert_eq_rendered!(en, "Click to change language");
+
+    type SubkeysScope = define_scope!(crate::i18n, second_namespace.subkeys);
+
+    let en_scope = Locale::en.scope::<SubkeysScope>();
+    let en = td!(en_scope, subkey_3, count = 0);
+    assert_eq_rendered!(en, "0");
+}

@@ -128,6 +128,7 @@ There is also a way to inject your own formatter, this needs its own chapter, wh
 
 - Add some top level attributes for the generated module
 - Customize the name of the generated file
+- Generate doc comments on different items to see available namespaces, keys, subkeys, or args required for interpolations
 
 example:
 
@@ -138,7 +139,10 @@ let attributes = "#![allow(missing_docs)]".parse()?;
 
 let options = CodegenOptions::default()
   .top_level_attributes(Some(attributes))
-  .module_file_name("i18n.rs"); // "mod.rs" by default
+  .module_file_name("i18n.rs") // "mod.rs" by default
+  .gen_docs(true); // `true` by default
 
 translations_infos.generate_i18n_module_with_options(options)?;
 ```
+
+The later (`gen_docs`) is purely for UX ergonomics, disable it if you don't use intellisense or for CI runs
