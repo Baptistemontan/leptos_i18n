@@ -738,15 +738,19 @@ impl<L: Locale, F> I18nPath<L, F>
 where
     F: Fn(L) -> &'static str,
 {
-    fn segments_for_current_locale(
-        &self,
-    ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
+    fn segments_for_current_locale(&self) -> impl Iterator<Item = PathSegment> {
         let locale = get_current_route_locale::<L>();
         let s = (self.func)(locale);
 
-        s.split('/')
-            .filter(|p| !p.is_empty())
-            .map(leptos_router::StaticSegment)
+        s.split('/').filter(|p| !p.is_empty()).map(|seg| {
+            if let Some(name) = seg.strip_prefix(':') {
+                PathSegment::Param(name.into())
+            } else if let Some(name) = seg.strip_prefix("*") {
+                PathSegment::Splat(name.into())
+            } else {
+                PathSegment::Static(seg.into())
+            }
+        })
     }
 }
 
@@ -761,36 +765,61 @@ where
     fn test<'a>(&self, path: &'a str) -> Option<leptos_router::PartialPathMatch<'a>> {
         use leptos_router::PartialPathMatch;
 
-        let mut segments = self.segments_for_current_locale().peekable();
-
-        if segments.peek().is_none() {
-            return ().test(path);
-        }
-
         let mut remaining = path;
-        let mut all_params = Vec::new();
         let mut matched_len = 0usize;
+        let mut params: Vec<(std::borrow::Cow<'static, str>, String)> = Vec::new();
 
-        for static_seg in segments {
-            let pm = static_seg.test(remaining)?;
+        for seg in self.segments_for_current_locale() {
+            let rem = remaining.strip_prefix('/').unwrap_or(remaining);
 
-            let matched = pm.matched();
-            matched_len += matched.len();
-            remaining = pm.remaining();
-            all_params.extend(pm.params());
+            let (next, rest) = rem.split_once('/').unwrap_or((rem, ""));
+            if next.is_empty() {
+                return None;
+            }
+
+            match seg {
+                PathSegment::Static(s) => {
+                    if next != s.as_ref() {
+                        return None;
+                    }
+                }
+                PathSegment::Param(name) => {
+                    params.push((name.clone(), next.to_string()));
+                }
+                PathSegment::Splat(name) => {
+                    let captured = rem.to_string();
+                    params.push((name.clone(), captured));
+                    remaining = "";
+                    return Some(PartialPathMatch::new(remaining, params, path));
+                }
+                PathSegment::Unit => {}
+                PathSegment::OptionalParam(_) => return None, // not supported here
+            }
+
+            let consumed = next.len();
+            if remaining.starts_with('/') {
+                matched_len += 1;
+            }
+            matched_len += consumed;
+
+            remaining = if rest.is_empty() {
+                ""
+            } else {
+                &rem[consumed..]
+            };
+            if !remaining.is_empty() && !remaining.starts_with('/') {
+                remaining = "/";
+            }
         }
 
         Some(PartialPathMatch::new(
             remaining,
-            all_params,
+            params,
             &path[..matched_len],
         ))
     }
-
     fn generate_path(&self, path: &mut Vec<PathSegment>) {
-        for static_seg in self.segments_for_current_locale() {
-            static_seg.generate_path(path);
-        }
+        path.extend(self.segments_for_current_locale());
     }
 }
 
