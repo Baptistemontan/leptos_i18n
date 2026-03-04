@@ -377,7 +377,8 @@ impl Interpolation {
         };
 
         let docs = if gen_docs {
-            let mut docs = String::new();
+            let path = key_path.to_string_with_key(key);
+            let mut docs = format!("Full path: `{}`\n", path);
             Self::gen_fields_docs(&mut docs, &fields).unwrap();
             quote! {
                 #[doc = #docs]
