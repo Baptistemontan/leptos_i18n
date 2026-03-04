@@ -3,7 +3,7 @@ description: Install Rust, Node, cache dependencies, install cargo binaries, and
 
 inputs:
   rust_toolchain:
-    description: Rust toolchain to install (stable/nightly)
+    description: Rust toolchain to use by default (stable/nightly)
     required: false
     default: "stable"
   node_version:
@@ -18,55 +18,49 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Rust
+    - name: Setup Rust stable
       uses: dtolnay/rust-toolchain@stable
       with:
-        toolchain: ${{ inputs.rust_toolchain }}
         components: clippy, rustfmt
         targets: wasm32-unknown-unknown
 
-    - name: Cache Rust dependencies
+    - name: Setup Rust nightly
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+        targets: wasm32-unknown-unknown
+
+    - shell: bash
+      run: rustup default stable # use stable by default for compiling the tools
+
+    - name: Cache Rust tools
       uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          ~/.cargo/bin
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ inputs.rust_toolchain }}
-        restore-keys: ${{ runner.os }}-cargo-
+          ~/.cargo
+        key: cargo-tools-${{ runner.os }}
 
     - name: Install cargo-leptos
       shell: bash
       run: |
-        if ! command -v cargo-leptos >/dev/null; then
-          cargo install cargo-leptos --locked
-        fi
+        cargo install cargo-leptos --locked
 
     - name: Install trunk
       shell: bash
       run: |
-        if ! command -v trunk >/dev/null; then
-          cargo install trunk --locked
-        fi
+        cargo install trunk --locked
 
     - name: Install cargo-all-features
       shell: bash
       run: |
-        if ! command -v cargo-all-features >/dev/null; then
-          cargo install cargo-all-features --locked
-        fi
+        cargo install cargo-all-features --locked
 
-    - name: Pre-build workspace
+    - name: Set default toolchain to ${{ inputs.rust_toolchain }}
       shell: bash
-      run: cargo build --workspace --locked
-
-    - name: Setup Node
-      uses: actions/setup-node@v6
-      with:
-        node-version: ${{ inputs.node_version }}
+      run: rustup default ${{ inputs.rust_toolchain }}
 
     - name: Build e2e utils
+      if: ${{ inputs.example_path != '' }}
       shell: bash
       working-directory: examples/utils
       run: npm install
@@ -76,15 +70,6 @@ runs:
       with:
         path: ~/.cache/ms-playwright
         key: ${{ runner.os }}-playwright-browsers
-
-    # - name: Cache node_modules (optional)
-    #   if: ${{ inputs.example_path != '' }}
-    #   uses: actions/cache@v4
-    #   with:
-    #     path: ${{ inputs.example_path }}/node_modules
-    #     key: ${{ runner.os }}-npm-${{ inputs.example_path }}-${{ hashFiles('${{ inputs.example_path }}/package-lock.json') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-npm-${{ inputs.example_path }}-
 
     - name: Install Playwright
       if: ${{ inputs.example_path != '' }}
