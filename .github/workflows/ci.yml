@@ -20,9 +20,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
 
-      # Setup Rust + Node + Playwright caches
       - name: Setup
         uses: ./.github/actions/setup-ci
+        with:
+          rust_toolchain: "nightly"
 
       - name: Run clippy
         working-directory: leptos_i18n
@@ -66,11 +67,10 @@ jobs:
         working-directory: examples/ssr/${{ matrix.example }}
         run: cargo leptos build
 
-      - name: Install Playwright
+      - name: Install deps
         working-directory: examples/ssr/${{ matrix.example }}
         run: |
           npm install
-          npx playwright install --with-deps
 
       - name: Run e2e
         id: e2e
@@ -108,11 +108,10 @@ jobs:
         working-directory: examples/dynamic_load/${{ matrix.example }}
         run: cargo leptos build
 
-      - name: Install Playwright
-        working-directory: examples/dynamic_load/${{ matrix.example }}
+      - name: Install deps
+        working-directory: examples/ssr/${{ matrix.example }}
         run: |
           npm install
-          npx playwright install --with-deps
 
       - name: Run e2e
         id: e2e
@@ -162,11 +161,10 @@ jobs:
         working-directory: examples/csr/${{ matrix.example }}
         run: trunk build
 
-      - name: Install Playwright
-        working-directory: examples/csr/${{ matrix.example }}
+      - name: Install deps
+        working-directory: examples/ssr/${{ matrix.example }}
         run: |
           npm install
-          npx playwright install --with-deps
 
       - name: Run e2e
         id: e2e
@@ -207,11 +205,10 @@ jobs:
         working-directory: examples/dynamic_load/${{ matrix.example }}
         run: trunk build
 
-      - name: Install Playwright
-        working-directory: examples/dynamic_load/${{ matrix.example }}
+      - name: Install deps
+        working-directory: examples/ssr/${{ matrix.example }}
         run: |
           npm install
-          npx playwright install --with-deps
 
       - name: Run e2e
         id: e2e
