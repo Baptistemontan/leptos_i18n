@@ -67,11 +67,6 @@ jobs:
         working-directory: examples/ssr/${{ matrix.example }}
         run: cargo leptos build
 
-      - name: Install deps
-        working-directory: examples/ssr/${{ matrix.example }}
-        run: |
-          npm install
-
       - name: Run e2e
         id: e2e
         working-directory: examples/ssr/${{ matrix.example }}
@@ -107,11 +102,6 @@ jobs:
       - name: Build example
         working-directory: examples/dynamic_load/${{ matrix.example }}
         run: cargo leptos build
-
-      - name: Install deps
-        working-directory: examples/ssr/${{ matrix.example }}
-        run: |
-          npm install
 
       - name: Run e2e
         id: e2e
@@ -161,11 +151,6 @@ jobs:
         working-directory: examples/csr/${{ matrix.example }}
         run: trunk build
 
-      - name: Install deps
-        working-directory: examples/ssr/${{ matrix.example }}
-        run: |
-          npm install
-
       - name: Run e2e
         id: e2e
         run: npx playwright test
@@ -204,11 +189,6 @@ jobs:
       - name: Build example
         working-directory: examples/dynamic_load/${{ matrix.example }}
         run: trunk build
-
-      - name: Install deps
-        working-directory: examples/ssr/${{ matrix.example }}
-        run: |
-          npm install
 
       - name: Run e2e
         id: e2e
