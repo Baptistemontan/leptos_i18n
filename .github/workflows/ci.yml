@@ -14,7 +14,7 @@ jobs:
   # LIB TEST
   ########################################
   lib_test:
-    name: Test leptos_i18n package
+    name: Test leptos_i18n package (chunk ${{ matrix.chunk }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -31,11 +31,11 @@ jobs:
 
       - name: Run clippy
         working-directory: leptos_i18n
-        run: cargo all-features clippy --n-chunks 4 --chunks ${{ matrix.chunk }}
+        run: cargo all-features clippy --n-chunks 4 --chunk ${{ matrix.chunk }}
 
       - name: Test all features
         working-directory: leptos_i18n
-        run: cargo all-features test --n-chunks 4 --chunks ${{ matrix.chunk }}
+        run: cargo all-features test --n-chunks 4 --chunk ${{ matrix.chunk }}
 
       - name: Check format
         # only run it once
