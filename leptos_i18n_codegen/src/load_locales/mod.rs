@@ -421,9 +421,9 @@ fn create_locales_enum(
     for (i, key) in locales.iter().enumerate() {
         use core::fmt::Write;
         if i == 0 {
-            writeln!(&mut docs, "- {} (default)", key).unwrap();
+            writeln!(&mut docs, "- `{}` (default)", key).unwrap();
         } else {
-            writeln!(&mut docs, "- {}", key).unwrap();
+            writeln!(&mut docs, "- `{}`", key).unwrap();
         }
     }
 
@@ -432,7 +432,7 @@ fn create_locales_enum(
             use core::fmt::Write;
             writeln!(&mut docs, "\n## Namespaces :").unwrap();
             for ns in namespaces {
-                writeln!(&mut docs, "- {}", ns.key).unwrap();
+                writeln!(&mut docs, "- `{}`", ns.key).unwrap();
             }
         }
         BuildersKeys::Locales { keys, .. } => {
@@ -1519,7 +1519,7 @@ fn gen_keys_doc(docs: &mut String, keys: &BTreeMap<Key, LocaleValue>) -> core::f
     if keys_iter.peek().is_some() {
         writeln!(docs, "\n## Keys :")?;
         for key in keys_iter {
-            writeln!(docs, "- {}", key)?;
+            writeln!(docs, "- `{}`", key)?;
         }
     }
 
@@ -1534,7 +1534,7 @@ fn gen_keys_doc(docs: &mut String, keys: &BTreeMap<Key, LocaleValue>) -> core::f
     if keys_iter.peek().is_some() {
         writeln!(docs, "## Subkeys :")?;
         for key in keys_iter {
-            writeln!(docs, "- {}", key)?;
+            writeln!(docs, "- `{}`", key)?;
         }
     }
 
