@@ -85,7 +85,7 @@ runs:
     - name: Install Playwright
       if: ${{ inputs.example_path != '' }}
       shell: bash
-      # working-directory: inputs.example_path
+      working-directory: inputs.example_path
       run: |
-        # npm install
+        npm install
         npx playwright install --with-deps
