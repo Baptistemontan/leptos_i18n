@@ -2,6 +2,10 @@ name: Setup CI Environment
 description: Install Rust, Node, cache dependencies, install cargo binaries, and cache Playwright
 
 inputs:
+  rust_toolchain:
+    description: Rust toolchain to install (stable/nightly)
+    required: false
+    default: "stable"
   node_version:
     description: Node version to install
     required: false
@@ -17,6 +21,8 @@ runs:
     - name: Setup Rust
       uses: dtolnay/rust-toolchain@stable
       with:
+        toolchain: ${{ inputs.rust_toolchain }}
+        components: clippy, rustfmt
         targets: wasm32-unknown-unknown
 
     - name: Cache Rust dependencies
@@ -27,7 +33,7 @@ runs:
           ~/.cargo/git
           ~/.cargo/bin
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ inputs.rust_toolchain }}
         restore-keys: ${{ runner.os }}-cargo-
 
     - name: Install cargo-leptos
@@ -67,11 +73,19 @@ runs:
         path: ~/.cache/ms-playwright
         key: ${{ runner.os }}-playwright-browsers
 
-    - name: Cache node_modules (optional)
+    # - name: Cache node_modules (optional)
+    #   if: ${{ inputs.example_path != '' }}
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: ${{ inputs.example_path }}/node_modules
+    #     key: ${{ runner.os }}-npm-${{ inputs.example_path }}-${{ hashFiles('${{ inputs.example_path }}/package-lock.json') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-npm-${{ inputs.example_path }}-
+
+    - name: Install Playwright
       if: ${{ inputs.example_path != '' }}
-      uses: actions/cache@v4
-      with:
-        path: ${{ inputs.example_path }}/node_modules
-        key: ${{ runner.os }}-npm-${{ inputs.example_path }}-${{ hashFiles('${{ inputs.example_path }}/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-npm-${{ inputs.example_path }}-
+      shell: bash
+      # working-directory: inputs.example_path
+      run: |
+        # npm install
+        npx playwright install --with-deps
