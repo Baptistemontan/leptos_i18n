@@ -1,0 +1,63 @@
+name: Setup CI Environment
+description: Install Rust, Node, cache dependencies, install cargo binaries, and cache Playwright
+
+inputs:
+  rust_toolchain:
+    description: Rust toolchain to use by default (stable/nightly)
+    required: false
+    default: "stable"
+  node_version:
+    description: Node version to install
+    required: false
+    default: 18
+  example_path:
+    description: Path to example (for npm/node_modules cache)
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Rust ${{ inputs.rust_toolchain }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust_toolchain }}
+        components: clippy, rustfmt
+        targets: wasm32-unknown-unknown
+
+    - uses: cargo-bins/cargo-binstall@main
+
+    - name: Install cargo-leptos
+      shell: bash
+      run: |
+        cargo binstall cargo-leptos --locked
+
+    - name: Install trunk
+      shell: bash
+      run: |
+        cargo binstall trunk --locked
+
+    - name: Install cargo-all-features
+      shell: bash
+      run: |
+        cargo binstall cargo-all-features --locked
+
+    - name: Build e2e utils
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: examples/utils
+      run: npm install
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-browsers
+
+    - name: Install Playwright
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: ${{ inputs.example_path }}
+      run: |
+        npm install
+        npx playwright install --with-deps
