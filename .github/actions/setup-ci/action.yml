@@ -18,46 +18,29 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Rust stable
-      uses: dtolnay/rust-toolchain@stable
+    - name: Setup Rust ${{ inputs.rust_toolchain }}
+      uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: ${{ inputs.rust_toolchain }}
         components: clippy, rustfmt
         targets: wasm32-unknown-unknown
 
-    - name: Setup Rust nightly
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: clippy, rustfmt
-        targets: wasm32-unknown-unknown
-
-    - shell: bash
-      run: rustup default stable # use stable by default for compiling the tools
-
-    - name: Cache Rust tools
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo
-        key: cargo-tools-${{ runner.os }}
+    - uses: cargo-bins/cargo-binstall@main
 
     - name: Install cargo-leptos
       shell: bash
       run: |
-        cargo install cargo-leptos --locked
+        cargo binstall cargo-leptos --locked
 
     - name: Install trunk
       shell: bash
       run: |
-        cargo install trunk --locked
+        cargo binstall trunk --locked
 
     - name: Install cargo-all-features
       shell: bash
       run: |
-        cargo install cargo-all-features --locked
-
-    - name: Set default toolchain to ${{ inputs.rust_toolchain }}
-      shell: bash
-      run: rustup default ${{ inputs.rust_toolchain }}
+        cargo binstall cargo-all-features --locked
 
     - name: Build e2e utils
       if: ${{ inputs.example_path != '' }}
