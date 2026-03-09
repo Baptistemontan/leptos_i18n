@@ -73,8 +73,9 @@ jobs:
         run: npx playwright test
 
       - name: Upload e2e report
+        # upload artifact only if e2e test failed
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ matrix.example }}
           path: examples/ssr/${{ matrix.example }}/playwright-report/
@@ -109,8 +110,9 @@ jobs:
         working-directory: examples/dynamic_load/${{ matrix.example }}
 
       - name: Upload e2e report
+        # upload artifact only if e2e test failed
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ matrix.example }}
           path: examples/dynamic_load/${{ matrix.example }}/playwright-report/
@@ -152,8 +154,9 @@ jobs:
         working-directory: examples/dynamic_load/${{ matrix.example }}
 
       - name: Upload e2e report
+        # upload artifact only if e2e test failed
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ matrix.example }}
           path: examples/dynamic_load/${{ matrix.example }}/playwright-report/
@@ -200,8 +203,9 @@ jobs:
         working-directory: examples/csr/${{ matrix.example }}
 
       - name: Upload e2e report
+        # upload artifact only if e2e test failed
         if: ${{ steps.e2e.outcome == 'failure' && !cancelled() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ matrix.example }}
           path: examples/csr/${{ matrix.example }}/playwright-report/
