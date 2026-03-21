@@ -125,9 +125,18 @@ pub mod locale;
 mod locale_traits;
 mod macro_helpers;
 mod macros;
+#[cfg(feature = "reverse_lookup")]
+mod reverse_lookup;
 mod scopes;
 
 pub use macro_helpers::formatting;
+
+/// Build a map from default-locale values to target-locale values,
+/// useful for translating dynamic strings received at runtime.
+///
+/// Requires the `reverse_lookup` feature.
+#[cfg(feature = "reverse_lookup")]
+pub use reverse_lookup::translation_map_builder;
 
 pub use locale_traits::{Direction, Locale, LocaleKeys};
 

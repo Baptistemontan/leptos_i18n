@@ -119,6 +119,7 @@ dynamic_load = [
   "dep:futures",
   "dep:serde_json",
 ]
+reverse_lookup = ["dep:serde_json"]
 
 
 # Features needed for the doctests

@@ -1,0 +1,14 @@
+[package]
+name = "reverse_lookup"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+leptos = { version = "0.8.15", features = ["csr"] }
+leptos_i18n = { path = "../../../leptos_i18n", features = ["csr", "reverse_lookup"] }
+gloo-net = { version = "0.6", features = ["http"] }
+console_error_panic_hook = { version = "0.1" }
+
+[build-dependencies.leptos_i18n_build]
+path = "../../../leptos_i18n_build"
+features = ["pretty_print", "csr"]
