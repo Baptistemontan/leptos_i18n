@@ -233,6 +233,7 @@ pub fn load_locales(
     Ok(quote! {
         pub mod i18n {
             #![allow(unused_braces)]
+            #![allow(clippy::expect_used)]
             #![allow(clippy::type_complexity)]
             #![allow(clippy::let_and_return)]
             #![allow(clippy::unit_arg)]
