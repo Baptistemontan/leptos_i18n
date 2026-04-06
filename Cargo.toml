@@ -32,7 +32,7 @@ leptos_meta = { version = "0.8", default-features = false }
 # icu
 icu = { version = "2.1", default-features = false }
 icu_locale = { version = "2.1", default-features = false }
-icu_provider = { version = "2.1", default-features = false }
+icu_provider = { version = "2.2", default-features = false }
 fixed_decimal = { version = "0.7", default-features = false }
 icu_provider_export = { version = "2.1", default-features = false }
 icu_provider_source = { version = "2.1", default-features = false }
