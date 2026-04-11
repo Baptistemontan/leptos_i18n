@@ -43,7 +43,7 @@ pub fn format_currency_to_view<L: Locale>(
 
     move || {
         let fixed_dec = number.to_fixed_decimal();
-        let currency = currency_formatter.format_fixed_decimal(&fixed_dec, currency_code);
+        let currency = currency_formatter.format_fixed_decimal(&fixed_dec, &currency_code);
         let mut formatted_currency = String::new();
         currency.write_to(&mut formatted_currency).unwrap();
         formatted_currency
@@ -60,7 +60,7 @@ pub fn format_currency_to_formatter<L: Locale>(
 ) -> fmt::Result {
     let currency_formatter = super::get_currency_formatter(locale, width);
     let fixed_dec = number.to_fixed_decimal();
-    let formatted_currency = currency_formatter.format_fixed_decimal(&fixed_dec, currency_code);
+    let formatted_currency = currency_formatter.format_fixed_decimal(&fixed_dec, &currency_code);
     formatted_currency.write_to(f)
 }
 
@@ -77,7 +77,7 @@ pub fn format_currency_to_display<L: Locale>(
 ) -> impl Display {
     let currency_formatter = super::get_currency_formatter(locale, width);
     let fixed_dec = number.to_fixed_decimal();
-    let currency = currency_formatter.format_fixed_decimal(&fixed_dec, currency_code);
+    let currency = currency_formatter.format_fixed_decimal(&fixed_dec, &currency_code);
     let mut formatted_currency = String::new();
     currency.write_to(&mut formatted_currency).unwrap();
     formatted_currency

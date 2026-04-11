@@ -21,10 +21,10 @@ icu_provider_export = { workspace = true, features = [
 icu_provider_source = { workspace = true, features = [
   "networking",
   "use_wasm",
-  "experimental",
+  "unstable",
 ], default-features = false }
 icu = { workspace = true, features = [
-  "experimental",
+  "unstable",
 ], default-features = false }
 icu_provider = { workspace = true, default-features = false }
 icu_locale = { workspace = true, default-features = false }
