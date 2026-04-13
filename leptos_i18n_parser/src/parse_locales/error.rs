@@ -13,7 +13,7 @@ use std::{
     rc::Rc,
 };
 
-use super::{locale::SerdeError, ranges::RangeType};
+use super::locale::SerdeError;
 use crate::{
     parse_locales::cfg_file,
     utils::{
@@ -46,32 +46,12 @@ pub enum Error {
         locale: Key,
         key_path: KeyPath,
     },
-    RangeParse {
-        range: String,
-        range_type: RangeType,
-    },
-    InvalidBoundEnd {
-        range: String,
-        range_type: RangeType,
-    },
-    ImpossibleRange(String),
-    RangeTypeMissmatch {
-        key_path: KeyPath,
-        type1: RangeType,
-        type2: RangeType,
-    },
     InvalidKey(String),
     EmptyRange,
     InvalidRangeType(String),
     NestedRanges,
     InvalidFallback,
     MultipleFallbacks,
-    MissingFallback(RangeType),
-    RangeSubkeys,
-    RangeNumberType {
-        found: RangeType,
-        expected: RangeType,
-    },
     ExplicitDefaultInDefault(KeyPath),
     RecursiveForeignKey {
         loc: Location,
@@ -98,12 +78,6 @@ pub enum Error {
     InvalidCountArg {
         loc: Location,
         foreign_key: KeyPath,
-    },
-    InvalidCountArgType {
-        loc: Location,
-        foreign_key: KeyPath,
-        input_type: RangeType,
-        range_type: RangeType,
     },
     CountArgOutsideRange {
         loc: Location,
@@ -202,39 +176,13 @@ impl Display for Error {
             Error::LocaleFileDeser { path, err } => {
                 write!(f, "Parsing of file {path:?} failed: {err}")
             }
-            Error::RangeParse { range, range_type } => {
-                write!(f, "error parsing {range:?} as {range_type}")
-            }
             Error::DuplicateLocalesInConfig(duplicates) => write!(
                 f,
                 "Found duplicates locales in configuration (Cargo.toml): {duplicates:?}"
             ),
-            Error::InvalidBoundEnd {
-                range,
-                range_type: range_type @ (RangeType::F32 | RangeType::F64),
-            } => write!(
-                f,
-                "the range {range:?} end bound is invalid, you can't use exclusif range with {range_type}"
-            ),
-            Error::InvalidBoundEnd { range, range_type } => write!(
-                f,
-                "the range {range:?} end bound is invalid, you can't end before {range_type}::MIN"
-            ),
-            Error::ImpossibleRange(range) => write!(
-                f,
-                "the range {range:?} is impossible, it end before it starts"
-            ),
             Error::DuplicateNamespacesInConfig(duplicates) => write!(
                 f,
                 "Found duplicates namespaces in configuration (Cargo.toml): {duplicates:?}"
-            ),
-            Error::RangeTypeMissmatch {
-                key_path,
-                type1,
-                type2,
-            } => write!(
-                f,
-                "Conflicting range value type at key \"{key_path}\", found type {type1} but also type {type2}."
             ),
             Error::InvalidKey(key) => write!(
                 f,
@@ -245,21 +193,12 @@ impl Display for Error {
             Error::NestedRanges => write!(f, "nested ranges are not allowed"),
             Error::InvalidFallback => write!(f, "fallbacks are only allowed in last position"),
             Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
-            Error::MissingFallback(t) => write!(
-                f,
-                "range type {t} require a fallback (or a fullrange \"..\")"
-            ),
-            Error::RangeSubkeys => write!(f, "subkeys for ranges are not allowed"),
             Error::SubKeyMissmatch { locale, key_path } => {
                 write!(
                     f,
                     "Missmatch value type beetween locale {locale:?} and default at key \"{key_path}\": one has subkeys and the other has direct value."
                 )
             }
-            Error::RangeNumberType { found, expected } => write!(
-                f,
-                "number type {found} can't be used for range type {expected}"
-            ),
             Error::ExplicitDefaultInDefault(key_path) => write!(
                 f,
                 "Explicit defaults (null) are not allowed in default locale, at key \"{key_path}\""
@@ -288,15 +227,6 @@ impl Display for Error {
             Error::InvalidCountArg { loc, foreign_key } => write!(
                 f,
                 "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" for plurals or ranges can only be a literal number or a single variable."
-            ),
-            Error::InvalidCountArgType {
-                loc,
-                foreign_key,
-                input_type,
-                range_type,
-            } => write!(
-                f,
-                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" of type {input_type} for range of type {range_type} is not allowed."
             ),
             Error::CountArgOutsideRange {
                 loc,

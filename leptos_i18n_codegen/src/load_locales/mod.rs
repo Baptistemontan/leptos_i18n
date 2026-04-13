@@ -4,7 +4,6 @@ pub mod interpolate;
 pub mod locale;
 pub mod parsed_value;
 pub mod plurals;
-pub mod ranges;
 
 use interpolate::Interpolation;
 use leptos_i18n_parser::{

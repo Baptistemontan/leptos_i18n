@@ -1,8 +1,6 @@
 use icu_provider::{DataMarker, DataMarkerInfo};
 use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBounds};
-use leptos_i18n_parser::parse_locales::locale::{
-    BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural,
-};
+use leptos_i18n_parser::parse_locales::locale::{BuildersKeysInner, InterpolOrLit, LocaleValue};
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
 
@@ -43,7 +41,7 @@ pub fn find_used_datamarker(
                 ..
             } => {
                 for (_, var_infos) in interpolation_keys.iter_vars() {
-                    if matches!(var_infos.range_count, Some(RangeOrPlural::Plural)) {
+                    if var_infos.plural {
                         used_icu_markers.insert(FormatterOptions::Plurals);
                     }
 

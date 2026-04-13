@@ -15,7 +15,7 @@ use quote::{ToTokens, format_ident, quote};
 use super::parsed_value;
 // use super::parsed_value::InterpolationKeys;
 // use super::parsed_value::RangeOrPlural;
-use super::{parsed_value::TRANSLATIONS_KEY, ranges::RangeType, strings_accessor_method_name};
+use super::{parsed_value::TRANSLATIONS_KEY, strings_accessor_method_name};
 use crate::utils::EitherOfWrapper;
 
 pub const LOCALE_FIELD_KEY: &str = "_locale";
@@ -43,42 +43,23 @@ pub struct Interpolation {
     pub docs: TokenStream,
 }
 
-#[derive(Debug, Copy, Clone)]
-enum RangeOrPlural {
-    Range(RangeType),
-    Plural,
-}
-
-impl From<leptos_i18n_parser::parse_locales::locale::RangeOrPlural> for RangeOrPlural {
-    fn from(value: leptos_i18n_parser::parse_locales::locale::RangeOrPlural) -> Self {
-        match value {
-            leptos_i18n_parser::parse_locales::locale::RangeOrPlural::Range(range_type) => {
-                RangeOrPlural::Range(range_type.into())
-            }
-            leptos_i18n_parser::parse_locales::locale::RangeOrPlural::Plural => {
-                RangeOrPlural::Plural
-            }
-        }
-    }
-}
-
-impl RangeOrPlural {
-    pub fn to_bound(self) -> TokenStream {
-        match self {
-            RangeOrPlural::Range(range_type) => {
-                quote!(l_i18n_crate::__private::InterpolateRangeCount<#range_type>)
-            }
-            RangeOrPlural::Plural => {
-                quote!(l_i18n_crate::__private::InterpolatePluralCount)
-            }
-        }
-    }
-}
+// impl RangeOrPlural {
+//     pub fn to_bound(self) -> TokenStream {
+//         match self {
+//             RangeOrPlural::Range(range_type) => {
+//                 quote!(l_i18n_crate::__private::InterpolateRangeCount<#range_type>)
+//             }
+//             RangeOrPlural::Plural => {
+//                 quote!(l_i18n_crate::__private::InterpolatePluralCount)
+//             }
+//         }
+//     }
+// }
 
 enum VarOrComp {
     Var {
         bounds: Vec<VarBounds>,
-        plural: Option<RangeOrPlural>,
+        plural: bool,
     },
     Comp {
         into_view: syn::Ident,
@@ -93,13 +74,9 @@ struct Field {
 }
 
 impl Field {
-    fn get_var_generics(
-        generic: &syn::Ident,
-        bounds: &[VarBounds],
-        plural: Option<RangeOrPlural>,
-    ) -> TokenStream {
+    fn get_var_generics(generic: &syn::Ident, bounds: &[VarBounds], plural: bool) -> TokenStream {
         let bounds = bounds.iter().map(VarBounds::view_bounds);
-        let plural_bound = plural.map(RangeOrPlural::to_bound);
+        let plural_bound = plural.then(|| quote!(l_i18n_crate::__private::InterpolatePluralCount));
         let bounds = bounds.chain(plural_bound);
 
         quote!(#generic: 'static + ::core::clone::Clone #(+ #bounds)*)
@@ -108,20 +85,14 @@ impl Field {
     fn get_fmt_var_generics(
         generic: &syn::Ident,
         bounds: &[VarBounds],
-        range: Option<RangeOrPlural>,
-    ) -> Option<TokenStream> {
-        match range {
-            None => {
-                let bounds = bounds.iter().map(VarBounds::fmt_bounds);
-                Some(quote!(#generic: #(#bounds +)*))
-            }
-            Some(RangeOrPlural::Range(_)) => None,
-            Some(RangeOrPlural::Plural) => {
-                let bounds = bounds.iter().map(VarBounds::fmt_bounds);
-                Some(
-                    quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>),
-                )
-            }
+        plural: bool,
+    ) -> TokenStream {
+        if plural {
+            let bounds = bounds.iter().map(VarBounds::fmt_bounds);
+            quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>)
+        } else {
+            let bounds = bounds.iter().map(VarBounds::fmt_bounds);
+            quote!(#generic: #(#bounds +)*)
         }
     }
 
@@ -154,7 +125,7 @@ impl Field {
         match &self.var_or_comp {
             VarOrComp::Var { bounds, plural } => {
                 let ts = Self::get_fmt_var_generics(generic, bounds, *plural);
-                EitherIter::Iter1(ts.into_iter())
+                EitherIter::Iter1(core::iter::once(ts))
             }
             VarOrComp::Comp {
                 into_view,
@@ -180,10 +151,6 @@ impl Field {
     pub fn as_string_right_generics(&self) -> impl Iterator<Item = TokenStream> {
         let generic = std::iter::once(self.generic.to_token_stream());
         match &self.var_or_comp {
-            VarOrComp::Var {
-                plural: Some(RangeOrPlural::Range(range_type)),
-                ..
-            } => EitherIter::Iter1(std::iter::once(quote!(#range_type))),
             VarOrComp::Var { .. } => EitherIter::Iter1(generic),
             VarOrComp::Comp { into_view, .. } => {
                 EitherIter::Iter2(generic.chain(Some(quote!(#into_view))))
@@ -192,13 +159,7 @@ impl Field {
     }
 
     pub fn as_string_builder_marker(&self) -> TokenStream {
-        match &self.var_or_comp {
-            VarOrComp::Var {
-                plural: Some(RangeOrPlural::Range(range_type)),
-                ..
-            } => quote!(#range_type),
-            _ => self.generic.to_token_stream(),
-        }
+        self.generic.to_token_stream()
     }
 
     pub fn as_struct_field(&self) -> TokenStream {
@@ -221,7 +182,7 @@ impl Interpolation {
             bounds.sort(); // the sort is to have consistent codegen
             let var_or_comp = VarOrComp::Var {
                 bounds,
-                plural: infos.range_count.map(Into::into),
+                plural: infos.plural,
             };
             let generic = format_ident!("__{}__", key);
             Field {
@@ -401,7 +362,7 @@ impl Interpolation {
             .filter_map(|field| match &field.var_or_comp {
                 VarOrComp::Var { bounds, plural } => {
                     let key = field.key.name.strip_prefix("var_")?;
-                    Some((key, bounds.as_slice(), plural.as_ref()))
+                    Some((key, bounds.as_slice(), *plural))
                 }
                 VarOrComp::Comp { .. } => None,
             })
@@ -412,8 +373,8 @@ impl Interpolation {
             for (key, bounds, plural) in variables {
                 let _ = bounds;
                 match plural {
-                    Some(_) => writeln!(docs, "- `{}` (plural count)", key)?,
-                    None => writeln!(docs, "- `{}`", key)?,
+                    true => writeln!(docs, "- `{}` (plural count)", key)?,
+                    false => writeln!(docs, "- `{}`", key)?,
                 }
             }
         }

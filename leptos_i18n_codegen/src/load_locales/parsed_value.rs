@@ -9,7 +9,7 @@ use leptos_i18n_parser::{
     utils::{Key, KeyPath, UnwrapAt},
 };
 
-use super::{interpolate::LOCALE_FIELD_KEY, plurals, ranges};
+use super::{interpolate::LOCALE_FIELD_KEY, plurals};
 
 pub const TRANSLATIONS_KEY: &str = if cfg!(feature = "dynamic_load") {
     "__i18n_translations__"
@@ -80,7 +80,6 @@ fn flatten(
         ParsedValue::Default => unreachable!("defaulted value should never have been rendered"),
         ParsedValue::Subkeys(_) => unreachable!("subkeys should never have been rendered"),
         ParsedValue::Literal(lit) => tokens.push(Literal::from(lit).to_token_stream(strings_count)),
-        ParsedValue::Ranges(ranges) => tokens.push(ranges::to_token_stream(ranges, strings_count)),
         ParsedValue::Variable { key, bounds } => {
             let ts = bounds.var_to_view(&key.ident, &locale_field.ident);
             tokens.push(quote! {{
@@ -162,7 +161,6 @@ fn flatten_string(
             let ts = Literal::from(lit).to_token_stream(strings_count);
             tokens.push(quote!(core::fmt::Display::fmt(&#ts, __formatter)))
         }
-        ParsedValue::Ranges(ranges) => tokens.push(ranges::as_string_impl(ranges, strings_count)),
         ParsedValue::Variable { key, bounds } => {
             let ts = bounds.var_fmt(key, locale_field);
             tokens.push(ts);
