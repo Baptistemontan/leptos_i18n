@@ -14,7 +14,6 @@ pub mod locale;
 pub mod options;
 pub mod parsed_value;
 pub mod plurals;
-pub mod ranges;
 // pub mod warning;
 
 use error::{Diagnostics, Error, Result};

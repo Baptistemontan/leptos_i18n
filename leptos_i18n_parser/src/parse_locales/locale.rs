@@ -18,7 +18,6 @@ use super::{
     error::{Diagnostics, Error, Result, Warning},
     parsed_value::{ParsedValue, ParsedValueSeed},
     plurals::{PluralForm, PluralRuleType, Plurals},
-    ranges::RangeType,
 };
 // use super::warning::{Warning, Warnings};
 
@@ -75,25 +74,19 @@ pub struct Namespace {
     pub locales: Vec<Locale>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RangeOrPlural {
-    Range(RangeType),
-    Plural,
-}
-
 #[derive(Debug)]
 pub enum LocalesOrNamespaces {
     NameSpaces(Vec<Namespace>),
     Locales(Vec<Locale>),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VarInfo {
     pub bounds: BTreeSet<VarBounds>,
-    pub range_count: Option<RangeOrPlural>,
+    pub plural: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InterpolationKeys {
     components: BTreeSet<Key>,
     components_self_closed: BTreeSet<Key>,
@@ -267,32 +260,9 @@ impl InterpolationKeys {
         self.components.insert(key);
     }
 
-    pub fn push_count(
-        &mut self,
-        key_path: &mut KeyPath,
-        ty: RangeOrPlural,
-        count_key: Key,
-    ) -> Result<()> {
+    pub fn push_plural_key(&mut self, count_key: Key) {
         let var_infos = self.variables.entry(count_key).or_default();
-        match (var_infos.range_count.replace(ty), ty) {
-            (None, _) | (Some(RangeOrPlural::Plural), RangeOrPlural::Plural) => Ok(()),
-            (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) if old == new => Ok(()),
-            (Some(RangeOrPlural::Plural), RangeOrPlural::Range(_))
-            | (Some(RangeOrPlural::Range(_)), RangeOrPlural::Plural) => {
-                Err(Error::RangeAndPluralsMix {
-                    key_path: key_path.clone(),
-                }
-                .into())
-            }
-            (Some(RangeOrPlural::Range(old)), RangeOrPlural::Range(new)) => {
-                Err(Error::RangeTypeMissmatch {
-                    key_path: key_path.clone(),
-                    type1: old,
-                    type2: new,
-                }
-                .into())
-            }
-        }
+        var_infos.plural = true;
     }
 
     pub fn iter_keys(&self) -> impl Iterator<Item = &Key> {
@@ -530,7 +500,7 @@ impl Locale {
         key: &'a Key,
         value: &ParsedValue,
     ) -> Option<(&'a str, PluralRuleType, PluralForm)> {
-        if matches!(value, ParsedValue::Ranges(_) | ParsedValue::Subkeys(_)) {
+        if matches!(value, ParsedValue::Subkeys(_)) {
             return None;
         }
         let (base_key, suffix) = key.name.rsplit_once('_')?;
@@ -746,7 +716,6 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
                 top_locale_name: &self.top_locale_name,
                 key: &locale_key,
                 key_path: &pushed_key,
-                in_range: false,
                 foreign_keys_paths: self.foreign_keys_paths,
                 diag: self.diag,
                 formatters: self.formatters,

@@ -10,16 +10,13 @@ use leptos_i18n_parser::{
         make_builder_keys,
         options::{Config, ParseOptions},
         parsed_value::ParsedValue,
-        ranges::{
-            ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
-        },
     },
     utils::{Key, KeyPath, Loc, ParseContext},
 };
 use proc_macro2::Span;
 use quote::ToTokens;
 use syn::{
-    Ident, Lit, LitStr, Token, parse::ParseBuffer, parse_macro_input, punctuated::Punctuated,
+    Ident, LitStr, Token, parse::ParseBuffer, parse_macro_input, punctuated::Punctuated,
     token::Comma,
 };
 
@@ -151,139 +148,6 @@ fn parse_map_values(
     }))))
 }
 
-pub struct ParseRangeSeed<'a> {
-    pub key_path: &'a mut KeyPath,
-    pub locale: &'a Key,
-    pub formatters: &'a Formatters,
-    pub foreign_keys_paths: &'a ForeignKeysPaths,
-}
-
-fn parse_range_count<T: RangeNumber>(input: &ParseBuffer) -> syn::Result<Range<T>> {
-    let lit = input.parse::<Lit>()?;
-    let range = match lit {
-        Lit::Str(slit) => {
-            let s = slit.value();
-            match Range::new(&s) {
-                Ok(p) => p,
-                Err(_) => return emit_err(slit, "invalid range count."),
-            }
-        }
-        Lit::Int(intlit) => {
-            let n = intlit
-                .base10_digits()
-                .parse()
-                .map_err(|_| syn::Error::new(intlit.span(), "invalid int"))?;
-            Range::Exact(n)
-        }
-        Lit::Float(floatlit) => {
-            let n = floatlit
-                .base10_digits()
-                .parse()
-                .map_err(|_| syn::Error::new(floatlit.span(), "invalid float"))?;
-            Range::Exact(n)
-        }
-        _ => return emit_err(lit, "invalid litteral."),
-    };
-    Ok(range)
-}
-
-fn parse_range_pair<T: RangeNumber>(
-    input: &ParseBuffer,
-    seed: &mut ParseRangeSeed,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<(Range<T>, ParsedValue)> {
-    let content;
-    syn::bracketed!(content in input);
-
-    let loc = Loc {
-        locale: seed.locale,
-        key_path: seed.key_path,
-    };
-
-    let Some(parsed_value) = parse_str_value(&content, &loc, seed.formatters, foreign_keys_paths)?
-    else {
-        return Err(content.error("only strings are accepted here."));
-    };
-
-    if content.is_empty() {
-        return Ok((Range::Fallback, parsed_value));
-    }
-    content.parse::<Comma>()?;
-
-    let mut counts = content
-        .parse_terminated(parse_range_count::<T>, Comma)?
-        .into_iter();
-
-    match (counts.next(), counts.next()) {
-        (None, _) => Ok((Range::Fallback, parsed_value)),
-        (Some(count), None) => Ok((count, parsed_value)),
-        (Some(a), Some(b)) => Ok((
-            Range::Multiple([a, b].into_iter().chain(counts).collect()),
-            parsed_value,
-        )),
-    }
-}
-
-pub fn parse_range_pairs<T: RangeNumber>(
-    content: &ParseBuffer,
-    ranges: &mut RangesInner<T>,
-    mut seed: ParseRangeSeed,
-) -> syn::Result<()> {
-    let foreign_keys_paths = seed.foreign_keys_paths;
-    while !content.is_empty() {
-        let pair = parse_range_pair(content, &mut seed, foreign_keys_paths)?;
-        ranges.push(pair);
-        if !content.is_empty() {
-            content.parse::<Comma>()?;
-        }
-    }
-    Ok(())
-}
-
-fn parse_range_type(
-    content: &ParseBuffer,
-    seed: &mut ParseRangeSeed,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<TypeOrRange> {
-    if content.peek(LitStr) {
-        let lit_str = content.parse::<LitStr>()?;
-        let s = lit_str.value();
-        return TypeOrRange::from_string(&s)
-            .ok_or_else(|| syn::Error::new_spanned(lit_str, "invalid range type."));
-    }
-
-    let range = parse_range_pair(content, seed, foreign_keys_paths)?;
-
-    Ok(TypeOrRange::Range(range))
-}
-
-fn parse_ranges(
-    input: syn::parse::ParseStream,
-    mut seed: ParseRangeSeed,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<Option<ParsedValue>> {
-    fn inner(input: syn::parse::ParseStream) -> syn::Result<ParseBuffer> {
-        let content;
-        syn::bracketed!(content in input);
-        Ok(content)
-    }
-    let Ok(content) = inner(input) else {
-        return Ok(None);
-    };
-
-    let mut ranges = match parse_range_type(&content, &mut seed, foreign_keys_paths)? {
-        TypeOrRange::Type(range_type) => Ranges::from_type(range_type),
-        TypeOrRange::Range(range) => Ranges {
-            inner: UntypedRangesInner::I32(vec![range]),
-            count_key: Key::count(),
-        },
-    };
-
-    ranges.deserialize_inner(RangeParseBuffer(content), seed)?;
-
-    Ok(Some(ParsedValue::Ranges(ranges)))
-}
-
 fn parse_values(
     input: syn::parse::ParseStream,
     key_path: &mut KeyPath,
@@ -310,17 +174,6 @@ fn parse_values(
         formatters,
         foreign_keys_paths,
     )? {
-        return Ok((key, parsed_value));
-    }
-
-    let seed = ParseRangeSeed {
-        key_path: &mut pushed_key,
-        locale,
-        formatters,
-        foreign_keys_paths,
-    };
-
-    if let Some(parsed_value) = parse_ranges(input, seed, foreign_keys_paths)? {
         return Ok((key, parsed_value));
     }
 
@@ -480,24 +333,5 @@ impl syn::parse::Parse for ParsedInput {
             foreign_keys_paths,
             interpolate_display,
         })
-    }
-}
-
-pub struct RangeParseBuffer<'de>(ParseBuffer<'de>);
-
-impl<'a, 'de> ParseRanges<'a, 'de> for RangeParseBuffer<'de> {
-    type Result<O>
-        = syn::Result<O>
-    where
-        O: 'de + 'a;
-
-    type Seed = super::declare_locales::ParseRangeSeed<'a>;
-
-    fn deserialize_all_pairs<T: RangeNumber>(
-        self,
-        ranges: &mut RangesInner<T>,
-        seed: Self::Seed,
-    ) -> Self::Result<()> {
-        parse_range_pairs(&self.0, ranges, seed)
     }
 }
