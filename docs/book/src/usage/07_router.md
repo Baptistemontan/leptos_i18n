@@ -88,6 +88,8 @@ Multi segments path are supported, meaning you can have `segment_path_name = "so
 
 > _note_: the number of segments must be the same for all locales or a runtime error will be thrown. Empty segments don't count, meaning `segment_path_name = "path"` for English, and `segment_path_name = ""` for French will create an error.
 
+> _note_: Only static segments are supported, you can not have `seg = "some/:path"` and expect a param segment to be created.
+
 ## Caveat
 
 If you have a layout like this:
