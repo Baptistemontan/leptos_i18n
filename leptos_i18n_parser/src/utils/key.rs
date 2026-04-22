@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::extraction::VAR_COUNT_KEY;
+use crate::extractor::VAR_COUNT_KEY;
 use crate::utils::Loc;
 use std::{
     fmt::{Debug, Display},

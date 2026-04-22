@@ -5,14 +5,14 @@ use std::{
 
 use crate::{
     error::{Diagnostics, Result},
-    extraction::values::{
+    extractor::values::{
         Value, Values,
         foreign_key::{ResolvedLocale, ResolvedLocalesOrNamespaces, ResolvedNamespace},
     },
     utils::{KeyPath, Location},
 };
 use crate::{
-    extraction::values::plurals,
+    extractor::values::plurals,
     parser::{locale::RawLocalesOrNamespaces, options::Config},
 };
 use crate::{formatters::VarBound, utils::Key};

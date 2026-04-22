@@ -9,9 +9,7 @@ use icu_plurals::PluralOperands;
 
 use crate::{
     error::Diagnostics,
-    extraction::values::plurals::{
-        MergedPlurals, PluralForm, PluralForms, PluralRuleType, Plurals,
-    },
+    extractor::values::plurals::{MergedPlurals, PluralForm, PluralForms, PluralRuleType, Plurals},
     parser::{
         dummy::Dummy,
         locale::{RawLocale, RawLocalesOrNamespaces, RawNamespace, RawValueOrSubkeys, RawValues},
