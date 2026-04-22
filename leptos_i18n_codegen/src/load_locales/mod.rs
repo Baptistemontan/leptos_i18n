@@ -7,13 +7,8 @@ pub mod plurals;
 
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
-    extraction::{
-        ParsedLocales,
-        error::{Error, Result},
-        locale::{BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue, Namespace},
-        options::ParseOptions,
-        parsed_value::ParsedValue,
-    },
+    error::{Error, Result},
+    extraction::ParsedLocales,
     utils::{
         UnwrapAt,
         key::{Key, KeyPath},
@@ -27,7 +22,6 @@ use quote::{ToTokens, format_ident, quote};
 pub fn load_locales(
     parsed_locales: &ParsedLocales,
     crate_path: Option<&syn::Path>,
-    emit_diagnostics: bool,
     top_level_attributes: Option<&TokenStream>,
     gen_docs: bool,
 ) -> Result<TokenStream> {
@@ -36,7 +30,8 @@ pub fn load_locales(
 
     let ParsedLocales {
         cfg,
-        builder_keys,
+        values,
+        builders,
         diag,
         ..
     } = parsed_locales;
@@ -44,21 +39,6 @@ pub fn load_locales(
     if cfg!(all(feature = "csr", feature = "dynamic_load")) && cfg.translations_uri.is_none() {
         return Err(Error::MissingTranslationsURI.into());
     }
-
-    let deprecated_ranges = if diag.has_ranges() {
-        Some(quote! {
-            mod __warn_deprecated_ranges {
-                fn __warn_deprecated_ranges_() {
-                    use super::l_i18n_crate::__private::warn_deprecated_ranges;
-                    warn_deprecated_ranges();
-                }
-            }
-        })
-    } else {
-        None
-    };
-
-    let diag = emit_diagnostics.then_some(diag);
 
     let enum_ident = syn::Ident::new("Locale", Span::call_site());
     let keys_ident = syn::Ident::new("I18nKeys", Span::call_site());
@@ -281,10 +261,6 @@ pub fn load_locales(
             pub use l_i18n_crate::Locale as I18nLocaleTrait;
 
             #macros_reexport
-
-            #diag
-
-            #deprecated_ranges
         }
     })
 }

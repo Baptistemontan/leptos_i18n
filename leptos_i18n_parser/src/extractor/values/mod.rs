@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use crate::error::Diagnostics;
-use crate::extraction::StringIndexer;
-use crate::extraction::values::attributes::{Attribute, AttributeValue};
-use crate::extraction::values::foreign_key::{ResolvedLocale, ResolvedValue};
+use crate::extractor::StringIndexer;
+use crate::extractor::values::attributes::{Attribute, AttributeValue};
+use crate::extractor::values::foreign_key::{ResolvedLocale, ResolvedValue};
 use crate::parser::options::Config;
 use crate::parser::raw_value::RawLiteral;
 use crate::parser::raw_value::component::{

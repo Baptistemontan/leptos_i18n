@@ -13,7 +13,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::extraction::values::plurals::{PluralForm, PluralRuleType};
+use crate::extractor::values::plurals::{PluralForm, PluralRuleType};
 use crate::utils::{
     Location,
     key::{Key, KeyPath},
@@ -115,7 +115,7 @@ pub enum Error {
     },
     NoFileFormats,
     MultipleFilesFormats,
-    // MissingTranslationsURI,
+    MissingTranslationsURI,
     InvalidFormatterArgName {
         loc: Location,
         name: String,
@@ -286,14 +286,12 @@ impl Display for Error {
                 f,
                 "Error while computing plurals categories: {plurals_error}"
             ),
-            // TODO
-            // Error::MissingTranslationsURI => {
-            //     write!(
-            //         f,
-            //         "{:?} config option is missing. You are using dynamic loading in CSR, that value is required.",
-            //         cfg_file::Field::TRANSLATIONS_URI
-            //     )
-            // }
+            Error::MissingTranslationsURI => {
+                write!(
+                    f,
+                    "`translations_uri` config option is missing. You are using dynamic loading in CSR, that value is required."
+                )
+            }
             Error::Custom(err) => {
                 write!(f, "{err}")
             }
