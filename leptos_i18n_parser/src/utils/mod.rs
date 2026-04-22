@@ -1,28 +1,11 @@
 pub mod key;
 
-use std::fmt::{Debug, Display};
-
-pub use key::{Key, KeyPath};
-
-use crate::{
-    formatters::Formatters,
-    parse_locales::{
-        ForeignKeysPaths,
-        error::{Diagnostics, Result},
-        parsed_value::ParsedValue,
-    },
+use std::{
+    fmt::{Debug, Display},
+    ops::{Deref, DerefMut},
 };
 
-pub type ParseFn = fn(&ParseContext, &str) -> Option<Result<ParsedValue>>;
-
-#[derive(Clone, Copy)]
-pub struct ParseContext<'a> {
-    pub loc: Loc<'a>,
-    pub foreign_keys_paths: &'a ForeignKeysPaths,
-    pub formatters: &'a Formatters,
-    pub diag: &'a Diagnostics,
-    pub parse_fns: &'a [ParseFn],
-}
+pub use key::{Key, KeyPath};
 
 #[derive(Clone, Copy)]
 pub struct Loc<'a> {
@@ -30,7 +13,12 @@ pub struct Loc<'a> {
     pub locale: &'a Key,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct LocMut<'a> {
+    pub key_path: &'a mut KeyPath,
+    pub locale: &'a Key,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Location {
     pub locale: Key,
     pub key_path: KeyPath,
@@ -40,17 +28,10 @@ impl Location {
     pub fn new(locale: Key, key_path: KeyPath) -> Location {
         Location { locale, key_path }
     }
-}
 
-impl From<&'_ ParseContext<'_>> for Location {
-    fn from(ctx: &'_ ParseContext) -> Self {
-        ctx.loc.into()
-    }
-}
-
-impl From<ParseContext<'_>> for Location {
-    fn from(ctx: ParseContext<'_>) -> Self {
-        ctx.loc.into()
+    pub fn push_key(&mut self, key: Key) -> LocationGuard<'_> {
+        self.key_path.path.push(key);
+        LocationGuard { loc: self }
     }
 }
 
@@ -66,10 +47,42 @@ impl From<Loc<'_>> for Location {
     }
 }
 
+impl<'a> From<&'a Location> for Loc<'a> {
+    fn from(value: &'a Location) -> Self {
+        Loc {
+            key_path: &value.key_path,
+            locale: &value.locale,
+        }
+    }
+}
+
 impl Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Location { locale, key_path } = self;
         write!(f, "key \"{key_path}\" in locale {locale:?}")
+    }
+}
+
+pub struct LocationGuard<'a> {
+    loc: &'a mut Location,
+}
+
+impl Deref for LocationGuard<'_> {
+    type Target = Location;
+    fn deref(&self) -> &Self::Target {
+        self.loc
+    }
+}
+
+impl DerefMut for LocationGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.loc
+    }
+}
+
+impl Drop for LocationGuard<'_> {
+    fn drop(&mut self) {
+        self.key_path.path.pop();
     }
 }
 

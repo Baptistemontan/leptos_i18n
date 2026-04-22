@@ -1,6 +1,6 @@
 use icu_provider::{DataMarker, DataMarkerInfo};
-use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBounds};
-use leptos_i18n_parser::parse_locales::locale::{BuildersKeysInner, InterpolOrLit, LocaleValue};
+use leptos_i18n_parser::extraction::locale::{BuildersKeysInner, InterpolOrLit, LocaleValue};
+use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBound};
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
 
@@ -47,7 +47,7 @@ pub fn find_used_datamarker(
 
                     for bound in &var_infos.bounds {
                         let dk = match bound {
-                            VarBounds::Formatted { to_tokens, .. } => {
+                            VarBound::Formatted { to_tokens, .. } => {
                                 if check_bound::<formatters::currency::CurrencyFormatter>(
                                     &**to_tokens,
                                 ) {

@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 
 use leptos_i18n_parser::{
-    parse_locales::parsed_value::{Attribute, AttributeValue, Attributes, ParsedValue},
+    extraction::parsed_value::{Attribute, AttributeValue, Attributes, ParsedValue},
     utils::{Key, KeyPath, UnwrapAt},
 };
 
@@ -17,22 +17,20 @@ pub const TRANSLATIONS_KEY: &str = if cfg!(feature = "dynamic_load") {
     "I18N_TRANSLATIONS"
 };
 
-impl<'a> From<&'a leptos_i18n_parser::parse_locales::parsed_value::Literal> for Literal<'a> {
-    fn from(value: &'a leptos_i18n_parser::parse_locales::parsed_value::Literal) -> Self {
+impl<'a> From<&'a leptos_i18n_parser::extraction::parsed_value::Literal> for Literal<'a> {
+    fn from(value: &'a leptos_i18n_parser::extraction::parsed_value::Literal) -> Self {
         match value {
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::String(s, index) => {
+            leptos_i18n_parser::extraction::parsed_value::Literal::String(s, index) => {
                 Self::String(s, *index)
             }
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Signed(lit) => {
+            leptos_i18n_parser::extraction::parsed_value::Literal::Signed(lit) => {
                 Self::Signed(*lit)
             }
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Unsigned(lit) => {
+            leptos_i18n_parser::extraction::parsed_value::Literal::Unsigned(lit) => {
                 Self::Unsigned(*lit)
             }
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Float(lit) => {
-                Self::Float(*lit)
-            }
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(lit) => Self::Bool(*lit),
+            leptos_i18n_parser::extraction::parsed_value::Literal::Float(lit) => Self::Float(*lit),
+            leptos_i18n_parser::extraction::parsed_value::Literal::Bool(lit) => Self::Bool(*lit),
         }
     }
 }
@@ -257,9 +255,9 @@ pub fn attribute_value_to_token_stream(
 ) -> Option<TokenStream> {
     match this {
         // TODO: should we really skip `false` attributes ? already skipped for string rendering, but it might have an impact with DOM rendering ?
-        AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(false),
-        ) => None,
+        AttributeValue::Literal(leptos_i18n_parser::extraction::parsed_value::Literal::Bool(
+            false,
+        )) => None,
         AttributeValue::Literal(lit) => {
             let ts = Literal::from(lit).to_token_stream(strings_count);
             Some(ts)
@@ -278,19 +276,19 @@ pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> Optio
     let ts = match &this.value {
         None
         | Some(AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(true), // collapse `attre = true` to just `attr`
+            leptos_i18n_parser::extraction::parsed_value::Literal::Bool(true), // collapse `attre = true` to just `attr`
         )) => {
             let s = format!(" {}", key);
             quote!(::core::write!(__formatter, #s))
         }
         Some(AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Bool(false),
+            leptos_i18n_parser::extraction::parsed_value::Literal::Bool(false),
         )) => {
             // Don't render `false` attributes
             return None;
         }
         Some(AttributeValue::Literal(
-            lit_s @ leptos_i18n_parser::parse_locales::parsed_value::Literal::String(_, _),
+            lit_s @ leptos_i18n_parser::extraction::parsed_value::Literal::String(_, _),
         )) => {
             let ts = Literal::from(lit_s).to_token_stream(strings_count);
             let fstr = format!(" {}=\"{{}}\"", key);
@@ -300,13 +298,13 @@ pub fn attribute_as_string_impl(this: &Attribute, strings_count: usize) -> Optio
             })
         }
         Some(AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Signed(value),
+            leptos_i18n_parser::extraction::parsed_value::Literal::Signed(value),
         )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Unsigned(value),
+            leptos_i18n_parser::extraction::parsed_value::Literal::Unsigned(value),
         )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Literal(
-            leptos_i18n_parser::parse_locales::parsed_value::Literal::Float(value),
+            leptos_i18n_parser::extraction::parsed_value::Literal::Float(value),
         )) => attribute_num_string_impl(key, value),
         Some(AttributeValue::Variable(var_key)) => {
             quote!({ l_i18n_crate::display::AttributeValue::fmt_with_name(&#var_key, __formatter, #key) })

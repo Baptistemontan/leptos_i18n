@@ -9,14 +9,14 @@ pub enum LiteralType {
     Float,
 }
 
-impl From<leptos_i18n_parser::parse_locales::locale::LiteralType> for LiteralType {
-    fn from(value: leptos_i18n_parser::parse_locales::locale::LiteralType) -> Self {
+impl From<leptos_i18n_parser::extraction::locale::LiteralType> for LiteralType {
+    fn from(value: leptos_i18n_parser::extraction::locale::LiteralType) -> Self {
         match value {
-            leptos_i18n_parser::parse_locales::locale::LiteralType::String => Self::String,
-            leptos_i18n_parser::parse_locales::locale::LiteralType::Bool => Self::Bool,
-            leptos_i18n_parser::parse_locales::locale::LiteralType::Signed => Self::Signed,
-            leptos_i18n_parser::parse_locales::locale::LiteralType::Unsigned => Self::Unsigned,
-            leptos_i18n_parser::parse_locales::locale::LiteralType::Float => Self::Float,
+            leptos_i18n_parser::extraction::locale::LiteralType::String => Self::String,
+            leptos_i18n_parser::extraction::locale::LiteralType::Bool => Self::Bool,
+            leptos_i18n_parser::extraction::locale::LiteralType::Signed => Self::Signed,
+            leptos_i18n_parser::extraction::locale::LiteralType::Unsigned => Self::Unsigned,
+            leptos_i18n_parser::extraction::locale::LiteralType::Float => Self::Float,
         }
     }
 }

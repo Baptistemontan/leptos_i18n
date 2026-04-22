@@ -13,6 +13,7 @@ icu_provider = { workspace = true, default-features = false }
 icu_locale = { workspace = true, default-features = true }
 icu_plurals = { workspace = true, features = [
   "compiled_data",
+  "datagen",
 ], default-features = false }
 serde = { features = ["rc"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }

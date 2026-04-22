@@ -4,7 +4,7 @@ use icu_provider::DataError as IcuDataError;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use std::{
-    cell::{Cell, Ref, RefCell},
+    cell::{Ref, RefCell},
     collections::BTreeSet,
     fmt::{Debug, Display},
     io,
@@ -13,14 +13,22 @@ use std::{
     rc::Rc,
 };
 
-use super::locale::SerdeError;
-use crate::{
-    parse_locales::cfg_file,
-    utils::{
-        Location,
-        key::{Key, KeyPath},
-    },
+use crate::extraction::values::plurals::{PluralForm, PluralRuleType};
+use crate::utils::{
+    Location,
+    key::{Key, KeyPath},
 };
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum SerdeError {
+    Json(serde_json::Error),
+    Yaml(serde_yaml::Error),
+    Toml(toml::de::Error),
+    Json5(json5::Error),
+    Custom(String),
+    Io(std::io::Error),
+}
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -47,6 +55,10 @@ pub enum Error {
         key_path: KeyPath,
     },
     InvalidKey(String),
+    InvalidKeyAt {
+        key: String,
+        loc: Location,
+    },
     EmptyRange,
     InvalidRangeType(String),
     NestedRanges,
@@ -103,7 +115,7 @@ pub enum Error {
     },
     NoFileFormats,
     MultipleFilesFormats,
-    MissingTranslationsURI,
+    // MissingTranslationsURI,
     InvalidFormatterArgName {
         loc: Location,
         name: String,
@@ -188,6 +200,10 @@ impl Display for Error {
                 f,
                 "invalid key {key:?}, it can't be used as a rust identifier, try removing whitespaces and special characters."
             ),
+            Error::InvalidKeyAt { key, loc } => write!(
+                f,
+                "invalid key {key:?} at {loc}, it can't be used as a rust identifier, try removing whitespaces and special characters."
+            ),
             Error::EmptyRange => write!(f, "empty ranges are not allowed"),
             Error::InvalidRangeType(t) => write!(f, "invalid range type {t:?}"),
             Error::NestedRanges => write!(f, "nested ranges are not allowed"),
@@ -270,13 +286,14 @@ impl Display for Error {
                 f,
                 "Error while computing plurals categories: {plurals_error}"
             ),
-            Error::MissingTranslationsURI => {
-                write!(
-                    f,
-                    "{:?} config option is missing. You are using dynamic loading in CSR, that value is required.",
-                    cfg_file::Field::TRANSLATIONS_URI
-                )
-            }
+            // TODO
+            // Error::MissingTranslationsURI => {
+            //     write!(
+            //         f,
+            //         "{:?} config option is missing. You are using dynamic loading in CSR, that value is required.",
+            //         cfg_file::Field::TRANSLATIONS_URI
+            //     )
+            // }
             Error::Custom(err) => {
                 write!(f, "{err}")
             }
@@ -390,7 +407,32 @@ pub type Result<T, E = BoxedError> = core::result::Result<T, E>;
 
 impl std::error::Error for Error {}
 
-use super::plurals::{PluralForm, PluralRuleType};
+impl std::fmt::Display for SerdeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SerdeError::Json(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Yaml(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Toml(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Json5(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Io(error) => std::fmt::Display::fmt(error, f),
+            SerdeError::Custom(err) => std::fmt::Display::fmt(err, f),
+        }
+    }
+}
+
+impl SerdeError {
+    pub fn custom<T: ToString>(err: T) -> Self {
+        SerdeError::Custom(err.to_string())
+    }
+}
+
+impl From<std::io::Error> for SerdeError {
+    fn from(value: std::io::Error) -> Self {
+        SerdeError::Io(value)
+    }
+}
+
+impl std::error::Error for SerdeError {}
 
 #[derive(Debug)]
 pub enum Warning {
@@ -483,7 +525,22 @@ impl Display for Warning {
 pub struct Diagnostics {
     errors: RefCell<Vec<Error>>,
     warnings: RefCell<Vec<Warning>>,
-    has_ranges: Cell<bool>,
+}
+
+pub trait IntoError {
+    fn into_err(self) -> Error;
+}
+
+impl IntoError for Error {
+    fn into_err(self) -> Error {
+        self
+    }
+}
+
+impl IntoError for BoxedError {
+    fn into_err(self) -> Error {
+        self.into_inner()
+    }
 }
 
 impl Diagnostics {
@@ -491,8 +548,8 @@ impl Diagnostics {
         Default::default()
     }
 
-    pub fn emit_error(&self, error: Error) {
-        self.errors.borrow_mut().push(error);
+    pub fn emit_error(&self, error: impl IntoError) {
+        self.errors.borrow_mut().push(error.into_err());
     }
 
     pub fn emit_custom_error(&self, err: impl ToString) {
@@ -520,14 +577,6 @@ impl Diagnostics {
     pub fn borrow(&self) -> (Ref<'_, [Error]>, Ref<'_, [Warning]>) {
         (self.errors(), self.warnings())
     }
-
-    pub fn has_ranges(&self) -> bool {
-        self.has_ranges.get()
-    }
-
-    pub fn set_has_ranges(&self) {
-        self.has_ranges.set(true);
-    }
 }
 
 impl ToTokens for Diagnostics {
@@ -547,6 +596,17 @@ impl ToTokens for Diagnostics {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ts = Self::to_token_stream(self);
         tokens.extend(ts);
+    }
+}
+
+impl Debug for Diagnostics {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let warnings = self.warnings.borrow();
+        let errors = self.errors.borrow();
+        f.debug_struct("Diagnostics")
+            .field("warnings", &*warnings)
+            .field("errors", &*errors)
+            .finish()
     }
 }
 

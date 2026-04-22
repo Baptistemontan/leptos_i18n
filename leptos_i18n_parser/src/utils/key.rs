@@ -1,7 +1,6 @@
-use crate::parse_locales::{
-    VAR_COUNT_KEY,
-    error::{Error, Result},
-};
+use crate::error::{Error, Result};
+use crate::extraction::VAR_COUNT_KEY;
+use crate::utils::Loc;
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -29,7 +28,18 @@ impl Key {
     }
 
     pub fn try_new(name: &str) -> Result<Self> {
-        Self::new(name).ok_or_else(|| Error::InvalidKey(name.to_string()).into())
+        Self::new(name)
+            .ok_or_else(|| Error::InvalidKey(name.to_string()))
+            .map_err(Into::into)
+    }
+
+    pub fn try_new_at(name: &str, loc: Loc<'_>) -> Result<Self> {
+        Self::new(name)
+            .ok_or_else(|| Error::InvalidKeyAt {
+                key: name.to_string(),
+                loc: loc.into(),
+            })
+            .map_err(Into::into)
     }
 
     pub fn from_ident(ident: syn::Ident) -> Self {
