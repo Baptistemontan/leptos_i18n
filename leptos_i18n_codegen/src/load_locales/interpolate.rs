@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use leptos_i18n_parser::{
-    formatters::VarBounds,
-    parse_locales::{
+    extraction::{
         locale::{DefaultedLocales, InterpolationKeys, Locale},
         options::ParseOptions,
         parsed_value::ParsedValue,
     },
+    formatters::VarBound,
     utils::{Key, KeyPath, UnwrapAt},
 };
 use proc_macro2::{Span, TokenStream};
@@ -58,7 +58,7 @@ pub struct Interpolation {
 
 enum VarOrComp {
     Var {
-        bounds: Vec<VarBounds>,
+        bounds: Vec<VarBound>,
         plural: bool,
     },
     Comp {
@@ -74,8 +74,8 @@ struct Field {
 }
 
 impl Field {
-    fn get_var_generics(generic: &syn::Ident, bounds: &[VarBounds], plural: bool) -> TokenStream {
-        let bounds = bounds.iter().map(VarBounds::view_bounds);
+    fn get_var_generics(generic: &syn::Ident, bounds: &[VarBound], plural: bool) -> TokenStream {
+        let bounds = bounds.iter().map(VarBound::view_bounds);
         let plural_bound = plural.then(|| quote!(l_i18n_crate::__private::InterpolatePluralCount));
         let bounds = bounds.chain(plural_bound);
 
@@ -84,14 +84,14 @@ impl Field {
 
     fn get_fmt_var_generics(
         generic: &syn::Ident,
-        bounds: &[VarBounds],
+        bounds: &[VarBound],
         plural: bool,
     ) -> TokenStream {
         if plural {
-            let bounds = bounds.iter().map(VarBounds::fmt_bounds);
+            let bounds = bounds.iter().map(VarBound::fmt_bounds);
             quote!(#generic: #(#bounds +)* Clone + Into<l_i18n_crate::reexports::icu::plurals::PluralOperands>)
         } else {
-            let bounds = bounds.iter().map(VarBounds::fmt_bounds);
+            let bounds = bounds.iter().map(VarBound::fmt_bounds);
             quote!(#generic: #(#bounds +)*)
         }
     }

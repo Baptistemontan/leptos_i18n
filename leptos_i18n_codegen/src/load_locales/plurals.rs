@@ -1,5 +1,5 @@
 use leptos_i18n_parser::{
-    parse_locales::{
+    extraction::{
         locale::{InterpolOrLit, LiteralType},
         plurals::Plurals,
     },
@@ -18,13 +18,13 @@ pub enum PluralRuleType {
     Ordinal,
 }
 
-impl From<leptos_i18n_parser::parse_locales::plurals::PluralRuleType> for PluralRuleType {
-    fn from(value: leptos_i18n_parser::parse_locales::plurals::PluralRuleType) -> Self {
+impl From<leptos_i18n_parser::extraction::plurals::PluralRuleType> for PluralRuleType {
+    fn from(value: leptos_i18n_parser::extraction::plurals::PluralRuleType) -> Self {
         match value {
-            leptos_i18n_parser::parse_locales::plurals::PluralRuleType::Cardinal => {
+            leptos_i18n_parser::extraction::plurals::PluralRuleType::Cardinal => {
                 PluralRuleType::Cardinal
             }
-            leptos_i18n_parser::parse_locales::plurals::PluralRuleType::Ordinal => {
+            leptos_i18n_parser::extraction::plurals::PluralRuleType::Ordinal => {
                 PluralRuleType::Ordinal
             }
         }
@@ -48,15 +48,15 @@ impl ToTokens for PluralRuleType {
     }
 }
 
-impl From<leptos_i18n_parser::parse_locales::plurals::PluralForm> for PluralForm {
-    fn from(value: leptos_i18n_parser::parse_locales::plurals::PluralForm) -> Self {
+impl From<leptos_i18n_parser::extraction::plurals::PluralForm> for PluralForm {
+    fn from(value: leptos_i18n_parser::extraction::plurals::PluralForm) -> Self {
         match value {
-            leptos_i18n_parser::parse_locales::plurals::PluralForm::Zero => PluralForm::Zero,
-            leptos_i18n_parser::parse_locales::plurals::PluralForm::One => PluralForm::One,
-            leptos_i18n_parser::parse_locales::plurals::PluralForm::Two => PluralForm::Two,
-            leptos_i18n_parser::parse_locales::plurals::PluralForm::Few => PluralForm::Few,
-            leptos_i18n_parser::parse_locales::plurals::PluralForm::Many => PluralForm::Many,
-            leptos_i18n_parser::parse_locales::plurals::PluralForm::Other => PluralForm::Other,
+            leptos_i18n_parser::extraction::plurals::PluralForm::Zero => PluralForm::Zero,
+            leptos_i18n_parser::extraction::plurals::PluralForm::One => PluralForm::One,
+            leptos_i18n_parser::extraction::plurals::PluralForm::Two => PluralForm::Two,
+            leptos_i18n_parser::extraction::plurals::PluralForm::Few => PluralForm::Few,
+            leptos_i18n_parser::extraction::plurals::PluralForm::Many => PluralForm::Many,
+            leptos_i18n_parser::extraction::plurals::PluralForm::Other => PluralForm::Other,
         }
     }
 }

@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, fmt::Display};
 
 use leptos_i18n_parser::{
-    formatters::Formatters,
-    parse_locales::{
+    extraction::{
         ForeignKeysPaths, ParsedLocales,
         cfg_file::ConfigFile,
         error::Diagnostics,
@@ -11,6 +10,7 @@ use leptos_i18n_parser::{
         options::{Config, ParseOptions},
         parsed_value::ParsedValue,
     },
+    formatters::Formatters,
     utils::{Key, KeyPath, Loc, ParseContext},
 };
 use proc_macro2::Span;

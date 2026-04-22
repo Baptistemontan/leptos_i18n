@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use leptos_i18n_parser::parse_locales::{
+use leptos_i18n_parser::extraction::{
     cfg_file::ConfigFile,
     error::{Error, Result},
 };
@@ -34,7 +34,7 @@ pub fn load_locales() -> Result<TokenStream> {
     let cfg = cfg_file.into();
 
     let parsed_locales =
-        leptos_i18n_parser::parse_locales::parse_locales(Some(manifest_dir_path), cfg)?;
+        leptos_i18n_parser::extraction::parse_locales(Some(manifest_dir_path), cfg)?;
 
     leptos_i18n_codegen::gen_code(&parsed_locales, None, true, None, true)
 }

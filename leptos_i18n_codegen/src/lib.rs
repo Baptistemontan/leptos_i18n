@@ -7,7 +7,8 @@
 //!
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
-use leptos_i18n_parser::parse_locales::{ParsedLocales, error::Result};
+use leptos_i18n_parser::{error::Result, extraction::ParsedLocales};
+
 use proc_macro2::TokenStream;
 
 pub mod load_locales;

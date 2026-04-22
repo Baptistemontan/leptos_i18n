@@ -7,7 +7,7 @@ pub mod plurals;
 
 use interpolate::Interpolation;
 use leptos_i18n_parser::{
-    parse_locales::{
+    extraction::{
         ParsedLocales,
         error::{Error, Result},
         locale::{BuildersKeys, BuildersKeysInner, InterpolOrLit, Locale, LocaleValue, Namespace},
