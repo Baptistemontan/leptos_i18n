@@ -8,13 +8,16 @@ pub mod formatters;
 mod parser;
 pub mod utils;
 
-pub use extractor::extract_locales;
-pub use parser::parse_locales_raw;
+pub mod options {
+    pub use super::parser::options::{Config, FileFormat, LocaleName, ParseOptions, parser};
+}
 
 pub mod parsing {
     pub use super::parser::{RawParsedLocales, parse_locales_raw};
 }
 
 pub mod extraction {
-    pub use super::extractor::{ParsedLocales, defaults::DefaultedLocales, extract_locales};
+    pub use super::extractor::defaults::DefaultedLocales;
+    pub use super::extractor::values::{Keys, Value, Values, ValuesOrSubkeys};
+    pub use super::extractor::{Locales, LocalesOrNamespaces, ParsedLocales, extract_locales};
 }

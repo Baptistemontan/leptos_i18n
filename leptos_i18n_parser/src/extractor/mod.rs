@@ -40,8 +40,8 @@ pub enum LocalesOrNamespaces {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locales {
-    locales: Vec<Locale>,
-    values: Keys,
+    pub locales: Vec<Locale>,
+    pub keys: Keys,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -164,7 +164,7 @@ fn merge_locales(
 
     let mut merged_locales = Locales {
         locales: Vec::with_capacity(locales.len()),
-        values: Keys::new(default_locale.clone()),
+        keys: Keys::new(default_locale.clone()),
     };
 
     for locale in locales {
@@ -176,7 +176,7 @@ fn merge_locales(
         values::merge_and_index_keys(
             locale,
             &default_locale,
-            &mut merged_locales.values,
+            &mut merged_locales.keys,
             &mut loc,
             cfg,
             &mut str_indexer,
@@ -208,12 +208,12 @@ fn get_builders(locales: &mut LocalesOrNamespaces) -> Builders {
         LocalesOrNamespaces::Namespaces(namespaces) => {
             for ns in namespaces {
                 let mut path = KeyPath::new(Some(ns.name.clone()));
-                get_keys_builders(&mut ns.locales.values, &mut ids, &mut path);
+                get_keys_builders(&mut ns.locales.keys, &mut ids, &mut path);
             }
         }
         LocalesOrNamespaces::Locales(locales) => {
             let mut path = KeyPath::new(None);
-            get_keys_builders(&mut locales.values, &mut ids, &mut path);
+            get_keys_builders(&mut locales.keys, &mut ids, &mut path);
         }
     }
 

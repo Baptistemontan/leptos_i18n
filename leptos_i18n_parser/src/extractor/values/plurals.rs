@@ -1,7 +1,9 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, btree_map::Entry},
     convert::Infallible,
     fmt::Display,
+    rc::Rc,
 };
 
 use icu_plurals::{
@@ -39,7 +41,7 @@ pub struct PluralForms<V = Value> {
     many: Option<Box<V>>,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PluralRuleType {
     Cardinal,
     Ordinal,
@@ -55,13 +57,51 @@ pub enum PluralForm {
     Other,
 }
 
-impl<V> Plurals<V> {
-    pub fn get_plural_rules(rule_type: PluralRuleType, locale: &LocaleName) -> Result<PluralRules> {
-        let prefs = PluralRulesPreferences::from(&*locale.loc_id);
-        let plural_rules =
-            PluralRules::try_new(prefs, rule_type.into()).map_err(Error::PluralRulesError)?;
+struct PluralRulesCache {
+    cache: RefCell<BTreeMap<(Key, PluralRuleType), Rc<PluralRules>>>,
+}
 
-        Ok(plural_rules)
+impl PluralRulesCache {
+    pub const fn new() -> Self {
+        PluralRulesCache {
+            cache: RefCell::new(BTreeMap::new()),
+        }
+    }
+
+    pub fn get_rules_for(
+        &self,
+        locale: &LocaleName,
+        rule_type: PluralRuleType,
+    ) -> Result<Rc<PluralRules>> {
+        let mut cache = self.cache.borrow_mut();
+        let entry = cache.entry((locale.key.clone(), rule_type));
+        match entry {
+            Entry::Occupied(occupied_entry) => {
+                let rules = occupied_entry.get();
+                Ok(rules.clone())
+            }
+            Entry::Vacant(vacant_entry) => {
+                let prefs = PluralRulesPreferences::from(&*locale.loc_id);
+                let plural_rules = PluralRules::try_new(prefs, rule_type.into())
+                    .map_err(Error::PluralRulesError)?;
+                let rules = Rc::new(plural_rules);
+                let rules = vacant_entry.insert(rules);
+                Ok(rules.clone())
+            }
+        }
+    }
+}
+
+thread_local! {
+    static PLURAL_RULES_CACHE: PluralRulesCache = const { PluralRulesCache::new() };
+}
+
+impl<V> Plurals<V> {
+    pub fn get_plural_rules(
+        rule_type: PluralRuleType,
+        locale: &LocaleName,
+    ) -> Result<Rc<PluralRules>> {
+        PLURAL_RULES_CACHE.with(|cache| cache.get_rules_for(locale, rule_type))
     }
 
     pub fn check_forms(&self, loc: Loc, diag: &Diagnostics) -> Result<()> {
