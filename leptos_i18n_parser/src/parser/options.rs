@@ -10,17 +10,51 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     fmt::Debug,
+    fmt::Display,
     io::Read,
     panic::Location,
     path::{Path, PathBuf},
+    rc::Rc,
     sync::Arc,
 };
+
+#[derive(Debug, Clone)]
+pub struct LocaleName {
+    pub key: Key,
+    pub loc_id: Rc<icu_locale::Locale>,
+}
+
+impl Ord for LocaleName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.key.cmp(&other.key)
+    }
+}
+
+impl PartialOrd for LocaleName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for LocaleName {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+
+impl Eq for LocaleName {}
+
+impl Display for LocaleName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&*self.loc_id, f)
+    }
+}
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Config {
     pub default_locale: Key,
-    pub locales: Vec<Key>,
+    pub locales: Vec<LocaleName>,
     pub locales_path: Cow<'static, Path>,
     pub namespaces: Vec<Key>,
     pub translations_uri: Option<Cow<'static, str>>,
@@ -123,10 +157,10 @@ impl ParseOptions {
 
 impl Config {
     pub fn new(default_locale: &str) -> Result<Self> {
-        let default_locale = Key::try_new(default_locale)?;
+        let default_locale = Self::new_locale_name(default_locale)?;
         Ok(Config {
-            locales: vec![default_locale.clone()],
-            default_locale,
+            default_locale: default_locale.key.clone(),
+            locales: vec![default_locale],
             locales_path: Cow::Borrowed(DEFAULT_LOCALES_PATH.as_ref()),
             namespaces: vec![],
             translations_uri: None,
@@ -135,22 +169,38 @@ impl Config {
         })
     }
 
+    fn new_locale_name(name: &str) -> Result<LocaleName> {
+        let loc_id = name
+            .parse()
+            .map(Rc::new)
+            .map_err(|err| Error::InvalidLocale {
+                locale: name.to_string(),
+                err,
+            })?;
+        let default_locale_key = Key::try_new(name)?;
+        Ok(LocaleName {
+            key: default_locale_key.clone(),
+            loc_id,
+        })
+    }
+
     #[track_caller]
-    fn add_locale_inner(&mut self, loc: Key) {
+    fn add_locale_inner(&mut self, name: &str) -> Result<()> {
+        let loc = Self::new_locale_name(name)?;
         if self.locales.contains(&loc) {
             let location = Location::caller();
             println!(
-                "cargo::warning=locale \"{loc}\" already present, re-added at {location}, it is skipped"
+                "cargo::warning=locale \"{name}\" already present, re-added at {location}, it is skipped",
             );
         } else {
             self.locales.push(loc);
         }
+        Ok(())
     }
 
     #[track_caller]
     pub fn add_locale(mut self, locale: &str) -> Result<Self> {
-        let loc = Key::try_new(locale)?;
-        self.add_locale_inner(loc);
+        self.add_locale_inner(locale)?;
         Ok(self)
     }
 
@@ -197,15 +247,16 @@ impl Config {
     #[track_caller]
     pub fn extend_locale(mut self, locale_to_extend: &str, inherit_from: &str) -> Result<Self> {
         #[track_caller]
-        fn check_if_present(locales: &[Key], loc: &Key) -> Result<()> {
-            if locales.contains(loc) {
-                Ok(())
-            } else {
+        fn check_if_present(locales: &[LocaleName], loc: &Key) -> Result<()> {
+            let is_present = locales.iter().find(|l| l.key == *loc).is_some();
+            if !is_present {
                 Err(Error::UnknownLocaleInInherit {
                     loc: Location::caller(),
                     locale: loc.to_string(),
                 }
                 .into())
+            } else {
+                Ok(())
             }
         }
 

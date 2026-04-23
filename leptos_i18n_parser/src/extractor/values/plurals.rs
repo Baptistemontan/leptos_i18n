@@ -6,7 +6,7 @@ use std::{
 
 use icu_plurals::{
     PluralCategory, PluralRuleType as IcuRuleType, PluralRules,
-    PluralRulesOptions as IcuPluralRulesOptions,
+    PluralRulesOptions as IcuPluralRulesOptions, PluralRulesPreferences,
 };
 
 use super::Value;
@@ -16,6 +16,7 @@ use crate::{
         locale::{
             NoSubkey, RawLocale, RawLocalesOrNamespaces, RawNamespace, RawValueOrSubkeys, RawValues,
         },
+        options::LocaleName,
         raw_value::RawValue,
     },
     utils::{Key, KeyPath, Loc, Location},
@@ -55,17 +56,10 @@ pub enum PluralForm {
 }
 
 impl<V> Plurals<V> {
-    pub fn get_plural_rules(rule_type: PluralRuleType, locale: &Key) -> Result<PluralRules> {
-        let locale =
-            locale
-                .name
-                .parse::<icu_locale::Locale>()
-                .map_err(|err| Error::InvalidLocale {
-                    locale: locale.name.clone(),
-                    err,
-                })?;
-        let plural_rules = PluralRules::try_new(locale.into(), rule_type.into())
-            .map_err(Error::PluralRulesError)?;
+    pub fn get_plural_rules(rule_type: PluralRuleType, locale: &LocaleName) -> Result<PluralRules> {
+        let prefs = PluralRulesPreferences::from(&*locale.loc_id);
+        let plural_rules =
+            PluralRules::try_new(prefs, rule_type.into()).map_err(Error::PluralRulesError)?;
 
         Ok(plural_rules)
     }

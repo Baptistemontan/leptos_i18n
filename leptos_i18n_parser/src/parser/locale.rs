@@ -10,7 +10,7 @@ use crate::{
     parser::{
         ValuesSeed,
         dummy::Dummy,
-        options::{Config, FileFormat, ParseOptions},
+        options::{Config, FileFormat, LocaleName, ParseOptions},
         raw_value::RawValue,
     },
     utils::{Key, KeyPath},
@@ -24,7 +24,7 @@ pub enum RawLocalesOrNamespaces<V = RawValue> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawLocale<V = RawValue> {
-    pub name: Key,
+    pub name: LocaleName,
     pub values: RawValues<V>,
 }
 
@@ -74,7 +74,7 @@ impl RawLocalesOrNamespaces {
         } else {
             let mut locales = Vec::with_capacity(cfg.locales.len());
             for locale in cfg.locales.iter().cloned() {
-                manifest_dir_path.push(&*locale.name);
+                manifest_dir_path.push(&*locale.key.name);
                 let locale_file = find_file(manifest_dir_path, &cfg.options.file_format)?;
                 let locale = RawLocale::new(
                     locale_file,
@@ -97,15 +97,15 @@ impl RawNamespace {
     pub fn new(
         locales_dir_path: &mut PathBuf,
         name: Key,
-        locale_keys: &[Key],
+        locale_names: &[LocaleName],
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
         options: &ParseOptions,
     ) -> Result<Self> {
-        let mut locales = Vec::with_capacity(locale_keys.len());
-        for locale in locale_keys.iter().cloned() {
+        let mut locales = Vec::with_capacity(locale_names.len());
+        for locale in locale_names.iter().cloned() {
             let file_path: &Path = name.name.as_ref().as_ref();
-            locales_dir_path.push(&*locale.name);
+            locales_dir_path.push(&*locale.key.name);
             locales_dir_path.push(file_path);
 
             let locale_file = find_file(locales_dir_path, &options.file_format)?;
@@ -132,17 +132,17 @@ impl RawLocale {
     pub fn new(
         locale_file: File,
         path: &mut PathBuf,
-        name: Key,
+        name: LocaleName,
         namespace: Option<Key>,
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
         options: &ParseOptions,
     ) -> Result<Self> {
-        track_file(tracked_files, &name, namespace.as_ref(), path, diag);
+        track_file(tracked_files, &name.key, namespace.as_ref(), path, diag);
 
         let seed = ValuesSeed {
-            name: name.clone(),
-            top_locale_name: name.clone(),
+            name: name.key.clone(),
+            top_locale_name: &name,
             key_path: KeyPath::new(namespace),
             diag,
             formatters: &options.formatters,

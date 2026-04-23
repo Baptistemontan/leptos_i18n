@@ -1,5 +1,5 @@
 use crate::{
-    parser::raw_value::component::Component,
+    parser::{options::LocaleName, raw_value::component::Component},
     utils::{Key, KeyPath, Loc},
 };
 
@@ -15,36 +15,35 @@ pub struct Dummy {
 }
 
 impl Dummy {
-    pub fn parse(s: &str) -> Self {
+    pub fn parse(s: &str, locale: &LocaleName) -> Self {
         let mut dummies = Vec::new();
-        Self::parse_inner(s, &mut dummies);
+        Self::parse_inner(s, &mut dummies, locale);
         Dummy { dummies }
     }
 
-    fn parse_inner(s: &str, dummies: &mut Vec<DummyArg>) {
-        if Self::find_component(s, dummies).is_none() {
+    fn parse_inner(s: &str, dummies: &mut Vec<DummyArg>, locale: &LocaleName) {
+        if Self::find_component(s, dummies, locale).is_none() {
             Self::find_var(s, dummies);
         }
     }
 
-    fn find_component(s: &str, dummies: &mut Vec<DummyArg>) -> Option<()> {
+    fn find_component(s: &str, dummies: &mut Vec<DummyArg>, locale: &LocaleName) -> Option<()> {
         let dummy_key_path = KeyPath::default();
-        let dummy_locale = Key::new("dummy_locale").unwrap();
         let dummy_loc = Loc {
             key_path: &dummy_key_path,
-            locale: &dummy_locale,
+            locale,
         };
 
         let component = Component::find_component(s, dummy_loc)?.ok()?;
 
         dummies.push(DummyArg::Component(component.key));
 
-        Self::parse_inner(component.before, dummies);
+        Self::parse_inner(component.before, dummies, locale);
 
         if let Some(inner) = component.inner {
-            Self::parse_inner(inner, dummies);
+            Self::parse_inner(inner, dummies, locale);
         }
-        Self::parse_inner(component.after, dummies);
+        Self::parse_inner(component.after, dummies, locale);
 
         Self::find_var(component.attrs, dummies)
     }

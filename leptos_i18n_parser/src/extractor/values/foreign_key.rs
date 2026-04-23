@@ -13,6 +13,7 @@ use crate::{
     parser::{
         dummy::Dummy,
         locale::{RawLocale, RawLocalesOrNamespaces, RawNamespace, RawValueOrSubkeys, RawValues},
+        options::LocaleName,
         raw_value::{
             RawLiteral, RawValue,
             component::{Component, RawAttribute, RawAttributeValue, RawAttributes},
@@ -36,7 +37,7 @@ pub struct ResolvedNamespace {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResolvedLocale {
-    pub name: Key,
+    pub name: LocaleName,
     pub values: ResolvedValues,
 }
 
@@ -325,7 +326,7 @@ fn map_plural_key(
 fn get_form_for_literal(
     lit: &RawLiteral,
     rule_type: PluralRuleType,
-    locale: &Key,
+    locale: &LocaleName,
     diag: &Diagnostics,
 ) -> PluralForm {
     match lit {
@@ -376,7 +377,7 @@ impl<'a> TryFrom<StrToPluralOperands<'a>> for PluralOperands {
 
 fn get_plural_form_for<V, E>(
     rule_type: PluralRuleType,
-    locale: &Key,
+    locale: &LocaleName,
     value: V,
     diag: &Diagnostics,
 ) -> PluralForm
@@ -459,7 +460,7 @@ fn has_deps(
     value: &MergedPlurals,
     resolved: &ResolvedLocalesOrNamespaces,
     set_fks: &BTreeMap<Location, ResolvedValue>,
-    locale: &Key,
+    locale: &LocaleName,
     waiting_on: &mut BTreeSet<Location>,
 ) -> bool {
     match value {
@@ -483,7 +484,7 @@ fn raw_value_has_deps(
     value: &RawValue,
     resolved: &ResolvedLocalesOrNamespaces,
     set_fks: &BTreeMap<Location, ResolvedValue>,
-    locale: &Key,
+    locale: &LocaleName,
     waiting_on: &mut BTreeSet<Location>,
 ) -> bool {
     match value {

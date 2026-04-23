@@ -71,8 +71,8 @@ pub fn merge_and_index_keys(
 ) {
     // TODO: diag
     let _ = diag;
-    let current_locale = values.name;
-    let is_default = current_locale == *default_locale;
+    let current_locale_name = values.name;
+    let is_default = current_locale_name.key == *default_locale;
     for (key, value) in values.values.values {
         let mut loc = loc.push_key(key.clone());
         match value {
@@ -85,7 +85,7 @@ pub fn merge_and_index_keys(
                     todo!("missmatch")
                 };
                 let value = reduce_and_index_value(resolved_value, str_indexer);
-                keys.values.insert(current_locale.clone(), value);
+                keys.values.insert(current_locale_name.key.clone(), value);
             }
             foreign_key::ResolvedValueOrSubkeys::Subkeys(sk) => {
                 let keys = keys
@@ -96,7 +96,7 @@ pub fn merge_and_index_keys(
                     todo!("missmatch")
                 };
                 let values = ResolvedLocale {
-                    name: current_locale.clone(),
+                    name: current_locale_name.clone(),
                     values: sk,
                 };
 
@@ -124,7 +124,7 @@ pub fn merge_and_index_keys(
                     ValuesOrSubkeys::Subkeys(keys) => &mut keys.defaults,
                 };
 
-                defaults.push(current_locale.clone(), cfg);
+                defaults.push(current_locale_name.key.clone(), cfg);
             }
             foreign_key::ResolvedValueOrSubkeys::Dummy(_) => todo!(),
         }

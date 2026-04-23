@@ -7,25 +7,27 @@ use std::{
 
 pub use key::{Key, KeyPath};
 
+use crate::parser::options::LocaleName;
+
 #[derive(Clone, Copy)]
 pub struct Loc<'a> {
     pub key_path: &'a KeyPath,
-    pub locale: &'a Key,
+    pub locale: &'a LocaleName,
 }
 
 pub struct LocMut<'a> {
     pub key_path: &'a mut KeyPath,
-    pub locale: &'a Key,
+    pub locale: &'a LocaleName,
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Location {
-    pub locale: Key,
+    pub locale: LocaleName,
     pub key_path: KeyPath,
 }
 
 impl Location {
-    pub fn new(locale: Key, key_path: KeyPath) -> Location {
+    pub fn new(locale: LocaleName, key_path: KeyPath) -> Location {
         Location { locale, key_path }
     }
 
@@ -59,7 +61,7 @@ impl<'a> From<&'a Location> for Loc<'a> {
 impl Display for Location {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Location { locale, key_path } = self;
-        write!(f, "key \"{key_path}\" in locale {locale:?}")
+        write!(f, "{locale}/{key_path}")
     }
 }
 

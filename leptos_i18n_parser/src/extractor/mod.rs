@@ -9,6 +9,7 @@ use crate::{
         Value, Values,
         foreign_key::{ResolvedLocale, ResolvedLocalesOrNamespaces, ResolvedNamespace},
     },
+    parser::options::LocaleName,
     utils::{KeyPath, Location},
 };
 use crate::{
@@ -45,7 +46,7 @@ pub struct Locales {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Locale {
-    pub name: Key,
+    pub name: LocaleName,
     pub strings: Vec<Rc<str>>,
 }
 
@@ -155,7 +156,7 @@ fn merge_locales(
 ) -> Locales {
     let default_idx = locales
         .iter()
-        .position(|l| l.name == cfg.default_locale)
+        .position(|l| l.name.key == cfg.default_locale)
         .expect("default locale not present");
     locales.swap(default_idx, 0);
 

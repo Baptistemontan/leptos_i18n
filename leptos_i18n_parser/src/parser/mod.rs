@@ -5,7 +5,10 @@ use serde::de::{DeserializeSeed, MapAccess, value::MapAccessDeserializer};
 use crate::{
     error::{Diagnostics, Error, Result},
     formatters::Formatters,
-    parser::locale::{RawValueOrSubkeys, RawValues},
+    parser::{
+        locale::{RawValueOrSubkeys, RawValues},
+        options::LocaleName,
+    },
     utils::{Key, KeyPath, Loc, Location},
 };
 
@@ -94,7 +97,7 @@ impl From<ParseContext<'_>> for Location {
 #[derive(Clone)]
 pub struct ValuesSeed<'a> {
     pub name: Key,
-    pub top_locale_name: Key,
+    pub top_locale_name: &'a LocaleName,
     pub key_path: KeyPath,
     pub diag: &'a Diagnostics,
     pub formatters: &'a Formatters,
@@ -124,7 +127,7 @@ impl<'de> serde::de::Visitor<'de> for ValuesSeed<'_> {
         while let Some(locale_key) = map.next_key::<Key>()? {
             let pushed_key = self.key_path.push_key(locale_key.clone());
             let value = map.next_value_seed(ValueOrSubkeysSeed {
-                top_locale_name: &self.top_locale_name,
+                top_locale_name: self.top_locale_name,
                 key: &locale_key,
                 key_path: &pushed_key,
                 diag: self.diag,
@@ -146,7 +149,7 @@ impl<'de> serde::de::Visitor<'de> for ValuesSeed<'_> {
 
 #[derive(Clone, Copy)]
 pub struct ValueOrSubkeysSeed<'a> {
-    pub top_locale_name: &'a Key,
+    pub top_locale_name: &'a LocaleName,
     pub key_path: &'a KeyPath,
     pub key: &'a Key,
     pub diag: &'a Diagnostics,
@@ -186,7 +189,7 @@ impl<'de> serde::de::Visitor<'de> for ValueOrSubkeysSeed<'_> {
         if let Ok(pv) = pv {
             Ok(RawValueOrSubkeys::Value(pv))
         } else {
-            let dummy = Dummy::parse(v);
+            let dummy = Dummy::parse(v, self.top_locale_name);
             Ok(RawValueOrSubkeys::Dummy(dummy))
         }
     }
@@ -235,7 +238,7 @@ impl<'de> serde::de::Visitor<'de> for ValueOrSubkeysSeed<'_> {
 
         let seed = ValuesSeed {
             name: self.key.clone(),
-            top_locale_name: self.top_locale_name.clone(),
+            top_locale_name: self.top_locale_name,
             key_path: self.key_path.to_owned(),
             diag: self.diag,
             formatters: self.formatters,

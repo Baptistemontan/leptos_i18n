@@ -10,7 +10,6 @@ use std::{
     io,
     num::TryFromIntError,
     path::PathBuf,
-    rc::Rc,
 };
 
 use crate::extractor::values::plurals::{PluralForm, PluralRuleType};
@@ -35,7 +34,7 @@ pub enum SerdeError {
 pub enum Error {
     IoError(io::Error),
     InvalidLocale {
-        locale: Rc<str>,
+        locale: String,
         err: LocidError,
     },
     PluralRulesError(IcuDataError),
