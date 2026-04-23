@@ -55,9 +55,16 @@ pub struct Namespace {
     pub locales: Locales,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Builder {
+    pub name: Key,
+    pub keys: InterpolationKeys,
+    pub used_by: BTreeSet<KeyPath>,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Builders {
-    pub builders: BTreeMap<BuilderId, InterpolationKeys>,
+    pub builders: BTreeMap<BuilderId, Builder>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -186,43 +193,48 @@ fn merge_locales(
     merged_locales
 }
 
-type BuilderIndex = BTreeMap<InterpolationKeys, usize>;
+#[derive(Default)]
+struct BuilderIndexer {
+    ids: BTreeMap<InterpolationKeys, (usize, BTreeSet<KeyPath>)>,
+    reverse_keys: Vec<Key>,
+    keys: BTreeSet<String>,
+}
 
 fn get_builders(locales: &mut LocalesOrNamespaces) -> Builders {
-    let mut ids = BuilderIndex::new();
+    let mut ids = BuilderIndexer::default();
 
     match locales {
         LocalesOrNamespaces::Namespaces(namespaces) => {
             for ns in namespaces {
-                get_keys_builders(&mut ns.locales.values, &mut ids);
+                let mut path = KeyPath::new(Some(ns.name.clone()));
+                get_keys_builders(&mut ns.locales.values, &mut ids, &mut path);
             }
         }
         LocalesOrNamespaces::Locales(locales) => {
-            get_keys_builders(&mut locales.values, &mut ids);
+            let mut path = KeyPath::new(None);
+            get_keys_builders(&mut locales.values, &mut ids, &mut path);
         }
     }
 
-    let builders = ids
-        .into_iter()
-        .map(|(keys, id)| (BuilderId(id), keys))
-        .collect();
-    Builders { builders }
+    ids.into_builders()
 }
 
-fn get_keys_builders(keys: &mut Keys, ids: &mut BuilderIndex) {
-    for value in keys.values.values_mut() {
+fn get_keys_builders(keys: &mut Keys, ids: &mut BuilderIndexer, path: &mut KeyPath) {
+    for (key, value) in keys.values.iter_mut() {
+        let mut path = path.push_key(key.clone());
         match value {
-            values::ValuesOrSubkeys::Values(values) => get_values_builders(values, ids),
-            values::ValuesOrSubkeys::Subkeys(keys) => get_keys_builders(keys, ids),
+            values::ValuesOrSubkeys::Values(values) => {
+                get_values_builders(values, ids, path.clone())
+            }
+            values::ValuesOrSubkeys::Subkeys(keys) => get_keys_builders(keys, ids, &mut path),
         }
     }
 }
 
-fn get_values_builders(values: &mut Values, ids: &mut BuilderIndex) {
+fn get_values_builders(values: &mut Values, ids: &mut BuilderIndexer, path: KeyPath) {
     let interpolation_keys = make_keys(values);
-    let next_id = ids.len();
-    let id = ids.entry(interpolation_keys).or_insert(next_id);
-    values.builder_id = BuilderId(*id);
+    let id = ids.push_keys(interpolation_keys, path);
+    values.builder_id = id;
 }
 
 fn make_keys(values: &Values) -> InterpolationKeys {
@@ -290,5 +302,96 @@ impl StringIndexer {
 impl Default for BuilderId {
     fn default() -> Self {
         BuilderId(usize::MAX)
+    }
+}
+
+impl BuilderIndexer {
+    pub fn push_keys(&mut self, keys: InterpolationKeys, path: KeyPath) -> BuilderId {
+        if let Some((id, paths)) = self.ids.get_mut(&keys) {
+            paths.insert(path);
+            return BuilderId(*id);
+        }
+
+        let mut name = keys.generate_key();
+        loop {
+            if self.keys.contains(&name) {
+                name.push('_');
+            } else {
+                let key = Key::new(&name).expect("the builder name should be a valid key");
+                let id = self.reverse_keys.len();
+                self.reverse_keys.push(key);
+                self.ids.insert(keys, (id, BTreeSet::from([path])));
+                self.keys.insert(name);
+                break BuilderId(id);
+            }
+        }
+    }
+
+    pub fn into_builders(self) -> Builders {
+        let builders = self
+            .ids
+            .into_iter()
+            .map(|(keys, (id, used_by))| {
+                let name = self.reverse_keys[id].clone();
+                let id = BuilderId(id);
+                let builder = Builder {
+                    name,
+                    keys,
+                    used_by,
+                };
+                (id, builder)
+            })
+            .collect();
+        Builders { builders }
+    }
+}
+
+impl InterpolationKeys {
+    pub fn generate_key(&self) -> String {
+        let mut s = String::from("I18n_builder_");
+        for (key, info) in &self.vars {
+            s.push_str(&key.name);
+            if info.plural {
+                s.push_str("pl");
+            }
+            for bound in info.bounds.iter() {
+                match bound {
+                    VarBound::Dummy => {
+                        s.push_str("dy");
+                    }
+                    VarBound::None => {}
+                    VarBound::AttributeValue => {
+                        s.push_str("ar");
+                    }
+                    VarBound::Formatted {
+                        formatter_name,
+                        to_tokens: _,
+                    } => {
+                        Self::write_formatter_name(&mut s, formatter_name);
+                    }
+                }
+            }
+            s.push('_');
+        }
+        for (key, info) in &self.components {
+            s.push_str(&key.name);
+            if info.self_closed {
+                s.push_str("sf");
+            }
+            s.push('_');
+        }
+
+        s
+    }
+
+    fn write_formatter_name(s: &mut String, f_name: &str) {
+        s.reserve(f_name.len());
+        for c in f_name.chars() {
+            if c.is_ascii_alphabetic() {
+                s.push(c);
+            } else {
+                s.push('_');
+            }
+        }
     }
 }
