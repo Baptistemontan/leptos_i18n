@@ -9,29 +9,18 @@
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
 mod data_provider;
-pub(crate) mod load_locales;
+pub(crate) mod declare_locales;
 pub(crate) mod scoped;
 pub(crate) mod t_format;
 pub(crate) mod t_macro;
 pub(crate) mod t_plural;
 
-use leptos_i18n_codegen::load_locales::plurals::PluralRuleType;
 use t_macro::{InputType, OutputType};
-
-#[proc_macro]
-pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match load_locales::load_locales() {
-        Ok(ts) => ts.into(),
-        Err(err) => {
-            let err = err.to_string();
-            quote::quote!(compile_error!(#err);).into()
-        }
-    }
-}
+use t_plural::PluralRuleType;
 
 #[proc_macro]
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    load_locales::declare_locales::declare_locales(tokens)
+    declare_locales::declare_locales(tokens)
 }
 
 #[proc_macro]

@@ -1,17 +1,15 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{collections::BTreeMap, fmt::Display, rc::Rc};
 
+use leptos_i18n_codegen::CodegenOptions;
 use leptos_i18n_parser::{
-    extraction::{
-        ForeignKeysPaths, ParsedLocales,
-        cfg_file::ConfigFile,
-        error::Diagnostics,
-        locale::{Locale, LocalesOrNamespaces},
-        make_builder_keys,
-        options::{Config, ParseOptions},
-        parsed_value::ParsedValue,
-    },
+    error::Diagnostics,
+    extraction::extract_locales,
     formatters::Formatters,
-    utils::{Key, KeyPath, Loc, ParseContext},
+    options::{Config, LocaleName},
+    parsing::{
+        ParseContext, RawLocale, RawLocalesOrNamespaces, RawValue, RawValueOrSubkeys, RawValues,
+    },
+    utils::{Key, KeyPath, Loc, Location},
 };
 use proc_macro2::Span;
 use quote::ToTokens;
@@ -22,29 +20,20 @@ use syn::{
 
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ParsedInput {
-        cfg_file,
-        locales,
+        cfg,
+        values,
         crate_path,
-        foreign_keys_paths,
         interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
-    let diag = Diagnostics::new();
 
-    let mut cfg: Config = cfg_file.into();
+    let parsed_locales = extract_locales(values, cfg, None).unwrap();
 
-    cfg.options = ParseOptions::default().interpolate_display(interpolate_display);
+    let codegen_options = CodegenOptions::new()
+        .crate_path(Some(crate_path))
+        .interpolate_display(interpolate_display);
 
-    let builder_keys = make_builder_keys(locales, &cfg, foreign_keys_paths, &diag).unwrap();
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, codegen_options);
 
-    let parsed_locales = ParsedLocales {
-        cfg,
-        builder_keys,
-        diag,
-        tracked_files: None,
-    };
-
-    let result =
-        leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), true, None, true);
     match result {
         Ok(ts) => ts.into(),
         Err(err) => {
@@ -56,9 +45,8 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
 
 pub struct ParsedInput {
     crate_path: syn::Path,
-    cfg_file: ConfigFile,
-    locales: LocalesOrNamespaces,
-    foreign_keys_paths: ForeignKeysPaths,
+    cfg: Config,
+    values: RawLocalesOrNamespaces,
     interpolate_display: bool,
 }
 
@@ -66,12 +54,18 @@ fn emit_err<A, T: ToTokens, U: Display>(tokens: T, message: U) -> syn::Result<A>
     Err(syn::Error::new_spanned(tokens, message))
 }
 
-fn make_key(lit_str: LitStr) -> syn::Result<Key> {
+fn make_locale_name_key(lit_str: LitStr) -> syn::Result<LocaleName> {
     let value = lit_str.value();
-    if let Some(k) = Key::new(&value) {
-        Ok(k)
-    } else {
-        Err(syn::Error::new_spanned(lit_str, "invalid key"))
+    let Some(key) = Key::new(&value) else {
+        return Err(syn::Error::new_spanned(lit_str, "invalid key"));
+    };
+
+    match value.parse() {
+        Ok(loc_id) => Ok(LocaleName {
+            key,
+            loc_id: Rc::new(loc_id),
+        }),
+        Err(err) => Err(syn::Error::new_spanned(lit_str, err)),
     }
 }
 
@@ -85,10 +79,9 @@ fn parse_array<T: syn::parse::Parse>(
 
 fn parse_str_value(
     input: syn::parse::ParseStream,
-    loc: &Loc,
+    loc: &Location,
     formatters: &Formatters,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<Option<ParsedValue>> {
+) -> syn::Result<Option<RawValue>> {
     if !input.peek(LitStr) {
         return Ok(None);
     }
@@ -98,14 +91,16 @@ fn parse_str_value(
     let diag = Diagnostics::new();
 
     let ctx = ParseContext {
-        loc: *loc,
-        foreign_keys_paths,
+        loc: Loc {
+            key_path: &loc.key_path,
+            locale: &loc.locale,
+        },
         formatters,
         diag: &diag,
-        parse_fns: ParsedValue::DEFAULT_FNS,
+        parse_fns: RawValue::DEFAULT_FNS,
     };
 
-    match ParsedValue::new(&ctx, &value) {
+    match RawValue::parse(&ctx, &value) {
         Ok(pv) => {
             if let Some(err) = diag.errors().first() {
                 return emit_err(lit_str, err);
@@ -116,18 +111,19 @@ fn parse_str_value(
             }
             Ok(Some(pv))
         }
-        Err(err) => emit_err(lit_str, err),
+        Err(()) => {
+            let errors = diag.errors();
+            let err = errors.first().unwrap();
+            emit_err(lit_str, err)
+        }
     }
 }
 
 fn parse_map_values(
     input: syn::parse::ParseStream,
-    name: &Key,
-    key_path: &mut KeyPath,
-    locale: &Key,
+    loc: &mut Location,
     formatters: &Formatters,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<Option<ParsedValue>> {
+) -> syn::Result<Option<RawValues>> {
     fn inner(input: syn::parse::ParseStream) -> syn::Result<ParseBuffer> {
         let content;
         syn::braced!(content in input);
@@ -137,44 +133,25 @@ fn parse_map_values(
         return Ok(None);
     };
 
-    let keys = parse_block_inner(content, key_path, locale, formatters, foreign_keys_paths)?;
+    let values = parse_block_inner(content, loc, formatters)?;
 
-    Ok(Some(ParsedValue::Subkeys(Some(Locale {
-        top_locale_name: locale.clone(),
-        name: name.clone(),
-        keys,
-        strings: vec![],
-        top_locale_string_count: 0,
-    }))))
+    Ok(Some(values))
 }
 
 fn parse_values(
     input: syn::parse::ParseStream,
-    key_path: &mut KeyPath,
-    locale: &Key,
+    loc: &mut Location,
     formatters: &Formatters,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<(Key, ParsedValue)> {
+) -> syn::Result<(Key, RawValueOrSubkeys)> {
     let ident: Ident = input.parse()?;
-    let key = Key::from_ident(ident);
-    let mut pushed_key = key_path.push_key(key.clone());
     input.parse::<Token![:]>()?;
-    let loc = Loc {
-        locale,
-        key_path: &pushed_key,
-    };
-    if let Some(parsed_value) = parse_str_value(input, &loc, formatters, foreign_keys_paths)? {
-        return Ok((key, parsed_value));
+    let key = Key::from_ident(ident);
+    let mut loc = loc.push_key(key.clone());
+    if let Some(parsed_value) = parse_str_value(input, &loc, formatters)? {
+        return Ok((key, RawValueOrSubkeys::Value(parsed_value)));
     }
-    if let Some(parsed_value) = parse_map_values(
-        input,
-        &key,
-        &mut pushed_key,
-        locale,
-        formatters,
-        foreign_keys_paths,
-    )? {
-        return Ok((key, parsed_value));
+    if let Some(subkeys) = parse_map_values(input, &mut loc, formatters)? {
+        return Ok((key, RawValueOrSubkeys::Subkeys(subkeys)));
     }
 
     Err(input.error("Invalid input"))
@@ -182,68 +159,56 @@ fn parse_values(
 
 fn parse_block_inner(
     content: ParseBuffer,
-    key_path: &mut KeyPath,
-    locale: &Key,
+    loc: &mut Location,
     formatters: &Formatters,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<BTreeMap<Key, ParsedValue>> {
+) -> syn::Result<RawValues> {
     let mut values = BTreeMap::new();
     while !content.is_empty() {
-        let (key, value) =
-            parse_values(&content, key_path, locale, formatters, foreign_keys_paths)?;
+        let (key, value) = parse_values(&content, loc, formatters)?;
         values.insert(key, value);
         if !content.is_empty() {
             content.parse::<Comma>()?;
         }
     }
-    Ok(values)
+    Ok(RawValues { values })
 }
 
 fn parse_block(
     input: syn::parse::ParseStream,
-    key_path: &mut KeyPath,
-    locale: &Key,
+    loc: &mut Location,
     formatters: &Formatters,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<BTreeMap<Key, ParsedValue>> {
+) -> syn::Result<RawValues> {
     let content;
     syn::braced!(content in input);
-    parse_block_inner(content, key_path, locale, formatters, foreign_keys_paths)
+    parse_block_inner(content, loc, formatters)
 }
 
 fn parse_locale(
     input: syn::parse::ParseStream,
-    locale_key: Key,
+    locale_name: LocaleName,
     formatters: &Formatters,
-    foreign_keys_paths: &ForeignKeysPaths,
-) -> syn::Result<Locale> {
+) -> syn::Result<RawLocale> {
     let loc_name_ident: Ident = input.parse()?;
-    if loc_name_ident != *locale_key.ident {
+    if loc_name_ident != *locale_name.key.ident {
         return emit_err(loc_name_ident, "unknown locale.");
     }
 
     input.parse::<Token![:]>()?;
 
-    let mut key_path = KeyPath::new(None);
+    let mut location = Location {
+        key_path: KeyPath::new(None),
+        locale: locale_name,
+    };
 
-    let keys = parse_block(
-        input,
-        &mut key_path,
-        &locale_key,
-        formatters,
-        foreign_keys_paths,
-    )?;
+    let values = parse_block(input, &mut location, formatters)?;
 
     if !input.is_empty() {
         input.parse::<Comma>()?;
     }
 
-    Ok(Locale {
-        top_locale_name: locale_key.clone(),
-        name: locale_key,
-        keys,
-        strings: vec![],
-        top_locale_string_count: 0,
+    Ok(RawLocale {
+        name: location.locale,
+        values,
     })
 }
 
@@ -280,7 +245,7 @@ impl syn::parse::Parse for ParsedInput {
         let def_loc = input.parse::<LitStr>()?;
         input.parse::<Token![,]>()?;
 
-        let default = make_key(def_loc)?;
+        let default = make_locale_name_key(def_loc)?;
 
         // locales: ["defaultloc", ...]
         let loc_ident: Ident = input.parse()?;
@@ -291,25 +256,23 @@ impl syn::parse::Parse for ParsedInput {
         let mut locales_iter = parse_array::<LitStr>(input)?.into_iter();
         match locales_iter.next() {
             None => return emit_err(loc_ident, "missing locales."),
-            Some(l) if Key::new(&l.value()).as_ref() != Some(&default) => {
+            Some(l) if Key::new(&l.value()).as_ref() != Some(&default.key) => {
                 return emit_err(l, "first locale should be the same as the default.");
             }
             _ => {}
         }
         let locales_key = std::iter::once(Ok(default.clone()))
-            .chain(locales_iter.map(make_key))
+            .chain(locales_iter.map(make_locale_name_key))
             .collect::<syn::Result<Vec<_>>>()?;
         input.parse::<Token![,]>()?;
 
         // loc: { .. }
-
-        let foreign_keys_paths = ForeignKeysPaths::new();
         let formatters = Formatters::new();
 
         let locales = locales_key
             .iter()
             .cloned()
-            .map(|k| parse_locale(input, k, &formatters, &foreign_keys_paths))
+            .map(|k| parse_locale(input, k, &formatters))
             .collect::<syn::Result<Vec<_>>>()?;
 
         if !input.is_empty() {
@@ -319,18 +282,12 @@ impl syn::parse::Parse for ParsedInput {
         let crate_path = crate_path
             .unwrap_or_else(|| syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site())));
 
+        let mut config = Config::new(&default.key.name).unwrap();
+        config.locales = locales_key;
         Ok(ParsedInput {
-            cfg_file: ConfigFile {
-                default,
-                locales: locales_key,
-                name_spaces: None,
-                locales_dir: "".into(),
-                translations_uri: None,
-                extensions: Default::default(),
-            },
-            locales: LocalesOrNamespaces::Locales(locales),
+            cfg: config,
+            values: RawLocalesOrNamespaces::Locales(locales),
             crate_path,
-            foreign_keys_paths,
             interpolate_display,
         })
     }

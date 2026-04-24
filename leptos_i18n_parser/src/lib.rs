@@ -13,7 +13,11 @@ pub mod options {
 }
 
 pub mod parsing {
-    pub use super::parser::{RawParsedLocales, parse_locales_raw};
+    pub use super::parser::locale::{
+        RawLocale, RawLocalesOrNamespaces, RawValueOrSubkeys, RawValues,
+    };
+    pub use super::parser::raw_value::RawValue;
+    pub use super::parser::{ParseContext, RawParsedLocales, parse_locales_raw};
 }
 
 pub mod extraction {

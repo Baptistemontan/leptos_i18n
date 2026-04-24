@@ -1,17 +1,3 @@
-/// Look for the configuration in the cargo manifest `Cargo.toml` at the root of the project and load the given locales.
-///
-/// It creates multiple types allowing to easily incorporate translations in you application such as:
-///
-/// - `Locale`: an enum representing the available locales of the application.
-/// - `I18nKeys`: a struct representing the translation keys.
-#[macro_export]
-#[deprecated(note = "Deprecated in favor of build.rs code gen", since = "0.6.0")]
-macro_rules! load_locales {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::load_locales!{$($tt)*}
-    };
-}
-
 /// This is for a private use writing tests.
 #[macro_export]
 #[doc(hidden)]
