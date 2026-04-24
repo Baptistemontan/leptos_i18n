@@ -66,9 +66,6 @@ pub struct Config {
 #[non_exhaustive]
 pub struct ParseOptions {
     pub file_format: FileFormat,
-    pub suppress_key_warnings: bool,
-    pub interpolate_display: bool,
-    pub show_keys_only: bool,
     pub formatters: Formatters,
 }
 
@@ -105,9 +102,6 @@ impl ParseOptions {
     pub fn new() -> Self {
         ParseOptions {
             file_format: FileFormat::Json,
-            suppress_key_warnings: false,
-            interpolate_display: false,
-            show_keys_only: false,
             formatters: Formatters::new(),
         }
     }
@@ -115,27 +109,6 @@ impl ParseOptions {
     pub fn file_format(self, file_format: FileFormat) -> Self {
         Self {
             file_format,
-            ..self
-        }
-    }
-
-    pub fn suppress_key_warnings(self, suppress_key_warnings: bool) -> Self {
-        Self {
-            suppress_key_warnings,
-            ..self
-        }
-    }
-
-    pub fn interpolate_display(self, interpolate_display: bool) -> Self {
-        Self {
-            interpolate_display,
-            ..self
-        }
-    }
-
-    pub fn show_keys_only(self, show_keys_only: bool) -> Self {
-        Self {
-            show_keys_only,
             ..self
         }
     }

@@ -19,5 +19,7 @@ pub mod parsing {
 pub mod extraction {
     pub use super::extractor::defaults::DefaultedLocales;
     pub use super::extractor::values::{Keys, Value, Values, ValuesOrSubkeys};
-    pub use super::extractor::{Locales, LocalesOrNamespaces, ParsedLocales, extract_locales};
+    pub use super::extractor::{
+        InterpolationKeys, Locales, LocalesOrNamespaces, Namespace, ParsedLocales, extract_locales,
+    };
 }
