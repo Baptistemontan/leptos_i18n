@@ -126,13 +126,13 @@ pub mod locale;
 mod locale_traits;
 mod macro_helpers;
 mod macros;
-mod scopes;
+pub mod scopes;
 
 pub use macro_helpers::formatting;
 
-pub use locale_traits::{Direction, Locale, LocaleKeys};
+pub use locale_traits::{Direction, Locale};
 
-pub use context::{I18nContext, use_i18n_context, use_i18n_with_scope};
+pub use context::{I18nContext, use_i18n_context};
 
 #[allow(deprecated)]
 pub use context::provide_i18n_context;

@@ -5,7 +5,7 @@ pub mod formatting;
 mod interpol_args;
 mod scope;
 
-use crate::Locale;
+use crate::{Locale, locale_traits::BaseLocale};
 pub use formatting::*;
 pub use interpol_args::*;
 use leptos::IntoView;
@@ -187,13 +187,13 @@ impl<'de, L: Locale> serde::de::Visitor<'de> for LocaleVisitor<L> {
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "one of: [")?;
-        let mut locale_iter = L::get_all().iter();
+        let mut locale_iter = <L::BaseLocale as BaseLocale>::get_all().iter();
         let first = locale_iter
             .next()
             .expect("Locale should have at least one variant");
-        write!(formatter, "{}", first.as_str())?;
+        write!(formatter, "{}", BaseLocale::as_str(*first))?;
         for locale in locale_iter {
-            write!(formatter, ", {}", locale.as_str())?;
+            write!(formatter, ", {}", BaseLocale::as_str(*locale))?;
         }
         write!(formatter, "]")
     }

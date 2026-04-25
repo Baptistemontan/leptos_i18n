@@ -2,14 +2,14 @@
 
 use std::fmt::Debug;
 
-use crate::Locale;
+use crate::locale_traits::BaseLocale;
 
 #[cfg(feature = "dynamic_load")]
 pub use async_once_cell::OnceCell;
 
 pub trait TranslationUnit: Sized {
-    type Locale: Locale;
-    const ID: <Self::Locale as Locale>::TranslationUnitId;
+    type Locale: BaseLocale;
+    const ID: <Self::Locale as BaseLocale>::TranslationUnitId;
     const LOCALE: Self::Locale;
     type Strings: StringArray;
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]

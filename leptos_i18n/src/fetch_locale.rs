@@ -1,12 +1,15 @@
 use leptos::prelude::*;
 use leptos_use::UseLocalesOptions;
 
-use crate::Locale;
+use crate::locale_traits::BaseLocale;
 
-pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> Memo<L> {
+pub fn fetch_locale<L: BaseLocale>(
+    current_cookie: Option<L>,
+    options: UseLocalesOptions,
+) -> Memo<L> {
     let accepted_locales = leptos_use::use_locales_with_options(options);
     let accepted_locale =
-        Memo::new(move |_| accepted_locales.with(|accepted| L::find_locale(accepted)));
+        Memo::new(move |_| accepted_locales.with(|accepted| BaseLocale::find_locale(accepted)));
 
     if cfg!(feature = "ssr") {
         fetch_locale_ssr(current_cookie, accepted_locale)
@@ -17,12 +20,12 @@ pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOpt
     }
 }
 
-pub fn get_accepted_locale<L: Locale>(options: UseLocalesOptions) -> L {
+pub fn get_accepted_locale<L: BaseLocale>(options: UseLocalesOptions) -> L {
     leptos_use::use_locales_with_options(options)
-        .with_untracked(|accepted| L::find_locale(accepted))
+        .with_untracked(|accepted| BaseLocale::find_locale(accepted))
 }
 
-pub fn resolve_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> L {
+pub fn resolve_locale<L: BaseLocale>(current_cookie: Option<L>, options: UseLocalesOptions) -> L {
     cfg!(feature = "hydrate")
         .then(get_locale_from_html)
         .flatten()
@@ -51,11 +54,11 @@ pub fn signal_maybe_once_then<T: Clone + PartialEq + Send + Sync + 'static>(
 }
 
 // ssr fetch
-fn fetch_locale_ssr<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
+fn fetch_locale_ssr<L: BaseLocale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
     signal_maybe_once_then(current_cookie, accepted_locale)
 }
 
-fn get_locale_from_html<L: Locale>() -> Option<L> {
+fn get_locale_from_html<L: BaseLocale>() -> Option<L> {
     leptos::prelude::document()
         .document_element()
         .and_then(|el| match el.get_attribute("lang") {
@@ -69,13 +72,16 @@ fn get_locale_from_html<L: Locale>() -> Option<L> {
 }
 
 // hydrate fetch
-fn fetch_locale_hydrate<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
+fn fetch_locale_hydrate<L: BaseLocale>(
+    current_cookie: Option<L>,
+    accepted_locale: Memo<L>,
+) -> Memo<L> {
     let base_locale = get_locale_from_html().or(current_cookie);
 
     signal_maybe_once_then(base_locale, accepted_locale)
 }
 
 // csr fetch
-fn fetch_locale_csr<L: Locale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
+fn fetch_locale_csr<L: BaseLocale>(current_cookie: Option<L>, accepted_locale: Memo<L>) -> Memo<L> {
     signal_maybe_once_then(current_cookie, accepted_locale)
 }

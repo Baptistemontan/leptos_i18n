@@ -11,39 +11,74 @@ use crate::{
     scopes::ScopedLocale,
 };
 
-/// Trait implemented the enum representing the supported locales of the application
-///
-/// Most functions of this crate are generic of type implementing this trait
-pub trait Locale<L: Locale = Self>:
-    'static
-    + Default
-    + Clone
-    + Copy
-    + FromStr
-    + AsRef<LanguageIdentifier>
-    + AsRef<IcuLocale>
-    + AsRef<str>
-    + AsRef<L>
-    + std::fmt::Display
-    + std::fmt::Debug
-    + Ord
-    + Hash
-    + Send
-    + Sync
-    + serde::Serialize
-    + serde::de::DeserializeOwned
-{
-    /// The associated struct containing the translations
-    type Keys: LocaleKeys<Locale = L>;
+pub trait Locale: LocaleRequirementsMarker {
+    /// Convert this type to the base locale, this is used for wrappers around a locale such as scopes.
+    fn to_base_locale(self) -> Self::BaseLocale;
 
-    const ALL_VARIANTS: &'static [L];
+    /// Create this type from a base locale, this is used for wrappers around a locale such as scopes.
+    fn from_base_locale(locale: Self::BaseLocale) -> Self;
+
+    /// Map the locale with another value, this is useful to change the locale of a scope.
+    fn map_locale(self, locale: Self::BaseLocale) -> Self {
+        Self::from_base_locale(locale)
+    }
+
+    /// Scope the locale to the given scope
+    fn scope<S: Scope<BaseLocale = Self::BaseLocale>>(self) -> ScopedLocale<S> {
+        ScopedLocale::new(self.to_base_locale())
+    }
+
+    /// Return a static str that represent the base locale.
+    fn as_str(self) -> &'static str {
+        BaseLocale::as_str(self.to_base_locale())
+    }
+
+    /// Return a static reference to a icu `Locale`
+    fn as_icu_locale(self) -> &'static IcuLocale {
+        BaseLocale::as_icu_locale(self.to_base_locale())
+    }
+
+    /// Return the direction of the locale.
+    fn direction(self) -> Direction {
+        BaseLocale::direction(self.to_base_locale())
+    }
+
+    /// Return a static reference to a `LanguageIdentifier`
+    fn as_langid(self) -> &'static LanguageIdentifier {
+        BaseLocale::as_langid(self.to_base_locale())
+    }
+
+    /// Return a static reference to an array containing all variants of this enum
+    fn get_all() -> &'static [Self::BaseLocale] {
+        BaseLocale::get_all()
+    }
+
+    /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
+    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
+        Self::from_base_locale(BaseLocale::find_locale(accepted_languages))
+    }
+
+    /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
+    ///
+    /// This function does not fallback to default if no match is found.
+    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
+        BaseLocale::find_matchs(langid)
+            .into_iter()
+            .map(Self::from_base_locale)
+            .collect()
+    }
+}
+
+/// Trait implemented the enum representing the supported locales of the application
+pub trait BaseLocale: Locale<BaseLocale = Self> + LocaleRequirementsMarker {
+    const ALL_VARIANTS: &'static [Self];
+
+    /// Enum where each variants is an ID of a translation unit
+    type TranslationUnitId: TranslationUnitId;
 
     /// Associated `#[server]` function type to request the translations
     #[cfg(all(feature = "dynamic_load", not(feature = "csr")))]
     type ServerFn: leptos::server_fn::ServerFn;
-
-    /// Enum where each variants is an ID of a translation unit
-    type TranslationUnitId: TranslationUnitId;
 
     /// Return a static str that represent the locale.
     fn as_str(self) -> &'static str;
@@ -56,50 +91,25 @@ pub trait Locale<L: Locale = Self>:
 
     /// Return a static reference to a `LanguageIdentifier`
     fn as_langid(self) -> &'static LanguageIdentifier {
-        &Locale::as_icu_locale(self).id
+        &BaseLocale::as_icu_locale(self).id
     }
 
     /// Return a static reference to an array containing all variants of this enum
-    fn get_all() -> &'static [L] {
+    fn get_all() -> &'static [Self] {
         Self::ALL_VARIANTS
     }
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
         let langids = convert_vec_str_to_langids_lossy(accepted_languages);
-        let l = find_match(&langids, Self::get_all());
-        Self::from_base_locale(l)
+        find_match(&langids, BaseLocale::get_all())
     }
 
     /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
     ///
     /// This function does not fallback to default if no match is found.
     fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
-        let matches: Vec<L> =
-            filter_matches(std::slice::from_ref(langid.as_ref()), Self::get_all());
-        matches.into_iter().map(Self::from_base_locale).collect()
-    }
-
-    /// Return the keys based on self
-    #[inline]
-    fn get_keys(self) -> Self::Keys {
-        LocaleKeys::from_locale(self.to_base_locale())
-    }
-
-    /// Convert this type to the base locale, this is used for wrappers around a locale such as scopes.
-    fn to_base_locale(self) -> L;
-
-    /// Create this type from a base locale, this is used for wrappers around a locale such as scopes.
-    fn from_base_locale(locale: L) -> Self;
-
-    /// Map the locale with another value, this is useful to change the locale of a scope.
-    fn map_locale(self, locale: L) -> Self {
-        Self::from_base_locale(locale)
-    }
-
-    /// Scope the locale to the given scope
-    fn scope<S: Scope<L>>(self) -> ScopedLocale<L, S> {
-        ScopedLocale::new(self.to_base_locale())
+        filter_matches(std::slice::from_ref(langid.as_ref()), BaseLocale::get_all())
     }
 
     /// Associated `#[server]` function to request the translations
@@ -121,15 +131,58 @@ pub trait Locale<L: Locale = Self>:
     fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>);
 }
 
-/// Trait implemented the struct representing the translation keys
-///
-/// You will probably never need to use it has it only serves the internals of the library.
-pub trait LocaleKeys: 'static + Clone + Copy + Send + Sync {
-    /// The associated enum representing the supported locales
-    type Locale: Locale;
+pub trait LocaleRequirementsMarker:
+    'static
+    + Default
+    + Clone
+    + Copy
+    + FromStr
+    + AsRef<LanguageIdentifier>
+    + AsRef<IcuLocale>
+    + AsRef<str>
+    + AsRef<<Self as Scope>::BaseLocale>
+    + std::fmt::Display
+    + std::fmt::Debug
+    + Ord
+    + Hash
+    + Send
+    + Sync
+    + serde::Serialize
+    + serde::de::DeserializeOwned
+    + Scope
+{
+}
 
-    /// Return a static ref to Self containing the translations for the given locale
-    fn from_locale(locale: Self::Locale) -> Self;
+impl<L> LocaleRequirementsMarker for L where
+    L: 'static
+        + Default
+        + Clone
+        + Copy
+        + FromStr
+        + AsRef<LanguageIdentifier>
+        + AsRef<IcuLocale>
+        + AsRef<str>
+        + AsRef<<Self as Scope>::BaseLocale>
+        + std::fmt::Display
+        + std::fmt::Debug
+        + Ord
+        + Hash
+        + Send
+        + Sync
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + Scope
+{
+}
+
+impl<L: BaseLocale> Locale for L {
+    fn to_base_locale(self) -> Self::BaseLocale {
+        self
+    }
+
+    fn from_base_locale(locale: Self::BaseLocale) -> Self {
+        locale
+    }
 }
 
 /// Trait for the type giving an ID to each section of the translations

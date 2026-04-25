@@ -1,17 +1,17 @@
 use crate::{I18nContext, Locale, Scope, scopes::ScopedLocale};
 
 #[doc(hidden)]
-pub const fn scope_ctx_util<L: Locale, OS: Scope<L>, NS: Scope<L>>(
-    ctx: I18nContext<L, OS>,
-    _: fn(OS) -> NS,
-) -> I18nContext<L, NS> {
+pub const fn scope_ctx_util<OS: Scope, NS: Scope<BaseLocale = OS::BaseLocale>>(
+    ctx: I18nContext<OS>,
+    _: fn(OS::Keys) -> NS,
+) -> I18nContext<NS> {
     ctx.scope()
 }
 
 #[doc(hidden)]
-pub fn scope_locale_util<BL: Locale, L: Locale<BL>, NS: Scope<BL>>(
+pub fn scope_locale_util<L: Locale, S: Scope<BaseLocale = L::BaseLocale>>(
     locale: L,
-    _: fn(<L as Locale<BL>>::Keys) -> NS,
-) -> ScopedLocale<BL, NS> {
+    _: fn(<L as Scope>::Keys) -> S,
+) -> ScopedLocale<S> {
     locale.scope()
 }

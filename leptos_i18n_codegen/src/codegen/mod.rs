@@ -231,13 +231,13 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
                 #[inline]
                 #[track_caller]
                 pub fn use_i18n() -> __l_i18n_crate::I18nContext<#enum_ident> {
-                    __l_i18n_crate::use_i18n_context()
+                    use_i18n_scoped()
                 }
 
                 #[inline]
                 #[track_caller]
-                pub fn use_i18n_scoped<S: __l_i18n_crate::Scope<#enum_ident>>() -> __l_i18n_crate::I18nContext<#enum_ident, S> {
-                    __l_i18n_crate::use_i18n_with_scope()
+                pub fn use_i18n_scoped<S: __l_i18n_crate::Scope<BaseLocale = #enum_ident>>() -> __l_i18n_crate::I18nContext<S> {
+                    __l_i18n_crate::use_i18n_context()
                 }
             }
 
@@ -446,16 +446,24 @@ pub fn gen_enum(
         }
 
         impl #enum_ident {
-            pub const fn get_keys_const(self) -> keys::#keys_ident {
-                keys::#keys_ident::__new_internal(self)
+            pub const fn get_keys_const() -> keys::#keys_ident {
+                keys::#keys_ident
             }
         }
 
-        impl __l_i18n_crate::Locale for #enum_ident {
+        impl __l_i18n_crate::Scope for #enum_ident {
+            type BaseLocale = Self;
             type Keys = keys::#keys_ident;
-            type TranslationUnitId = keys::#translation_unit_enum_ident;
 
+            fn get_keys() -> Self::Keys {
+                Self::get_keys_const()
+            }
+        }
+
+        impl __l_i18n_crate::locale_traits::BaseLocale for #enum_ident {
             const ALL_VARIANTS: &'static [Self] = &[#(#enum_ident::#locales_variants,)*];
+
+            type TranslationUnitId = keys::#translation_unit_enum_ident;
 
             #server_fn_type
 
@@ -485,14 +493,6 @@ pub fn gen_enum(
                         #direction_match_arms,
                     )*
                 }
-            }
-
-            fn to_base_locale(self) -> Self {
-                self
-            }
-
-            fn from_base_locale(locale: Self) -> Self {
-                locale
             }
 
             #request_translations

@@ -109,7 +109,7 @@ pub fn gen_locales(
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         #[doc(hidden)]
-        pub struct #keys_ident(#enum_ident);
+        pub struct #keys_ident;
 
         #[allow(dead_code)]
         #[doc(hidden)]
@@ -117,18 +117,17 @@ pub fn gen_locales(
 
         #(#string_holders)*
 
-        impl __l_i18n_crate::LocaleKeys for #keys_ident {
-            type Locale = #enum_ident;
-            fn from_locale(locale: #enum_ident) -> Self {
-                Self::__new_internal(locale)
+
+        impl __l_i18n_crate::scopes::Keys for #keys_ident {
+            type BaseLocale = #enum_ident;
+
+            fn new() -> Self {
+                #keys_ident
             }
         }
 
-        impl #keys_ident {
-            pub const fn __new_internal(locale: #enum_ident) -> Self {
-                #keys_ident(locale)
-            }
 
+        impl #keys_ident {
             #(
                 #[allow(non_snake_case)]
                 #string_accessors

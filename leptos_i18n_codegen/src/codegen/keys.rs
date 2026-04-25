@@ -72,7 +72,7 @@ fn gen_subkeys_module_and_accessor(
         impl #keys_ident {
             #docs
             pub const fn #key(self) -> #key::#keys_ident {
-                #key::#keys_ident::__new_internal(self.0)
+                #key::#keys_ident
             }
         }
     }
@@ -129,20 +129,18 @@ fn gen_subkeys_module(
         #docs
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
-        pub struct #keys_ident(#enum_ident);
+        pub struct #keys_ident;
 
-        impl __l_i18n_crate::LocaleKeys for #keys_ident {
-            type Locale = #enum_ident;
-            fn from_locale(locale: #enum_ident) -> Self {
-                Self::__new_internal(locale)
+        impl __l_i18n_crate::scopes::Keys for #keys_ident {
+            type BaseLocale = #enum_ident;
+
+            fn new() -> Self {
+                #keys_ident
             }
         }
 
-        impl #keys_ident {
-            pub const fn __new_internal(locale: #enum_ident) -> Self {
-                #keys_ident(locale)
-            }
 
+        impl #keys_ident {
             #(
                 #[allow(non_snake_case)]
                 #string_accessors

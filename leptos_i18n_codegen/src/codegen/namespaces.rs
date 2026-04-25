@@ -95,7 +95,7 @@ pub fn gen_namespaces(
         quote! {
             #docs
             pub fn #key(self) -> #key::#keys_ident {
-                #key::#keys_ident::__new_internal(self.0)
+                #key::#keys_ident
             }
         }
     });
@@ -146,14 +146,9 @@ pub fn gen_namespaces(
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_snake_case)]
         #[doc(hidden)]
-        pub struct #keys_ident(#enum_ident);
+        pub struct #keys_ident;
 
         impl #keys_ident {
-            #[doc(hidden)]
-            pub const fn __new_internal(locale: #enum_ident) -> Self {
-                Self(locale)
-            }
-
             #(
                 #[allow(non_snake_case)]
                 #namespaces_accessors
@@ -164,10 +159,11 @@ pub fn gen_namespaces(
             #init_translations
         }
 
-        impl __l_i18n_crate::LocaleKeys for #keys_ident {
-            type Locale = #enum_ident;
-            fn from_locale(locale: #enum_ident) -> Self {
-                Self::__new_internal(locale)
+        impl __l_i18n_crate::scopes::Keys for #keys_ident {
+            type BaseLocale = #enum_ident;
+
+            fn new() -> Self {
+                #keys_ident
             }
         }
 

@@ -7,7 +7,7 @@ use icu_locale::{
     subtags::{Language, Variant},
 };
 
-use crate::Locale;
+use crate::locale_traits::BaseLocale;
 
 fn lang_matches(lhs: &Language, rhs: &Language, self_as_range: bool, other_as_range: bool) -> bool {
     (self_as_range && lhs.is_unknown()) || (other_as_range && rhs.is_unknown()) || lhs == rhs
@@ -43,7 +43,7 @@ fn lang_id_matches(
         && subtags_match(&lhs.variants, &rhs.variants, self_as_range, other_as_range)
 }
 
-pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> Vec<L> {
+pub fn filter_matches<L: BaseLocale>(requested: &[LanguageIdentifier], available: &[L]) -> Vec<L> {
     let mut supported_locales = vec![];
 
     let mut available_locales: Vec<L> = available.to_vec();
@@ -53,7 +53,8 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
             ($self_as_range:expr) => {{
                 let mut match_found = false;
                 available_locales.retain(|locale| {
-                    if lang_id_matches(locale.as_langid(), &req, $self_as_range, false) {
+                    if lang_id_matches(BaseLocale::as_langid(*locale), &req, $self_as_range, false)
+                    {
                         match_found = true;
                         supported_locales.push(*locale);
                         return false;
@@ -79,7 +80,7 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
     supported_locales
 }
 
-pub fn find_match<L: Locale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
+pub fn find_match<L: BaseLocale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
     filter_matches(requested, available)
         .first()
         .copied()

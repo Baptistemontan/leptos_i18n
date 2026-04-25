@@ -4,13 +4,13 @@ use codee::string::FromToStringCodec;
 use leptos::prelude::*;
 
 use crate::{
-    Locale,
     context::{ENABLE_COOKIE, I18nContextOptions},
     fetch_locale,
+    locale_traits::BaseLocale,
 };
 
 /// Same as `resolve_locale` but with some cookies options.
-pub fn resolve_locale_with_options<L: Locale>(options: I18nContextOptions<L>) -> L {
+pub fn resolve_locale_with_options<L: BaseLocale>(options: I18nContextOptions<L>) -> L {
     let I18nContextOptions {
         enable_cookie,
         cookie_name,
@@ -40,6 +40,6 @@ pub fn resolve_locale_with_options<L: Locale>(options: I18nContextOptions<L>) ->
 /// 1. As a last resort, the default locale is used.
 ///
 /// *note*: this function does not take into account URL locale prefix when using `I18nRoute` (e.g. `/en/about`)
-pub fn resolve_locale<L: Locale>() -> L {
+pub fn resolve_locale<L: BaseLocale>() -> L {
     resolve_locale_with_options(Default::default())
 }
