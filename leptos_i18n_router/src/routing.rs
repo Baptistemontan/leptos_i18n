@@ -17,7 +17,7 @@ use leptos_router::{
     location::Location,
 };
 
-use leptos_i18n::{I18nContext, Locale, use_i18n_context};
+use leptos_i18n::{I18nContext, Locale, locale_traits::BaseLocale, use_i18n_context};
 
 // this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
 
@@ -108,17 +108,17 @@ fn match_path_segments(
     segments_iter.next().is_none().then_some(matches)
 }
 
-fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
+fn get_locale_from_path<L: BaseLocale>(path: &str, base_path: &str) -> Option<L> {
     let base_path = base_path.trim_start_matches('/');
     let stripped_path = path
         .trim_start_matches('/')
         .strip_prefix(base_path)?
         .trim_start_matches('/');
     let (to_match, _) = stripped_path.split_once('/').unwrap_or((stripped_path, ""));
-    L::get_all()
+    BaseLocale::get_all()
         .iter()
         .copied()
-        .find(|l| l.as_str() == to_match)
+        .find(|l: &L| BaseLocale::as_str(*l) == to_match)
 }
 
 fn construct_path_segments<'b, 'p: 'b>(
@@ -249,7 +249,7 @@ fn get_new_path<L: Locale>(
 }
 
 /// navigate to a new path when the locale changes
-fn update_path_effect<L: Locale>(
+fn update_path_effect<L: BaseLocale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     history_changed_locale: Rc<Cell<Option<L>>>,
@@ -295,7 +295,7 @@ fn update_path_effect<L: Locale>(
     }
 }
 
-fn correct_locale_prefix_effect<L: Locale>(
+fn correct_locale_prefix_effect<L: BaseLocale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     segments: Arc<RouteSegments<L>>,
@@ -342,7 +342,7 @@ fn correct_locale_prefix_effect<L: Locale>(
     }
 }
 
-fn check_history_change<L: Locale>(
+fn check_history_change<L: BaseLocale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     sync: Rc<Cell<Option<L>>>,
@@ -364,7 +364,7 @@ fn check_history_change<L: Locale>(
     }
 }
 
-fn maybe_redirect<L: Locale>(
+fn maybe_redirect<L: BaseLocale>(
     previously_resolved_locale: L,
     base_path: &str,
     segments: &RouteSegments<L>,
@@ -411,7 +411,7 @@ fn view_wrapper<L, View>(
     segments: Arc<RouteSegments<L>>,
 ) -> Either<View, impl ChooseView>
 where
-    L: Locale,
+    L: BaseLocale,
     View: ChooseView,
 {
     let i18n = use_i18n_context::<L>();
@@ -469,13 +469,14 @@ where
 }
 
 #[doc(hidden)]
-pub fn i18n_routing<L: Locale, View, Chil>(
+pub fn i18n_routing<L, View, Chil>(
     base_path: &'static str,
     children: RouteChildren<Chil>,
     ssr_mode: SsrMode,
     view: View,
 ) -> impl MatchNestedRoutes + Clone
 where
+    L: BaseLocale,
     View: ChooseView + Clone,
     Chil: MatchNestedRoutes + Clone + 'static,
 {
@@ -572,7 +573,7 @@ where
 
 impl<L, View, Chil> MatchInterface for I18nRouteMatch<L, View, Chil>
 where
-    L: Locale,
+    L: BaseLocale,
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
     View: ChooseView + Clone,
@@ -601,8 +602,9 @@ where
     }
 }
 
-impl<L: Locale, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
+impl<L, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
 where
+    L: BaseLocale,
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
     View: ChooseView + Clone,
@@ -615,12 +617,12 @@ where
         &'a self,
         path: &'a str,
     ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
-        let res = L::get_all()
+        let res = <L as BaseLocale>::get_all()
             .iter()
             .copied()
             .find_map(|locale| {
                 set_current_route_locale(locale);
-                StaticSegment(locale.as_str())
+                StaticSegment(BaseLocale::as_str(locale))
                     .test(path)
                     .and_then(|partial_path_match| {
                         let remaining = partial_path_match.remaining();
@@ -674,7 +676,7 @@ where
                 })
         })
         .flatten();
-        L::get_all()
+        <L as BaseLocale>::get_all()
             .iter()
             .copied()
             .flat_map(|locale| {
@@ -684,7 +686,7 @@ where
                     .map(move |mut generated_route| {
                         if let Some(first) = generated_route.segments.first_mut() {
                             // replace the empty segment set by the inner route with the locale one
-                            *first = PathSegment::Static(locale.as_str().into())
+                            *first = PathSegment::Static(BaseLocale::as_str(locale).into())
                         }
                         generated_route
                     })
@@ -700,13 +702,13 @@ where
 
 fn generate_routes_for_each_locale<L, View, Chil>(route: &BaseRoute<View, Chil>) -> RouteSegments<L>
 where
-    L: Locale,
+    L: BaseLocale,
     View: ChooseView + Clone,
     Chil: MatchNestedRoutes + Clone + 'static,
 {
     let mut segments = RouteSegments::default();
 
-    for &locale in L::get_all() {
+    for &locale in BaseLocale::get_all() {
         set_current_route_locale(locale);
         let inner_segments: Vec<_> = MatchNestedRoutes::generate_routes(route)
             .into_iter()

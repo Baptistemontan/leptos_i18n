@@ -123,7 +123,7 @@ mod fetch_translations;
 pub mod keys;
 mod langid;
 pub mod locale;
-mod locale_traits;
+pub mod locale_traits;
 mod macro_helpers;
 mod macros;
 pub mod scopes;
