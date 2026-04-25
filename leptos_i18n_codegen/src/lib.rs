@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![allow(clippy::too_many_arguments)]
 //! # About Leptos i18n codegen
 //!
@@ -11,21 +11,13 @@ use leptos_i18n_parser::{error::Result, extraction::ParsedLocales};
 
 use proc_macro2::TokenStream;
 
-pub mod load_locales;
+mod codegen;
+// pub mod load_locales;
+mod options;
 pub mod utils;
 
-pub fn gen_code(
-    parsed_locales: &ParsedLocales,
-    crate_path: Option<&syn::Path>,
-    emit_diagnostics: bool,
-    top_level_attributes: Option<&TokenStream>,
-    gen_docs: bool,
-) -> Result<TokenStream> {
-    load_locales::load_locales(
-        parsed_locales,
-        crate_path,
-        emit_diagnostics,
-        top_level_attributes,
-        gen_docs,
-    )
+pub use options::CodegenOptions;
+
+pub fn gen_code(parsed_locales: &ParsedLocales, options: CodegenOptions) -> Result<TokenStream> {
+    codegen::gen_code(parsed_locales, options)
 }

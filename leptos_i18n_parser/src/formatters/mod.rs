@@ -283,17 +283,17 @@ impl VarBound {
 
     pub fn view_bounds(&self) -> TokenStream {
         match self {
-            Self::None => quote!(l_i18n_crate::__private::InterpolateVar),
-            Self::AttributeValue => quote!(l_i18n_crate::reexports::leptos::attr::AttributeValue),
-            Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
+            Self::None => quote!(__l_i18n_crate::__private::InterpolateVar),
+            Self::AttributeValue => quote!(__l_i18n_crate::reexports::leptos::attr::AttributeValue),
+            Self::Dummy => quote!(__l_i18n_crate::__private::AnyBound),
             Self::Formatted { to_tokens, .. } => to_tokens.view_bounds(),
         }
     }
     pub fn fmt_bounds(&self) -> TokenStream {
         match self {
             Self::None => quote!(::std::fmt::Display),
-            Self::AttributeValue => quote!(l_i18n_crate::display::AttributeValue),
-            Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
+            Self::AttributeValue => quote!(__l_i18n_crate::display::AttributeValue),
+            Self::Dummy => quote!(__l_i18n_crate::__private::AnyBound),
             Self::Formatted { to_tokens, .. } => to_tokens.fmt_bounds(),
         }
     }

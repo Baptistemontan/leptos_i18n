@@ -72,24 +72,24 @@ impl EitherOfWrapper {
         match self {
             EitherOfWrapper::Single => ts.into_token_stream(),
             EitherOfWrapper::Duo if i == 0 => {
-                quote!(l_i18n_crate::reexports::leptos::either::Either::Left(#ts))
+                quote!(__l_i18n_crate::reexports::leptos::either::Either::Left(#ts))
             }
             EitherOfWrapper::Duo => {
-                quote!(l_i18n_crate::reexports::leptos::either::Either::Right(#ts))
+                quote!(__l_i18n_crate::reexports::leptos::either::Either::Right(#ts))
             }
             EitherOfWrapper::Multiple(ident) => {
                 let variant = format_ident!("{}", LETTERS[i]);
-                quote!(l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
+                quote!(__l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
             }
             EitherOfWrapper::Nested(last) => match i {
                 0..=14 => {
                     let variant = format_ident!("{}", LETTERS[i]);
-                    quote!(l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
+                    quote!(__l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
                 }
                 15.. => {
                     let variant = format_ident!("{}", LETTERS[15]);
                     let ts = last.wrap(i - 15, ts);
-                    quote!(l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
+                    quote!(__l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
                 }
             },
         }

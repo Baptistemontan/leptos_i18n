@@ -57,7 +57,6 @@ pub struct Config {
     pub locales: Vec<LocaleName>,
     pub locales_path: Cow<'static, Path>,
     pub namespaces: Vec<Key>,
-    pub translations_uri: Option<Cow<'static, str>>,
     pub extensions: BTreeMap<Key, Key>,
     pub options: ParseOptions,
 }
@@ -136,7 +135,7 @@ impl Config {
             locales: vec![default_locale],
             locales_path: Cow::Borrowed(DEFAULT_LOCALES_PATH.as_ref()),
             namespaces: vec![],
-            translations_uri: None,
+            // translations_uri: None,
             extensions: BTreeMap::new(),
             options: ParseOptions::default(),
         })
@@ -208,13 +207,6 @@ impl Config {
             self = self.add_namespace(locale.as_ref())?;
         }
         Ok(self)
-    }
-
-    pub fn translations_uri(self, uri: impl ToStrCow<'static>) -> Self {
-        Self {
-            translations_uri: Some(uri.into_cow()),
-            ..self
-        }
     }
 
     #[track_caller]
@@ -384,22 +376,6 @@ impl<'a> ToPathCow<'a> for String {
 
 impl<'a> ToPathCow<'a> for PathBuf {
     fn into_cow(self) -> Cow<'a, Path> {
-        Cow::Owned(self)
-    }
-}
-
-pub trait ToStrCow<'a> {
-    fn into_cow(self) -> Cow<'a, str>;
-}
-
-impl<'a> ToStrCow<'a> for &'a str {
-    fn into_cow(self) -> Cow<'a, str> {
-        Cow::Borrowed(self)
-    }
-}
-
-impl<'a> ToStrCow<'a> for String {
-    fn into_cow(self) -> Cow<'a, str> {
         Cow::Owned(self)
     }
 }
