@@ -41,6 +41,24 @@ pub fn gen_values_modules_and_accessors(
     let generics = &builder_infos.generics;
     let destructure = &builder_infos.destructured;
 
+    let empty_marker = if builder_infos.is_empty {
+        quote! {
+            impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
+                type Args = Args;
+
+                fn into_args(builder: __l_i18n_crate::keys::NoArgs) -> Self::Args {
+                    match builder {}
+                }
+            }
+
+            impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
+                const THIS: Args = Args(BuildedArgs {});
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
         #docs
         pub mod #key {
@@ -66,13 +84,10 @@ pub fn gen_values_modules_and_accessors(
 
             impl __l_i18n_crate::keys::DowngradableArgBuilder for ArgsBuilder {
                 type Downgraded = __builders::#builder_name::ArgsBuilder;
-
-                fn map_id(_: ()) -> __builders::#builder_name::Id {
-                    __builders::#builder_name::Id::#variant_ident
-                }
+                const ID: __builders::#builder_name::Id = __builders::#builder_name::Id::#variant_ident;
             }
 
-            #[derive(Clone)]
+            #[derive(Clone, Copy)]
             pub struct Args #bounded_generics (BuildedArgs #generics);
 
             impl #bounded_generics __l_i18n_crate::keys::ArgsMarker<BuildedArgs #generics> for ArgsBuilder {
@@ -105,6 +120,7 @@ pub fn gen_values_modules_and_accessors(
                 let BuildedArgs #destructure = args;
             }
 
+            #empty_marker
         }
 
         impl #keys_ident {

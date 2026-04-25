@@ -25,7 +25,7 @@ pub struct AnyArgs<L: Locale> {
     args: Box<dyn DynAnyArgs<Locale = L>>,
 }
 
-pub trait ArgsBuilder: 'static {
+pub trait ArgsBuilder: Copy + 'static {
     type Id: Send + Sync + Copy + Hash + Ord + 'static;
     type Builder: 'static;
     type Locale: Locale;
@@ -35,13 +35,18 @@ pub trait ArgsBuilder: 'static {
 
 pub trait DowngradableArgBuilder: ArgsBuilder {
     type Downgraded: ArgsBuilder<Locale = Self::Locale, Builder = Self::Builder>;
-
-    fn map_id(id: Self::Id) -> <Self::Downgraded as ArgsBuilder>::Id;
+    const ID: <Self::Downgraded as ArgsBuilder>::Id;
 }
 
 pub trait ArgsMarker<B>: ArgsBuilder {
     type Args: Args<Locale = Self::Locale, Id = Self::Id>;
     fn into_args(builder: B) -> Self::Args;
+}
+
+pub enum NoArgs {}
+
+pub trait ConstArgsMarker: ArgsMarker<NoArgs, Args: Copy + 'static> {
+    const THIS: Self::Args;
 }
 
 pub trait Args: Clone + Send + Sync + 'static {
@@ -126,6 +131,17 @@ impl<B: ArgsBuilder> KeyBuilder<B> {
     }
 
     #[doc(hidden)]
+    pub const fn const_build(this: Self) -> Key<<B as ArgsMarker<NoArgs>>::Args>
+    where
+        B: ConstArgsMarker,
+    {
+        Key {
+            id: this.id,
+            args: B::THIS,
+        }
+    }
+
+    #[doc(hidden)]
     pub const fn from_id(id: B::Id) -> Self {
         KeyBuilder {
             id,
@@ -140,10 +156,9 @@ impl<B: ArgsBuilder> KeyBuilder<B> {
 }
 
 impl<B: DowngradableArgBuilder> KeyBuilder<B> {
-    pub fn downgrade(self) -> KeyBuilder<B::Downgraded> {
-        let id = B::map_id(self.id);
+    pub const fn downgrade(self) -> KeyBuilder<B::Downgraded> {
         KeyBuilder {
-            id,
+            id: B::ID,
             _marker: PhantomData,
         }
     }
@@ -161,6 +176,15 @@ impl<A: Args> Key<A> {
     pub fn downgrade_any(self) -> Key<AnyArgs<A::Locale>> {
         let any = AnyArgs::from_args(self.args, self.id);
         Key { id: (), args: any }
+    }
+
+    #[doc(hidden)]
+    pub const fn const_into_args_and_id(this: Self) -> (A, A::Id)
+    where
+        Self: Copy,
+    {
+        let Self { id, args } = this;
+        (args, id)
     }
 
     #[doc(hidden)]

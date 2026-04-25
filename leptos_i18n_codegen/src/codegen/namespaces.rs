@@ -161,10 +161,7 @@ pub fn gen_namespaces(
 
         impl __l_i18n_crate::scopes::Keys for #keys_ident {
             type BaseLocale = #enum_ident;
-
-            fn new() -> Self {
-                #keys_ident
-            }
+            const THIS: Self = #keys_ident;
         }
 
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

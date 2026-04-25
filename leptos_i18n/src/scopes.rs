@@ -14,14 +14,13 @@ pub trait Scope: 'static + Send + Sync {
     type Keys: Keys<BaseLocale = Self::BaseLocale>;
 
     fn get_keys() -> Self::Keys {
-        Keys::new()
+        Self::Keys::THIS
     }
 }
 
-pub trait Keys: 'static + Send + Sync {
+pub trait Keys: 'static + Send + Sync + Copy {
     type BaseLocale: BaseLocale;
-
-    fn new() -> Self;
+    const THIS: Self;
 }
 
 impl<K: Keys> Scope for K {

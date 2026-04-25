@@ -17,6 +17,7 @@ pub struct BuilderInfos {
     pub empty_fields: TokenStream,
     pub fields: TokenStream,
     pub destructured: TokenStream,
+    pub is_empty: bool,
     pub name: Key,
 }
 
@@ -92,6 +93,24 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
             }
         });
 
+    let empty_marker = if infos.is_empty {
+        quote! {
+            impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
+                type Args = Args;
+
+                fn into_args(builder: __l_i18n_crate::keys::NoArgs) -> Self::Args {
+                    match builder {}
+                }
+            }
+
+            impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
+                const THIS: Args = Args(BuildedArgs {});
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
         pub mod #mod_key {
             #[allow(unused)]
@@ -100,7 +119,7 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
             pub type Builder = BuildedArgs #empty_generics;
 
             #[doc(hidden)]
-            #[derive(Clone)]
+            #[derive(Clone, Copy)]
             pub struct BuildedArgs #bounded_generics {
                 #fields
             }
@@ -133,7 +152,7 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
                 }
             }
 
-            #[derive(Clone)]
+            #[derive(Clone, Copy)]
             pub struct Args #bounded_generics (pub BuildedArgs #generics);
 
             impl #bounded_generics __l_i18n_crate::keys::ArgsMarker<BuildedArgs #generics> for ArgsBuilder {
@@ -162,6 +181,8 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
                     }
                 }
             }
+
+            #empty_marker
         }
     }
 }
@@ -199,6 +220,8 @@ fn gen_builder_info(builder: &Builder) -> BuilderInfos {
         })
         .collect();
 
+    let is_empty = builder.keys.components.is_empty() && builder.keys.vars.is_empty();
+
     let generics = quote! {};
     let bounded_generics = quote! {};
     let empty_generics = quote! {};
@@ -217,5 +240,6 @@ fn gen_builder_info(builder: &Builder) -> BuilderInfos {
         empty_fields,
         fields,
         destructured,
+        is_empty,
     }
 }

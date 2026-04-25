@@ -52,21 +52,6 @@ pub trait Locale: LocaleRequirementsMarker {
     fn get_all() -> &'static [Self::BaseLocale] {
         BaseLocale::get_all()
     }
-
-    /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
-    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
-        Self::from_base_locale(BaseLocale::find_locale(accepted_languages))
-    }
-
-    /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
-    ///
-    /// This function does not fallback to default if no match is found.
-    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
-        BaseLocale::find_matchs(langid)
-            .into_iter()
-            .map(Self::from_base_locale)
-            .collect()
-    }
 }
 
 /// Trait implemented the enum representing the supported locales of the application
@@ -246,19 +231,27 @@ mod test {
         },
     }
 
-    use crate::Locale as _;
+    use super::BaseLocale as _;
+    use crate::keys::KeyBuilder;
     use i18n::Locale;
 
     #[cfg(not(feature = "dynamic_load"))]
     const _: () = {
-        macro_rules! td_const {
-            ($locale:expr, $first_key:ident $(.$key:ident)*) => {
-                ($locale).get_keys_const()
+        use crate::Scope;
+
+        const fn get_keys_const<S: Scope>() -> S::Keys {
+            <S::Keys as crate::scopes::Keys>::THIS
+        }
+        macro_rules! const_key {
+            ($scope: ty, $first_key:ident $(.$key:ident)*) => {
+                $crate::__private::check_is_key(
+                    $crate::__private::get_keys_const::<$scope>()
                     .$first_key()
                     $(.$key())*
-                    .inner()
+                )
             };
         }
+
         const fn check_str_eq_const(a: &str, b: &str) -> bool {
             if a.len() != b.len() {
                 return false;
@@ -275,9 +268,10 @@ mod test {
                 }
             }
         }
-        let fr_ssk = td_const!(Locale::fr, sk.ssk);
+        let fr_ssk = const_key!(Locale, sk.ssk);
+        let a = KeyBuilder::const_build(fr_ssk);
         assert!(check_str_eq_const(fr_ssk, "test fr"));
-        let en_ssk = td_const!(Locale::en, sk.ssk);
+        let en_ssk = const_key!(Locale, sk.ssk);
         assert!(check_str_eq_const(en_ssk, "test en"));
     };
 
