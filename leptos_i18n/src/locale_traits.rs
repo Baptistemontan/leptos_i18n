@@ -26,8 +26,7 @@ pub trait Locale<L: Locale = Self>:
     + AsRef<L>
     + std::fmt::Display
     + std::fmt::Debug
-    + PartialEq
-    + Eq
+    + Ord
     + Hash
     + Send
     + Sync

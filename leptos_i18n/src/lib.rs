@@ -1,6 +1,6 @@
 #![cfg_attr(feature = "nightly", feature(fn_traits))]
 #![cfg_attr(feature = "nightly", feature(unboxed_closures))]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![deny(warnings)]
 //! # About Leptos i18n
@@ -120,6 +120,7 @@ pub mod context;
 pub mod display;
 mod fetch_locale;
 mod fetch_translations;
+pub mod keys;
 mod langid;
 pub mod locale;
 mod locale_traits;

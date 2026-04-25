@@ -59,6 +59,18 @@ impl<L: Locale, S: Scope<L>> PartialEq for ScopedLocale<L, S> {
 
 impl<L: Locale, S: Scope<L>> Eq for ScopedLocale<L, S> {}
 
+impl<L: Locale, S: Scope<L>> PartialOrd for ScopedLocale<L, S> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<L: Locale, S: Scope<L>> Ord for ScopedLocale<L, S> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.locale.cmp(&other.locale)
+    }
+}
+
 impl<L: Locale, S: Scope<L>> Clone for ScopedLocale<L, S> {
     fn clone(&self) -> Self {
         *self
