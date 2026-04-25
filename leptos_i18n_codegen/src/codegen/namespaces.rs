@@ -1,10 +1,10 @@
-use leptos_i18n_parser::extraction::{Builders, Namespace};
+use leptos_i18n_parser::extraction::Namespace;
 use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::{
     CodegenOptions,
-    codegen::{docs::gen_keys_doc, locales::gen_locales},
+    codegen::{builders::BuildersInfos, docs::gen_keys_doc, locales::gen_locales},
 };
 
 pub fn gen_namespaces(
@@ -12,7 +12,7 @@ pub fn gen_namespaces(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
-    builders: &Builders,
+    builders: &BuildersInfos,
     options: &CodegenOptions,
 ) -> TokenStream {
     let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {

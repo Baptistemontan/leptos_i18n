@@ -1,12 +1,15 @@
 use leptos_i18n_parser::{
-    extraction::{Builders, Locales},
+    extraction::Locales,
     options::LocaleName,
-    utils::Key,
+    utils::{Key, KeyPath},
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::{CodegenOptions, codegen::keys::gen_subkeys_impls};
+use crate::{
+    CodegenOptions,
+    codegen::{builders::BuildersInfos, keys::gen_subkeys_impls},
+};
 
 pub fn strings_accessor_method_name(locale: &LocaleName) -> syn::Ident {
     format_ident!("__get_{}_translations__", &*locale.key.ident)
@@ -18,7 +21,7 @@ pub fn gen_locales(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     namespace: Option<&Key>,
-    builders: &Builders,
+    builders: &BuildersInfos,
     options: &CodegenOptions,
 ) -> TokenStream {
     let string_holders = gen_strings_holders(
@@ -90,12 +93,15 @@ pub fn gen_locales(
         quote!()
     };
 
+    let mut path = KeyPath::new(namespace.cloned());
+
     let keys_impls = gen_subkeys_impls(
         &locales.keys,
         keys_ident,
         enum_ident,
         locales,
         builders,
+        &mut path,
         options,
     );
 

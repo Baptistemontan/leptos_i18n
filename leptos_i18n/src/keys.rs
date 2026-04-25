@@ -7,13 +7,13 @@ use leptos::{
 
 use crate::Locale;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KeyBuilder<B: ArgsBuilder> {
     id: B::Id,
     _marker: PhantomData<B>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Key<A: Args> {
     id: A::Id,
     args: A,
@@ -26,7 +26,7 @@ pub struct AnyArgs<L: Locale> {
 }
 
 pub trait ArgsBuilder: 'static {
-    type Id: Copy + 'static;
+    type Id: Send + Sync + Copy + Hash + Ord + 'static;
     type Builder: 'static;
     type Locale: Locale;
 
@@ -37,6 +37,11 @@ pub trait DowngradableArgBuilder: ArgsBuilder {
     type Downgraded: ArgsBuilder<Locale = Self::Locale, Builder = Self::Builder>;
 
     fn map_id(id: Self::Id) -> <Self::Downgraded as ArgsBuilder>::Id;
+}
+
+pub trait ArgsMarker<B>: ArgsBuilder {
+    type Args: Args<Locale = Self::Locale, Id = Self::Id>;
+    fn into_args(builder: B) -> Self::Args;
 }
 
 pub trait Args: Clone + Send + Sync + 'static {
@@ -110,14 +115,27 @@ impl<L: Locale> AnyArgs<L> {
 }
 
 impl<B: ArgsBuilder> KeyBuilder<B> {
-    pub fn build<F, A>(self, f: F) -> Key<A>
+    pub fn build<F, A>(self, f: F) -> Key<<B as ArgsMarker<A>>::Args>
     where
         F: FnOnce(B::Builder) -> A,
-        F: 'static,
-        A: Args<Id = B::Id, Locale = B::Locale>,
+        B: ArgsMarker<A>,
     {
-        let args = f(B::new());
+        let builded = f(B::new());
+        let args = B::into_args(builded);
         Key { id: self.id, args }
+    }
+
+    #[doc(hidden)]
+    pub const fn from_id(id: B::Id) -> Self {
+        KeyBuilder {
+            id,
+            _marker: PhantomData,
+        }
+    }
+
+    #[doc(hidden)]
+    pub const fn into_id(this: Self) -> B::Id {
+        this.id
     }
 }
 
@@ -151,8 +169,8 @@ impl<A: Args> Key<A> {
     }
 
     #[doc(hidden)]
-    pub fn into_args_and_id(self) -> (A, A::Id) {
-        let Self { id, args } = self;
+    pub fn into_args_and_id(this: Self) -> (A, A::Id) {
+        let Self { id, args } = this;
         (args, id)
     }
 }

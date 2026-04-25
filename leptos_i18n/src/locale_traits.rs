@@ -36,6 +36,8 @@ pub trait Locale<L: Locale = Self>:
     /// The associated struct containing the translations
     type Keys: LocaleKeys<Locale = L>;
 
+    const ALL_VARIANTS: &'static [L];
+
     /// Associated `#[server]` function type to request the translations
     #[cfg(all(feature = "dynamic_load", not(feature = "csr")))]
     type ServerFn: leptos::server_fn::ServerFn;
@@ -58,7 +60,9 @@ pub trait Locale<L: Locale = Self>:
     }
 
     /// Return a static reference to an array containing all variants of this enum
-    fn get_all() -> &'static [L];
+    fn get_all() -> &'static [L] {
+        Self::ALL_VARIANTS
+    }
 
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {

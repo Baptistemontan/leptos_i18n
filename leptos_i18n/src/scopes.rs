@@ -136,6 +136,8 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
     #[cfg(all(feature = "dynamic_load", not(feature = "csr")))]
     type ServerFn = L::ServerFn;
 
+    const ALL_VARIANTS: &'static [L] = L::ALL_VARIANTS;
+
     fn as_str(self) -> &'static str {
         <L as Locale>::as_str(self.locale)
     }
@@ -146,10 +148,6 @@ impl<L: Locale, S: Scope<L>> Locale<L> for ScopedLocale<L, S> {
 
     fn as_icu_locale(self) -> &'static IcuLocale {
         <L as Locale>::as_icu_locale(self.locale)
-    }
-
-    fn get_all() -> &'static [L] {
-        <L as Locale>::get_all()
     }
 
     fn to_base_locale(self) -> L {

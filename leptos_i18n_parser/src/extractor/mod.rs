@@ -313,7 +313,7 @@ impl BuilderIndexer {
             return BuilderId(*id);
         }
 
-        let mut name = keys.generate_key();
+        let mut name = keys.generate_builder_key();
         loop {
             if self.keys.contains(&name) {
                 name.push('_');
@@ -348,8 +348,8 @@ impl BuilderIndexer {
 }
 
 impl InterpolationKeys {
-    pub fn generate_key(&self) -> String {
-        let mut s = String::from("I18n_builder_");
+    pub fn generate_builder_key(&self) -> String {
+        let mut s = String::from("i18n_builder_");
         for (key, info) in &self.vars {
             s.push_str(&key.name);
             if info.plural {

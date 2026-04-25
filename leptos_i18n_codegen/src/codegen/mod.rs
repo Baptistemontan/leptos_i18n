@@ -1,5 +1,5 @@
 use leptos_i18n_parser::error::{Error, Result};
-use leptos_i18n_parser::extraction::{Builders, LocalesOrNamespaces, ParsedLocales};
+use leptos_i18n_parser::extraction::{LocalesOrNamespaces, ParsedLocales};
 use leptos_i18n_parser::options::LocaleName;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
@@ -12,7 +12,7 @@ mod namespaces;
 mod values;
 
 use crate::CodegenOptions;
-use crate::codegen::builders::gen_builder_module;
+use crate::codegen::builders::{BuildersInfos, gen_builder_module};
 use crate::codegen::docs::gen_keys_doc;
 use crate::codegen::locales::gen_locales;
 use crate::codegen::namespaces::gen_namespaces;
@@ -46,16 +46,16 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
         &options,
     )?;
 
+    let (builders_module, builders_infos) = gen_builder_module(builders, &enum_ident);
+
     let keys_impls = gen_keys_impls(
         values,
         &keys_ident,
         &enum_ident,
         &translation_unit_enum_ident,
-        builders,
+        &builders_infos,
         &options,
     );
-
-    let builders_module = gen_builder_module(builders);
 
     let mut macros_reexport = vec![
         quote!(t),
@@ -420,7 +420,7 @@ pub fn gen_enum(
 
     let ts = quote! {
         #docs
-        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Default)]
+        #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, Default, PartialOrd, Ord)]
         #[allow(non_camel_case_types)]
         pub enum #enum_ident {
             #[default]
@@ -455,6 +455,8 @@ pub fn gen_enum(
             type Keys = keys::#keys_ident;
             type TranslationUnitId = keys::#translation_unit_enum_ident;
 
+            const ALL_VARIANTS: &'static [Self] = &[#(#enum_ident::#locales_variants,)*];
+
             #server_fn_type
 
             fn as_str(self) -> &'static str {
@@ -483,10 +485,6 @@ pub fn gen_enum(
                         #direction_match_arms,
                     )*
                 }
-            }
-
-            fn get_all() -> &'static [Self] {
-                &[#(#enum_ident::#locales_variants,)*]
             }
 
             fn to_base_locale(self) -> Self {
@@ -554,7 +552,7 @@ fn gen_keys_impls(
     keys_ident: &syn::Ident,
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
-    builders: &Builders,
+    builders: &BuildersInfos,
     options: &CodegenOptions,
 ) -> TokenStream {
     match values {
