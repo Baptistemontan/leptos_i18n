@@ -5,7 +5,7 @@ use leptos_i18n_parser::{
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::{CodegenOptions, codegen::builders::BuildersInfos};
+use crate::{CodegenOptions, codegen::builders::infos::BuildersInfos};
 
 pub fn gen_values_modules_and_accessors(
     key: &Key,
@@ -27,6 +27,7 @@ pub fn gen_values_modules_and_accessors(
         quote! {}
     };
 
+    let markers_field = &builders.markers_field;
     let builder_infos = builders
         .infos
         .get(&values.builder_id)
@@ -37,11 +38,11 @@ pub fn gen_values_modules_and_accessors(
         .get(path)
         .expect("to contain a variant for this key");
 
-    let bounded_generics = &builder_infos.bounded_generics;
-    let generics = &builder_infos.generics;
-    let destructure = &builder_infos.destructured;
+    let bounded_generics = builder_infos.bounded_generics();
+    let generics = builder_infos.generics();
+    let destructure = &builder_infos.destructure(markers_field);
 
-    let empty_marker = if builder_infos.is_empty {
+    let empty_marker = if builder_infos.fields.is_empty() {
         let match_arms = gen_const_values_match_arms(values, enum_ident, locales);
         quote! {
             impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
@@ -53,7 +54,7 @@ pub fn gen_values_modules_and_accessors(
             }
 
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
-                const THIS: Args = Args(BuildedArgs {});
+                const THIS: Args = Args(BuildedArgs::__const_new());
             }
 
             impl Args {
@@ -82,7 +83,7 @@ pub fn gen_values_modules_and_accessors(
             #[allow(unused)]
             use super::{#enum_ident, __l_i18n_crate, __builders};
             pub type Builder = __builders::#builder_name::Builder;
-            type BuildedArgs = __builders::#builder_name::BuildedArgs;
+            type BuildedArgs<#generics> = __builders::#builder_name::BuildedArgs<#generics>;
 
             pub type Id = ();
 
@@ -104,36 +105,47 @@ pub fn gen_values_modules_and_accessors(
                 const ID: __builders::#builder_name::Id = __builders::#builder_name::Id::#variant_ident;
             }
 
-            #[derive(Clone, Copy)]
-            pub struct Args #bounded_generics (BuildedArgs #generics);
 
-            impl #bounded_generics __l_i18n_crate::keys::ArgsMarker<BuildedArgs #generics> for ArgsBuilder {
-                type Args = Args #generics;
+            pub struct Args<#generics>(BuildedArgs<#generics>);
 
-                fn into_args(builder: BuildedArgs #generics) -> Self::Args {
+            impl<#generics> core::clone::Clone for Args<#generics> where BuildedArgs<#generics>: core::clone::Clone {
+                fn clone(&self) -> Self {
+                    Self(core::clone::Clone::clone(&self.0))
+                }
+            }
+
+            impl<#generics> core::marker::Copy for Args<#generics> where BuildedArgs<#generics>: core::marker::Copy {}
+
+            impl<#bounded_generics> __l_i18n_crate::keys::ArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+                type Args = Args<#generics>;
+
+                fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
                     Args(builder)
                 }
             }
 
-            impl #bounded_generics __l_i18n_crate::keys::Args for Args {
+            impl<#bounded_generics> __l_i18n_crate::keys::Args for Args<#generics> {
                 type Locale = #enum_ident;
                 type Id = Id;
-                type Downgraded = __builders::#builder_name::Args;
+
+                fn render(self, _: (), locale: Self::Locale) -> impl __l_i18n_crate::reexports::leptos::IntoView {
+                    let Self(builder) = self;
+                    __render(builder, locale)
+                }
+            }
+
+            impl<#bounded_generics> __l_i18n_crate::keys::DowngradableArgs for Args<#generics> {
+                type Downgraded = __builders::#builder_name::Args<#generics>;
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
                     let (Self(args), ()) = __l_i18n_crate::keys::Key::into_args_and_id(this);
                     let args = __builders::#builder_name::Args(args);
                     __l_i18n_crate::keys::Key::from_args_and_id(args, __builders::#builder_name::Id::#variant_ident)
                 }
-
-                fn render(self, id: (), locale: Self::Locale) -> impl __l_i18n_crate::reexports::leptos::IntoView {
-                    let Self(builder) = self;
-                    __render(builder, locale)
-                }
             }
 
             #[doc(hidden)]
-            pub fn __render #bounded_generics (args: BuildedArgs #generics, locale: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView {
+            pub fn __render< #bounded_generics >(args: BuildedArgs< #generics >, locale: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView {
                 let BuildedArgs #destructure = args;
             }
 

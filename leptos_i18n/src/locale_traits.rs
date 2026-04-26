@@ -222,11 +222,13 @@ mod test {
         en: {
             sk: {
                 ssk: "test en",
+                test: "{{ some_var }}"
             },
         },
         fr: {
             sk: {
                 ssk: "test fr",
+                test: "<p>{{ some_var }}</p>"
             },
         },
     }

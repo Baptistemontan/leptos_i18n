@@ -107,3 +107,34 @@ pub fn fit_in_leptos_tuple(values: &[TokenStream]) -> TokenStream {
         quote!((#(#values,)*))
     }
 }
+
+#[derive(Clone)]
+pub enum EitherIter<A, B> {
+    Iter1(A),
+    Iter2(B),
+}
+
+impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A, B> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            EitherIter::Iter1(iter) => iter.next(),
+            EitherIter::Iter2(iter) => iter.next(),
+        }
+    }
+}
+
+impl<T, A, B> ExactSizeIterator for EitherIter<A, B>
+where
+    A: ExactSizeIterator<Item = T>,
+    B: ExactSizeIterator<Item = T>,
+    Self: Iterator<Item = T>,
+{
+    fn len(&self) -> usize {
+        match self {
+            EitherIter::Iter1(iter) => ExactSizeIterator::len(iter),
+            EitherIter::Iter2(iter) => ExactSizeIterator::len(iter),
+        }
+    }
+}

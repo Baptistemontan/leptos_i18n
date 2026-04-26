@@ -5,7 +5,7 @@ use leptos::{
     prelude::{AnyView, IntoAny},
 };
 
-use crate::Locale;
+use crate::locale_traits::BaseLocale;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KeyBuilder<B: ArgsBuilder> {
@@ -21,14 +21,14 @@ pub struct Key<A: Args> {
 
 pub type AnyKey<L> = Key<AnyArgs<L>>;
 
-pub struct AnyArgs<L: Locale> {
+pub struct AnyArgs<L: BaseLocale> {
     args: Box<dyn DynAnyArgs<Locale = L>>,
 }
 
 pub trait ArgsBuilder: Copy + 'static {
     type Id: Send + Sync + Copy + Hash + Ord + 'static;
     type Builder: 'static;
-    type Locale: Locale;
+    type Locale: BaseLocale;
 
     fn new() -> Self::Builder;
 }
@@ -51,18 +51,21 @@ pub trait ConstArgsMarker: ArgsMarker<NoArgs, Args: Copy + 'static> {
     const THIS: Self::Args;
 }
 
-pub trait Args: Clone + Send + Sync + 'static {
-    type Locale: Locale;
+pub trait Args: Clone + 'static {
+    type Locale: BaseLocale;
     type Id: Send + Sync + Copy + Hash + Ord + 'static;
-    type Downgraded: Args<Locale = Self::Locale>;
-
-    fn downgrade(this: Key<Self>) -> Key<Self::Downgraded>;
 
     fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoView;
 }
 
+pub trait DowngradableArgs: Args {
+    type Downgraded: Args<Locale = Self::Locale>;
+
+    fn downgrade(this: Key<Self>) -> Key<Self::Downgraded>;
+}
+
 trait DynAnyArgs: Send + Sync + Any + 'static {
-    type Locale: Locale;
+    type Locale: BaseLocale;
 
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView;
 
@@ -75,7 +78,7 @@ struct AnyArgsInner<A: Args> {
     args: A,
 }
 
-impl<A: Args> DynAnyArgs for AnyArgsInner<A> {
+impl<A: Args + Send + Sync> DynAnyArgs for AnyArgsInner<A> {
     type Locale = A::Locale;
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView {
         let AnyArgsInner { id, args } = *self;
@@ -89,31 +92,33 @@ impl<A: Args> DynAnyArgs for AnyArgsInner<A> {
     }
 }
 
-impl<L: Locale> Clone for AnyArgs<L> {
+impl<L: BaseLocale> Clone for AnyArgs<L> {
     fn clone(&self) -> Self {
         let args = DynAnyArgs::clone(&*self.args);
         AnyArgs { args }
     }
 }
 
-impl<L: Locale> Args for AnyArgs<L> {
-    type Downgraded = Self;
+impl<L: BaseLocale> Args for AnyArgs<L> {
     type Id = ();
     type Locale = L;
-
-    fn downgrade(this: Key<Self>) -> Key<Self::Downgraded> {
-        this
-    }
 
     fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoView {
         DynAnyArgs::render(self.args, locale)
     }
 }
 
-impl<L: Locale> AnyArgs<L> {
+impl<L: BaseLocale> DowngradableArgs for AnyArgs<L> {
+    type Downgraded = Self;
+    fn downgrade(this: Key<Self>) -> Key<Self::Downgraded> {
+        this
+    }
+}
+
+impl<L: BaseLocale> AnyArgs<L> {
     fn from_args<A>(args: A, id: A::Id) -> AnyArgs<L>
     where
-        A: Args<Locale = L>,
+        A: Args<Locale = L> + Send + Sync,
     {
         let inner = AnyArgsInner { id, args };
         let boxed = Box::new(inner);
@@ -171,11 +176,17 @@ impl<A: Args> Key<A> {
         A::render(self.args, self.id, locale)
     }
 
-    pub fn downgrade(self) -> Key<A::Downgraded> {
+    pub fn downgrade(self) -> Key<A::Downgraded>
+    where
+        A: DowngradableArgs,
+    {
         A::downgrade(self)
     }
 
-    pub fn downgrade_any(self) -> Key<AnyArgs<A::Locale>> {
+    pub fn downgrade_any(self) -> Key<AnyArgs<A::Locale>>
+    where
+        A: Send + Sync,
+    {
         let any = AnyArgs::from_args(self.args, self.id);
         Key { id: (), args: any }
     }

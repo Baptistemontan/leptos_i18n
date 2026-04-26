@@ -72,18 +72,18 @@ pub struct Builders {
 pub struct BuilderId(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CompInfo {
+pub struct CompInfos {
     pub self_closed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct InterpolationKeys {
-    pub components: BTreeMap<Key, CompInfo>,
-    pub vars: BTreeMap<Key, VarInfo>,
+    pub components: BTreeMap<Key, CompInfos>,
+    pub vars: BTreeMap<Key, VarInfos>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VarInfo {
+pub struct VarInfos {
     pub bounds: BTreeSet<VarBound>,
     pub plural: bool,
 }
@@ -260,7 +260,7 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
             let info = keys
                 .components
                 .entry(component.key.clone())
-                .or_insert(CompInfo {
+                .or_insert(CompInfos {
                     self_closed: is_self_closed,
                 });
             if info.self_closed != is_self_closed {

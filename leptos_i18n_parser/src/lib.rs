@@ -24,7 +24,7 @@ pub mod extraction {
     pub use super::extractor::defaults::DefaultedLocales;
     pub use super::extractor::values::{Keys, Literal, Value, Values, ValuesOrSubkeys};
     pub use super::extractor::{
-        Builder, BuilderId, Builders, InterpolationKeys, Locales, LocalesOrNamespaces, Namespace,
-        ParsedLocales, extract_locales,
+        Builder, BuilderId, Builders, CompInfos, InterpolationKeys, Locales, LocalesOrNamespaces,
+        Namespace, ParsedLocales, VarInfos, extract_locales,
     };
 }

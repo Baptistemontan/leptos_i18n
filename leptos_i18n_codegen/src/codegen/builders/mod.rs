@@ -2,54 +2,37 @@ use std::collections::{BTreeMap, HashSet};
 
 use leptos_i18n_parser::{
     extraction::{Builder, BuilderId, Builders},
+    formatters::VarBound,
     utils::{Key, KeyPath},
 };
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
+
+mod builder;
+pub mod infos;
+
+use infos::{BuilderInfos, BuildersInfos};
 
 use crate::utils::EitherOfWrapper;
-
-pub struct BuilderInfos {
-    pub id_variants: BTreeMap<KeyPath, syn::Ident>,
-    pub generics: TokenStream,
-    pub bounded_generics: TokenStream,
-    pub empty_generics: TokenStream,
-    pub empty_fields: TokenStream,
-    pub fields: TokenStream,
-    pub destructured: TokenStream,
-    pub is_empty: bool,
-    pub name: Key,
-}
-
-pub struct BuildersInfos {
-    pub infos: BTreeMap<BuilderId, BuilderInfos>,
-}
 
 pub fn gen_builder_module(
     builders: &Builders,
     enum_ident: &syn::Ident,
+    markers_field: syn::Ident,
 ) -> (TokenStream, BuildersInfos) {
-    let infos = builders
-        .builders
-        .iter()
-        .map(|(id, builder)| {
-            let infos = gen_builder_info(builder);
-            (id.clone(), infos)
-        })
-        .collect();
+    let infos = BuildersInfos::new(builders, markers_field);
 
-    let builder_infos = BuildersInfos { infos };
+    let ts = gen_module(&infos, enum_ident);
 
-    let ts = gen_module(&builder_infos, enum_ident);
-
-    (ts, builder_infos)
+    (ts, infos)
 }
 
 fn gen_module(infos: &BuildersInfos, enum_ident: &syn::Ident) -> TokenStream {
+    let markers_field = &infos.markers_field;
     let inner_modules = infos
         .infos
         .values()
-        .map(|infos| gen_inner_module(infos, enum_ident));
+        .map(|infos| gen_inner_module(infos, enum_ident, markers_field));
 
     quote! {
         #[doc(hidden)]
@@ -66,15 +49,16 @@ fn iter_path_keys(path: &KeyPath) -> impl Iterator<Item = &Key> {
     iter.chain(path.path.iter())
 }
 
-fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStream {
+fn gen_inner_module(
+    infos: &BuilderInfos,
+    enum_ident: &syn::Ident,
+    markers_field: &syn::Ident,
+) -> TokenStream {
     let mod_key = &*infos.name.ident;
-
     let variants = infos.id_variants.values();
-    let bounded_generics = &infos.bounded_generics;
-    let fields = &infos.fields;
-    let empty_generics = &infos.empty_generics;
-    let empty_fields = &infos.empty_fields;
-    let generics = &infos.generics;
+    let bounded_generics = infos.bounded_generics();
+    let generics = infos.generics();
+    let struct_fields = infos.struct_fields(markers_field);
 
     let either_of = EitherOfWrapper::new(infos.id_variants.len());
 
@@ -93,7 +77,7 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
             }
         });
 
-    let empty_marker = if infos.is_empty {
+    let empty_marker = if infos.fields.is_empty() {
         let const_value_match_arms = infos.id_variants.iter().map(|(path, variant)| {
             let keys = iter_path_keys(path);
             quote! {
@@ -111,7 +95,7 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
             }
 
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
-                const THIS: Args = Args(BuildedArgs {});
+                const THIS: Args = Args(BuildedArgs::__const_new());
             }
 
             impl Args {
@@ -124,30 +108,57 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
                     }
                 }
             }
+
+            impl BuildedArgs {
+                #[doc(hidden)]
+                pub const fn __const_new() -> Self {
+                    BuildedArgs { #markers_field: core::marker::PhantomData }
+                }
+            }
         }
     } else {
         quote! {}
     };
+
+    let builder_impl = builder::gen_builder(infos, markers_field);
+
+    let relevant_clone_generics = infos.fields.iter().map(|f| &f.generic);
+    let relevant_copy_generics = infos.fields.iter().map(|f| &f.generic);
+
+    let relevant_clone_fields = infos.fields.iter().map(|f| &*f.key.ident);
 
     quote! {
         pub mod #mod_key {
             #[allow(unused)]
             use super::{#enum_ident, __l_i18n_crate};
 
-            pub type Builder = BuildedArgs #empty_generics;
+            #builder_impl
 
             #[doc(hidden)]
-            #[derive(Clone, Copy)]
-            pub struct BuildedArgs #bounded_generics {
-                #fields
-            }
+            pub struct BuildedArgs<#generics> #struct_fields
 
-            impl Builder {
-                pub fn new() -> Self {
-                    Builder {
-                        #empty_fields
+            impl<#generics> core::clone::Clone for BuildedArgs<#generics>
+                where (): core::clone::Clone,
+                    #(
+                        #relevant_clone_generics: core::clone::Clone,
+                    )*
+            {
+                fn clone(&self) -> Self {
+                    Self {
+                        #markers_field: core::marker::PhantomData,
+                        #(
+                            #relevant_clone_fields: core::clone::Clone::clone(&self.#relevant_clone_fields),
+                        )*
                     }
                 }
+            }
+
+            impl<#generics> core::marker::Copy for BuildedArgs<#generics>
+                where (): core::marker::Copy,
+                    #(
+                        #relevant_copy_generics: core::marker::Copy,
+                    )*
+            {
             }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -166,29 +177,33 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
                 type Locale = #enum_ident;
 
                 fn new() -> Self::Builder {
-                    Builder::new()
+                    todo!()
                 }
             }
 
-            #[derive(Clone, Copy)]
-            pub struct Args #bounded_generics (pub BuildedArgs #generics);
 
-            impl #bounded_generics __l_i18n_crate::keys::ArgsMarker<BuildedArgs #generics> for ArgsBuilder {
-                type Args = Args #generics;
+            pub struct Args<#generics>(pub BuildedArgs<#generics>);
 
-                fn into_args(builder: BuildedArgs #generics) -> Self::Args {
+            impl<#generics> core::clone::Clone for Args<#generics> where BuildedArgs<#generics>: core::clone::Clone {
+                fn clone(&self) -> Self {
+                    Self(core::clone::Clone::clone(&self.0))
+                }
+            }
+
+            impl<#generics> core::marker::Copy for Args<#generics> where BuildedArgs<#generics>: core::marker::Copy {}
+
+
+            impl<#bounded_generics> __l_i18n_crate::keys::ArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+                type Args = Args<#generics>;
+
+                fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
                     Args(builder)
                 }
             }
 
-            impl #bounded_generics __l_i18n_crate::keys::Args for Args {
+            impl<#bounded_generics> __l_i18n_crate::keys::Args for Args<#generics> {
                 type Locale = #enum_ident;
                 type Id = Id;
-                type Downgraded = __l_i18n_crate::keys::AnyArgs<#enum_ident>;
-
-                fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
-                    __l_i18n_crate::keys::Key::downgrade_any(this)
-                }
 
                 fn render(self, id: Self::Id, locale: Self::Locale) -> impl __l_i18n_crate::reexports::leptos::IntoView {
                     let Self(builder) = self;
@@ -200,64 +215,17 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
                 }
             }
 
+            impl<#bounded_generics> __l_i18n_crate::keys::DowngradableArgs for Args<#generics>
+                where Self: Send + Sync
+            {
+                type Downgraded = __l_i18n_crate::keys::AnyArgs<#enum_ident>;
+
+                fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
+                    __l_i18n_crate::keys::Key::downgrade_any(this)
+                }
+            }
+
             #empty_marker
         }
-    }
-}
-
-fn generate_variant_ident(keypath: &KeyPath, variants: &mut HashSet<String>) -> syn::Ident {
-    use core::fmt::Write;
-    let mut buff = String::new();
-    if let Some(ns) = &keypath.namespace {
-        write!(&mut buff, "{}_", &ns.ident).unwrap();
-    }
-
-    for key in &keypath.path {
-        write!(&mut buff, "{}_", &key.ident).unwrap();
-    }
-
-    while variants.contains(&buff) {
-        buff.push('_');
-    }
-
-    let ident = syn::Ident::new(&buff, Span::call_site());
-
-    variants.insert(buff);
-
-    ident
-}
-
-fn gen_builder_info(builder: &Builder) -> BuilderInfos {
-    let mut variants = HashSet::new();
-    let id_variants = builder
-        .used_by
-        .iter()
-        .map(|keypath| {
-            let ident = generate_variant_ident(keypath, &mut variants);
-            (keypath.clone(), ident)
-        })
-        .collect();
-
-    let is_empty = builder.keys.components.is_empty() && builder.keys.vars.is_empty();
-
-    let generics = quote! {};
-    let bounded_generics = quote! {};
-    let empty_generics = quote! {};
-    let empty_fields = quote! {};
-    let fields = quote! {};
-    let destructured = quote! {
-        {}
-    };
-
-    BuilderInfos {
-        name: builder.name.clone(),
-        id_variants,
-        generics,
-        bounded_generics,
-        empty_generics,
-        empty_fields,
-        fields,
-        destructured,
-        is_empty,
     }
 }

@@ -12,7 +12,7 @@ mod namespaces;
 mod values;
 
 use crate::CodegenOptions;
-use crate::codegen::builders::{BuildersInfos, gen_builder_module};
+use crate::codegen::builders::{gen_builder_module, infos::BuildersInfos};
 use crate::codegen::docs::gen_keys_doc;
 use crate::codegen::locales::gen_locales;
 use crate::codegen::namespaces::gen_namespaces;
@@ -46,7 +46,10 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
         &options,
     )?;
 
-    let (builders_module, builders_infos) = gen_builder_module(builders, &enum_ident);
+    let markers_field = format_ident!("_into_view_markers__");
+
+    let (builders_module, builders_infos) =
+        gen_builder_module(builders, &enum_ident, markers_field);
 
     let keys_impls = gen_keys_impls(
         values,
@@ -211,6 +214,7 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
             #![allow(clippy::type_complexity)]
             #![allow(clippy::let_and_return)]
             #![allow(clippy::unit_arg)]
+            #![allow(non_camel_case_types)]
             #top_level_attributes
 
             use #crate_path as __l_i18n_crate;

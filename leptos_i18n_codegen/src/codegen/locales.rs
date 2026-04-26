@@ -8,7 +8,7 @@ use quote::{format_ident, quote};
 
 use crate::{
     CodegenOptions,
-    codegen::{builders::BuildersInfos, keys::gen_subkeys_impls},
+    codegen::{builders::infos::BuildersInfos, keys::gen_subkeys_impls},
 };
 
 pub fn strings_accessor_method_name(locale: &LocaleName) -> syn::Ident {

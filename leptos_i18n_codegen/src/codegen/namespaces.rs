@@ -4,7 +4,7 @@ use quote::quote;
 
 use crate::{
     CodegenOptions,
-    codegen::{builders::BuildersInfos, docs::gen_keys_doc, locales::gen_locales},
+    codegen::{builders::infos::BuildersInfos, docs::gen_keys_doc, locales::gen_locales},
 };
 
 pub fn gen_namespaces(

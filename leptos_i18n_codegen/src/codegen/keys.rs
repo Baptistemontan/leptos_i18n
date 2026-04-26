@@ -8,7 +8,7 @@ use quote::quote;
 use crate::{
     CodegenOptions,
     codegen::{
-        builders::BuildersInfos, docs::gen_keys_doc, locales::strings_accessor_method_name,
+        builders::infos::BuildersInfos, docs::gen_keys_doc, locales::strings_accessor_method_name,
         values::gen_values_modules_and_accessors,
     },
 };
