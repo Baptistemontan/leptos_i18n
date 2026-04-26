@@ -1,5 +1,5 @@
 use leptos_i18n_parser::{
-    extraction::{Locales, Values},
+    extraction::{Literal, Locales, Value, Values},
     utils::{Key, KeyPath},
 };
 use proc_macro2::TokenStream;
@@ -42,6 +42,7 @@ pub fn gen_values_modules_and_accessors(
     let destructure = &builder_infos.destructured;
 
     let empty_marker = if builder_infos.is_empty {
+        let match_arms = gen_const_values_match_arms(values, enum_ident, locales);
         quote! {
             impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
                 type Args = Args;
@@ -53,6 +54,22 @@ pub fn gen_values_modules_and_accessors(
 
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 const THIS: Args = Args(BuildedArgs {});
+            }
+
+            impl Args {
+                #[doc(hidden)]
+                pub const fn __const_value(self, _: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                    __const_value(locale)
+                }
+            }
+
+            #[doc(hidden)]
+            pub const fn __const_value(locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                match locale {
+                    #(
+                        #match_arms,
+                    )*
+                }
             }
         }
     } else {
@@ -130,4 +147,36 @@ pub fn gen_values_modules_and_accessors(
             }
         }
     }
+}
+
+fn gen_const_values_match_arms(
+    values: &Values,
+    enum_ident: &syn::Ident,
+    locales: &Locales,
+) -> impl Iterator<Item = TokenStream> {
+    //TODO: check defaulting
+    values.values.iter().map(move |(locale, value)| {
+        let Value::Literal(lit) = value else { todo!() };
+
+        let value = match lit {
+            Literal::String(index) => {
+                // TODO: use direct string only on client dyn_load, use the static strs otherwise.
+                let loc = locales
+                    .locales
+                    .iter()
+                    .find(|l| l.name.key == *locale)
+                    .expect("to find the locale for this value");
+                let value = &*loc.strings[*index];
+                quote!(__l_i18n_crate::keys::Literal::String(#value))
+            }
+            Literal::Signed(n) => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
+            Literal::Unsigned(n) => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
+            Literal::Float(n) => quote!(__l_i18n_crate::keys::Literal::Float(#n)),
+            Literal::Bool(n) => quote!(__l_i18n_crate::keys::Literal::Bool(#n)),
+        };
+
+        quote! {
+            #enum_ident::#locale => #value
+        }
+    })
 }

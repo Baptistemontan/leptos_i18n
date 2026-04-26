@@ -232,26 +232,59 @@ mod test {
     }
 
     use super::BaseLocale as _;
-    use crate::keys::KeyBuilder;
     use i18n::Locale;
 
-    #[cfg(not(feature = "dynamic_load"))]
-    const _: () = {
-        use crate::Scope;
-
-        const fn get_keys_const<S: Scope>() -> S::Keys {
-            <S::Keys as crate::scopes::Keys>::THIS
-        }
-        macro_rules! const_key {
-            ($scope: ty, $first_key:ident $(.$key:ident)*) => {
+    macro_rules! const_key {
+        ($scope: ty, $first_key:ident $(.$key:ident)*) => {
+            const {
                 $crate::__private::check_is_key(
                     $crate::__private::get_keys_const::<$scope>()
                     .$first_key()
                     $(.$key())*
                 )
-            };
-        }
+            }
+        };
+    }
 
+    macro_rules! key {
+        ($scope: expr, $first_key:ident $(.$key:ident)*) => {
+            {
+                let scope = $scope;
+                $crate::__private::check_is_key(
+                    $crate::__private::get_keys_from_ref(&scope)
+                    .$first_key()
+                    $(.$key())*
+                )
+            }
+        };
+    }
+
+    macro_rules! scope {
+        ($scope: expr, $first_key:ident $(.$key:ident)*) => {
+            {
+                let scope = $scope;
+                $crate::__private::check_is_scope(
+                    $crate::__private::get_keys_from_ref(&scope)
+                    .$first_key()
+                    $(.$key())*
+                )
+            }
+        };
+    }
+
+    macro_rules! const_value {
+        ($key: expr, $locale: expr) => {
+            $crate::__private::check_is_literal({
+                let (args, id) = $crate::keys::Key::const_into_args_and_id(
+                    $crate::keys::KeyBuilder::const_build($key),
+                );
+                args.__const_value(id, $locale)
+            })
+        };
+    }
+
+    #[cfg(not(feature = "dynamic_load"))]
+    const _: () = {
         const fn check_str_eq_const(a: &str, b: &str) -> bool {
             if a.len() != b.len() {
                 return false;
@@ -268,11 +301,11 @@ mod test {
                 }
             }
         }
-        let fr_ssk = const_key!(Locale, sk.ssk);
-        let a = KeyBuilder::const_build(fr_ssk);
-        assert!(check_str_eq_const(fr_ssk, "test fr"));
-        let en_ssk = const_key!(Locale, sk.ssk);
-        assert!(check_str_eq_const(en_ssk, "test en"));
+        let ssk = const_key!(Locale, sk.ssk);
+        let fr_ssk = const_value!(ssk, Locale::fr);
+        assert!(check_str_eq_const(fr_ssk.str().unwrap(), "test fr"));
+        let en_ssk = const_value!(ssk, Locale::en);
+        assert!(check_str_eq_const(en_ssk.str().unwrap(), "test en"));
     };
 
     #[test]
@@ -296,10 +329,11 @@ mod test {
     #[test]
     #[cfg(not(feature = "dynamic_load"))]
     fn test_scope() {
-        use crate::{self as leptos_i18n, __private::LitWrapper, scope_locale};
-        let en_sk = scope_locale!(Locale::en, sk);
-        assert_eq!(en_sk.get_keys().ssk(), LitWrapper::new("test en"));
-        let fr_sk = en_sk.map_locale(Locale::fr);
-        assert_eq!(fr_sk.get_keys().ssk(), LitWrapper::new("test fr"));
+        use crate::keys::Literal;
+        let sk = scope!(Locale::en, sk);
+        let ssk = key!(sk, ssk);
+
+        assert_eq!(const_value!(ssk, Locale::en), Literal::String("test en"));
+        assert_eq!(const_value!(ssk, Locale::fr), Literal::String("test fr"));
     }
 }

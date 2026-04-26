@@ -39,6 +39,10 @@ impl<S: Scope> ScopedLocale<S> {
     pub const fn new(locale: S::BaseLocale) -> Self {
         ScopedLocale { locale }
     }
+
+    pub const fn locale(self) -> S::BaseLocale {
+        self.locale
+    }
 }
 
 impl<S: Scope> Debug for ScopedLocale<S> {

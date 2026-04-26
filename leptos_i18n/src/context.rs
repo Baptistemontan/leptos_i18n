@@ -46,6 +46,11 @@ impl<S: Scope> Clone for I18nContext<S> {
 
 impl<S: Scope> Copy for I18nContext<S> {}
 
+impl<S: Scope> Scope for I18nContext<S> {
+    type BaseLocale = S::BaseLocale;
+    type Keys = S::Keys;
+}
+
 impl<S: Scope> I18nContext<S> {
     /// Return the current locale subscribing to any changes.
     #[inline]

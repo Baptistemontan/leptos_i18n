@@ -1,4 +1,4 @@
-use crate::{I18nContext, Locale, Scope, scopes::ScopedLocale};
+use crate::{I18nContext, Locale, Scope, keys::Literal, scopes::ScopedLocale};
 
 #[doc(hidden)]
 pub const fn scope_ctx_util<OS: Scope, NS: Scope<BaseLocale = OS::BaseLocale>>(
@@ -22,8 +22,23 @@ pub const fn get_keys_const<S: Scope>() -> S::Keys {
 }
 
 #[doc(hidden)]
+pub const fn get_keys_from_ref<S: Scope>(_: &S) -> S::Keys {
+    <S::Keys as crate::scopes::Keys>::THIS
+}
+
+#[doc(hidden)]
 pub const fn check_is_key<B: crate::keys::ArgsBuilder>(
     key: crate::keys::KeyBuilder<B>,
 ) -> crate::keys::KeyBuilder<B> {
     key
+}
+
+#[doc(hidden)]
+pub const fn check_is_scope<S: Scope>(scope: S) -> S {
+    scope
+}
+
+#[doc(hidden)]
+pub const fn check_is_literal(lit: Literal) -> Literal {
+    lit
 }

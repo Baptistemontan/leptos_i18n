@@ -45,6 +45,8 @@ pub trait ArgsMarker<B>: ArgsBuilder {
 
 pub enum NoArgs {}
 
+#[doc(hidden)]
+#[diagnostic::on_unimplemented(message = "TODO")]
 pub trait ConstArgsMarker: ArgsMarker<NoArgs, Args: Copy + 'static> {
     const THIS: Self::Args;
 }
@@ -196,5 +198,56 @@ impl<A: Args> Key<A> {
     pub fn into_args_and_id(this: Self) -> (A, A::Id) {
         let Self { id, args } = this;
         (args, id)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Literal {
+    String(&'static str),
+    Signed(i64),
+    Unsigned(u64),
+    Float(f64),
+    Bool(bool),
+}
+
+impl Literal {
+    pub const fn str(self) -> Option<&'static str> {
+        if let Literal::String(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub const fn signed(self) -> Option<i64> {
+        if let Literal::Signed(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub const fn unsigned(self) -> Option<u64> {
+        if let Literal::Unsigned(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub const fn float(self) -> Option<f64> {
+        if let Literal::Float(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub const fn bool(self) -> Option<bool> {
+        if let Literal::Bool(v) = self {
+            Some(v)
+        } else {
+            None
+        }
     }
 }

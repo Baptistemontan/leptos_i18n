@@ -94,6 +94,13 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
         });
 
     let empty_marker = if infos.is_empty {
+        let const_value_match_arms = infos.id_variants.iter().map(|(path, variant)| {
+            let keys = iter_path_keys(path);
+            quote! {
+                Id::#variant => super::super::keys::#(#keys ::)* __const_value(locale)
+            }
+        });
+
         quote! {
             impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
                 type Args = Args;
@@ -105,6 +112,17 @@ fn gen_inner_module(infos: &BuilderInfos, enum_ident: &syn::Ident) -> TokenStrea
 
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 const THIS: Args = Args(BuildedArgs {});
+            }
+
+            impl Args {
+                #[doc(hidden)]
+                pub const fn __const_value(self, id: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                    match id {
+                        #(
+                            #const_value_match_arms,
+                        )*
+                    }
+                }
             }
         }
     } else {
