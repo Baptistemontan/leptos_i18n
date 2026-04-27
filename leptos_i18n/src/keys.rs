@@ -7,7 +7,8 @@ use leptos::{
 
 use crate::locale_traits::BaseLocale;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+// TODO: manual impl of Debug to print key path
+#[derive(Debug)]
 pub struct KeyBuilder<B: ArgsBuilder> {
     id: B::Id,
     _marker: PhantomData<B>,
@@ -260,5 +261,39 @@ impl Literal {
         } else {
             None
         }
+    }
+}
+
+impl<B: ArgsBuilder> Clone for KeyBuilder<B> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<B: ArgsBuilder> Copy for KeyBuilder<B> {}
+
+impl<B: ArgsBuilder> PartialEq for KeyBuilder<B> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<B: ArgsBuilder> Eq for KeyBuilder<B> {}
+
+impl<B: ArgsBuilder> PartialOrd for KeyBuilder<B> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<B: ArgsBuilder> Ord for KeyBuilder<B> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl<B: ArgsBuilder> Hash for KeyBuilder<B> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
