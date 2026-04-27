@@ -1,5 +1,5 @@
 use leptos_i18n_build::{
-    options::{CodegenOptions, FileFormat},
+    options::{CodegenOptions, FileFormat, ParseOptions},
     Config, TranslationsInfos,
 };
 use std::{error::Error, path::PathBuf};
