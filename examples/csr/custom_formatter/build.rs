@@ -1,6 +1,6 @@
 use leptos_i18n_build::{
     formatter::{Formatter, FormatterToTokens, Key},
-    options::ParseOptions,
+    options::{CodegenOptions, ParseOptions},
     Config, TranslationsInfos,
 };
 use proc_macro2::TokenStream;
