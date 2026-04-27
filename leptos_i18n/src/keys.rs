@@ -216,6 +216,10 @@ impl<B: DowngradableArgBuilder> KeyBuilder<B> {
 
 impl<A: Args> Key<A> {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    pub fn render(self, locale: A::Locale) -> impl IntoViewFuture {
+        A::render(self.args, self.id, locale)
+    }
+
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     pub fn render(self, locale: A::Locale) -> impl IntoView {
         A::render(self.args, self.id, locale)
