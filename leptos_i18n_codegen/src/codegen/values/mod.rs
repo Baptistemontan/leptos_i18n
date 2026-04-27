@@ -89,6 +89,19 @@ pub fn gen_values_modules_and_accessors(
 
     let render_body = gen_render_body(values, locales, enum_ident, keys_ident, &locale_field);
 
+    let (render_fn_out_type, maybe_async) =
+        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+            (
+                quote!(impl __l_i18n_crate::keys::IntoViewFuture),
+                quote!(async),
+            )
+        } else {
+            (
+                quote!(impl __l_i18n_crate::reexports::leptos::IntoView),
+                quote!(),
+            )
+        };
+
     quote! {
         #docs
         pub mod #key {
@@ -140,7 +153,7 @@ pub fn gen_values_modules_and_accessors(
                 type Locale = #enum_ident;
                 type Id = Id;
 
-                fn render(self, _: (), locale: Self::Locale) -> impl __l_i18n_crate::reexports::leptos::IntoView {
+                fn render(self, _: (), locale: Self::Locale) -> #render_fn_out_type {
                     let Self(builder) = self;
                     __render(builder, locale)
                 }
@@ -157,7 +170,7 @@ pub fn gen_values_modules_and_accessors(
             }
 
             #[doc(hidden)]
-            pub fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView {
+            pub #maybe_async fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView {
                 let BuildedArgs #destructure = args;
                 #render_body
             }
@@ -196,7 +209,7 @@ fn gen_render_body(
         let render_value = gen_render_value(value, &translations_ident, string_count, locale_field);
         let render_value = either_of.wrap(i, render_value);
         if cfg!(feature = "dynamic_load") {
-            let maybe_await = if cfg!(any(feature = "csr", feature = "hydrate")) {
+            let maybe_await = if cfg!(not(feature = "ssr")) {
                 quote!(.await)
             } else {
                 quote!()

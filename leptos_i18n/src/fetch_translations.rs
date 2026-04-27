@@ -23,7 +23,7 @@ pub trait TranslationUnit: Sized {
     -> impl std::future::Future<Output = &'static Self::Strings> + Send + Sync + 'static {
         let string_lock = Self::get_strings_lock();
         let fut = string_lock.get_or_init(async {
-            let translations = Locale::request_translations(Self::LOCALE, Self::ID)
+            let translations = BaseLocale::request_translations(Self::LOCALE, Self::ID)
                 .await
                 .unwrap();
             StringArray::cast(translations.0)

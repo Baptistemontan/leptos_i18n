@@ -125,6 +125,12 @@ fn gen_inner_module(
 
     let relevant_clone_fields = infos.fields.iter().map(|f| &*f.key.ident);
 
+    let render_fn_out_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+        quote!(impl __l_i18n_crate::keys::IntoViewFuture)
+    } else {
+        quote!(impl __l_i18n_crate::reexports::leptos::IntoView)
+    };
+
     quote! {
         pub mod #mod_key {
             #[allow(unused)]
@@ -203,7 +209,7 @@ fn gen_inner_module(
                 type Locale = #enum_ident;
                 type Id = Id;
 
-                fn render(self, id: Self::Id, locale: Self::Locale) -> impl __l_i18n_crate::reexports::leptos::IntoView {
+                fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
                     let Self(builder) = self;
                     match id {
                         #(

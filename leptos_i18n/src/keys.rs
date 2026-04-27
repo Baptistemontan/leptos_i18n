@@ -52,10 +52,20 @@ pub trait ConstArgsMarker: ArgsMarker<NoArgs, Args: Copy + 'static> {
     const THIS: Self::Args;
 }
 
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+#[doc(hidden)]
+pub trait IntoViewFuture: Future<Output: IntoView> + 'static {}
+
+impl<F> IntoViewFuture for F where F: Future<Output: IntoView> + 'static {}
+
 pub trait Args: Clone + 'static {
     type Locale: BaseLocale;
     type Id: Send + Sync + Copy + Hash + Ord + 'static;
 
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture;
+
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoView;
 }
 
@@ -68,6 +78,13 @@ pub trait DowngradableArgs: Args {
 trait DynAnyArgs: Send + Sync + Any + 'static {
     type Locale: BaseLocale;
 
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn render(
+        self: Box<Self>,
+        locale: Self::Locale,
+    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>>;
+
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView;
 
     fn clone(&self) -> Box<dyn DynAnyArgs<Locale = Self::Locale>>;
@@ -81,6 +98,21 @@ struct AnyArgsInner<A: Args> {
 
 impl<A: Args + Send + Sync> DynAnyArgs for AnyArgsInner<A> {
     type Locale = A::Locale;
+
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn render(
+        self: Box<Self>,
+        locale: Self::Locale,
+    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>> {
+        let fut = async move {
+            let AnyArgsInner { id, args } = *self;
+            let view = args.render(id, locale).await;
+            view.into_any()
+        };
+        Box::pin(fut)
+    }
+
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView {
         let AnyArgsInner { id, args } = *self;
         let view = args.render(id, locale);
@@ -104,6 +136,12 @@ impl<L: BaseLocale> Args for AnyArgs<L> {
     type Id = ();
     type Locale = L;
 
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture {
+        DynAnyArgs::render(self.args, locale)
+    }
+
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoView {
         DynAnyArgs::render(self.args, locale)
     }
@@ -176,6 +214,8 @@ impl<B: DowngradableArgBuilder> KeyBuilder<B> {
 }
 
 impl<A: Args> Key<A> {
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     pub fn render(self, locale: A::Locale) -> impl IntoView {
         A::render(self.args, self.id, locale)
     }
