@@ -1,4 +1,4 @@
-use leptos_i18n_build::{optins::CodegenOptions, Config, TranslationsInfos};
+use leptos_i18n_build::{options::CodegenOptions, Config, TranslationsInfos};
 use std::error::Error;
 use std::path::PathBuf;
 
