@@ -3,7 +3,7 @@ use leptos_i18n_parser::{
     utils::{Key, KeyPath},
 };
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 use crate::{
     CodegenOptions,
@@ -98,18 +98,27 @@ fn gen_subkeys_module(
         let strings_count = locale.strings.len();
         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
+                #[doc(hidden)]
                 pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
                     super::#keys_ident::#accessor_ident().await
                 }
             }
         } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+            let no_register_ident = format_ident!("{}_no_register", accessor_ident);
             quote! {
+                #[doc(hidden)]
                 pub fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                     super::#keys_ident::#accessor_ident()
+                }
+
+                #[doc(hidden)]
+                pub const fn #no_register_ident() -> &'static [&'static str; #strings_count] {
+                    super::#keys_ident::#no_register_ident()
                 }
             }
         } else {
             quote! {
+                #[doc(hidden)]
                 pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                     super::#keys_ident::#accessor_ident()
                 }
@@ -135,7 +144,6 @@ fn gen_subkeys_module(
 
         impl #keys_ident {
             #(
-                #[allow(non_snake_case)]
                 #string_accessors
             )*
         }

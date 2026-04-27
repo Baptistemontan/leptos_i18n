@@ -215,6 +215,7 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
             #![allow(clippy::let_and_return)]
             #![allow(clippy::unit_arg)]
             #![allow(non_camel_case_types)]
+            #![allow(non_snake_case)]
             #top_level_attributes
 
             use #crate_path as __l_i18n_crate;

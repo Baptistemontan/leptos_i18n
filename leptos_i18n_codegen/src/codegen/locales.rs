@@ -39,18 +39,27 @@ pub fn gen_locales(
         let string_holder = format_ident!("{}_{}", keys_ident, &*locale.name.key.ident);
         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             quote! {
+                #[doc(hidden)]
                 pub async fn #accessor_ident() -> &'static [Box<str>; #strings_count] {
                     #string_holder::get_translations().await
                 }
             }
         } else if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+            let no_register_ident = format_ident!("{}_no_register", accessor_ident);
             quote! {
+                #[doc(hidden)]
                 pub fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                     #string_holder::get_translations()
+                }
+
+                #[doc(hidden)]
+                pub const fn #no_register_ident() -> &'static [&'static str; #strings_count] {
+                    #string_holder::get_translations_no_register()
                 }
             }
         } else {
             quote! {
+                #[doc(hidden)]
                 pub const fn #accessor_ident() -> &'static [&'static str; #strings_count] {
                     #string_holder::get_translations()
                 }
@@ -130,7 +139,6 @@ pub fn gen_locales(
 
         impl #keys_ident {
             #(
-                #[allow(non_snake_case)]
                 #string_accessors
             )*
 
@@ -177,8 +185,11 @@ fn gen_strings_holders<'a>(
                             <Self as __l_i18n_crate::__private::fetch_translations::TranslationUnit>::register();
                             <Self as __l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRINGS
                         }
-                    }
 
+                        pub const fn get_translations_no_register() -> &'static [&'static str; #strings_count] {
+                            <Self as __l_i18n_crate::__private::fetch_translations::TranslationUnit>::STRINGS
+                        }
+                    }
                 } else {
                     quote! {
                         pub const fn get_translations() -> &'static [&'static str; #strings_count] {
