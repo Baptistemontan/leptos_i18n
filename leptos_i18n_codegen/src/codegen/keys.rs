@@ -46,9 +46,6 @@ fn gen_subkeys_module_and_accessor(
     options: &CodegenOptions,
 ) -> TokenStream {
     let mut path = path.push_key(key.clone());
-    let module_impl = gen_subkeys_module(
-        keys, keys_ident, enum_ident, locales, builders, &mut path, options,
-    );
     let docs = if options.gen_docs {
         let mut docs = String::new();
         gen_keys_doc(&mut docs, keys).unwrap();
@@ -58,6 +55,10 @@ fn gen_subkeys_module_and_accessor(
     } else {
         quote! {}
     };
+
+    let module_impl = gen_subkeys_module(
+        keys, keys_ident, enum_ident, locales, builders, &docs, &mut path, options,
+    );
 
     quote! {
 
@@ -84,19 +85,10 @@ fn gen_subkeys_module(
     enum_ident: &syn::Ident,
     locales: &Locales,
     builders: &BuildersInfos,
+    docs: &TokenStream,
     path: &mut KeyPath,
     options: &CodegenOptions,
 ) -> TokenStream {
-    let docs = if options.gen_docs {
-        let mut docs = String::new();
-        gen_keys_doc(&mut docs, keys).unwrap();
-        quote! {
-            #[doc = #docs]
-        }
-    } else {
-        quote! {}
-    };
-
     let keys_impls = gen_subkeys_impls(
         keys, keys_ident, enum_ident, locales, builders, path, options,
     );
