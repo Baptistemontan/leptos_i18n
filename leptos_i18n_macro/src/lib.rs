@@ -8,6 +8,7 @@
 //!
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
+mod build_key;
 mod data_provider;
 pub(crate) mod declare_locales;
 pub(crate) mod scoped;
@@ -21,6 +22,11 @@ use t_plural::PluralRuleType;
 #[proc_macro]
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     declare_locales::declare_locales(tokens)
+}
+
+#[proc_macro]
+pub fn build_key_inner(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    build_key::build_key_macro(tokens)
 }
 
 #[proc_macro]
