@@ -128,19 +128,22 @@ impl<L: BaseLocale> AnyArgs<L> {
 }
 
 impl<B: ArgsBuilder> KeyBuilder<B> {
-    pub fn build<F, A>(self, f: F) -> Key<<B as ArgsMarker<A>>::Args>
+    #[doc(hidden)]
+    pub fn build<F, A>(this: Self, f: F) -> Key<<B as ArgsMarker<A>>::Args>
     where
         F: FnOnce(B::Builder) -> A,
         B: ArgsMarker<A>,
     {
         let builded = f(B::new());
         let args = B::into_args(builded);
-        Key { id: self.id, args }
+        Key { id: this.id, args }
     }
 
     #[doc(hidden)]
-    pub const fn const_build(this: Self) -> Key<<B as ArgsMarker<NoArgs>>::Args>
+    pub const fn const_build<F, A>(this: Self, _: &F) -> Key<<B as ArgsMarker<NoArgs>>::Args>
     where
+        F: FnOnce(B::Builder) -> A,
+        B: ArgsMarker<A>,
         B: ConstArgsMarker,
     {
         Key {

@@ -7,6 +7,84 @@ macro_rules! declare_locales {
     };
 }
 
+#[macro_export]
+macro_rules! build_key {
+    ($builder: expr) => {
+        $crate::keys::KeyBuilder::const_build($builder, &$crate::__private::macros_reexport::build_key_inner!())
+    };
+    ($builder: expr, $($tt:tt)*) => {
+        $crate::keys::KeyBuilder::build($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
+    }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! render_inner {
+    (@ctx $ctx: expr, $key: expr) => {
+        move || $crate::keys::Key::render($key, $crate::I18nContext::get_locale($ctx))
+    };
+    (@ctx_untracked $ctx: expr, $key: expr) => {
+        $crate::keys::Key::render($key, $crate::I18nContext::get_locale_untracked($ctx))
+    };
+    (@loc $loc: expr, $key: expr) => {
+        $crate::keys::Key::render($key, $crate::Locale::to_base_locale($loc))
+    };
+    (@defaulted $key: expr) => {
+        $crate::keys::Key::render($key, Default::default())
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+macro_rules! render_proxy {
+    ($($tt:tt)*) => {
+        $crate::render_inner!($($tt)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+macro_rules! render_proxy {
+    (@ctx $ctx: expr, $key: expr) => {
+        $crate::__private::future_renderer($crate::render_inner(@ctx $ctx, $key))
+    };
+    ($($tt:tt)*) => {
+        $crate::render_inner!($($tt)*)
+    };
+}
+
+// #[macro_export]
+// macro_rules! render_key {
+//     ($($tt:tt)*) => {
+//         $crate::render_proxy!(@ctx $($tt)*)
+//     };
+// }
+
+#[macro_export]
+macro_rules! key {
+        (scope = $scope: ty, $first_key:ident $(.$key:ident)*) => {
+            const {
+                $crate::__private::check_is_key(
+                    $crate::__private::get_keys_const::<$scope>()
+                    .$first_key()
+                    $(.$key())*
+                )
+            }
+        };
+        ($scope: expr, $first_key:ident $(.$key:ident)*) => {
+            {
+                let scope = $scope;
+                $crate::__private::check_is_key(
+                    $crate::__private::get_keys_from_ref(&scope)
+                    .$first_key()
+                    $(.$key())*
+                )
+            }
+        };
+    }
+
 /// Utility macro to easily put translation in your application.
 ///
 /// Usage:
@@ -82,8 +160,13 @@ macro_rules! declare_locales {
 /// ```
 #[macro_export]
 macro_rules! t {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::t!{$($tt)*}
+    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@ctx __ctx, __key)
+        }
     };
 }
 
@@ -119,16 +202,26 @@ macro_rules! t {
 /// This let you use a specific locale regardless of the current one.
 #[macro_export]
 macro_rules! td {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::td!{$($tt)*}
+    ($loc: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+        {
+            let __loc = $loc;
+            let __key = $crate::key!(__loc, $first_key $(.$keys)*);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@loc __loc, __key)
+        }
     };
 }
 
 /// Same as the `t!` macro but untracked.
 #[macro_export]
 macro_rules! tu {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::tu!{$($tt)*}
+    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@ctx_untracked __ctx, __key)
+        }
     };
 }
 

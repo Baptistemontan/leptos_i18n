@@ -234,29 +234,8 @@ mod test {
     }
 
     use super::BaseLocale as _;
+    use crate::key;
     use i18n::Locale;
-
-    macro_rules! key {
-        (scope = $scope: ty, $first_key:ident $(.$key:ident)*) => {
-            const {
-                $crate::__private::check_is_key(
-                    $crate::__private::get_keys_const::<$scope>()
-                    .$first_key()
-                    $(.$key())*
-                )
-            }
-        };
-        ($scope: expr, $first_key:ident $(.$key:ident)*) => {
-            {
-                let scope = $scope;
-                $crate::__private::check_is_key(
-                    $crate::__private::get_keys_from_ref(&scope)
-                    .$first_key()
-                    $(.$key())*
-                )
-            }
-        };
-    }
 
     macro_rules! scope {
         ($scope: expr, $first_key:ident $(.$key:ident)*) => {
@@ -274,9 +253,8 @@ mod test {
     macro_rules! const_value {
         ($key: expr, $locale: expr) => {
             $crate::__private::check_is_literal({
-                let (args, id) = $crate::keys::Key::const_into_args_and_id(
-                    $crate::keys::KeyBuilder::const_build($key),
-                );
+                let (args, id) =
+                    $crate::keys::Key::const_into_args_and_id($crate::build_key!($key));
                 args.__const_value(id, $locale)
             })
         };
