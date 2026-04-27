@@ -1,4 +1,4 @@
-use leptos_i18n_codegen::utils::Keys;
+use crate::utils::Keys;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
@@ -55,14 +55,19 @@ fn scope_locale_inner(input: ScopeParsedInput) -> TokenStream {
 
 struct DefineScopeParsedInput {
     pub path: syn::Path,
-    pub keys: Keys,
+    pub keys: Option<Keys>,
 }
 
 impl syn::parse::Parse for DefineScopeParsedInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let path = input.parse()?;
-        input.parse::<syn::token::Comma>()?;
-        let keys = input.parse()?;
+        let keys = if input.is_empty() {
+            None
+        } else {
+            input.parse::<syn::token::Comma>()?;
+            let keys = input.parse()?;
+            Some(keys)
+        };
         Ok(DefineScopeParsedInput { path, keys })
     }
 }
@@ -76,9 +81,10 @@ fn define_scope_inner(input: DefineScopeParsedInput) -> TokenStream {
     let DefineScopeParsedInput { path, keys } = input;
 
     match keys {
-        Keys::SingleKey(ident) => quote! { #path::scopes::#ident::__this },
-        Keys::Subkeys(idents) => {
-            quote! { #path::scopes::#(#idents)::*::__this }
+        None => quote! { #path::keys::__I18nKeys },
+        Some(Keys::SingleKey(ident)) => quote! { #path::keys::#ident::__I18nKeys },
+        Some(Keys::Subkeys(idents)) => {
+            quote! { #path::keys::#(#idents)::*::__I18nKeys }
         }
     }
 }

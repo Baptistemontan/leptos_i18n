@@ -3,8 +3,8 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use syn::parse_macro_input;
 
-use self::parsed_input::ParsedInput;
-use leptos_i18n_codegen::utils::Keys;
+use crate::utils::Keys;
+use parsed_input::ParsedInput;
 
 pub mod interpolate;
 pub mod parsed_input;

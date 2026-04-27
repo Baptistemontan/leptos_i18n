@@ -15,6 +15,7 @@ pub(crate) mod scoped;
 pub(crate) mod t_format;
 pub(crate) mod t_macro;
 pub(crate) mod t_plural;
+mod utils;
 
 use t_macro::{InputType, OutputType};
 use t_plural::PluralRuleType;

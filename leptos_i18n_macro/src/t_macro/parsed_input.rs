@@ -1,6 +1,6 @@
 use syn::{Expr, token::Comma};
 
-use leptos_i18n_codegen::utils::Keys;
+use crate::utils::Keys;
 
 use super::interpolate::InterpolatedValue;
 
