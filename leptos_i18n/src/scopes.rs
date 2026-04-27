@@ -18,14 +18,8 @@ pub trait Scope: 'static + Send + Sync {
     }
 }
 
-pub trait Keys: 'static + Send + Sync + Copy {
-    type BaseLocale: BaseLocale;
+pub trait Keys: 'static + Send + Sync + Copy + Scope<Keys = Self> {
     const THIS: Self;
-}
-
-impl<K: Keys> Scope for K {
-    type BaseLocale = K::BaseLocale;
-    type Keys = K;
 }
 
 /// A struct representing a scoped locale

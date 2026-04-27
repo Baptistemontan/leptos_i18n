@@ -1,12 +1,9 @@
-use std::collections::{BTreeMap, HashSet};
-
 use leptos_i18n_parser::{
-    extraction::{Builder, BuilderId, Builders},
-    formatters::VarBound,
+    extraction::Builders,
     utils::{Key, KeyPath},
 };
-use proc_macro2::{Span, TokenStream};
-use quote::{format_ident, quote};
+use proc_macro2::TokenStream;
+use quote::quote;
 
 mod builder;
 pub mod infos;
@@ -19,8 +16,9 @@ pub fn gen_builder_module(
     builders: &Builders,
     enum_ident: &syn::Ident,
     markers_field: syn::Ident,
+    gen_docs: bool,
 ) -> (TokenStream, BuildersInfos) {
-    let infos = BuildersInfos::new(builders, markers_field);
+    let infos = BuildersInfos::new(builders, markers_field, gen_docs);
 
     let ts = gen_module(&infos, enum_ident);
 

@@ -236,8 +236,8 @@ mod test {
     use super::BaseLocale as _;
     use i18n::Locale;
 
-    macro_rules! const_key {
-        ($scope: ty, $first_key:ident $(.$key:ident)*) => {
+    macro_rules! key {
+        (scope = $scope: ty, $first_key:ident $(.$key:ident)*) => {
             const {
                 $crate::__private::check_is_key(
                     $crate::__private::get_keys_const::<$scope>()
@@ -246,9 +246,6 @@ mod test {
                 )
             }
         };
-    }
-
-    macro_rules! key {
         ($scope: expr, $first_key:ident $(.$key:ident)*) => {
             {
                 let scope = $scope;
@@ -303,7 +300,7 @@ mod test {
                 }
             }
         }
-        let ssk = const_key!(Locale, sk.ssk);
+        let ssk = key!(scope = Locale, sk.ssk);
         let fr_ssk = const_value!(ssk, Locale::fr);
         assert!(check_str_eq_const(fr_ssk.str().unwrap(), "test fr"));
         let en_ssk = const_value!(ssk, Locale::en);

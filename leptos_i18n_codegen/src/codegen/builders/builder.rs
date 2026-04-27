@@ -1,4 +1,4 @@
-use leptos_i18n_parser::{formatters::VarBound, utils::Key};
+use leptos_i18n_parser::formatters::VarBound;
 use proc_macro2::TokenStream;
 use quote::quote;
 

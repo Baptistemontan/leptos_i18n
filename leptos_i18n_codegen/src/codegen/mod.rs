@@ -49,7 +49,7 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
     let markers_field = format_ident!("_into_view_markers__");
 
     let (builders_module, builders_infos) =
-        gen_builder_module(builders, &enum_ident, markers_field);
+        gen_builder_module(builders, &enum_ident, markers_field, options.gen_docs);
 
     let keys_impls = gen_keys_impls(
         values,

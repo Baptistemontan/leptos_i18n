@@ -39,7 +39,7 @@ pub fn gen_keys_doc(docs: &mut String, keys: &Keys) -> core::fmt::Result {
     Ok(())
 }
 
-fn gen_fields_docs(docs: &mut String, fields: &[Field]) -> core::fmt::Result {
+pub fn gen_fields_docs(docs: &mut String, fields: &[Field]) -> core::fmt::Result {
     use core::fmt::Write;
     let mut variables = fields
         .iter()

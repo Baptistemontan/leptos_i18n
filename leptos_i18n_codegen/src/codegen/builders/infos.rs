@@ -8,7 +8,7 @@ use leptos_i18n_parser::{
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::utils::EitherIter;
+use crate::{codegen::docs::gen_fields_docs, utils::EitherIter};
 
 pub enum VarOrComp {
     Var {
@@ -40,12 +40,12 @@ pub struct BuildersInfos {
 }
 
 impl BuildersInfos {
-    pub fn new(builders: &Builders, markers_field: syn::Ident) -> Self {
+    pub fn new(builders: &Builders, markers_field: syn::Ident, gen_docs: bool) -> Self {
         let infos = builders
             .builders
             .iter()
             .map(|(id, builder)| {
-                let infos = BuilderInfos::new(builder);
+                let infos = BuilderInfos::new(builder, gen_docs);
                 (id.clone(), infos)
             })
             .collect();
@@ -79,7 +79,7 @@ impl BuilderInfos {
         ident
     }
 
-    pub fn new(builder: &Builder) -> Self {
+    pub fn new(builder: &Builder, gen_docs: bool) -> Self {
         let mut variants = HashSet::new();
         let id_variants = builder
             .used_by
@@ -92,8 +92,13 @@ impl BuilderInfos {
 
         let fields = Self::make_fields(&builder.keys);
 
-        // TODO: docs
-        let docs = String::new();
+        let docs = if gen_docs {
+            let mut docs = String::new();
+            gen_fields_docs(&mut docs, &fields).unwrap();
+            docs
+        } else {
+            String::new()
+        };
 
         BuilderInfos {
             name: builder.name.clone(),

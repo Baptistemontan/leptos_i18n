@@ -17,9 +17,13 @@ pub fn gen_values_modules_and_accessors(
     path: &KeyPath,
     options: &CodegenOptions,
 ) -> TokenStream {
+    let builder_infos = builders
+        .infos
+        .get(&values.builder_id)
+        .expect("invalid builder id");
+
     let docs = if options.gen_docs {
-        let mut docs = String::new();
-        // gen_keys_doc(&mut docs, keys).unwrap();
+        let docs = &builder_infos.docs;
         quote! {
             #[doc = #docs]
         }
@@ -28,10 +32,7 @@ pub fn gen_values_modules_and_accessors(
     };
 
     let markers_field = &builders.markers_field;
-    let builder_infos = builders
-        .infos
-        .get(&values.builder_id)
-        .expect("invalid builder id");
+
     let builder_name = &builder_infos.name;
     let variant_ident = builder_infos
         .id_variants
