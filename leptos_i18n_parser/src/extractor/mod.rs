@@ -256,6 +256,9 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
             info.bounds.insert(variable.bound.clone());
         }
         Value::Component(component) => {
+            if let Some(inner) = &component.inner {
+                extract_value_keys(inner, keys);
+            }
             let is_self_closed = component.inner.is_none();
             let info = keys
                 .components
