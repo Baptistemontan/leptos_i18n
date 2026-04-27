@@ -27,19 +27,19 @@ macro_rules! render_inner {
         move || $crate::keys::Key::render($key, $crate::I18nContext::get_locale($ctx))
     };
     (@ctx_untracked $ctx: expr, $key: expr) => {
-        $crate::keys::Key::render($key, $crate::I18nContext::get_locale_untracked($ctx))
+        move || $crate::keys::Key::render($key, $crate::I18nContext::get_locale_untracked($ctx))
     };
     (@loc $loc: expr, $key: expr) => {
-        $crate::keys::Key::render($key, $crate::Locale::to_base_locale($loc))
+        move || $crate::keys::Key::render($key, $crate::Locale::to_base_locale($loc))
     };
     (@defaulted $key: expr) => {
-        $crate::keys::Key::render($key, Default::default())
+        move || $crate::keys::Key::render($key, Default::default())
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
-#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+#[cfg(not(feature = "dynamic_load"))]
 macro_rules! render_proxy {
     ($($tt:tt)*) => {
         $crate::render_inner!($($tt)*)
@@ -50,9 +50,15 @@ macro_rules! render_proxy {
 #[macro_export]
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
 macro_rules! render_proxy {
-    (@ctx $ctx: expr, $key: expr) => {
-        $crate::__private::future_renderer($crate::render_inner(@ctx $ctx, $key))
+    ($($tt:tt)*) => {
+        $crate::__private::future_renderer($crate::render_inner($($tt)*))
     };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+macro_rules! render_proxy {
     ($($tt:tt)*) => {
         $crate::render_inner!($($tt)*)
     };
