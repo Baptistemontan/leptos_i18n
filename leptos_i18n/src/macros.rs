@@ -51,7 +51,7 @@ macro_rules! render_proxy {
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
 macro_rules! render_proxy {
     ($($tt:tt)*) => {
-        $crate::__private::future_renderer($crate::render_inner($($tt)*))
+        $crate::__private::future_renderer($crate::render_inner!($($tt)*))
     };
 }
 
