@@ -75,6 +75,12 @@ fn gen_inner_module(
             }
         });
 
+    let render_fn_out_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+        quote!(impl __l_i18n_crate::keys::IntoViewFuture)
+    } else {
+        quote!(impl __l_i18n_crate::reexports::leptos::IntoView)
+    };
+
     let empty_marker = if infos.fields.is_empty() {
         let const_value_match_arms = infos.id_variants.iter().map(|(path, variant)| {
             let keys = iter_path_keys(path);
@@ -84,19 +90,14 @@ fn gen_inner_module(
         });
 
         quote! {
-            impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
-                type Args = Args;
-
-                fn into_args(builder: __l_i18n_crate::keys::NoArgs) -> Self::Args {
-                    match builder {}
-                }
-            }
-
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
-                const THIS: Args = Args(BuildedArgs::__const_new());
+                type Args = Args<__l_i18n_crate::keys::NoArgs>;
+                type Builded = BuildedArgs;
+                type ConstBuilder = ();
+                const THIS: Self::Args = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
             }
 
-            impl Args {
+            impl Args<__l_i18n_crate::keys::NoArgs> {
                 #[doc(hidden)]
                 pub const fn __const_value(self, id: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
                     match id {
@@ -113,6 +114,15 @@ fn gen_inner_module(
                     BuildedArgs { #markers_field: core::marker::PhantomData }
                 }
             }
+
+            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
+                fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
+                    Args::<__IntoViewMarker, #generics>::render(Args(
+                        self.0,
+                        core::marker::PhantomData
+                    ), id, locale)
+                }
+            }
         }
     } else {
         quote! {}
@@ -124,12 +134,6 @@ fn gen_inner_module(
     let relevant_copy_generics = infos.fields.iter().map(|f| &f.generic);
 
     let relevant_clone_fields = infos.fields.iter().map(|f| &*f.key.ident);
-
-    let render_fn_out_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-        quote!(impl __l_i18n_crate::keys::IntoViewFuture)
-    } else {
-        quote!(impl __l_i18n_crate::reexports::leptos::IntoView)
-    };
 
     quote! {
         pub mod #mod_key {
@@ -177,7 +181,7 @@ fn gen_inner_module(
 
             impl __l_i18n_crate::keys::ArgsBuilder for ArgsBuilder {
                 type Id = Id;
-                type Builder = Builder;
+                type Builder = Builder<__IntoViewMarker>;
                 type Locale = #enum_ident;
 
                 fn new() -> Self::Builder {
@@ -185,32 +189,36 @@ fn gen_inner_module(
                 }
             }
 
+            #[doc(hidden)]
+            pub enum __IntoViewMarker {}
 
-            pub struct Args<#generics>(pub BuildedArgs<#generics>);
+            pub struct Args<__Marker, #generics>(pub BuildedArgs<#generics>, pub core::marker::PhantomData<__Marker>);
 
-            impl<#generics> core::clone::Clone for Args<#generics> where BuildedArgs<#generics>: core::clone::Clone {
+            impl<__Marker, #generics> core::clone::Clone for Args<__Marker, #generics> where BuildedArgs<#generics>: core::clone::Clone {
                 fn clone(&self) -> Self {
-                    Self(core::clone::Clone::clone(&self.0))
+                    Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
                 }
             }
 
-            impl<#generics> core::marker::Copy for Args<#generics> where BuildedArgs<#generics>: core::marker::Copy {}
+            impl<__Marker, #generics> core::marker::Copy for Args<__Marker, #generics> where BuildedArgs<#generics>: core::marker::Copy {}
 
 
-            impl<#bounded_generics> __l_i18n_crate::keys::ArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
-                type Args = Args<#generics>;
+            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+                type Args = Args<__IntoViewMarker, #generics>;
 
                 fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
-                    Args(builder)
+                    Args(builder, core::marker::PhantomData)
                 }
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::Args for Args<#generics> {
+            impl<__Marker, #generics> __l_i18n_crate::keys::Args for Args<__Marker, #generics> {
                 type Locale = #enum_ident;
                 type Id = Id;
+            }
 
+            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__IntoViewMarker, #generics> {
                 fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
-                    let Self(builder) = self;
+                    let Self(builder, _) = self;
                     match id {
                         #(
                             #render_match_arms,
@@ -219,10 +227,10 @@ fn gen_inner_module(
                 }
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::DowngradableArgs for Args<#generics>
-                where Self: Send + Sync
+            impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableArgs for Args<__Marker, #generics>
+                where Self: 'static + Clone + Send + Sync + __l_i18n_crate::keys::IntoViewArgs<Locale = #enum_ident, Id = Id>
             {
-                type Downgraded = __l_i18n_crate::keys::AnyArgs<#enum_ident>;
+                type Downgraded = __l_i18n_crate::keys::AnyIntoViewArgs<'static, #enum_ident>;
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
                     __l_i18n_crate::keys::Key::downgrade_any(this)

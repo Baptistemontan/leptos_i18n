@@ -13,7 +13,6 @@ pub fn gen_builder(infos: &BuilderInfos, markers_field: &syn::Ident) -> TokenStr
 
     let methods = gen_fields_methods(&infos.fields);
 
-    let bounded_generics = infos.bounded_generics();
     let generics = infos.generics();
 
     let destructure = infos.fields.iter().map(|field| {
@@ -37,11 +36,11 @@ pub fn gen_builder(infos: &BuilderInfos, markers_field: &syn::Ident) -> TokenStr
     });
 
     quote! {
-        pub struct Builder<Fields = #empty>(Fields);
+        pub struct Builder<__Marker, Fields = #empty>(Fields, core::marker::PhantomData<__Marker>);
 
-        impl Builder {
+        impl<__Marker> Builder<__Marker> {
             pub const fn new() -> Self {
-                Builder(#empty)
+                Builder(#empty, core::marker::PhantomData)
             }
         }
 
@@ -50,7 +49,7 @@ pub fn gen_builder(infos: &BuilderInfos, markers_field: &syn::Ident) -> TokenStr
         )*
 
 
-        impl<#bounded_generics> Builder<(#(#build_right_generics,)*)> {
+        impl<__Marker, #generics> Builder<__Marker, (#(#build_right_generics,)*)> {
             pub fn build(self) -> BuildedArgs<#generics> {
                 let (#(#destructure,)*) = self.0;
                 BuildedArgs {
@@ -195,7 +194,7 @@ fn gen_methods_inner(
             .map(|f| &*f.key.ident);
 
         quote! {
-            Builder((#(#iter,)*))
+            Builder((#(#iter,)*), core::marker::PhantomData)
         }
     };
 
@@ -230,24 +229,24 @@ fn gen_methods_inner(
     };
 
     quote! {
-        impl<#generics> Builder<#right_generics> {
-            pub fn #key<#bounded_generics>(self, #key: #key_generic) -> Builder<#constructed_out_generics> {
+        impl<#generics> Builder<__IntoViewMarker, #right_generics> {
+            pub fn #key<#bounded_generics>(self, #key: #key_generic) -> Builder<__IntoViewMarker, #constructed_out_generics> {
                 let #key = (#constructed,);
                 #destructured
                 #construction
             }
         }
 
-        impl<__Dup__, #generics> Builder<#dup_right_generics> {
+        impl<__Dup__, #generics> Builder<__IntoViewMarker, #dup_right_generics> {
             #[deprecated(note = #repeated_message)]
-            pub fn #key<#bounded_generics>(self, #key: #key_generic) -> Builder<#constructed_out_generics> {
+            pub fn #key<#bounded_generics>(self, #key: #key_generic) -> Builder<__IntoViewMarker, #constructed_out_generics> {
                 let #key = (#constructed,);
                 #destructured_dup
                 #construction
             }
         }
 
-        impl<#generics> Builder<#build_right_generics> {
+        impl<__Marker, #generics> Builder<__Marker, #build_right_generics> {
             #[deprecated(note = #missing_message)]
             pub fn build(self) -> ! {
                 panic!()

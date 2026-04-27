@@ -1,4 +1,4 @@
-use std::{any::Any, hash::Hash, marker::PhantomData};
+use std::{fmt::Display, hash::Hash, marker::PhantomData};
 
 use leptos::{
     IntoView,
@@ -20,10 +20,14 @@ pub struct Key<A: Args> {
     args: A,
 }
 
-pub type AnyKey<L> = Key<AnyArgs<L>>;
+pub type AnyKey<'a, L> = Key<AnyIntoViewArgs<'a, L>>;
 
-pub struct AnyArgs<L: BaseLocale> {
-    args: Box<dyn DynAnyArgs<Locale = L>>,
+pub struct AnyIntoViewArgs<'a, L: BaseLocale> {
+    args: Box<dyn DynAnyIntoViewArgs<'a, Locale = L>>,
+}
+
+pub struct AnyDisplayArgs<'a, L: BaseLocale> {
+    args: Box<dyn DynAnyDisplayArgs<'a, Locale = L>>,
 }
 
 pub trait ArgsBuilder: Copy + 'static {
@@ -34,21 +38,34 @@ pub trait ArgsBuilder: Copy + 'static {
     fn new() -> Self::Builder;
 }
 
+pub trait DisplayArgsBuilder: ArgsBuilder {
+    type DisplayBuilder;
+
+    fn new_display() -> Self::DisplayBuilder;
+}
+
 pub trait DowngradableArgBuilder: ArgsBuilder {
     type Downgraded: ArgsBuilder<Locale = Self::Locale, Builder = Self::Builder>;
     const ID: <Self::Downgraded as ArgsBuilder>::Id;
 }
 
-pub trait ArgsMarker<B>: ArgsBuilder {
-    type Args: Args<Locale = Self::Locale, Id = Self::Id>;
+pub trait IntoViewArgsMarker<B>: ArgsBuilder {
+    type Args: IntoViewArgs<Locale = Self::Locale, Id = Self::Id>;
+    fn into_args(builder: B) -> Self::Args;
+}
+
+pub trait DisplayArgsMarker<B>: ArgsBuilder {
+    type Args: DisplayArgs<Locale = Self::Locale, Id = Self::Id>;
     fn into_args(builder: B) -> Self::Args;
 }
 
 pub enum NoArgs {}
 
 #[doc(hidden)]
-#[diagnostic::on_unimplemented(message = "TODO")]
-pub trait ConstArgsMarker: ArgsMarker<NoArgs, Args: Copy + 'static> {
+pub trait ConstArgsMarker: ArgsBuilder {
+    type ConstBuilder;
+    type Builded;
+    type Args: Args<Locale = Self::Locale, Id = Self::Id> + Copy + 'static;
     const THIS: Self::Args;
 }
 
@@ -59,10 +76,12 @@ pub trait IntoViewFuture: Future<Output: IntoView> + 'static {}
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
 impl<F> IntoViewFuture for F where F: Future<Output: IntoView> + 'static {}
 
-pub trait Args: Clone + 'static {
+pub trait Args: Sized {
     type Locale: BaseLocale;
     type Id: Send + Sync + Copy + Hash + Ord + 'static;
+}
 
+pub trait IntoViewArgs: Args {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture;
 
@@ -70,25 +89,43 @@ pub trait Args: Clone + 'static {
     fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoView;
 }
 
-pub trait DowngradableArgs: Args {
-    type Downgraded: Args<Locale = Self::Locale>;
+pub trait DisplayArgs: Args {
+    fn to_display(self, id: Self::Id, locale: Self::Locale) -> impl Display;
+}
+
+pub trait DowngradableArgs: IntoViewArgs {
+    type Downgraded: IntoViewArgs<Locale = Self::Locale>;
 
     fn downgrade(this: Key<Self>) -> Key<Self::Downgraded>;
 }
 
-trait DynAnyArgs: Send + Sync + Any + 'static {
+pub trait DowngradableDisplayArgs: DisplayArgs {
+    type Downgraded: DisplayArgs<Locale = Self::Locale>;
+
+    fn downgrade(this: Key<Self>) -> Key<Self::Downgraded>;
+}
+
+trait DynAnyIntoViewArgs<'a>: Send + Sync + 'a {
     type Locale: BaseLocale;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(
         self: Box<Self>,
         locale: Self::Locale,
-    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>>;
+    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'a>>;
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView;
 
-    fn clone(&self) -> Box<dyn DynAnyArgs<Locale = Self::Locale>>;
+    fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<'a, Locale = Self::Locale>>;
+}
+
+trait DynAnyDisplayArgs<'a>: Send + Sync + 'a {
+    type Locale: BaseLocale;
+
+    fn to_string(self: Box<Self>, locale: Self::Locale) -> String;
+
+    fn clone(&self) -> Box<dyn DynAnyDisplayArgs<'a, Locale = Self::Locale>>;
 }
 
 #[derive(Clone, Copy)]
@@ -97,14 +134,14 @@ struct AnyArgsInner<A: Args> {
     args: A,
 }
 
-impl<A: Args + Send + Sync> DynAnyArgs for AnyArgsInner<A> {
+impl<'a, A: IntoViewArgs + Send + Sync + 'a + Clone> DynAnyIntoViewArgs<'a> for AnyArgsInner<A> {
     type Locale = A::Locale;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(
         self: Box<Self>,
         locale: Self::Locale,
-    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>> {
+    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'a>> {
         let fut = async move {
             let AnyArgsInner { id, args } = *self;
             let view = args.render(id, locale).await;
@@ -120,58 +157,111 @@ impl<A: Args + Send + Sync> DynAnyArgs for AnyArgsInner<A> {
         view.into_any()
     }
 
-    fn clone(&self) -> Box<dyn DynAnyArgs<Locale = A::Locale>> {
+    fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<'a, Locale = A::Locale>> {
         let this: Self = <AnyArgsInner<A> as Clone>::clone(self);
         Box::new(this)
     }
 }
 
-impl<L: BaseLocale> Clone for AnyArgs<L> {
-    fn clone(&self) -> Self {
-        let args = DynAnyArgs::clone(&*self.args);
-        AnyArgs { args }
+impl<'a, A: DisplayArgs + Clone + Send + Sync + 'a> DynAnyDisplayArgs<'a> for AnyArgsInner<A> {
+    type Locale = A::Locale;
+
+    fn to_string(self: Box<Self>, locale: Self::Locale) -> String {
+        let AnyArgsInner { id, args } = *self;
+        let as_display = A::to_display(args, id, locale);
+        as_display.to_string()
+    }
+
+    fn clone(&self) -> Box<dyn DynAnyDisplayArgs<'a, Locale = A::Locale>> {
+        let this: Self = <AnyArgsInner<A> as Clone>::clone(self);
+        Box::new(this)
     }
 }
 
-impl<L: BaseLocale> Args for AnyArgs<L> {
+impl<L: BaseLocale> Clone for AnyIntoViewArgs<'_, L> {
+    fn clone(&self) -> Self {
+        let args = DynAnyIntoViewArgs::clone(&*self.args);
+        AnyIntoViewArgs { args }
+    }
+}
+
+impl<L: BaseLocale> Clone for AnyDisplayArgs<'_, L> {
+    fn clone(&self) -> Self {
+        let args: Box<dyn DynAnyDisplayArgs<Locale = L>> = DynAnyDisplayArgs::clone(&*self.args);
+        AnyDisplayArgs { args }
+    }
+}
+
+impl<L: BaseLocale> Args for AnyIntoViewArgs<'_, L> {
     type Id = ();
     type Locale = L;
+}
 
+impl<L: BaseLocale> Args for AnyDisplayArgs<'_, L> {
+    type Id = ();
+    type Locale = L;
+}
+
+impl<L: BaseLocale> IntoViewArgs for AnyIntoViewArgs<'_, L> {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture {
-        DynAnyArgs::render(self.args, locale)
+        DynAnyIntoViewArgs::render(self.args, locale)
     }
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoView {
-        DynAnyArgs::render(self.args, locale)
+        DynAnyIntoViewArgs::render(self.args, locale)
     }
 }
 
-impl<L: BaseLocale> DowngradableArgs for AnyArgs<L> {
+impl<L: BaseLocale> DisplayArgs for AnyDisplayArgs<'_, L> {
+    fn to_display(self, _id: Self::Id, locale: Self::Locale) -> impl Display {
+        DynAnyDisplayArgs::to_string(self.args, locale)
+    }
+}
+
+impl<L: BaseLocale> DowngradableArgs for AnyIntoViewArgs<'_, L> {
     type Downgraded = Self;
     fn downgrade(this: Key<Self>) -> Key<Self::Downgraded> {
         this
     }
 }
 
-impl<L: BaseLocale> AnyArgs<L> {
-    fn from_args<A>(args: A, id: A::Id) -> AnyArgs<L>
+impl<L: BaseLocale> DowngradableDisplayArgs for AnyDisplayArgs<'_, L> {
+    type Downgraded = Self;
+    fn downgrade(this: Key<Self>) -> Key<Self::Downgraded> {
+        this
+    }
+}
+
+impl<'a, L: BaseLocale> AnyIntoViewArgs<'a, L> {
+    fn from_args<A>(args: A, id: A::Id) -> Self
     where
-        A: Args<Locale = L> + Send + Sync,
+        A: IntoViewArgs<Locale = L> + Clone + Send + Sync + 'a,
     {
         let inner = AnyArgsInner { id, args };
         let boxed = Box::new(inner);
-        AnyArgs { args: boxed }
+        AnyIntoViewArgs { args: boxed }
+    }
+}
+
+impl<'a, L: BaseLocale> AnyDisplayArgs<'a, L> {
+    fn from_args<A>(args: A, id: A::Id) -> Self
+    where
+        A: DisplayArgs<Locale = L> + Clone + Send + Sync + 'a,
+    {
+        let inner = AnyArgsInner { id, args };
+        let boxed = Box::new(inner);
+        AnyDisplayArgs { args: boxed }
     }
 }
 
 impl<B: ArgsBuilder> KeyBuilder<B> {
     #[doc(hidden)]
-    pub fn build<F, A>(this: Self, f: F) -> Key<<B as ArgsMarker<A>>::Args>
+    pub fn build<F, A>(this: Self, f: F) -> Key<<B as IntoViewArgsMarker<A>>::Args>
     where
         F: FnOnce(B::Builder) -> A,
-        B: ArgsMarker<A>,
+        B: IntoViewArgsMarker<A>,
     {
         let builded = f(B::new());
         let args = B::into_args(builded);
@@ -179,10 +269,20 @@ impl<B: ArgsBuilder> KeyBuilder<B> {
     }
 
     #[doc(hidden)]
-    pub const fn const_build<F, A>(this: Self, _: &F) -> Key<<B as ArgsMarker<NoArgs>>::Args>
+    pub fn build_display<F, A>(this: Self, f: F) -> Key<<B as DisplayArgsMarker<A>>::Args>
     where
-        F: FnOnce(B::Builder) -> A,
-        B: ArgsMarker<A>,
+        F: FnOnce(B::DisplayBuilder) -> A,
+        B: DisplayArgsMarker<A> + DisplayArgsBuilder,
+    {
+        let builded = f(B::new_display());
+        let args = B::into_args(builded);
+        Key { id: this.id, args }
+    }
+
+    #[doc(hidden)]
+    pub const fn const_build<F>(this: Self, _: &F) -> Key<<B as ConstArgsMarker>::Args>
+    where
+        F: FnOnce(B::ConstBuilder) -> B::Builded,
         B: ConstArgsMarker,
     {
         Key {
@@ -216,13 +316,29 @@ impl<B: DowngradableArgBuilder> KeyBuilder<B> {
 
 impl<A: Args> Key<A> {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    pub fn render(self, locale: A::Locale) -> impl IntoViewFuture {
-        A::render(self.args, self.id, locale)
+    #[doc(hidden)]
+    pub fn render(this: Self, locale: A::Locale) -> impl IntoViewFuture
+    where
+        A: IntoViewArgs,
+    {
+        A::render(this.args, this.id, locale)
     }
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    pub fn render(self, locale: A::Locale) -> impl IntoView {
-        A::render(self.args, self.id, locale)
+    #[doc(hidden)]
+    pub fn render(this: Self, locale: A::Locale) -> impl IntoView
+    where
+        A: IntoViewArgs,
+    {
+        A::render(this.args, this.id, locale)
+    }
+
+    #[doc(hidden)]
+    pub fn to_display(this: Self, locale: A::Locale) -> impl Display
+    where
+        A: DisplayArgs,
+    {
+        A::to_display(this.args, this.id, locale)
     }
 
     pub fn downgrade(self) -> Key<A::Downgraded>
@@ -232,11 +348,26 @@ impl<A: Args> Key<A> {
         A::downgrade(self)
     }
 
-    pub fn downgrade_any(self) -> Key<AnyArgs<A::Locale>>
+    pub fn downgrade_display(self) -> Key<A::Downgraded>
     where
-        A: Send + Sync,
+        A: DowngradableDisplayArgs,
     {
-        let any = AnyArgs::from_args(self.args, self.id);
+        A::downgrade(self)
+    }
+
+    pub fn downgrade_any<'a>(self) -> Key<AnyIntoViewArgs<'a, A::Locale>>
+    where
+        A: IntoViewArgs + Clone + Send + Sync + 'a,
+    {
+        let any = AnyIntoViewArgs::from_args(self.args, self.id);
+        Key { id: (), args: any }
+    }
+
+    pub fn downgrade_any_display<'a>(self) -> Key<AnyDisplayArgs<'a, A::Locale>>
+    where
+        A: DisplayArgs + Clone + Send + Sync + 'a,
+    {
+        let any = AnyDisplayArgs::from_args(self.args, self.id);
         Key { id: (), args: any }
     }
 

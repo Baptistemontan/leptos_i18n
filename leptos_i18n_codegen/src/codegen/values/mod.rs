@@ -52,25 +52,42 @@ pub fn gen_values_modules_and_accessors(
 
     let locale_field = format_ident!("__locale");
 
+    let (render_fn_out_type, maybe_async) =
+        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+            (
+                quote!(impl __l_i18n_crate::keys::IntoViewFuture),
+                quote!(async),
+            )
+        } else {
+            (
+                quote!(impl __l_i18n_crate::reexports::leptos::IntoView),
+                quote!(),
+            )
+        };
+
     let empty_marker = if builder_infos.fields.is_empty() {
         let match_arms = gen_const_values_match_arms(values, enum_ident, locales, keys_ident);
         quote! {
-            impl __l_i18n_crate::keys::ArgsMarker<__l_i18n_crate::keys::NoArgs> for ArgsBuilder {
-                type Args = Args;
-
-                fn into_args(builder: __l_i18n_crate::keys::NoArgs) -> Self::Args {
-                    match builder {}
-                }
-            }
-
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
-                const THIS: Args = Args(BuildedArgs::__const_new());
+                type Args = Args<__l_i18n_crate::keys::NoArgs>;
+                type Builded = BuildedArgs;
+                type ConstBuilder = Builder<__l_i18n_crate::keys::NoArgs>;
+                const THIS: Self::Args = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
             }
 
-            impl Args {
+            impl Args<__l_i18n_crate::keys::NoArgs> {
                 #[doc(hidden)]
                 pub const fn __const_value(self, _: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
                     __const_value(locale)
+                }
+            }
+
+            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
+                fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
+                    Args::<__IntoViewMarker, #generics>::render(Args(
+                        self.0,
+                        core::marker::PhantomData
+                    ), id, locale)
                 }
             }
 
@@ -89,25 +106,13 @@ pub fn gen_values_modules_and_accessors(
 
     let render_body = gen_render_body(values, locales, enum_ident, keys_ident, &locale_field);
 
-    let (render_fn_out_type, maybe_async) =
-        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-            (
-                quote!(impl __l_i18n_crate::keys::IntoViewFuture),
-                quote!(async),
-            )
-        } else {
-            (
-                quote!(impl __l_i18n_crate::reexports::leptos::IntoView),
-                quote!(),
-            )
-        };
-
     quote! {
         #docs
         pub mod #key {
             #[allow(unused)]
             use super::{#enum_ident, __l_i18n_crate, __builders};
-            pub type Builder = __builders::#builder_name::Builder;
+            pub use __builders::#builder_name::{Builder, __IntoViewMarker};
+
             pub type BuildedArgs<#generics> = __builders::#builder_name::BuildedArgs<#generics>;
 
             pub type Id = ();
@@ -117,7 +122,7 @@ pub fn gen_values_modules_and_accessors(
 
             impl __l_i18n_crate::keys::ArgsBuilder for ArgsBuilder {
                 type Id = Id;
-                type Builder = Builder;
+                type Builder = Builder<__IntoViewMarker>;
                 type Locale = #enum_ident;
 
                 fn new() -> Self::Builder {
@@ -130,41 +135,49 @@ pub fn gen_values_modules_and_accessors(
                 const ID: __builders::#builder_name::Id = __builders::#builder_name::Id::#variant_ident;
             }
 
+            pub struct Args<__Marker, #generics>(BuildedArgs<#generics>, core::marker::PhantomData<__Marker>);
 
-            pub struct Args<#generics>(BuildedArgs<#generics>);
-
-            impl<#generics> core::clone::Clone for Args<#generics> where BuildedArgs<#generics>: core::clone::Clone {
+            impl<__Marker, #generics> core::clone::Clone for Args<__Marker, #generics> where BuildedArgs<#generics>: core::clone::Clone {
                 fn clone(&self) -> Self {
-                    Self(core::clone::Clone::clone(&self.0))
+                    Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
                 }
             }
 
-            impl<#generics> core::marker::Copy for Args<#generics> where BuildedArgs<#generics>: core::marker::Copy {}
+            impl<__Marker, #generics> core::marker::Copy for Args<__Marker, #generics> where BuildedArgs<#generics>: core::marker::Copy {}
 
-            impl<#bounded_generics> __l_i18n_crate::keys::ArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
-                type Args = Args<#generics>;
+            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+                type Args = Args<__IntoViewMarker, #generics>;
 
                 fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
-                    Args(builder)
+                    Args(builder, core::marker::PhantomData)
                 }
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::Args for Args<#generics> {
+            impl<__Marker, #generics> __l_i18n_crate::keys::Args for Args<__Marker, #generics> {
                 type Locale = #enum_ident;
                 type Id = Id;
+            }
 
+            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__IntoViewMarker, #generics> {
                 fn render(self, _: (), locale: Self::Locale) -> #render_fn_out_type {
-                    let Self(builder) = self;
+                    let Self(builder, _) = self;
                     __render(builder, locale)
                 }
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::DowngradableArgs for Args<#generics> {
-                type Downgraded = __builders::#builder_name::Args<#generics>;
+            impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableArgs for Args<__Marker, #generics>
+                where
+                __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::IntoViewArgs<
+                    Locale = #enum_ident,
+                    Id =  __builders::#builder_name::Id,
+                >,
+                Self: __l_i18n_crate::keys::IntoViewArgs<Locale = #enum_ident, Id = Id>
+            {
+                type Downgraded = __builders::#builder_name::Args<__Marker, #generics>;
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
-                    let (Self(args), ()) = __l_i18n_crate::keys::Key::into_args_and_id(this);
-                    let args = __builders::#builder_name::Args(args);
+                    let (Self(args, _), ()) = __l_i18n_crate::keys::Key::into_args_and_id(this);
+                    let args = __builders::#builder_name::Args(args, core::marker::PhantomData);
                     __l_i18n_crate::keys::Key::from_args_and_id(args, __builders::#builder_name::Id::#variant_ident)
                 }
             }
