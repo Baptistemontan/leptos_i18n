@@ -218,7 +218,7 @@ fn gen_strings_holders<'a>(
                 };
 
                 let id = if let Some(ns) = namespace {
-                    quote!(const ID: super::super::#translation_unit_enum_ident = super::super::#translation_unit_enum_ident::#ns)
+                    quote!(const ID: super::#translation_unit_enum_ident = super::#translation_unit_enum_ident::#ns)
                 } else {
                     quote!(const ID: () = ())
                 };
