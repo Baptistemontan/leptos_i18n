@@ -1,4 +1,7 @@
-use leptos_i18n_build::{Config, FileFormat, ParseOptions, TranslationsInfos};
+use leptos_i18n_build::{
+    options::{FileFormat, ParseOptions},
+    Config, TranslationsInfos,
+};
 use std::{error::Error, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn Error>> {

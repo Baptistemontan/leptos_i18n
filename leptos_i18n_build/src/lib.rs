@@ -15,7 +15,6 @@ use icu_provider_source::SourceDataProvider;
 use leptos_i18n_parser::extraction::{
     Locales, LocalesOrNamespaces, ParsedLocales, extract_locales,
 };
-use leptos_i18n_parser::options::Config;
 use leptos_i18n_parser::parsing::parse_locales_raw;
 use leptos_i18n_parser::{error::Result, parsing::RawParsedLocales};
 use std::{
@@ -28,12 +27,14 @@ use std::{
 };
 
 mod datamarker;
-pub use leptos_i18n_codegen::CodegenOptions;
 
-/// Codgen options
+use leptos_i18n_codegen::CodegenOptions;
+pub use leptos_i18n_parser::options::Config;
+
+/// Parsing and codegen options
 pub mod options {
-    // Reexport CodegenOptions under the `options` module to avoid unnecessary breaking change.
-    pub use super::CodegenOptions;
+    pub use leptos_i18n_codegen::CodegenOptions;
+    pub use leptos_i18n_parser::options::{FileFormat, ParseOptions};
 }
 
 /// Module for custom formatters.
