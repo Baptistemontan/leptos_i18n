@@ -58,8 +58,10 @@ impl<S: Scope> I18nContext<S> {
     pub fn get_locale(self) -> S::BaseLocale {
         #[cfg(feature = "unified_contexts")]
         {
+            use std::str::FromStr;
+
             let any_loc = self.locale_signal.get();
-            L::from_str(any_loc.0).unwrap_or_default()
+            <S::BaseLocale as FromStr>::from_str(any_loc.0).unwrap_or_default()
         }
         #[cfg(not(feature = "unified_contexts"))]
         {
@@ -73,8 +75,10 @@ impl<S: Scope> I18nContext<S> {
     pub fn get_locale_untracked(self) -> S::BaseLocale {
         #[cfg(feature = "unified_contexts")]
         {
+            use std::str::FromStr;
+
             let any_loc = self.locale_signal.get_untracked();
-            L::from_str(any_loc.0).unwrap_or_default()
+            <S::BaseLocale as FromStr>::from_str(any_loc.0).unwrap_or_default()
         }
         #[cfg(not(feature = "unified_contexts"))]
         {
@@ -82,26 +86,12 @@ impl<S: Scope> I18nContext<S> {
         }
     }
 
-    // /// Return the keys for the current locale subscribing to any changes
-    // #[inline]
-    // pub fn get_keys(self) -> S::Keys {
-
-    //     TranslationsKeys::from_locale(self.get_locale())
-    // }
-
-    // /// Return the keys for the current locale but does not subscribe to changes
-    // #[inline]
-    // #[track_caller]
-    // pub fn get_keys_untracked(self) -> S::Keys {
-    //     TranslationsKeys::from_locale(self.get_locale_untracked())
-    // }
-
     /// Set the locale and notify all subscribers
     #[inline]
     #[track_caller]
     pub fn set_locale(self, lang: S::BaseLocale) {
         #[cfg(feature = "unified_contexts")]
-        return self.locale_signal.set(AnyLocale(lang.as_str()));
+        return self.locale_signal.set(AnyLocale(BaseLocale::as_str(lang)));
         #[cfg(not(feature = "unified_contexts"))]
         self.locale_signal.set(lang);
     }
@@ -113,7 +103,7 @@ impl<S: Scope> I18nContext<S> {
         #[cfg(feature = "unified_contexts")]
         {
             let mut guard = self.locale_signal.write_untracked();
-            *guard = AnyLocale(lang.as_str());
+            *guard = AnyLocale(BaseLocale::as_str(lang));
         }
         #[cfg(not(feature = "unified_contexts"))]
         {
@@ -192,7 +182,7 @@ fn init_context_inner<L: BaseLocale>(
 ) -> I18nContext<L> {
     #[cfg(feature = "unified_contexts")]
     let locale_signal = {
-        let init_loc = AnyLocale(initial_locale.get_untracked().as_str());
+        let init_loc = AnyLocale(BaseLocale::as_str(initial_locale.get_untracked()));
         RwSignal::new(init_loc)
     };
     #[cfg(not(feature = "unified_contexts"))]
@@ -201,7 +191,7 @@ fn init_context_inner<L: BaseLocale>(
     Effect::new(move |_| {
         let l = initial_locale.get();
         #[cfg(feature = "unified_contexts")]
-        locale_signal.set(AnyLocale(l.as_str()));
+        locale_signal.set(AnyLocale(BaseLocale::as_str(l)));
         #[cfg(not(feature = "unified_contexts"))]
         locale_signal.set(l);
     });
@@ -610,8 +600,8 @@ pub fn provide_i18n_context_component_island<L: BaseLocale>(
 
 // get locale
 #[cfg(feature = "nightly")]
-impl<L: BaseLocale, S: Scope> FnOnce<()> for I18nContext<L, S> {
-    type Output = L;
+impl<S: Scope> FnOnce<()> for I18nContext<S> {
+    type Output = S::BaseLocale;
     #[inline]
     extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -619,7 +609,7 @@ impl<L: BaseLocale, S: Scope> FnOnce<()> for I18nContext<L, S> {
 }
 
 #[cfg(feature = "nightly")]
-impl<L: BaseLocale, S: Scope> FnMut<()> for I18nContext<L, S> {
+impl<S: Scope> FnMut<()> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -627,7 +617,7 @@ impl<L: BaseLocale, S: Scope> FnMut<()> for I18nContext<L, S> {
 }
 
 #[cfg(feature = "nightly")]
-impl<L: BaseLocale, S: Scope> Fn<()> for I18nContext<L, S> {
+impl<S: Scope> Fn<()> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -636,26 +626,26 @@ impl<L: BaseLocale, S: Scope> Fn<()> for I18nContext<L, S> {
 
 // set locale
 #[cfg(feature = "nightly")]
-impl<L: BaseLocale, S: Scope> FnOnce<(L,)> for I18nContext<L, S> {
+impl<S: Scope, L: Locale<BaseLocale = S::BaseLocale>> FnOnce<(L,)> for I18nContext<S> {
     type Output = ();
     #[inline]
     extern "rust-call" fn call_once(self, (locale,): (L,)) -> Self::Output {
-        self.set_locale(locale)
+        self.set_locale(Locale::to_base_locale(locale))
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<L: BaseLocale, S: Scope> FnMut<(L,)> for I18nContext<L, S> {
+impl<S: Scope, L: Locale<BaseLocale = S::BaseLocale>> FnMut<(L,)> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call_mut(&mut self, (locale,): (L,)) -> Self::Output {
-        self.set_locale(locale)
+        self.set_locale(Locale::to_base_locale(locale))
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<L: BaseLocale, S: Scope> Fn<(L,)> for I18nContext<L, S> {
+impl<S: Scope, L: Locale<BaseLocale = S::BaseLocale>> Fn<(L,)> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call(&self, (locale,): (L,)) -> Self::Output {
-        self.set_locale(locale)
+        self.set_locale(Locale::to_base_locale(locale))
     }
 }
