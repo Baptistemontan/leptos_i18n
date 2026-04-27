@@ -56,6 +56,7 @@ pub trait ConstArgsMarker: ArgsMarker<NoArgs, Args: Copy + 'static> {
 #[doc(hidden)]
 pub trait IntoViewFuture: Future<Output: IntoView> + 'static {}
 
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
 impl<F> IntoViewFuture for F where F: Future<Output: IntoView> + 'static {}
 
 pub trait Args: Clone + 'static {

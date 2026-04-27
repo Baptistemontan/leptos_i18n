@@ -143,9 +143,9 @@ mod register {
     type RegisterCtxMap<L, Id> = HashMap<(L, Id), &'static [&'static str]>;
 
     #[derive(Clone)]
-    pub struct RegisterCtx<L: Locale>(Arc<Mutex<RegisterCtxMap<L, L::TranslationUnitId>>>);
+    pub struct RegisterCtx<L: BaseLocale>(Arc<Mutex<RegisterCtxMap<L, L::TranslationUnitId>>>);
 
-    impl<L: Locale> RegisterCtx<L> {
+    impl<L: BaseLocale> RegisterCtx<L> {
         pub fn provide_context() -> Self {
             let inner = Arc::new(Mutex::new(HashMap::new()));
             provide_context(RegisterCtx(inner.clone()));
@@ -171,7 +171,7 @@ mod register {
             let entries: Vec<TranslationOut<'_>> = inner_guard
                 .iter()
                 .map(|((locale, id), values)| TranslationOut {
-                    locale: locale.as_str(),
+                    locale: BaseLocale::as_str(*locale),
                     id: id.to_str(),
                     values,
                 })
@@ -192,7 +192,7 @@ mod register {
 pub use register::RegisterCtx;
 
 #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
+pub fn init_translations<L: BaseLocale>() -> impl leptos::IntoView {
     use crate::locale_traits::TranslationUnitId;
     use leptos::{html::InnerHtmlAttribute, view, web_sys};
     use wasm_bindgen::UnwrapThrowExt;
@@ -228,7 +228,7 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
                 L::init_translations(*locale, *id, values.clone());
 
                 TranslationOut {
-                    locale: locale.as_str(),
+                    locale: BaseLocale::as_str(*locale),
                     id: id.to_str(),
                     values,
                 }

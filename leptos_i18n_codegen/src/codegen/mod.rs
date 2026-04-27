@@ -369,7 +369,7 @@ pub fn gen_enum(
     let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
         quote! {
             fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>) {
-                #keys_ident::__init_translations__(self, translations_id, values);
+                keys::#keys_ident::__init_translations__(self, translations_id, values);
             }
         }
     } else {
