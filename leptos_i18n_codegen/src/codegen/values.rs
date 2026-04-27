@@ -84,7 +84,7 @@ pub fn gen_values_modules_and_accessors(
             #[allow(unused)]
             use super::{#enum_ident, __l_i18n_crate, __builders};
             pub type Builder = __builders::#builder_name::Builder;
-            type BuildedArgs<#generics> = __builders::#builder_name::BuildedArgs<#generics>;
+            pub type BuildedArgs<#generics> = __builders::#builder_name::BuildedArgs<#generics>;
 
             pub type Id = ();
 
