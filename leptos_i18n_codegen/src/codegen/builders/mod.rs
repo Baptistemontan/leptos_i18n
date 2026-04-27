@@ -230,7 +230,7 @@ fn gen_inner_module(
             impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableArgs for Args<__Marker, #generics>
                 where Self: 'static + Clone + Send + Sync + __l_i18n_crate::keys::IntoViewArgs<Locale = #enum_ident, Id = Id>
             {
-                type Downgraded = __l_i18n_crate::keys::AnyIntoViewArgs<'static, #enum_ident>;
+                type Downgraded = __l_i18n_crate::keys::AnyIntoViewArgs<#enum_ident>;
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
                     __l_i18n_crate::keys::Key::downgrade_any(this)

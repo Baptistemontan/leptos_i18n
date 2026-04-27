@@ -20,10 +20,10 @@ pub struct Key<A: Args> {
     args: A,
 }
 
-pub type AnyKey<'a, L> = Key<AnyIntoViewArgs<'a, L>>;
+pub type AnyKey<L> = Key<AnyIntoViewArgs<L>>;
 
-pub struct AnyIntoViewArgs<'a, L: BaseLocale> {
-    args: Box<dyn DynAnyIntoViewArgs<'a, Locale = L>>,
+pub struct AnyIntoViewArgs<L: BaseLocale> {
+    args: Box<dyn DynAnyIntoViewArgs<Locale = L>>,
 }
 
 pub struct AnyDisplayArgs<'a, L: BaseLocale> {
@@ -105,19 +105,19 @@ pub trait DowngradableDisplayArgs: DisplayArgs {
     fn downgrade(this: Key<Self>) -> Key<Self::Downgraded>;
 }
 
-trait DynAnyIntoViewArgs<'a>: Send + Sync + 'a {
+trait DynAnyIntoViewArgs: Send + Sync + 'static {
     type Locale: BaseLocale;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(
         self: Box<Self>,
         locale: Self::Locale,
-    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'a>>;
+    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>>;
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView;
 
-    fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<'a, Locale = Self::Locale>>;
+    fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<Locale = Self::Locale>>;
 }
 
 trait DynAnyDisplayArgs<'a>: Send + Sync + 'a {
@@ -134,14 +134,14 @@ struct AnyArgsInner<A: Args> {
     args: A,
 }
 
-impl<'a, A: IntoViewArgs + Send + Sync + 'a + Clone> DynAnyIntoViewArgs<'a> for AnyArgsInner<A> {
+impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for AnyArgsInner<A> {
     type Locale = A::Locale;
 
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(
         self: Box<Self>,
         locale: Self::Locale,
-    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'a>> {
+    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>> {
         let fut = async move {
             let AnyArgsInner { id, args } = *self;
             let view = args.render(id, locale).await;
@@ -157,7 +157,7 @@ impl<'a, A: IntoViewArgs + Send + Sync + 'a + Clone> DynAnyIntoViewArgs<'a> for 
         view.into_any()
     }
 
-    fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<'a, Locale = A::Locale>> {
+    fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<Locale = A::Locale>> {
         let this: Self = <AnyArgsInner<A> as Clone>::clone(self);
         Box::new(this)
     }
@@ -178,7 +178,7 @@ impl<'a, A: DisplayArgs + Clone + Send + Sync + 'a> DynAnyDisplayArgs<'a> for An
     }
 }
 
-impl<L: BaseLocale> Clone for AnyIntoViewArgs<'_, L> {
+impl<L: BaseLocale> Clone for AnyIntoViewArgs<L> {
     fn clone(&self) -> Self {
         let args = DynAnyIntoViewArgs::clone(&*self.args);
         AnyIntoViewArgs { args }
@@ -192,7 +192,7 @@ impl<L: BaseLocale> Clone for AnyDisplayArgs<'_, L> {
     }
 }
 
-impl<L: BaseLocale> Args for AnyIntoViewArgs<'_, L> {
+impl<L: BaseLocale> Args for AnyIntoViewArgs<L> {
     type Id = ();
     type Locale = L;
 }
@@ -202,7 +202,7 @@ impl<L: BaseLocale> Args for AnyDisplayArgs<'_, L> {
     type Locale = L;
 }
 
-impl<L: BaseLocale> IntoViewArgs for AnyIntoViewArgs<'_, L> {
+impl<L: BaseLocale> IntoViewArgs for AnyIntoViewArgs<L> {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture {
         DynAnyIntoViewArgs::render(self.args, locale)
@@ -220,7 +220,7 @@ impl<L: BaseLocale> DisplayArgs for AnyDisplayArgs<'_, L> {
     }
 }
 
-impl<L: BaseLocale> DowngradableArgs for AnyIntoViewArgs<'_, L> {
+impl<L: BaseLocale> DowngradableArgs for AnyIntoViewArgs<L> {
     type Downgraded = Self;
     fn downgrade(this: Key<Self>) -> Key<Self::Downgraded> {
         this
@@ -234,10 +234,10 @@ impl<L: BaseLocale> DowngradableDisplayArgs for AnyDisplayArgs<'_, L> {
     }
 }
 
-impl<'a, L: BaseLocale> AnyIntoViewArgs<'a, L> {
+impl<L: BaseLocale> AnyIntoViewArgs<L> {
     fn from_args<A>(args: A, id: A::Id) -> Self
     where
-        A: IntoViewArgs<Locale = L> + Clone + Send + Sync + 'a,
+        A: IntoViewArgs<Locale = L> + Clone + Send + Sync + 'static,
     {
         let inner = AnyArgsInner { id, args };
         let boxed = Box::new(inner);
@@ -355,9 +355,9 @@ impl<A: Args> Key<A> {
         A::downgrade(self)
     }
 
-    pub fn downgrade_any<'a>(self) -> Key<AnyIntoViewArgs<'a, A::Locale>>
+    pub fn downgrade_any(self) -> Key<AnyIntoViewArgs<A::Locale>>
     where
-        A: IntoViewArgs + Clone + Send + Sync + 'a,
+        A: IntoViewArgs + Clone + Send + Sync + 'static,
     {
         let any = AnyIntoViewArgs::from_args(self.args, self.id);
         Key { id: (), args: any }
