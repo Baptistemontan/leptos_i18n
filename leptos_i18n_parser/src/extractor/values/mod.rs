@@ -146,6 +146,7 @@ fn reduce_value(value: ResolvedValue) -> ResolvedValue {
 
 fn reduce_value_into(value: ResolvedValue, bloc: &mut Vec<ResolvedValue>) {
     match value {
+        ResolvedValue::Literal(RawLiteral::String(s)) if s.is_empty() => {}
         ResolvedValue::Literal(raw_literal) => {
             if let Some(ResolvedValue::Literal(lit)) = bloc.last_mut() {
                 merge_literals(lit, raw_literal);
