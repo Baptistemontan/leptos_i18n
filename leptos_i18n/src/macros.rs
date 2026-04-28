@@ -36,18 +36,37 @@ macro_rules! build_key_display {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! render_inner {
-    (@ctx $ctx: expr, $key: expr) => {
-        move || $crate::keys::Key::render($key, $crate::I18nContext::get_locale($ctx))
-    };
-    (@ctx_untracked $ctx: expr, $key: expr) => {
-        move || $crate::keys::Key::render($key, $crate::I18nContext::get_locale_untracked($ctx))
-    };
-    (@loc $loc: expr, $key: expr) => {
-        move || $crate::keys::Key::render($key, $crate::Locale::to_base_locale($loc))
-    };
-    (@defaulted $key: expr) => {
-        move || $crate::keys::Key::render($key, Default::default())
-    };
+    (@ctx $ctx: expr, $key: expr) => {{
+        let (__key, __ctx) = ($key, $ctx);
+        move || {
+            $crate::keys::Key::render(
+                core::clone::Clone::clone(&__key),
+                $crate::I18nContext::get_locale(__ctx),
+            )
+        }
+    }};
+    (@ctx_untracked $ctx: expr, $key: expr) => {{
+        let (__key, __ctx) = ($key, $ctx);
+        move || {
+            $crate::keys::Key::render(
+                core::clone::Clone::clone(&__key),
+                $crate::I18nContext::get_locale_untracked(__ctx),
+            )
+        }
+    }};
+    (@loc $loc: expr, $key: expr) => {{
+        let (__key, __loc) = ($key, $loc);
+        move || {
+            $crate::keys::Key::render(
+                core::clone::Clone::clone(&__key),
+                $crate::Locale::to_base_locale(__loc),
+            )
+        }
+    }};
+    (@defaulted $key: expr) => {{
+        let __key = $key;
+        move || $crate::keys::Key::render(core::clone::Clone::clone(&__key), Default::default())
+    }};
 
     (@display @ctx $ctx: expr, $key: expr) => {
         $crate::keys::Key::to_display($key, $crate::I18nContext::get_locale($ctx))
