@@ -47,23 +47,40 @@ pub fn gen_values_modules_and_accessors(
         .expect("to contain a variant for this key");
 
     let bounded_generics = builder_infos.bounded_generics();
+    let bounded_fmt_generics = builder_infos.bounded_fmt_generics();
     let generics = builder_infos.generics();
     let destructure = &builder_infos.destructure(markers_field);
 
     let locale_field = format_ident!("__locale");
 
-    let (render_fn_out_type, maybe_async) =
+    let (render_fn_out_type, maybe_async, maybe_await) =
         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             (
                 quote!(impl __l_i18n_crate::keys::IntoViewFuture),
                 quote!(async),
+                quote!(.await),
             )
         } else {
             (
                 quote!(impl __l_i18n_crate::reexports::leptos::IntoView),
                 quote!(),
+                quote!(),
             )
         };
+
+    let get_data_match_arms = locales.locales.iter().map(|l| {
+        let loc = &*l.name.key.ident;
+        if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+            let accessor_name = strings_accessor_method_name(&l.name);
+            quote! {
+                #enum_ident::#loc => super::#keys_ident::#accessor_name().await
+            }
+        } else {
+            quote! {
+                #enum_ident::#loc => ()
+            }
+        }
+    });
 
     let empty_marker = if builder_infos.fields.is_empty() {
         let match_arms = gen_const_values_match_arms(values, enum_ident, locales, keys_ident);
@@ -93,6 +110,24 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
+                type Data = __l_i18n_crate::keys::DisplayData;
+
+                #maybe_async fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> Self::Data {
+                    __get_data(locale) #maybe_await
+                }
+
+                fn fmt(
+                    &self,
+                    formatter: &mut core::fmt::Formatter<'_>,
+                    _id: Self::Id,
+                    locale: Self::Locale,
+                    data: &Self::Data,
+                ) -> core::fmt::Result {
+                    __fmt(&self.0, formatter, locale, *data)
+                }
+            }
+
             #[doc(hidden)]
             pub const fn __const_value(locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
                 match locale {
@@ -113,7 +148,7 @@ pub fn gen_values_modules_and_accessors(
         pub mod #key {
             #[allow(unused)]
             use super::{#enum_ident, __l_i18n_crate, __builders};
-            pub use __builders::#builder_name::{Builder, __IntoViewMarker};
+            pub use __builders::#builder_name::{Builder, __IntoViewMarker, __DisplayMarker};
 
             pub type BuildedArgs<#generics> = __builders::#builder_name::BuildedArgs<#generics>;
 
@@ -167,6 +202,24 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgs for Args<__DisplayMarker, #generics> {
+                type Data = __l_i18n_crate::keys::DisplayData;
+
+                #maybe_async fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> Self::Data {
+                    __get_data(locale) #maybe_await
+                }
+
+                fn fmt(
+                    &self,
+                    formatter: &mut core::fmt::Formatter<'_>,
+                    _id: Self::Id,
+                    locale: Self::Locale,
+                    data: &Self::Data,
+                ) -> core::fmt::Result {
+                    __fmt(&self.0, formatter, locale, *data)
+                }
+            }
+
             impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableArgs for Args<__Marker, #generics>
                 where
                 __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::IntoViewArgs<
@@ -184,10 +237,49 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
+            impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableDisplayArgs for Args<__Marker, #generics>
+                where
+                __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::DisplayArgs<
+                    Locale = #enum_ident,
+                    Id =  __builders::#builder_name::Id,
+                    Data = Self::Data
+                >,
+                Self: __l_i18n_crate::keys::DisplayArgs<Locale = #enum_ident, Id = Id>
+            {
+                type Downgraded = __builders::#builder_name::Args<__Marker, #generics>;
+
+                fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
+                    let (Self(args, _), ()) = __l_i18n_crate::keys::Key::into_args_and_id(this);
+                    let args = __builders::#builder_name::Args(args, core::marker::PhantomData);
+                    __l_i18n_crate::keys::Key::from_args_and_id(args, __builders::#builder_name::Id::#variant_ident)
+                }
+            }
+
             #[doc(hidden)]
             pub #maybe_async fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView {
                 let BuildedArgs #destructure = args;
                 #render_body
+            }
+
+            #[doc(hidden)]
+            pub #maybe_async fn __get_data(locale: #enum_ident) -> __l_i18n_crate::keys::DisplayData {
+                match locale {
+                    #(
+                        #get_data_match_arms,
+                    )*
+                }
+            }
+
+            #[doc(hidden)]
+            pub fn __fmt<#bounded_fmt_generics>(
+                args: &BuildedArgs<#generics>,
+                __formatter: &mut core::fmt::Formatter<'_>,
+                #locale_field: #enum_ident,
+                __data: __l_i18n_crate::keys::DisplayData
+            ) -> core::fmt::Result {
+                use core::fmt::Write;
+                let BuildedArgs #destructure = args;
+                todo!()
             }
 
             #empty_marker

@@ -129,6 +129,13 @@ impl BuilderInfos {
         }
     }
 
+    pub fn bounded_fmt_generics(&self) -> TokenStream {
+        let bounded_generics = self.fields.iter().flat_map(Field::as_bounded_fmt_generic);
+        quote! {
+            #(#bounded_generics,)*
+        }
+    }
+
     pub fn generics(&self) -> TokenStream {
         let generics = self.fields.iter().flat_map(Field::as_generics);
         quote! {
@@ -203,6 +210,10 @@ impl Field {
         self.var_or_comp.as_bounded_generic(&self.generic)
     }
 
+    pub fn as_bounded_fmt_generic(&self) -> impl Iterator<Item = TokenStream> {
+        self.var_or_comp.as_bounded_fmt_generic(&self.generic)
+    }
+
     pub fn as_struct_field(&self) -> TokenStream {
         let Self {
             key,
@@ -231,6 +242,20 @@ impl VarOrComp {
         quote!(#generic: 'static + ::core::clone::Clone #(+ #bounds)*)
     }
 
+    pub fn get_bounded_fmt_var_generics(
+        generic: &syn::Ident,
+        bounds: &[VarBound],
+        plural: bool,
+    ) -> TokenStream {
+        if plural {
+            let bounds = bounds.iter().map(VarBound::fmt_bounds);
+            quote!(#generic: #(#bounds +)* Clone + Into<__l_i18n_crate::reexports::icu::plurals::PluralOperands>)
+        } else {
+            let bounds = bounds.iter().map(VarBound::fmt_bounds);
+            quote!(#generic: #(#bounds +)*)
+        }
+    }
+
     pub fn get_bounded_comp_generics(
         generic: &syn::Ident,
         into_view: &syn::Ident,
@@ -246,6 +271,17 @@ impl VarOrComp {
         ]
     }
 
+    pub fn get_bounded_fmt_comp_generics(
+        generic: &syn::Ident,
+        into_view: &syn::Ident,
+        _self_closed: bool,
+    ) -> [TokenStream; 2] {
+        [
+            quote!(#generic: __l_i18n_crate::display::DisplayComponent<#into_view>),
+            quote!(#into_view),
+        ]
+    }
+
     pub fn as_bounded_generic(&self, generic: &syn::Ident) -> impl Iterator<Item = TokenStream> {
         match &self {
             VarOrComp::Var { bounds, plural } => {
@@ -257,6 +293,25 @@ impl VarOrComp {
                 self_closed,
             } => {
                 let ts = Self::get_bounded_comp_generics(generic, into_view, *self_closed);
+                EitherIter::Iter2(ts.into_iter())
+            }
+        }
+    }
+
+    pub fn as_bounded_fmt_generic(
+        &self,
+        generic: &syn::Ident,
+    ) -> impl Iterator<Item = TokenStream> {
+        match &self {
+            VarOrComp::Var { bounds, plural } => {
+                let ts = Self::get_bounded_fmt_var_generics(generic, bounds, *plural);
+                EitherIter::Iter1(std::iter::once(ts))
+            }
+            VarOrComp::Comp {
+                into_view,
+                self_closed,
+            } => {
+                let ts = Self::get_bounded_fmt_comp_generics(generic, into_view, *self_closed);
                 EitherIter::Iter2(ts.into_iter())
             }
         }

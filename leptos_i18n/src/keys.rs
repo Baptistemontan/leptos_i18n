@@ -39,9 +39,17 @@ pub struct AnyIntoViewArgs<L: BaseLocale> {
     args: Box<dyn DynAnyIntoViewArgs<Locale = L>>,
 }
 
-pub struct AnyDisplayArgs<'a, L: BaseLocale, Data> {
+pub struct AnyDisplayArgs<'a, L: BaseLocale, Data = DisplayData> {
     args: Arc<dyn DynAnyDisplayArgs<'a, Locale = L, Data = Data>>,
 }
+
+#[doc(hidden)]
+#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+pub type DisplayData = ();
+
+#[doc(hidden)]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+pub type DisplayData = &'static [Box<str>];
 
 pub trait ArgsBuilder: Copy + 'static {
     type Id: Send + Sync + Copy + Hash + Ord + 'static;
@@ -105,7 +113,11 @@ pub trait IntoViewArgs: Args {
 pub trait DisplayArgs: Args {
     type Data;
 
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn get_data(&self, id: Self::Id, locale: Self::Locale) -> Self::Data;
+
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn get_data(&self, id: Self::Id, locale: Self::Locale) -> impl Future<Output = Self::Data>;
 
     fn fmt(
         &self,
@@ -123,7 +135,7 @@ pub trait DowngradableArgs: IntoViewArgs {
 }
 
 pub trait DowngradableDisplayArgs: DisplayArgs {
-    type Downgraded: DisplayArgs<Locale = Self::Locale>;
+    type Downgraded: DisplayArgs<Locale = Self::Locale, Data = Self::Data>;
 
     fn downgrade(this: Key<Self>) -> Key<Self::Downgraded>;
 }
@@ -147,7 +159,14 @@ trait DynAnyDisplayArgs<'a>: Send + Sync + 'a {
     type Locale: BaseLocale;
     type Data;
 
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn get_data(&self, locale: Self::Locale) -> Self::Data;
+
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn get_data<'b>(
+        &'b self,
+        locale: Self::Locale,
+    ) -> core::pin::Pin<Box<dyn Future<Output = Self::Data> + 'b>>;
 
     fn fmt(
         &self,
@@ -173,7 +192,11 @@ impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for Any
         locale: Self::Locale,
     ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>> {
         let fut = async move {
-            let AnyArgsInner { id, args } = *self;
+            let AnyArgsInner {
+                id,
+                args,
+                data_marker: PhantomData,
+            } = *self;
             let view = args.render(id, locale).await;
             view.into_any()
         };
@@ -206,8 +229,17 @@ where
     type Locale = A::Locale;
     type Data = A::Data;
 
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn get_data(&self, locale: Self::Locale) -> Self::Data {
         A::get_data(&self.args, self.id, locale)
+    }
+
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn get_data<'b>(
+        &'b self,
+        locale: Self::Locale,
+    ) -> core::pin::Pin<Box<dyn Future<Output = Self::Data> + 'b>> {
+        Box::pin(A::get_data(&self.args, self.id, locale))
     }
 
     fn fmt(
@@ -264,7 +296,13 @@ where
 {
     type Data = Data;
 
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> Self::Data {
+        DynAnyDisplayArgs::get_data(&*self.args, locale)
+    }
+
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> impl Future<Output = Self::Data> {
         DynAnyDisplayArgs::get_data(&*self.args, locale)
     }
 
@@ -390,8 +428,8 @@ impl<B: DowngradableArgBuilder> KeyBuilder<B> {
 }
 
 impl<A: Args> Key<A> {
-    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     #[doc(hidden)]
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     pub fn render(this: Self, locale: A::Locale) -> impl IntoViewFuture
     where
         A: IntoViewArgs,
@@ -399,8 +437,8 @@ impl<A: Args> Key<A> {
         A::render(this.args, this.id, locale)
     }
 
-    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     #[doc(hidden)]
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     pub fn render(this: Self, locale: A::Locale) -> impl IntoView
     where
         A: IntoViewArgs,
@@ -409,11 +447,27 @@ impl<A: Args> Key<A> {
     }
 
     #[doc(hidden)]
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     pub fn to_display(this: Self, locale: A::Locale) -> DisplayKey<A>
     where
         A: DisplayArgs,
     {
         let data = A::get_data(&this.args, this.id, locale);
+        DisplayKey {
+            locale,
+            id: this.id,
+            args: this.args,
+            data,
+        }
+    }
+
+    #[doc(hidden)]
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    pub async fn to_display(this: Self, locale: A::Locale) -> DisplayKey<A>
+    where
+        A: DisplayArgs,
+    {
+        let data = A::get_data(&this.args, this.id, locale).await;
         DisplayKey {
             locale,
             id: this.id,

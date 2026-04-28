@@ -55,6 +55,7 @@ fn gen_inner_module(
     let mod_key = &*infos.name.ident;
     let variants = infos.id_variants.values();
     let bounded_generics = infos.bounded_generics();
+    let bounded_fmt_generics = infos.bounded_fmt_generics();
     let generics = infos.generics();
     let struct_fields = infos.struct_fields(markers_field);
 
@@ -67,13 +68,33 @@ fn gen_inner_module(
         .map(|(i, (path, variant))| {
             let keys = iter_path_keys(path);
             let ts = quote! {
-                super::super::keys::#(#keys ::)* __render(builder, locale)
+                super::super::keys::#(#keys ::)* __render(args, locale)
             };
             let wrapped = either_of.wrap(i, ts);
             quote! {
                 Id::#variant => #wrapped
             }
         });
+
+    let fmt_match_arms = infos.id_variants.iter().map(|(path, variant)| {
+        let keys = iter_path_keys(path);
+        quote! {
+            Id::#variant => super::super::keys::#(#keys ::)* __fmt(args, formatter, locale, data)
+        }
+    });
+
+    let (maybe_async, maybe_await) = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+        (quote!(async), quote!(.await))
+    } else {
+        (quote!(), quote!())
+    };
+
+    let get_data_match_arms = infos.id_variants.iter().map(|(path, variant)| {
+        let keys = iter_path_keys(path);
+        quote! {
+            Id::#variant => super::super::keys::#(#keys ::)* __get_data(locale) #maybe_await
+        }
+    });
 
     let render_fn_out_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
         quote!(impl __l_i18n_crate::keys::IntoViewFuture)
@@ -115,12 +136,32 @@ fn gen_inner_module(
                 }
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
+            impl<#generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics>
+                where Args<__IntoViewMarker, #generics>: __l_i18n_crate::keys::IntoViewArgs,
+            {
                 fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
-                    Args::<__IntoViewMarker, #generics>::render(Args(
+                    <Args<__IntoViewMarker, #generics> as __l_i18n_crate::keys::IntoViewArgs>::render(Args(
                         self.0,
                         core::marker::PhantomData
                     ), id, locale)
+                }
+            }
+
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
+                type Data = __l_i18n_crate::keys::DisplayData;
+
+                #maybe_async fn get_data(&self, id: Self::Id, locale: Self::Locale) -> Self::Data {
+                    __get_data(id, locale) #maybe_await
+                }
+
+                fn fmt(
+                    &self,
+                    formatter: &mut core::fmt::Formatter<'_>,
+                    id: Self::Id,
+                    locale: Self::Locale,
+                    data: &Self::Data,
+                ) -> core::fmt::Result {
+                    __fmt(&self.0, formatter, id, locale, *data)
                 }
             }
         }
@@ -134,6 +175,19 @@ fn gen_inner_module(
     let relevant_copy_generics = infos.fields.iter().map(|f| &f.generic);
 
     let relevant_clone_fields = infos.fields.iter().map(|f| &*f.key.ident);
+
+    let clone_impl = if infos.fields.is_empty() {
+        quote!(*self)
+    } else {
+        quote! {
+            Self {
+                #markers_field: core::marker::PhantomData,
+                #(
+                    #relevant_clone_fields: core::clone::Clone::clone(&self.#relevant_clone_fields),
+                )*
+            }
+        }
+    };
 
     quote! {
         pub mod #mod_key {
@@ -152,12 +206,7 @@ fn gen_inner_module(
                     )*
             {
                 fn clone(&self) -> Self {
-                    Self {
-                        #markers_field: core::marker::PhantomData,
-                        #(
-                            #relevant_clone_fields: core::clone::Clone::clone(&self.#relevant_clone_fields),
-                        )*
-                    }
+                    #clone_impl
                 }
             }
 
@@ -192,6 +241,9 @@ fn gen_inner_module(
             #[doc(hidden)]
             pub enum __IntoViewMarker {}
 
+            #[doc(hidden)]
+            pub enum __DisplayMarker {}
+
             pub struct Args<__Marker, #generics>(pub BuildedArgs<#generics>, pub core::marker::PhantomData<__Marker>);
 
             impl<__Marker, #generics> core::clone::Clone for Args<__Marker, #generics> where BuildedArgs<#generics>: core::clone::Clone {
@@ -218,12 +270,30 @@ fn gen_inner_module(
 
             impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__IntoViewMarker, #generics> {
                 fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
-                    let Self(builder, _) = self;
+                    let Self(args, _) = self;
                     match id {
                         #(
                             #render_match_arms,
                         )*
                     }
+                }
+            }
+
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgs for Args<__DisplayMarker, #generics> {
+                type Data = __l_i18n_crate::keys::DisplayData;
+
+                #maybe_async fn get_data(&self, id: Self::Id, locale: Self::Locale) -> Self::Data {
+                    __get_data(id, locale) #maybe_await
+                }
+
+                fn fmt(
+                    &self,
+                    formatter: &mut core::fmt::Formatter<'_>,
+                    id: Self::Id,
+                    locale: Self::Locale,
+                    data: &Self::Data,
+                ) -> core::fmt::Result {
+                    __fmt(&self.0, formatter, id, locale, *data)
                 }
             }
 
@@ -234,6 +304,41 @@ fn gen_inner_module(
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
                     __l_i18n_crate::keys::Key::downgrade_any(this)
+                }
+            }
+
+            impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableDisplayArgs for Args<__Marker, #generics>
+                where Self: 'static + Clone + Send + Sync + __l_i18n_crate::keys::DisplayArgs<Locale = #enum_ident, Id = Id>,
+                    Self::Data: Send + Sync + 'static
+            {
+                type Downgraded = __l_i18n_crate::keys::AnyDisplayArgs<'static, #enum_ident, Self::Data>;
+
+                fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
+                    __l_i18n_crate::keys::Key::downgrade_any_display(this)
+                }
+            }
+
+            #[doc(hidden)]
+            pub #maybe_async fn __get_data(id: Id, locale: #enum_ident) -> __l_i18n_crate::keys::DisplayData {
+                match id {
+                    #(
+                        #get_data_match_arms,
+                    )*
+                }
+            }
+
+            #[doc(hidden)]
+            pub fn __fmt<#bounded_fmt_generics>(
+                args: &BuildedArgs<#generics>,
+                formatter: &mut core::fmt::Formatter<'_>,
+                id: Id,
+                locale: #enum_ident,
+                data: __l_i18n_crate::keys::DisplayData
+            ) -> core::fmt::Result {
+                match id {
+                    #(
+                        #fmt_match_arms,
+                    )*
                 }
             }
 

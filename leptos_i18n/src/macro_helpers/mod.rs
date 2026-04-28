@@ -331,14 +331,6 @@ pub async fn key_to_string<A: DisplayArgs>(key: DisplayKey<A>) -> String {
 }
 
 #[doc(hidden)]
-#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-pub type DisplayData = ();
-
-#[doc(hidden)]
-#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-pub type DisplayData = &'static [Box<str>];
-
-#[doc(hidden)]
 #[track_caller]
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
 pub fn cast_display_data<const N: usize>(data: &'static [Box<str>]) -> &'static [Box<str>; N] {
