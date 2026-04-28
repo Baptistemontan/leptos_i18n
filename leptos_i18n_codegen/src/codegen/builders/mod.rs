@@ -114,8 +114,15 @@ fn gen_inner_module(
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 type Args = Args<__l_i18n_crate::keys::NoArgs>;
                 type Builded = BuildedArgs;
-                type ConstBuilder = ();
-                const THIS: Self::Args = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
+                type ConstBuilder = Builder<__l_i18n_crate::keys::NoArgs>;
+            }
+
+            impl __l_i18n_crate::keys::ConstArgs for Args<__l_i18n_crate::keys::NoArgs> {
+                const THIS: Self = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
+
+                fn value(id: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                    Self::__const_value(Self::THIS, id, locale)
+                }
             }
 
             impl Args<__l_i18n_crate::keys::NoArgs> {

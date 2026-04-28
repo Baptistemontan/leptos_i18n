@@ -332,7 +332,6 @@ pub async fn key_to_string<A: DisplayArgs>(key: DisplayKey<A>) -> String {
 
 #[doc(hidden)]
 #[track_caller]
-#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-pub fn cast_display_data<const N: usize>(data: &'static [Box<str>]) -> &'static [Box<str>; N] {
+pub fn cast_unsized_strings<T, const N: usize>(data: &'static [T]) -> &'static [T; N] {
     data.try_into().expect("wrong size for display data")
 }

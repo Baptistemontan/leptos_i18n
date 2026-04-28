@@ -44,8 +44,12 @@ pub struct AnyDisplayArgs<'a, L: BaseLocale, Data = DisplayData> {
 }
 
 #[doc(hidden)]
-#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+#[cfg(not(feature = "dynamic_load"))]
 pub type DisplayData = ();
+
+#[doc(hidden)]
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+pub type DisplayData = &'static [&'static str];
 
 #[doc(hidden)]
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
@@ -82,12 +86,17 @@ pub trait DisplayArgsMarker<B>: ArgsBuilder {
 
 pub enum NoArgs {}
 
+pub trait ConstArgs: Args + Copy + 'static {
+    const THIS: Self;
+
+    fn value(id: Self::Id, locale: Self::Locale) -> Literal;
+}
+
 #[doc(hidden)]
 pub trait ConstArgsMarker: ArgsBuilder {
     type ConstBuilder;
     type Builded;
-    type Args: Args<Locale = Self::Locale, Id = Self::Id> + Copy + 'static;
-    const THIS: Self::Args;
+    type Args: ConstArgs<Locale = Self::Locale, Id = Self::Id>;
 }
 
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
@@ -400,7 +409,7 @@ impl<B: ArgsBuilder> KeyBuilder<B> {
     {
         Key {
             id: this.id,
-            args: B::THIS,
+            args: <B::Args as ConstArgs>::THIS,
         }
     }
 

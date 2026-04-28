@@ -246,7 +246,12 @@ pub trait FormatterToTokens: Any {
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream;
     fn view_bounds(&self) -> TokenStream;
 
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream;
+    fn to_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream;
     fn fmt_bounds(&self) -> TokenStream;
 
     #[doc(hidden)]
@@ -312,18 +317,25 @@ impl VarBound {
             Self::Formatted { to_tokens, .. } => to_tokens.to_view(key, locale_field),
         }
     }
-    pub fn var_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
+    pub fn var_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream {
         match self {
             Self::AttributeValue => {
                 unreachable!("attributes values should be rendered by the component renderer.")
             }
             Self::None => {
-                quote!(core::fmt::Display::fmt(#key, __formatter))
+                quote!(core::fmt::Display::fmt(#key, #formatter_ident))
             }
             Self::Dummy => {
                 quote!({ let _ = #key; core::unimplemented!("Dummy formatter, parsing of a formatter must have failed.") })
             }
-            Self::Formatted { to_tokens, .. } => to_tokens.to_fmt(key, locale_field),
+            Self::Formatted { to_tokens, .. } => {
+                to_tokens.to_fmt(key, locale_field, formatter_ident)
+            }
         }
     }
     pub fn var_to_impl_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
