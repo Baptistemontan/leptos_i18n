@@ -17,7 +17,12 @@ use leptos_router::{
     location::Location,
 };
 
-use leptos_i18n::{I18nContext, Locale, locale_traits::BaseLocale, use_i18n_context};
+use leptos_i18n::{
+    I18nContext, Locale,
+    keys::{ConstArgs, KeyBuilder},
+    locale_traits::BaseLocale,
+    use_i18n_context,
+};
 
 // this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
 
@@ -725,26 +730,21 @@ where
 
 #[doc(hidden)]
 #[derive(Clone, Copy)]
-pub struct I18nPath<L, F> {
-    func: F,
-    marker: PhantomData<L>,
-}
+pub struct I18nPath<A: ConstArgs>(PhantomData<A>);
 
-impl<L, F> Debug for I18nPath<L, F> {
+impl<A: ConstArgs> Debug for I18nPath<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("I18nPath").finish()
     }
 }
 
-impl<L: Locale, F> I18nPath<L, F>
-where
-    F: Fn(L) -> &'static str,
-{
+impl<A: ConstArgs<Id = ()>> I18nPath<A> {
     fn segments_for_current_locale(
         &self,
     ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
-        let locale = get_current_route_locale::<L>();
-        let s = (self.func)(locale);
+        let locale = get_current_route_locale::<A::Locale>();
+        let lit = A::value((), locale);
+        let s = lit.str().expect("the key should be to a string");
 
         s.split('/')
             .filter(|p| !p.is_empty())
@@ -752,10 +752,7 @@ where
     }
 }
 
-impl<L: Locale, F> PossibleRouteMatch for I18nPath<L, F>
-where
-    F: Fn(L) -> &'static str,
-{
+impl<A: ConstArgs<Id = ()>> PossibleRouteMatch for I18nPath<A> {
     fn optional(&self) -> bool {
         false
     }
@@ -797,13 +794,9 @@ where
 }
 
 #[doc(hidden)]
-pub fn make_i18n_path<L, F>(f: F) -> I18nPath<L, F>
+pub const fn make_i18n_path<B>(_: KeyBuilder<B>) -> I18nPath<B::Args>
 where
-    L: Locale,
-    F: Fn(L) -> &'static str + Clone + 'static,
+    B: leptos_i18n::keys::ConstArgsMarker<Id = ()>,
 {
-    I18nPath {
-        func: f,
-        marker: PhantomData,
-    }
+    I18nPath(PhantomData)
 }
