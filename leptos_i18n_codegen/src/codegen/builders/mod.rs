@@ -304,6 +304,14 @@ fn gen_inner_module(
                 }
             }
 
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+                type Args = Args<__DisplayMarker, #generics>;
+
+                fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
+                    Args(builder, core::marker::PhantomData)
+                }
+            }
+
             impl<__Marker, #generics> __l_i18n_crate::keys::Args for Args<__Marker, #generics> {
                 type Locale = #enum_ident;
                 type Id = Id;
