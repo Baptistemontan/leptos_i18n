@@ -427,7 +427,7 @@ macro_rules! td_display {
         {
             let __loc = $loc;
             let __key = $crate::key!(__loc, $first_key $(.$keys)*);
-            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            let __key = $crate::build_key_display!(__key $(, $($args)*)?);
             $crate::render_proxy!(@display @loc __loc, __key)
         }
     };
@@ -440,7 +440,7 @@ macro_rules! tu_display {
         {
             let __ctx = $ctx;
             let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
-            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            let __key = $crate::build_key_display!(__key $(, $($args)*)?);
             $crate::render_proxy!(@display @ctx_untracked __ctx, __key)
         }
     };
