@@ -5,7 +5,11 @@ pub mod formatting;
 mod interpol_args;
 mod scope;
 
-use crate::{Locale, locale_traits::BaseLocale};
+use crate::{
+    Locale,
+    keys::{DisplayArgs, DisplayKey},
+    locale_traits::BaseLocale,
+};
 pub use formatting::*;
 pub use interpol_args::*;
 use leptos::IntoView;
@@ -301,4 +305,42 @@ where
     F: InterpolatePluralCount,
 {
     formatting::get_plural_rules(locale, plural_rule_type).category_for(count())
+}
+
+#[doc(hidden)]
+#[cfg(not(feature = "dynamic_load"))]
+pub fn key_to_string<A: DisplayArgs>(key: DisplayKey<A>) -> String {
+    key.to_string()
+}
+
+#[doc(hidden)]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+pub async fn key_to_string<A, F>(key: F) -> String
+where
+    A: DisplayArgs,
+    F: Future<Output = DisplayKey<A>>,
+{
+    let key = key.await;
+    key.to_string()
+}
+
+#[doc(hidden)]
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+pub async fn key_to_string<A: DisplayArgs>(key: DisplayKey<A>) -> String {
+    key.to_string()
+}
+
+#[doc(hidden)]
+#[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
+pub type DisplayData = ();
+
+#[doc(hidden)]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+pub type DisplayData = &'static [Box<str>];
+
+#[doc(hidden)]
+#[track_caller]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+pub fn cast_display_data<const N: usize>(data: &'static [Box<str>]) -> &'static [Box<str>; N] {
+    data.try_into().expect("wrong size for display data")
 }

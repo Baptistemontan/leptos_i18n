@@ -1,4 +1,9 @@
-use std::{fmt::Display, hash::Hash, marker::PhantomData};
+use std::{
+    fmt::{Debug, Display},
+    hash::Hash,
+    marker::PhantomData,
+    sync::Arc,
+};
 
 use leptos::{
     IntoView,
@@ -20,14 +25,22 @@ pub struct Key<A: Args> {
     args: A,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DisplayKey<A: DisplayArgs> {
+    id: A::Id,
+    locale: A::Locale,
+    args: A,
+    data: A::Data,
+}
+
 pub type AnyKey<L> = Key<AnyIntoViewArgs<L>>;
 
 pub struct AnyIntoViewArgs<L: BaseLocale> {
     args: Box<dyn DynAnyIntoViewArgs<Locale = L>>,
 }
 
-pub struct AnyDisplayArgs<'a, L: BaseLocale> {
-    args: Box<dyn DynAnyDisplayArgs<'a, Locale = L>>,
+pub struct AnyDisplayArgs<'a, L: BaseLocale, Data> {
+    args: Arc<dyn DynAnyDisplayArgs<'a, Locale = L, Data = Data>>,
 }
 
 pub trait ArgsBuilder: Copy + 'static {
@@ -90,7 +103,17 @@ pub trait IntoViewArgs: Args {
 }
 
 pub trait DisplayArgs: Args {
-    fn to_display(self, id: Self::Id, locale: Self::Locale) -> impl Display;
+    type Data;
+
+    fn get_data(&self, id: Self::Id, locale: Self::Locale) -> Self::Data;
+
+    fn fmt(
+        &self,
+        formatter: &mut core::fmt::Formatter<'_>,
+        id: Self::Id,
+        locale: Self::Locale,
+        data: &Self::Data,
+    ) -> core::fmt::Result;
 }
 
 pub trait DowngradableArgs: IntoViewArgs {
@@ -122,16 +145,23 @@ trait DynAnyIntoViewArgs: Send + Sync + 'static {
 
 trait DynAnyDisplayArgs<'a>: Send + Sync + 'a {
     type Locale: BaseLocale;
+    type Data;
 
-    fn to_string(self: Box<Self>, locale: Self::Locale) -> String;
+    fn get_data(&self, locale: Self::Locale) -> Self::Data;
 
-    fn clone(&self) -> Box<dyn DynAnyDisplayArgs<'a, Locale = Self::Locale>>;
+    fn fmt(
+        &self,
+        formatter: &mut core::fmt::Formatter<'_>,
+        locale: Self::Locale,
+        data: &Self::Data,
+    ) -> core::fmt::Result;
 }
 
 #[derive(Clone, Copy)]
-struct AnyArgsInner<A: Args> {
+struct AnyArgsInner<A: Args, Data = ()> {
     id: A::Id,
     args: A,
+    data_marker: PhantomData<Data>,
 }
 
 impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for AnyArgsInner<A> {
@@ -152,7 +182,11 @@ impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for Any
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn render(self: Box<Self>, locale: Self::Locale) -> AnyView {
-        let AnyArgsInner { id, args } = *self;
+        let AnyArgsInner {
+            id,
+            args,
+            data_marker: PhantomData,
+        } = *self;
         let view = args.render(id, locale);
         view.into_any()
     }
@@ -163,18 +197,26 @@ impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for Any
     }
 }
 
-impl<'a, A: DisplayArgs + Clone + Send + Sync + 'a> DynAnyDisplayArgs<'a> for AnyArgsInner<A> {
+impl<'a, A: DisplayArgs + Clone + Send + Sync + 'a> DynAnyDisplayArgs<'a>
+    for AnyArgsInner<A, A::Data>
+where
+    A: DisplayArgs + Clone + Send + Sync + 'a,
+    A::Data: Send + Sync + 'a,
+{
     type Locale = A::Locale;
+    type Data = A::Data;
 
-    fn to_string(self: Box<Self>, locale: Self::Locale) -> String {
-        let AnyArgsInner { id, args } = *self;
-        let as_display = A::to_display(args, id, locale);
-        as_display.to_string()
+    fn get_data(&self, locale: Self::Locale) -> Self::Data {
+        A::get_data(&self.args, self.id, locale)
     }
 
-    fn clone(&self) -> Box<dyn DynAnyDisplayArgs<'a, Locale = A::Locale>> {
-        let this: Self = <AnyArgsInner<A> as Clone>::clone(self);
-        Box::new(this)
+    fn fmt(
+        &self,
+        formatter: &mut core::fmt::Formatter<'_>,
+        locale: Self::Locale,
+        data: &Self::Data,
+    ) -> core::fmt::Result {
+        A::fmt(&self.args, formatter, self.id, locale, data)
     }
 }
 
@@ -185,10 +227,11 @@ impl<L: BaseLocale> Clone for AnyIntoViewArgs<L> {
     }
 }
 
-impl<L: BaseLocale> Clone for AnyDisplayArgs<'_, L> {
+impl<L: BaseLocale, Data> Clone for AnyDisplayArgs<'_, L, Data> {
     fn clone(&self) -> Self {
-        let args: Box<dyn DynAnyDisplayArgs<Locale = L>> = DynAnyDisplayArgs::clone(&*self.args);
-        AnyDisplayArgs { args }
+        AnyDisplayArgs {
+            args: self.args.clone(),
+        }
     }
 }
 
@@ -197,7 +240,7 @@ impl<L: BaseLocale> Args for AnyIntoViewArgs<L> {
     type Locale = L;
 }
 
-impl<L: BaseLocale> Args for AnyDisplayArgs<'_, L> {
+impl<L: BaseLocale, Data> Args for AnyDisplayArgs<'_, L, Data> {
     type Id = ();
     type Locale = L;
 }
@@ -214,9 +257,25 @@ impl<L: BaseLocale> IntoViewArgs for AnyIntoViewArgs<L> {
     }
 }
 
-impl<L: BaseLocale> DisplayArgs for AnyDisplayArgs<'_, L> {
-    fn to_display(self, _id: Self::Id, locale: Self::Locale) -> impl Display {
-        DynAnyDisplayArgs::to_string(self.args, locale)
+impl<'a, L, Data> DisplayArgs for AnyDisplayArgs<'a, L, Data>
+where
+    L: BaseLocale,
+    Data: 'a,
+{
+    type Data = Data;
+
+    fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> Self::Data {
+        DynAnyDisplayArgs::get_data(&*self.args, locale)
+    }
+
+    fn fmt(
+        &self,
+        formatter: &mut core::fmt::Formatter<'_>,
+        _id: Self::Id,
+        locale: Self::Locale,
+        data: &Self::Data,
+    ) -> core::fmt::Result {
+        DynAnyDisplayArgs::fmt(&*self.args, formatter, locale, data)
     }
 }
 
@@ -227,7 +286,11 @@ impl<L: BaseLocale> DowngradableArgs for AnyIntoViewArgs<L> {
     }
 }
 
-impl<L: BaseLocale> DowngradableDisplayArgs for AnyDisplayArgs<'_, L> {
+impl<'a, L, Data> DowngradableDisplayArgs for AnyDisplayArgs<'a, L, Data>
+where
+    L: BaseLocale,
+    Data: 'a,
+{
     type Downgraded = Self;
     fn downgrade(this: Key<Self>) -> Key<Self::Downgraded> {
         this
@@ -239,19 +302,31 @@ impl<L: BaseLocale> AnyIntoViewArgs<L> {
     where
         A: IntoViewArgs<Locale = L> + Clone + Send + Sync + 'static,
     {
-        let inner = AnyArgsInner { id, args };
+        let inner = AnyArgsInner {
+            id,
+            args,
+            data_marker: PhantomData,
+        };
         let boxed = Box::new(inner);
         AnyIntoViewArgs { args: boxed }
     }
 }
 
-impl<'a, L: BaseLocale> AnyDisplayArgs<'a, L> {
+impl<'a, L, Data> AnyDisplayArgs<'a, L, Data>
+where
+    L: BaseLocale,
+    Data: 'a + Send + Sync,
+{
     fn from_args<A>(args: A, id: A::Id) -> Self
     where
-        A: DisplayArgs<Locale = L> + Clone + Send + Sync + 'a,
+        A: DisplayArgs<Locale = L, Data = Data> + Clone + Send + Sync + 'a,
     {
-        let inner = AnyArgsInner { id, args };
-        let boxed = Box::new(inner);
+        let inner = AnyArgsInner {
+            id,
+            args,
+            data_marker: PhantomData,
+        };
+        let boxed = Arc::new(inner);
         AnyDisplayArgs { args: boxed }
     }
 }
@@ -334,11 +409,17 @@ impl<A: Args> Key<A> {
     }
 
     #[doc(hidden)]
-    pub fn to_display(this: Self, locale: A::Locale) -> impl Display
+    pub fn to_display(this: Self, locale: A::Locale) -> DisplayKey<A>
     where
         A: DisplayArgs,
     {
-        A::to_display(this.args, this.id, locale)
+        let data = A::get_data(&this.args, this.id, locale);
+        DisplayKey {
+            locale,
+            id: this.id,
+            args: this.args,
+            data,
+        }
     }
 
     pub fn downgrade(self) -> Key<A::Downgraded>
@@ -363,9 +444,10 @@ impl<A: Args> Key<A> {
         Key { id: (), args: any }
     }
 
-    pub fn downgrade_any_display<'a>(self) -> Key<AnyDisplayArgs<'a, A::Locale>>
+    pub fn downgrade_any_display<'a>(self) -> Key<AnyDisplayArgs<'a, A::Locale, A::Data>>
     where
         A: DisplayArgs + Clone + Send + Sync + 'a,
+        A::Data: Send + Sync + 'a,
     {
         let any = AnyDisplayArgs::from_args(self.args, self.id);
         Key { id: (), args: any }
@@ -389,6 +471,18 @@ impl<A: Args> Key<A> {
     pub fn into_args_and_id(this: Self) -> (A, A::Id) {
         let Self { id, args } = this;
         (args, id)
+    }
+}
+
+impl<A: DisplayArgs> Debug for DisplayKey<A> {
+    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
+}
+
+impl<A: DisplayArgs> Display for DisplayKey<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        A::fmt(&self.args, f, self.id, self.locale, &self.data)
     }
 }
 

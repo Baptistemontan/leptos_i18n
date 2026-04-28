@@ -20,6 +20,19 @@ macro_rules! build_key {
     }
 }
 
+#[macro_export]
+macro_rules! build_key_display {
+    ($builder: expr) => {
+        $crate::keys::KeyBuilder::const_build($builder, &|__builder| {
+            #[deny(deprecated)]
+            __builder.build()
+        })
+    };
+    ($builder: expr, $($tt:tt)*) => {
+        $crate::keys::KeyBuilder::build_display($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
+    }
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! render_inner {
@@ -34,6 +47,19 @@ macro_rules! render_inner {
     };
     (@defaulted $key: expr) => {
         move || $crate::keys::Key::render($key, Default::default())
+    };
+
+    (@display @ctx $ctx: expr, $key: expr) => {
+        $crate::keys::Key::to_display($key, $crate::I18nContext::get_locale($ctx))
+    };
+    (@display @ctx_untracked $ctx: expr, $key: expr) => {
+        $crate::keys::Key::to_display($key, $crate::I18nContext::get_locale_untracked($ctx))
+    };
+    (@display @loc $loc: expr, $key: expr) => {
+        $crate::keys::Key::to_display($key, $crate::Locale::to_base_locale($loc))
+    };
+    (@display @defaulted $key: expr) => {
+        $crate::keys::Key::to_display($key, Default::default())
     };
 }
 
@@ -59,6 +85,13 @@ macro_rules! render_proxy {
 #[macro_export]
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
 macro_rules! render_proxy {
+    (@display $($tt:tt)*) => {
+        {
+            let d = $crate::render_inner!(@display $($tt)*);
+            move async { d }
+        }
+    };
+
     ($($tt:tt)*) => {
         $crate::render_inner!($($tt)*)
     };
@@ -270,7 +303,7 @@ macro_rules! tu {
 #[macro_export]
 macro_rules! t_string {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::t_string!{$($tt)*}
+        $crate::__private::key_to_string($crate::t_display!($($tt)*))
     };
 }
 
@@ -305,7 +338,7 @@ macro_rules! t_string {
 #[macro_export]
 macro_rules! td_string {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::td_string!{$($tt)*}
+        $crate::__private::key_to_string($crate::td_display!($($tt)*))
     };
 }
 
@@ -313,7 +346,7 @@ macro_rules! td_string {
 #[macro_export]
 macro_rules! tu_string {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::tu_string!{$($tt)*}
+        $crate::__private::key_to_string($crate::tu_display!($($tt)*))
     };
 }
 
@@ -350,8 +383,13 @@ macro_rules! tu_string {
 /// Note that this is only usefull with interpolations, as with plain strings `t_display!` and `t_string!` both just returns the inner `&'static str`.
 #[macro_export]
 macro_rules! t_display {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::t_display!{$($tt)*}
+    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::build_key_display!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@display @ctx __ctx, __key)
+        }
     };
 }
 
@@ -385,16 +423,26 @@ macro_rules! t_display {
 /// ```
 #[macro_export]
 macro_rules! td_display {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::td_display!{$($tt)*}
+    ($loc: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+        {
+            let __loc = $loc;
+            let __key = $crate::key!(__loc, $first_key $(.$keys)*);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@display @loc __loc, __key)
+        }
     };
 }
 
 /// Same as the `t_display!` macro but untracked.
 #[macro_export]
 macro_rules! tu_display {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::tu_display!{$($tt)*}
+    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@display @ctx_untracked __ctx, __key)
+        }
     };
 }
 

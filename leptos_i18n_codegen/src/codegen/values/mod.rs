@@ -82,9 +82,11 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
+            impl<#generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics>
+                where Args<__IntoViewMarker, #generics>: __l_i18n_crate::keys::IntoViewArgs,
+            {
                 fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
-                    Args::<__IntoViewMarker, #generics>::render(Args(
+                    <Args<__IntoViewMarker, #generics> as __l_i18n_crate::keys::IntoViewArgs>::render(Args(
                         self.0,
                         core::marker::PhantomData
                     ), id, locale)
