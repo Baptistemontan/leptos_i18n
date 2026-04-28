@@ -223,6 +223,14 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
+            impl __l_i18n_crate::keys::DisplayArgsBuilder for ArgsBuilder {
+                type DisplayBuilder = Builder<__DisplayMarker>;
+
+                fn new_display() -> Self::DisplayBuilder {
+                    Builder::__new()
+                }
+            }
+
             impl __l_i18n_crate::keys::DowngradableArgBuilder for ArgsBuilder {
                 type Downgraded = __builders::#builder_name::ArgsBuilder;
                 const ID: __builders::#builder_name::Id = __builders::#builder_name::Id::#variant_ident;

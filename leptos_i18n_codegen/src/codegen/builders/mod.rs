@@ -227,6 +227,12 @@ fn gen_inner_module(
             #[allow(unused)]
             use super::{#enum_ident, __l_i18n_crate};
 
+            #[doc(hidden)]
+            pub enum __IntoViewMarker {}
+
+            #[doc(hidden)]
+            pub enum __DisplayMarker {}
+
             #builder_impl
 
             #[doc(hidden)]
@@ -271,11 +277,13 @@ fn gen_inner_module(
                 }
             }
 
-            #[doc(hidden)]
-            pub enum __IntoViewMarker {}
+            impl __l_i18n_crate::keys::DisplayArgsBuilder for ArgsBuilder {
+                type DisplayBuilder = Builder<__DisplayMarker>;
 
-            #[doc(hidden)]
-            pub enum __DisplayMarker {}
+                fn new_display() -> Self::DisplayBuilder {
+                    Builder::__new()
+                }
+            }
 
             pub struct Args<__Marker, #generics>(pub BuildedArgs<#generics>, pub core::marker::PhantomData<__Marker>);
 

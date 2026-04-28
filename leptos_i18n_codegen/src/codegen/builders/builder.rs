@@ -85,6 +85,8 @@ fn gen_var_methods(
     let missing_message = format!("Missing variable {var_name}");
 
     let bounded_generics = VarOrComp::get_bounded_var_generics(&field.generic, bounds, plural);
+    let bounded_fmt_generics =
+        VarOrComp::get_bounded_fmt_var_generics(&field.generic, bounds, plural);
 
     let constructed_out_generics = quote! {
         #key_generic
@@ -101,6 +103,7 @@ fn gen_var_methods(
         &constructed,
         &constructed_out_generics,
         &bounded_generics,
+        &bounded_fmt_generics,
         &repeated_message,
         &missing_message,
     )
@@ -126,8 +129,15 @@ fn gen_comp_methods(
 
     let [bounded_generics, into_view_bounded_generics] =
         VarOrComp::get_bounded_comp_generics(&field.generic, into_view, self_closed);
+
+    let [bounded_fmt_generics, into_view_bounded_fmt_generics] =
+        VarOrComp::get_bounded_comp_generics(&field.generic, into_view, self_closed);
     let bounded_generics = quote! {
         #bounded_generics, #into_view_bounded_generics
+    };
+
+    let bounded_fmt_generics = quote! {
+        #bounded_fmt_generics, #into_view_bounded_fmt_generics
     };
 
     let constructed_out_generics = quote! {
@@ -145,6 +155,7 @@ fn gen_comp_methods(
         &constructed,
         &constructed_out_generics,
         &bounded_generics,
+        &bounded_fmt_generics,
         &repeated_message,
         &missing_message,
     )
@@ -157,6 +168,7 @@ fn gen_methods_inner(
     constructed: &TokenStream,
     constructed_out_generics: &TokenStream,
     bounded_generics: &TokenStream,
+    bounded_fmt_generics: &TokenStream,
     repeated_message: &str,
     missing_message: &str,
 ) -> TokenStream {
@@ -240,6 +252,23 @@ fn gen_methods_inner(
         impl<__Dup__, #generics> Builder<__IntoViewMarker, #dup_right_generics> {
             #[deprecated(note = #repeated_message)]
             pub fn #key<#bounded_generics>(self, #key: #key_generic) -> Builder<__IntoViewMarker, #constructed_out_generics> {
+                let #key = (#constructed,);
+                #destructured_dup
+                #construction
+            }
+        }
+
+        impl<#generics> Builder<__DisplayMarker, #right_generics> {
+            pub fn #key<#bounded_fmt_generics>(self, #key: #key_generic) -> Builder<__DisplayMarker, #constructed_out_generics> {
+                let #key = (#constructed,);
+                #destructured
+                #construction
+            }
+        }
+
+        impl<__Dup__, #generics> Builder<__DisplayMarker, #dup_right_generics> {
+            #[deprecated(note = #repeated_message)]
+            pub fn #key<#bounded_fmt_generics>(self, #key: #key_generic) -> Builder<__DisplayMarker, #constructed_out_generics> {
                 let #key = (#constructed,);
                 #destructured_dup
                 #construction
