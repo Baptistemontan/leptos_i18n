@@ -17,7 +17,9 @@ pub use components::I18nRoute;
 macro_rules! i18n_path {
     ($scope:ty, $first_key:ident $(.$keys:ident)*) => {
         const {
-            $crate::__private::make_i18n_path($crate::leptos_i18n::key!(scope = $scope, $first_key $(.$keys)*))
+            $crate::__private::make_i18n_path(
+                $crate::__private::leptos_i18n::key!(scope = $scope, $first_key $(.$keys)*)
+            )
         }
     };
 }
