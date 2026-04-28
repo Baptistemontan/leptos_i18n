@@ -183,7 +183,7 @@ fn gen_inner_module(
 
     let relevant_clone_fields = infos.fields.iter().map(|f| &*f.key.ident);
 
-    let clone_impl = if infos.fields.is_empty() {
+    let builded_args_clone_impl = if infos.fields.is_empty() {
         quote!(*self)
     } else {
         quote! {
@@ -193,6 +193,14 @@ fn gen_inner_module(
                     #relevant_clone_fields: core::clone::Clone::clone(&self.#relevant_clone_fields),
                 )*
             }
+        }
+    };
+
+    let args_clone_impl = if infos.fields.is_empty() {
+        quote!(*self)
+    } else {
+        quote! {
+            Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
         }
     };
 
@@ -213,7 +221,7 @@ fn gen_inner_module(
                     )*
             {
                 fn clone(&self) -> Self {
-                    #clone_impl
+                    #builded_args_clone_impl
                 }
             }
 
@@ -241,7 +249,7 @@ fn gen_inner_module(
                 type Locale = #enum_ident;
 
                 fn new() -> Self::Builder {
-                    todo!()
+                    Builder::__new()
                 }
             }
 
@@ -255,7 +263,7 @@ fn gen_inner_module(
 
             impl<__Marker, #generics> core::clone::Clone for Args<__Marker, #generics> where BuildedArgs<#generics>: core::clone::Clone {
                 fn clone(&self) -> Self {
-                    Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
+                    #args_clone_impl
                 }
             }
 

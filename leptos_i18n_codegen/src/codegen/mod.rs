@@ -211,13 +211,14 @@ pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Resul
     Ok(quote! {
         pub mod i18n {
             #![allow(unused_braces)]
-            #![allow(clippy::type_complexity)]
-            #![allow(clippy::let_and_return)]
-            #![allow(clippy::unit_arg)]
             #![allow(non_camel_case_types)]
             #![allow(non_snake_case)]
             #![allow(unused_imports)]
             #![allow(unused_variables)]
+            #![allow(clippy::type_complexity)]
+            #![allow(clippy::let_and_return)]
+            #![allow(clippy::unit_arg)]
+            #![allow(clippy::empty_docs)]
             #top_level_attributes
 
             use #crate_path as __l_i18n_crate;

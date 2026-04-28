@@ -39,7 +39,7 @@ pub fn gen_builder(infos: &BuilderInfos, markers_field: &syn::Ident) -> TokenStr
         pub struct Builder<__Marker, Fields = #empty>(Fields, core::marker::PhantomData<__Marker>);
 
         impl<__Marker> Builder<__Marker> {
-            pub const fn new() -> Self {
+            pub const fn __new() -> Self {
                 Builder(#empty, core::marker::PhantomData)
             }
         }

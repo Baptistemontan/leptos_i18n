@@ -100,6 +100,14 @@ pub fn gen_values_modules_and_accessors(
         }
     });
 
+    let args_clone_impl = if builder_infos.fields.is_empty() {
+        quote!(*self)
+    } else {
+        quote! {
+            Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
+        }
+    };
+
     let empty_marker = if builder_infos.fields.is_empty() {
         let match_arms = into_view::gen_const_values_match_arms(
             &non_defaulted_locales,
@@ -209,7 +217,7 @@ pub fn gen_values_modules_and_accessors(
                 type Locale = #enum_ident;
 
                 fn new() -> Self::Builder {
-                    Builder::new()
+                    Builder::__new()
                 }
             }
 
@@ -222,7 +230,7 @@ pub fn gen_values_modules_and_accessors(
 
             impl<__Marker, #generics> core::clone::Clone for Args<__Marker, #generics> where BuildedArgs<#generics>: core::clone::Clone {
                 fn clone(&self) -> Self {
-                    Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
+                    #args_clone_impl
                 }
             }
 
