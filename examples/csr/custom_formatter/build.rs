@@ -1,7 +1,7 @@
 use leptos_i18n_build::{
+    Config, TranslationsInfos,
     formatter::{Formatter, FormatterToTokens, Key},
     options::{CodegenOptions, ParseOptions},
-    Config, TranslationsInfos,
 };
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -128,7 +128,12 @@ impl FormatterToTokens for PaddingFormatter {
     fn fmt_bounds(&self) -> TokenStream {
         quote!(core::fmt::Display)
     }
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
+    fn to_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream {
         // the locale is irrelevant here, we can ignore it.
         let _ = locale_field;
 
@@ -141,10 +146,10 @@ impl FormatterToTokens for PaddingFormatter {
             }
         };
         // In the codegen for the to string implementation,
-        // there will be a `&mut core::fmt::Formatter<'_>` to sink to under the ident `__formatter`
+        // there will be a `&mut core::fmt::Formatter<'_>` to sink to under the ident `#formatter_ident`
         // and it is expected to return `core::fmt::Result`.
         quote! {
-            core::write!(__formatter, #fmt_string, #key)
+            core::write!(#formatter_ident, #fmt_string, #key)
         }
     }
 
