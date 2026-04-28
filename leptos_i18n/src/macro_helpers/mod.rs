@@ -285,9 +285,11 @@ pub fn index_translations<const N: usize, const I: usize>(
 
 #[doc(hidden)]
 #[cfg(feature = "dynamic_load")]
-pub fn future_renderer<IV: IntoView + 'static + Clone, F: Future<Output = IV> + 'static>(
-    fut: impl Fn() -> F + 'static,
-) -> impl IntoView {
+pub fn future_renderer<F>(fut: impl Fn() -> F + 'static) -> impl IntoView
+where
+    F: Future + 'static,
+    F::Output: IntoView + 'static + Clone,
+{
     use leptos::prelude::{AsyncDerived, Get};
     let fut = AsyncDerived::new_unsync(fut);
     move || fut.get()

@@ -99,12 +99,12 @@ pub trait ConstArgsMarker: ArgsBuilder {
     type Args: ConstArgs<Locale = Self::Locale, Id = Self::Id>;
 }
 
-#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
 #[doc(hidden)]
-pub trait IntoViewFuture: Future<Output: IntoView> + 'static {}
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+pub trait IntoViewFuture: Future<Output: IntoView + Clone + 'static> + 'static {}
 
 #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-impl<F> IntoViewFuture for F where F: Future<Output: IntoView> + 'static {}
+impl<F> IntoViewFuture for F where F: Future<Output: IntoView + Clone + 'static> + 'static {}
 
 pub trait Args: Sized {
     type Locale: BaseLocale;
@@ -116,7 +116,7 @@ pub trait IntoViewArgs: Args {
     fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture;
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoView;
+    fn render(self, id: Self::Id, locale: Self::Locale) -> impl IntoView + Clone + 'static;
 }
 
 pub trait DisplayArgs: Args {
@@ -156,10 +156,10 @@ trait DynAnyIntoViewArgs: Send + Sync + 'static {
     fn render(
         self: Box<Self>,
         locale: Self::Locale,
-    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>>;
+    ) -> core::pin::Pin<Box<dyn Future<Output = ClonableAnyView> + 'static>>;
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    fn render(self: Box<Self>, locale: Self::Locale) -> AnyView;
+    fn render(self: Box<Self>, locale: Self::Locale) -> ClonableAnyView;
 
     fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<Locale = Self::Locale>>;
 }
@@ -199,7 +199,7 @@ impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for Any
     fn render(
         self: Box<Self>,
         locale: Self::Locale,
-    ) -> core::pin::Pin<Box<dyn Future<Output = AnyView> + 'static>> {
+    ) -> core::pin::Pin<Box<dyn Future<Output = ClonableAnyView> + 'static>> {
         let fut = async move {
             let AnyArgsInner {
                 id,
@@ -207,20 +207,20 @@ impl<A: IntoViewArgs + Send + Sync + Clone + 'static> DynAnyIntoViewArgs for Any
                 data_marker: PhantomData,
             } = *self;
             let view = args.render(id, locale).await;
-            view.into_any()
+            ClonableAnyView(Box::new(view))
         };
         Box::pin(fut)
     }
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    fn render(self: Box<Self>, locale: Self::Locale) -> AnyView {
+    fn render(self: Box<Self>, locale: Self::Locale) -> ClonableAnyView {
         let AnyArgsInner {
             id,
             args,
             data_marker: PhantomData,
         } = *self;
         let view = args.render(id, locale);
-        view.into_any()
+        ClonableAnyView(Box::new(view))
     }
 
     fn clone(&self) -> Box<dyn DynAnyIntoViewArgs<Locale = A::Locale>> {
@@ -286,15 +286,53 @@ impl<L: BaseLocale, Data> Args for AnyDisplayArgs<'_, L, Data> {
     type Locale = L;
 }
 
+trait DynClonableAnyView: 'static + Send {
+    fn as_any_view(&self) -> AnyView;
+
+    fn clone(&self) -> Box<dyn DynClonableAnyView>;
+}
+
+struct ClonableAnyView(Box<dyn DynClonableAnyView>);
+
+impl Clone for ClonableAnyView {
+    fn clone(&self) -> Self {
+        let inner = DynClonableAnyView::clone(&*self.0);
+        Self(inner)
+    }
+}
+
+impl<T> DynClonableAnyView for T
+where
+    T: IntoView + Clone + Send + 'static,
+{
+    fn as_any_view(&self) -> AnyView {
+        IntoAny::into_any(self.clone())
+    }
+
+    fn clone(&self) -> Box<dyn DynClonableAnyView> {
+        Box::new(self.clone())
+    }
+}
+
 impl<L: BaseLocale> IntoViewArgs for AnyIntoViewArgs<L> {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
     fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoViewFuture {
-        DynAnyIntoViewArgs::render(self.args, locale)
+        async move {
+            let clonable_view = DynAnyIntoViewArgs::render(self.args, locale).await;
+            move || {
+                let view = &clonable_view;
+                DynClonableAnyView::as_any_view(&*view.0)
+            }
+        }
     }
 
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoView {
-        DynAnyIntoViewArgs::render(self.args, locale)
+    fn render(self, _id: Self::Id, locale: Self::Locale) -> impl IntoView + Clone + 'static {
+        let clonable_view = DynAnyIntoViewArgs::render(self.args, locale);
+        move || {
+            let view = &clonable_view;
+            DynClonableAnyView::as_any_view(&*view.0)
+        }
     }
 }
 
@@ -448,7 +486,7 @@ impl<A: Args> Key<A> {
 
     #[doc(hidden)]
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
-    pub fn render(this: Self, locale: A::Locale) -> impl IntoView
+    pub fn render(this: Self, locale: A::Locale) -> impl IntoView + Clone + 'static
     where
         A: IntoViewArgs,
     {

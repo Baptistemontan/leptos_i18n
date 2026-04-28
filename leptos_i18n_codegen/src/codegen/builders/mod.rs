@@ -61,6 +61,12 @@ fn gen_inner_module(
 
     let either_of = EitherOfWrapper::new(infos.id_variants.len());
 
+    let (maybe_async, maybe_await) = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+        (quote!(async), quote!(.await))
+    } else {
+        (quote!(), quote!())
+    };
+
     let render_match_arms = infos
         .id_variants
         .iter()
@@ -68,7 +74,7 @@ fn gen_inner_module(
         .map(|(i, (path, variant))| {
             let keys = iter_path_keys(path);
             let ts = quote! {
-                super::super::keys::#(#keys ::)* __render(args, locale)
+                super::super::keys::#(#keys ::)* __render(args, locale) #maybe_await
             };
             let wrapped = either_of.wrap(i, ts);
             quote! {
@@ -83,12 +89,6 @@ fn gen_inner_module(
         }
     });
 
-    let (maybe_async, maybe_await) = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-        (quote!(async), quote!(.await))
-    } else {
-        (quote!(), quote!())
-    };
-
     let get_data_match_arms = infos.id_variants.iter().map(|(path, variant)| {
         let keys = iter_path_keys(path);
         quote! {
@@ -99,7 +99,7 @@ fn gen_inner_module(
     let render_fn_out_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
         quote!(impl __l_i18n_crate::keys::IntoViewFuture)
     } else {
-        quote!(impl __l_i18n_crate::reexports::leptos::IntoView)
+        quote!(impl __l_i18n_crate::reexports::leptos::IntoView + core::clone::Clone + 'static)
     };
 
     let empty_marker = if infos.fields.is_empty() {
@@ -168,7 +168,7 @@ fn gen_inner_module(
                     locale: Self::Locale,
                     data: &Self::Data,
                 ) -> core::fmt::Result {
-                    __fmt(&self.0, formatter, id, locale, *data)
+                    __fmt(&self.0, formatter, id, locale, data)
                 }
             }
         }
@@ -202,6 +202,24 @@ fn gen_inner_module(
         quote! {
             Self(core::clone::Clone::clone(&self.0), core::marker::PhantomData)
         }
+    };
+
+    let render_match = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+        quote!(async move {
+            match id {
+                #(
+                    #render_match_arms,
+                )*
+            }
+        })
+    } else {
+        quote!({
+                match id {
+                #(
+                    #render_match_arms,
+                )*
+            }
+        })
     };
 
     quote! {
@@ -286,11 +304,7 @@ fn gen_inner_module(
             impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__IntoViewMarker, #generics> {
                 fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
                     let Self(args, _) = self;
-                    match id {
-                        #(
-                            #render_match_arms,
-                        )*
-                    }
+                    #render_match
                 }
             }
 
@@ -308,7 +322,7 @@ fn gen_inner_module(
                     locale: Self::Locale,
                     data: &Self::Data,
                 ) -> core::fmt::Result {
-                    __fmt(&self.0, formatter, id, locale, *data)
+                    __fmt(&self.0, formatter, id, locale, data)
                 }
             }
 
@@ -348,7 +362,7 @@ fn gen_inner_module(
                 formatter: &mut core::fmt::Formatter<'_>,
                 id: Id,
                 locale: #enum_ident,
-                data: __l_i18n_crate::keys::DisplayData
+                data: &__l_i18n_crate::keys::DisplayData
             ) -> core::fmt::Result {
                 match id {
                     #(

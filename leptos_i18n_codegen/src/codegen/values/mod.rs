@@ -74,7 +74,9 @@ pub fn gen_values_modules_and_accessors(
             )
         } else {
             (
-                quote!(impl __l_i18n_crate::reexports::leptos::IntoView),
+                quote!(
+                    impl __l_i18n_crate::reexports::leptos::IntoView + core::clone::Clone + 'static
+                ),
                 quote!(),
                 quote!(),
             )
@@ -162,7 +164,7 @@ pub fn gen_values_modules_and_accessors(
                     locale: Self::Locale,
                     data: &Self::Data,
                 ) -> core::fmt::Result {
-                    __fmt(&self.0, formatter, locale, *data)
+                    __fmt(&self.0, formatter, locale, data)
                 }
             }
 
@@ -270,7 +272,7 @@ pub fn gen_values_modules_and_accessors(
                     locale: Self::Locale,
                     data: &Self::Data,
                 ) -> core::fmt::Result {
-                    __fmt(&self.0, formatter, locale, *data)
+                    __fmt(&self.0, formatter, locale, data)
                 }
             }
 
@@ -310,7 +312,7 @@ pub fn gen_values_modules_and_accessors(
             }
 
             #[doc(hidden)]
-            pub #maybe_async fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView {
+            pub #maybe_async fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView + core::clone::Clone + 'static {
                 let BuildedArgs #destructure = args;
                 #render_body
             }
@@ -329,7 +331,7 @@ pub fn gen_values_modules_and_accessors(
                 args: &BuildedArgs<#generics>,
                 #formatter_ident: &mut core::fmt::Formatter<'_>,
                 #locale_field: #enum_ident,
-                #data_ident: __l_i18n_crate::keys::DisplayData
+                #data_ident: &__l_i18n_crate::keys::DisplayData
             ) -> core::fmt::Result {
                 use core::fmt::Write;
                 let BuildedArgs #destructure = args;
