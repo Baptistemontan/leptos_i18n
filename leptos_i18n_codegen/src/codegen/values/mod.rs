@@ -55,6 +55,16 @@ pub fn gen_values_modules_and_accessors(
     let formatter_ident = format_ident!("__formatter");
     let data_ident = format_ident!("__data");
 
+    let defaults = values.defaults.compute();
+    let non_defaulted_locales: Vec<_> = locales
+        .locales
+        .iter()
+        .filter_map(|l| {
+            let value = values.values.get(&l.name.key)?;
+            Some((l, value))
+        })
+        .collect();
+
     let (render_fn_out_type, maybe_async, maybe_await) =
         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             (
@@ -70,23 +80,33 @@ pub fn gen_values_modules_and_accessors(
             )
         };
 
-    let get_data_match_arms = locales.locales.iter().map(|l| {
+    let get_data_match_arms = non_defaulted_locales.iter().map(|(l, _)| {
         let loc = &*l.name.key.ident;
+        let defaults = defaults.get(&l.name.key).map(|defaulted_locales| {
+            defaulted_locales
+                .iter()
+                .map(|key| quote!(| #enum_ident::#key))
+                .collect::<TokenStream>()
+        });
         if cfg!(all(feature = "dynamic_load")) {
             let accessor_name = strings_accessor_method_name(&l.name);
             quote! {
-                #enum_ident::#loc => super::#keys_ident::#accessor_name() #maybe_await
+                #enum_ident::#loc #defaults => super::#keys_ident::#accessor_name() #maybe_await
             }
         } else {
             quote! {
-                #enum_ident::#loc => ()
+                #enum_ident::#loc #defaults => ()
             }
         }
     });
 
     let empty_marker = if builder_infos.fields.is_empty() {
-        let match_arms =
-            into_view::gen_const_values_match_arms(values, enum_ident, locales, keys_ident);
+        let match_arms = into_view::gen_const_values_match_arms(
+            &non_defaulted_locales,
+            &defaults,
+            enum_ident,
+            keys_ident,
+        );
         quote! {
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 type Args = Args<__l_i18n_crate::keys::NoArgs>;
@@ -151,12 +171,17 @@ pub fn gen_values_modules_and_accessors(
         quote! {}
     };
 
-    let render_body =
-        into_view::gen_render_body(values, locales, enum_ident, keys_ident, &locale_field);
+    let render_body = into_view::gen_render_body(
+        &non_defaulted_locales,
+        &defaults,
+        enum_ident,
+        keys_ident,
+        &locale_field,
+    );
 
     let fmt_body = fmt::gen_fmt_body(
-        values,
-        locales,
+        &non_defaulted_locales,
+        &defaults,
         enum_ident,
         keys_ident,
         &locale_field,

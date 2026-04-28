@@ -1,17 +1,20 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::{
     codegen::locales::strings_accessor_method_name,
     utils::{EitherIter, EitherOfWrapper, fit_in_leptos_tuple},
 };
 use leptos_i18n_parser::{
-    extraction::{Literal, Locales, Value, Values},
+    extraction::{Literal, Locale, Value},
     parsing::Variable,
+    utils::Key,
 };
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
 pub fn gen_render_body(
-    values: &Values,
-    locales: &Locales,
+    non_defaulted_locales: &[(&Locale, &Value)],
+    defaults: &BTreeMap<Key, BTreeSet<Key>>,
     enum_ident: &syn::Ident,
     keys_ident: &syn::Ident,
     locale_field: &syn::Ident,
@@ -21,13 +24,16 @@ pub fn gen_render_body(
     } else {
         format_ident!("__I18N_TRANSLATIONS__")
     };
-    let either_of = EitherOfWrapper::new(locales.locales.len());
-    let render_match_arms = locales.locales.iter().enumerate().map(|(i, l)| {
+    let either_of = EitherOfWrapper::new(non_defaulted_locales.len());
+    let render_match_arms = non_defaulted_locales.iter().enumerate().map(|(i, (l, value))| {
         let loc = &*l.name.key.ident;
         let accessor_name = strings_accessor_method_name(&l.name);
         let strings_count = l.strings.len();
-        // TODO: check defaulting
-        let value = values.values.get(&l.name.key).expect("a value for this locale");
+        let defaults = defaults.get(&l.name.key).map(|defaulted_locales| {
+            defaulted_locales.iter().map(|key| {
+                quote!(| #enum_ident::#key)
+            }).collect::<TokenStream>()
+        });
         let render_value = gen_render_value(value, &translations_ident, strings_count, locale_field);
         let render_value = either_of.wrap(i, render_value);
         if cfg!(feature = "dynamic_load") {
@@ -37,14 +43,14 @@ pub fn gen_render_body(
                 quote!()
             };
             quote! {
-                #enum_ident::#loc => {
-                    let #translations_ident = super::#keys_ident::#accessor_name() #maybe_await;
+                #enum_ident::#loc #defaults => {
+                    let #translations_ident: &'static [_; #strings_count] = super::#keys_ident::#accessor_name() #maybe_await;
                     #render_value
                 }
             }
         } else {
             quote! {
-                #enum_ident::#loc => {
+                #enum_ident::#loc #defaults => {
                     const #translations_ident: &[&str; #strings_count] = super::#keys_ident::#accessor_name();
                     #render_value
                 }
@@ -172,28 +178,27 @@ pub fn gen_render_lit(
 }
 
 pub fn gen_const_values_match_arms(
-    values: &Values,
+    non_defaulted_locales: &[(&Locale, &Value)],
+    defaults: &BTreeMap<Key, BTreeSet<Key>>,
     enum_ident: &syn::Ident,
-    locales: &Locales,
     keys_ident: &syn::Ident,
 ) -> impl Iterator<Item = TokenStream> {
-    //TODO: check defaulting
-    values.values.iter().map(move |(locale, value)| {
+    non_defaulted_locales.iter().map(move |(locale, value)| {
         let Value::Literal(lit) = value else { todo!() };
-
+        let loc_ident = &*locale.name.key.ident;
+        let defaults = defaults.get(&locale.name.key).map(|defaulted_locales| {
+            defaulted_locales.iter().map(|key| {
+                quote!(| #enum_ident::#key)
+            }).collect::<TokenStream>()
+        });
         let value = match lit {
             Literal::String(index) => {
-                let loc = locales
-                    .locales
-                    .iter()
-                    .find(|l| l.name.key == *locale)
-                    .expect("to find the locale for this value");
                 if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-                    let value = &*loc.strings[*index];
+                    let value = &*locale.strings[*index];
                     quote!(__l_i18n_crate::keys::Literal::String(#value))
                 } else {
-                    let string_count = loc.strings.len();
-                    let string_accessor = strings_accessor_method_name(&loc.name);
+                    let string_count = locale.strings.len();
+                    let string_accessor = strings_accessor_method_name(&locale.name);
                     let string_accessor = if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
                         format_ident!("{}_no_register", string_accessor)
                     } else {
@@ -217,7 +222,7 @@ pub fn gen_const_values_match_arms(
         };
 
         quote! {
-            #enum_ident::#locale => #value
+            #enum_ident::#loc_ident #defaults => #value
         }
     })
 }
