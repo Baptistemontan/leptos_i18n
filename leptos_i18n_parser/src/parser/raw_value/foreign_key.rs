@@ -42,7 +42,7 @@ impl ForeignKey {
 
     pub fn parse(ctx: &ParseContext, s: &str) -> Option<Result<RawValue, ()>> {
         let (before, rest) = s.split_once("$t(")?;
-        let next_split = s.find([',', ')'])?;
+        let next_split = rest.find([',', ')'])?;
         let keypath = rest.get(..next_split)?;
         let sep = rest[next_split..].chars().next()?;
         let after = rest.get(next_split + sep.len_utf8()..)?;
@@ -171,5 +171,56 @@ impl ForeignKey {
             Ok(args) => Ok((args, after)),
             Err(()) => Err(after),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::rc::Rc;
+
+    use crate::{error::Diagnostics, formatters::Formatters, options::LocaleName};
+    use icu_locale::locale;
+
+    use super::*;
+
+    fn test_util(s: &str) -> Option<RawValue> {
+        let key_path = KeyPath::new(None);
+        let locale = LocaleName {
+            key: Key::new("fr").unwrap(),
+            loc_id: Rc::new(locale!("fr")),
+        };
+        let formatters = Formatters::new();
+        let diag = Diagnostics::new();
+
+        let ctx = ParseContext {
+            loc: Loc {
+                key_path: &key_path,
+                locale: &locale,
+            },
+            formatters: &formatters,
+            diag: &diag,
+            parse_fns: &[],
+        };
+        ForeignKey::parse(&ctx, s).transpose().unwrap()
+    }
+
+    #[test]
+    fn test_parsing_namespaces() {
+        let value = test_util("before $t(second_namespace:common_key) after").unwrap();
+
+        assert_eq!(
+            value,
+            RawValue::Bloc(vec![
+                RawValue::Literal(RawLiteral::String("before ".to_string())),
+                RawValue::ForeignKey(ForeignKey {
+                    target_key_path: KeyPath {
+                        namespace: Some(Key::new("second_namespace").unwrap()),
+                        path: vec![Key::new("common_key").unwrap()]
+                    },
+                    args: BTreeMap::new()
+                }),
+                RawValue::Literal(RawLiteral::String(" after".to_string()))
+            ])
+        );
     }
 }
