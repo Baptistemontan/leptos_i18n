@@ -23,10 +23,9 @@ use super::defaults::DefaultedLocales;
 use attributes::Attributes;
 use plurals::Plurals;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Keys {
     pub values: BTreeMap<Key, ValuesOrSubkeys>,
-    pub defaults: DefaultedLocales,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,6 +72,16 @@ pub fn merge_and_index_keys(
     let _ = diag;
     let current_locale_name = values.name;
     let is_default = current_locale_name.key == *default_locale;
+
+    if !is_default {
+        for (key, values_or_sk) in keys.values.iter_mut() {
+            if !values.values.values.contains_key(key) {
+                // TODO: warn missing key
+                default_locale_for_values_or_sk(values_or_sk, &current_locale_name.key, cfg);
+            }
+        }
+    }
+
     for (key, value) in values.values.values {
         let mut loc = loc.push_key(key.clone());
         match value {
@@ -91,7 +100,7 @@ pub fn merge_and_index_keys(
                 let keys = keys
                     .values
                     .entry(key.clone())
-                    .or_insert(ValuesOrSubkeys::Subkeys(Keys::new(default_locale.clone())));
+                    .or_insert(ValuesOrSubkeys::Subkeys(Keys::default()));
                 let ValuesOrSubkeys::Subkeys(keys) = keys else {
                     todo!("missmatch")
                 };
@@ -119,15 +128,28 @@ pub fn merge_and_index_keys(
                     todo!("key not present in default locale");
                 };
 
-                let defaults = match values {
-                    ValuesOrSubkeys::Values(values) => &mut values.defaults,
-                    ValuesOrSubkeys::Subkeys(keys) => &mut keys.defaults,
-                };
-
-                defaults.push(current_locale_name.key.clone(), cfg);
+                default_locale_for_values_or_sk(values, &current_locale_name.key, cfg);
             }
             foreign_key::ResolvedValueOrSubkeys::Dummy(_) => todo!(),
         }
+    }
+}
+
+fn default_locale_for_values_or_sk(
+    values: &mut ValuesOrSubkeys,
+    locale_to_default: &Key,
+    cfg: &Config,
+) {
+    let keys = match values {
+        ValuesOrSubkeys::Values(values) => {
+            values.defaults.push(locale_to_default.clone(), cfg);
+            return;
+        }
+        ValuesOrSubkeys::Subkeys(keys) => keys,
+    };
+
+    for values in keys.values.values_mut() {
+        default_locale_for_values_or_sk(values, locale_to_default, cfg);
     }
 }
 
@@ -299,15 +321,6 @@ impl Values {
     pub fn new(default_locale: Key) -> Self {
         Values {
             builder_id: BuilderId::default(),
-            values: BTreeMap::default(),
-            defaults: DefaultedLocales::new(default_locale),
-        }
-    }
-}
-
-impl Keys {
-    pub fn new(default_locale: Key) -> Self {
-        Keys {
             values: BTreeMap::default(),
             defaults: DefaultedLocales::new(default_locale),
         }
