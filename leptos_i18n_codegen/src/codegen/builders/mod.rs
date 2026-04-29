@@ -114,7 +114,6 @@ fn gen_inner_module(
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 type Args = Args<__l_i18n_crate::keys::NoArgs>;
                 type Builded = BuildedArgs;
-                type ConstBuilder = Builder<__l_i18n_crate::keys::NoArgs>;
             }
 
             impl __l_i18n_crate::keys::ConstArgs for Args<__l_i18n_crate::keys::NoArgs> {

@@ -122,7 +122,6 @@ pub fn gen_values_modules_and_accessors(
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 type Args = Args<__l_i18n_crate::keys::NoArgs>;
                 type Builded = BuildedArgs;
-                type ConstBuilder = Builder<__l_i18n_crate::keys::NoArgs>;
             }
 
             impl __l_i18n_crate::keys::ConstArgs for Args<__l_i18n_crate::keys::NoArgs> {

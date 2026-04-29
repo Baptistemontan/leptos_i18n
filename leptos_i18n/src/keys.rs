@@ -94,7 +94,6 @@ pub trait ConstArgs: Args + Copy + 'static {
 
 #[doc(hidden)]
 pub trait ConstArgsMarker: ArgsBuilder {
-    type ConstBuilder;
     type Builded;
     type Args: ConstArgs<Locale = Self::Locale, Id = Self::Id>;
 }
@@ -442,7 +441,7 @@ impl<B: ArgsBuilder> KeyBuilder<B> {
     #[doc(hidden)]
     pub const fn const_build<F>(this: Self, _: &F) -> Key<<B as ConstArgsMarker>::Args>
     where
-        F: FnOnce(B::ConstBuilder) -> B::Builded,
+        F: FnOnce(B::Builder) -> B::Builded,
         B: ConstArgsMarker,
     {
         Key {

@@ -136,9 +136,9 @@ macro_rules! key {
         };
         ($scope: expr, $first_key:ident $(.$key:ident)*) => {
             {
-                let scope = $scope;
+                let __scope = &($scope);
                 $crate::__private::check_is_key(
-                    $crate::__private::get_keys_from_ref(&scope)
+                    $crate::__private::get_keys_from_ref(__scope)
                     .$first_key()
                     $(.$key())*
                 )
@@ -549,8 +549,8 @@ macro_rules! tu_display {
 #[macro_export]
 macro_rules! use_i18n_scoped {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::use_i18n_scoped!{$($tt)*}
-    };
+        $crate::scope_i18n(use_i18n(), $($tt)*)
+    }
 }
 
 /// Scope a context to the given keys
@@ -603,8 +603,17 @@ macro_rules! use_i18n_scoped {
 /// ```
 #[macro_export]
 macro_rules! scope_i18n {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::scope_i18n!{$($tt)*}
+    ($ctx:expr, scope = $scope:ty) => {
+        $crate::context::I18nContext::scope::<$scope>($ctx)
+    };
+    ($ctx:expr, scope = $scope:ty, $first_key:ident $(.$keys:ident)*) => {
+        $crate::__private::scope_ctx_util(
+            $crate::context::I18nContext::scope::<$scope>($ctx),
+            |_k| _k.$first_key() $(.$keys())*
+        )
+    };
+    ($ctx:expr, $first_key:ident $(.$keys:ident)*) => {
+        $crate::__private::scope_ctx_util($ctx, |_k| _k.$first_key() $(.$keys())*)
     };
 }
 
@@ -660,8 +669,17 @@ macro_rules! scope_i18n {
 /// ```
 #[macro_export]
 macro_rules! scope_locale {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::scope_locale!{$($tt)*}
+    ($loc:expr, scope = $scope:ty) => {
+        $crate::Locale::scope::<$scope>($loc)
+    };
+    ($loc:expr, scope = $scope:ty, $first_key:ident $(.$keys:ident)*) => {
+        $crate::__private::scope_locale_util(
+            $crate::Locale::scope::<$scope>($loc),
+            |_k| _k.$first_key() $(.$keys())*
+        )
+    };
+    ($loc:expr, $first_key:ident $(.$keys:ident)*) => {
+        $crate::__private::scope_locale_util($loc, |_k| _k.$first_key() $(.$keys())*)
     };
 }
 
@@ -694,15 +712,14 @@ macro_rules! scope_locale {
 /// // With a context:
 /// type SubkeysScope = define_scope!(i18n, namespace.subkeys);
 ///
-/// let i18n = use_i18n_scoped::<SubkeysScope>();
-/// // let i18n = use_i18n().scope::<SubkeysScope>()
+/// let i18n = use_i18n_scoped!(scope = SubkeysScope);
 ///
 /// t!(i18n, value);
 /// ```
 #[macro_export]
 macro_rules! define_scope {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::define_scope!{$($tt)*}
+    ($mod:path, $($keys:ident).*) => {
+        $mod::keys $(::$keys)* ::__I18nKeys
     };
 }
 

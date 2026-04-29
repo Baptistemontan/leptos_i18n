@@ -11,13 +11,9 @@
 mod build_key;
 mod data_provider;
 pub(crate) mod declare_locales;
-pub(crate) mod scoped;
 pub(crate) mod t_format;
-pub(crate) mod t_macro;
 pub(crate) mod t_plural;
-mod utils;
 
-use t_macro::{InputType, OutputType};
 use t_plural::PluralRuleType;
 
 #[proc_macro]
@@ -28,71 +24,6 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
 #[proc_macro]
 pub fn build_key_inner(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     build_key::build_key_macro(tokens)
-}
-
-#[proc_macro]
-pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Context, OutputType::View)
-}
-
-#[proc_macro]
-pub fn tu(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Untracked, OutputType::View)
-}
-
-#[proc_macro]
-pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::View)
-}
-
-#[proc_macro]
-pub fn t_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Context, OutputType::String)
-}
-
-#[proc_macro]
-pub fn tu_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Untracked, OutputType::String)
-}
-
-#[proc_macro]
-pub fn t_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Context, OutputType::Display)
-}
-
-#[proc_macro]
-pub fn tu_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Untracked, OutputType::Display)
-}
-
-#[proc_macro]
-pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::String)
-}
-
-#[proc_macro]
-pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::Display)
-}
-
-#[proc_macro]
-pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::use_i18n_scoped(tokens)
-}
-
-#[proc_macro]
-pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::scope_i18n(tokens)
-}
-
-#[proc_macro]
-pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::scope_locale(tokens)
-}
-
-#[proc_macro]
-pub fn define_scope(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::define_scope(tokens)
 }
 
 #[proc_macro]
