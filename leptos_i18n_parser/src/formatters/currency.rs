@@ -46,7 +46,7 @@ impl FormatterToTokens for CurrencyFormatter {
         formatter_ident: &syn::Ident,
     ) -> TokenStream {
         let Self(width, code) = self;
-        quote!(__l_i18n_crate::__private::format_currency_to_formatter(#formatter_ident, *#locale_field, core::clone::Clone::clone(#key), #width, #code))
+        quote!(__l_i18n_crate::__private::format_currency_to_formatter(#formatter_ident, #locale_field, core::clone::Clone::clone(#key), #width, #code))
     }
 }
 

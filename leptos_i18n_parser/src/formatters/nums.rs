@@ -43,7 +43,7 @@ impl FormatterToTokens for NumberFormatter {
         formatter_ident: &syn::Ident,
     ) -> TokenStream {
         let Self(strat) = self;
-        quote!(__l_i18n_crate::__private::format_number_to_formatter(#formatter_ident, *#locale_field, core::clone::Clone::clone(#key), #strat))
+        quote!(__l_i18n_crate::__private::format_number_to_formatter(#formatter_ident, #locale_field, core::clone::Clone::clone(#key), #strat))
     }
 }
 

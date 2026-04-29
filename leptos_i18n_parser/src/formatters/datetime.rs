@@ -53,7 +53,7 @@ impl FormatterToTokens for DateTimeFormatter {
         formatter_ident: &syn::Ident,
     ) -> TokenStream {
         let Self(length, alignment, time_precision, year_style) = self;
-        quote!(__l_i18n_crate::__private::format_datetime_to_formatter(#formatter_ident, *#locale_field, #key, #length, #alignment, #time_precision, #year_style))
+        quote!(__l_i18n_crate::__private::format_datetime_to_formatter(#formatter_ident, #locale_field, #key, #length, #alignment, #time_precision, #year_style))
     }
 }
 
@@ -96,7 +96,7 @@ impl FormatterToTokens for DateFormatter {
         formatter_ident: &syn::Ident,
     ) -> TokenStream {
         let Self(length, alignment, year_style) = self;
-        quote!(__l_i18n_crate::__private::format_date_to_formatter(#formatter_ident, *#locale_field, #key, #length, #alignment, #year_style))
+        quote!(__l_i18n_crate::__private::format_date_to_formatter(#formatter_ident, #locale_field, #key, #length, #alignment, #year_style))
     }
 }
 
@@ -139,7 +139,7 @@ impl FormatterToTokens for TimeFormatter {
         formatter_ident: &syn::Ident,
     ) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(__l_i18n_crate::__private::format_time_to_formatter(#formatter_ident, *#locale_field, #key, #length, #alignment, #precision))
+        quote!(__l_i18n_crate::__private::format_time_to_formatter(#formatter_ident, #locale_field, #key, #length, #alignment, #precision))
     }
 }
 

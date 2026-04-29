@@ -43,7 +43,7 @@ impl FormatterToTokens for ListFormatter {
         formatter_ident: &syn::Ident,
     ) -> TokenStream {
         let Self(list_type, list_style) = self;
-        quote!(__l_i18n_crate::__private::format_list_to_formatter(#formatter_ident, *#locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
+        quote!(__l_i18n_crate::__private::format_list_to_formatter(#formatter_ident, #locale_field, core::clone::Clone::clone(#key), #list_type, #list_style))
     }
 }
 
