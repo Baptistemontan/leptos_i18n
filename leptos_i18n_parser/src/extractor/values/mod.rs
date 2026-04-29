@@ -169,12 +169,16 @@ fn reduce_value(value: ResolvedValue) -> ResolvedValue {
 fn reduce_value_into(value: ResolvedValue, bloc: &mut Vec<ResolvedValue>) {
     match value {
         ResolvedValue::Literal(RawLiteral::String(s)) if s.is_empty() => {}
-        ResolvedValue::Literal(raw_literal) => {
-            if let Some(ResolvedValue::Literal(lit)) = bloc.last_mut() {
-                merge_literals(lit, raw_literal);
+        ResolvedValue::Literal(RawLiteral::String(s)) => {
+            // merge strings together
+            if let Some(ResolvedValue::Literal(RawLiteral::String(buff))) = bloc.last_mut() {
+                buff.push_str(&s);
             } else {
-                bloc.push(ResolvedValue::Literal(raw_literal));
+                bloc.push(ResolvedValue::Literal(RawLiteral::String(s)));
             }
+        }
+        ResolvedValue::Literal(raw_literal) => {
+            bloc.push(ResolvedValue::Literal(raw_literal));
         }
         ResolvedValue::Variable(variable) => {
             bloc.push(ResolvedValue::Variable(variable));
@@ -206,27 +210,6 @@ fn reduce_value_into(value: ResolvedValue, bloc: &mut Vec<ResolvedValue>) {
             bloc.push(plurals);
         }
     }
-}
-
-fn merge_literals(dest: &mut RawLiteral, lit: RawLiteral) {
-    use core::fmt::Write;
-    let mut buff = match dest {
-        RawLiteral::String(s) => core::mem::take(s),
-        RawLiteral::Signed(n) => format!("{n}"),
-        RawLiteral::Unsigned(n) => format!("{n}"),
-        RawLiteral::Float(n) => format!("{n}"),
-        RawLiteral::Bool(n) => format!("{n}"),
-    };
-
-    match lit {
-        RawLiteral::String(s) => buff.push_str(&s),
-        RawLiteral::Signed(n) => write!(&mut buff, "{n}").unwrap(),
-        RawLiteral::Unsigned(n) => write!(&mut buff, "{n}").unwrap(),
-        RawLiteral::Float(n) => write!(&mut buff, "{n}").unwrap(),
-        RawLiteral::Bool(n) => write!(&mut buff, "{n}").unwrap(),
-    }
-
-    *dest = RawLiteral::String(buff);
 }
 
 fn reduce_and_index_value(value: ResolvedValue, str_indexer: &mut StringIndexer) -> Value {
