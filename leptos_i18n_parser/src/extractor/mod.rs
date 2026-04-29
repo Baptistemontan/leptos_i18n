@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     error::{Diagnostics, Result},
+    extraction::{AttributeValue, Attributes},
     extractor::values::{
         Value, Values,
         foreign_key::{ResolvedLocale, ResolvedLocalesOrNamespaces, ResolvedNamespace},
@@ -259,6 +260,7 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
             if let Some(inner) = &component.inner {
                 extract_value_keys(inner, keys);
             }
+            extract_attributes_keys(&component.attributes, keys);
             let is_self_closed = component.inner.is_none();
             let info = keys
                 .components
@@ -281,6 +283,15 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
             }
             let var_info = keys.vars.entry(plurals.count_key.clone()).or_default();
             var_info.plural = true;
+        }
+    }
+}
+
+fn extract_attributes_keys(attributes: &Attributes, keys: &mut InterpolationKeys) {
+    for attr in &attributes.attrs {
+        if let Some(AttributeValue::Variable(var)) = &attr.value {
+            let infos = keys.vars.entry(var.clone()).or_default();
+            infos.bounds.insert(VarBound::AttributeValue);
         }
     }
 }
