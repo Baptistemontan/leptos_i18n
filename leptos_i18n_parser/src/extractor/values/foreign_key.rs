@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, VecDeque},
     fmt::Display,
     str::FromStr,
 };
@@ -73,27 +73,25 @@ pub fn resolve_foreign_key(
     let mut resolved = remove_fks(values, &mut fks);
     let mut set_fks = BTreeMap::<Location, ResolvedValue>::new();
 
+    let mut waiting_ons = BTreeMap::new();
+
     while !fks.is_empty() {
         let unset_fks = fks.keys().cloned().collect();
         for (loc, value) in core::mem::take(&mut fks) {
-            // TODO: cycle detection
-            let mut waiting_on = BTreeSet::new();
+            let waiting_on = waiting_ons.entry(loc.clone()).or_default();
             let maybe_resolved = resolve_fk(
-                value,
-                &resolved,
-                &set_fks,
-                &unset_fks,
-                &loc,
-                diag,
-                &mut waiting_on,
-                cfg,
+                value, &resolved, &set_fks, &unset_fks, &loc, diag, waiting_on, cfg,
             );
             match maybe_resolved {
                 Ok(value) => {
                     set_fks.insert(loc, value);
                 }
                 Err(value) => {
-                    fks.insert(loc, value);
+                    if detect_cycle(&loc, &waiting_ons) {
+                        todo!("cycle in foreign keys")
+                    } else {
+                        fks.insert(loc, value);
+                    }
                 }
             }
         }
@@ -110,6 +108,36 @@ pub fn resolve_foreign_key(
     resolved
 }
 
+// Simple BFS to check if a location is dependent on itself
+fn detect_cycle(
+    current_loc: &Location,
+    waiting_ons: &BTreeMap<Location, BTreeSet<Location>>,
+) -> bool {
+    let mut visited = BTreeSet::<&Location>::new();
+    let mut queue: VecDeque<&Location> = waiting_ons
+        .get(current_loc)
+        .expect("there should be waiting location for this location")
+        .iter()
+        .collect();
+
+    while let Some(loc) = queue.pop_front() {
+        if loc == current_loc {
+            return true;
+        }
+        if visited.contains(loc) {
+            continue;
+        }
+        visited.insert(loc);
+        for loc in waiting_ons.get(loc).unwrap() {
+            if !visited.contains(loc) {
+                queue.push_back(loc);
+            }
+        }
+    }
+
+    false
+}
+
 fn resolve_fk(
     mut value: MergedPlurals,
     resolved: &ResolvedLocalesOrNamespaces,
@@ -124,7 +152,20 @@ fn resolve_fk(
         return Err(value);
     }
 
-    let value = match value {
+    let value = resolve_value_fk(value, resolved, set_fks, loc, diag, cfg);
+
+    Ok(value)
+}
+
+fn resolve_value_fk(
+    value: MergedPlurals,
+    resolved: &ResolvedLocalesOrNamespaces,
+    set_fks: &BTreeMap<Location, ResolvedValue>,
+    loc: &Location,
+    diag: &Diagnostics,
+    cfg: &Config,
+) -> ResolvedValue {
+    match value {
         MergedPlurals::RawValue(raw_value) => {
             resolve_raw_value_fk(raw_value, resolved, set_fks, loc, diag, cfg)
         }
@@ -139,9 +180,7 @@ fn resolve_fk(
                 forms,
             })
         }
-    };
-
-    Ok(value)
+    }
 }
 
 fn resolve_raw_value_fk(
