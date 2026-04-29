@@ -549,7 +549,7 @@ macro_rules! tu_display {
 #[macro_export]
 macro_rules! use_i18n_scoped {
     ($($tt:tt)*) => {
-        $crate::scope_i18n(use_i18n(), $($tt)*)
+        $crate::scope_i18n!(use_i18n(), $($tt)*)
     }
 }
 
@@ -718,8 +718,11 @@ macro_rules! scope_locale {
 /// ```
 #[macro_export]
 macro_rules! define_scope {
-    ($mod:path, $($keys:ident).*) => {
-        $mod::keys $(::$keys)* ::__I18nKeys
+    ($($mod_path:ident)::+ $(, $($keys:ident).+)?) => {
+        $($mod_path)::+::keys $($(::$keys)*)? ::__I18nKeys
+    };
+    (::$($mod_path:ident)::+ $(, $($keys:ident).+)?) => {
+        ::$($mod_path)::+::keys $($(::$keys)*)? ::__I18nKeys
     };
 }
 
