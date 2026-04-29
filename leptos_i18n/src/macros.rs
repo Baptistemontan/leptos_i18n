@@ -125,22 +125,20 @@ macro_rules! render_proxy {
 
 #[macro_export]
 macro_rules! key {
-        (scope = $scope: ty, $first_key:ident $(.$key:ident)*) => {
+        (scope = $scope: ty, $($keys:ident).+) => {
             const {
                 $crate::__private::check_is_key(
                     $crate::__private::get_keys_const::<$scope>()
-                    .$first_key()
-                    $(.$key())*
+                    $(.$keys())+
                 )
             }
         };
-        ($scope: expr, $first_key:ident $(.$key:ident)*) => {
+        ($scope: expr, $($keys:ident).+) => {
             {
                 let __scope = &($scope);
                 $crate::__private::check_is_key(
                     $crate::__private::get_keys_from_ref(__scope)
-                    .$first_key()
-                    $(.$key())*
+                    $(.$keys())+
                 )
             }
         };
@@ -221,10 +219,10 @@ macro_rules! key {
 /// ```
 #[macro_export]
 macro_rules! t {
-    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+    ($ctx: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __ctx = $ctx;
-            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::key!(__ctx, $first_key $($keys).+);
             let __key = $crate::build_key!(__key $(, $($args)*)?);
             $crate::render_proxy!(@ctx __ctx, __key)
         }
@@ -263,10 +261,10 @@ macro_rules! t {
 /// This let you use a specific locale regardless of the current one.
 #[macro_export]
 macro_rules! td {
-    ($loc: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+    ($loc: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __loc = $loc;
-            let __key = $crate::key!(__loc, $first_key $(.$keys)*);
+            let __key = $crate::key!(__loc, $($keys).+);
             let __key = $crate::build_key!(__key $(, $($args)*)?);
             $crate::render_proxy!(@loc __loc, __key)
         }
@@ -276,10 +274,10 @@ macro_rules! td {
 /// Same as the `t!` macro but untracked.
 #[macro_export]
 macro_rules! tu {
-    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+    ($ctx: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __ctx = $ctx;
-            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::key!(__ctx, $($keys).+);
             let __key = $crate::build_key!(__key $(, $($args)*)?);
             $crate::render_proxy!(@ctx_untracked __ctx, __key)
         }
@@ -402,10 +400,10 @@ macro_rules! tu_string {
 /// Note that this is only usefull with interpolations, as with plain strings `t_display!` and `t_string!` both just returns the inner `&'static str`.
 #[macro_export]
 macro_rules! t_display {
-    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+    ($ctx: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __ctx = $ctx;
-            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::key!(__ctx, $($keys).+);
             let __key = $crate::build_key_display!(__key $(, $($args)*)?);
             $crate::render_proxy!(@display @ctx __ctx, __key)
         }
@@ -442,10 +440,10 @@ macro_rules! t_display {
 /// ```
 #[macro_export]
 macro_rules! td_display {
-    ($loc: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+    ($loc: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __loc = $loc;
-            let __key = $crate::key!(__loc, $first_key $(.$keys)*);
+            let __key = $crate::key!(__loc, $($keys).+);
             let __key = $crate::build_key_display!(__key $(, $($args)*)?);
             $crate::render_proxy!(@display @loc __loc, __key)
         }
@@ -455,10 +453,10 @@ macro_rules! td_display {
 /// Same as the `t_display!` macro but untracked.
 #[macro_export]
 macro_rules! tu_display {
-    ($ctx: expr, $first_key: ident $(.$keys:ident)* $(, $($args:tt)*)?) => {
+    ($ctx: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __ctx = $ctx;
-            let __key = $crate::key!(__ctx, $first_key $(.$keys)*);
+            let __key = $crate::key!(__ctx, $($keys).+);
             let __key = $crate::build_key_display!(__key $(, $($args)*)?);
             $crate::render_proxy!(@display @ctx_untracked __ctx, __key)
         }
@@ -606,14 +604,14 @@ macro_rules! scope_i18n {
     ($ctx:expr, scope = $scope:ty) => {
         $crate::context::I18nContext::scope::<$scope>($ctx)
     };
-    ($ctx:expr, scope = $scope:ty, $first_key:ident $(.$keys:ident)*) => {
+    ($ctx:expr, scope = $scope:ty, $($keys:ident).+) => {
         $crate::__private::scope_ctx_util(
             $crate::context::I18nContext::scope::<$scope>($ctx),
-            |_k| _k.$first_key() $(.$keys())*
+            |_k| _k $(.$keys())+
         )
     };
-    ($ctx:expr, $first_key:ident $(.$keys:ident)*) => {
-        $crate::__private::scope_ctx_util($ctx, |_k| _k.$first_key() $(.$keys())*)
+    ($ctx:expr, $($keys:ident).+) => {
+        $crate::__private::scope_ctx_util($ctx, |_k| _k $(.$keys())+)
     };
 }
 
@@ -672,14 +670,14 @@ macro_rules! scope_locale {
     ($loc:expr, scope = $scope:ty) => {
         $crate::Locale::scope::<$scope>($loc)
     };
-    ($loc:expr, scope = $scope:ty, $first_key:ident $(.$keys:ident)*) => {
+    ($loc:expr, scope = $scope:ty, $($keys:ident).+) => {
         $crate::__private::scope_locale_util(
             $crate::Locale::scope::<$scope>($loc),
-            |_k| _k.$first_key() $(.$keys())*
+            |_k| _k $(.$keys())+
         )
     };
-    ($loc:expr, $first_key:ident $(.$keys:ident)*) => {
-        $crate::__private::scope_locale_util($loc, |_k| _k.$first_key() $(.$keys())*)
+    ($loc:expr, $($keys:ident).+) => {
+        $crate::__private::scope_locale_util($loc, |_k| _k $(.$keys())+)
     };
 }
 
