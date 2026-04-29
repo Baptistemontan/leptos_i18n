@@ -110,7 +110,7 @@ pub fn gen_fmt_value(
                 }
             }
         },
-        Value::Plurals(plurals) => quote!(core::fmt::Result::Ok(())),
+        Value::Plurals(plurals) => super::plurals::gen_fmt_plurals(plurals, translations_ident, strings_count, locale_field, formatter_ident),
     }
 }
 

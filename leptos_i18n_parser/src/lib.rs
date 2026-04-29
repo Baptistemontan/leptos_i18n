@@ -25,6 +25,7 @@ pub mod parsing {
 pub mod extraction {
     pub use super::extractor::defaults::DefaultedLocales;
     pub use super::extractor::values::attributes::{Attribute, AttributeValue, Attributes};
+    pub use super::extractor::values::plurals::{PluralForm, PluralForms, PluralRuleType, Plurals};
     pub use super::extractor::values::{Keys, Literal, Value, Values, ValuesOrSubkeys};
     pub use super::extractor::{
         Builder, BuilderId, Builders, CompInfos, InterpolationKeys, Locale, Locales,

@@ -8,6 +8,7 @@ use quote::{format_ident, quote};
 mod components;
 mod fmt;
 mod into_view;
+mod plurals;
 
 use crate::{
     CodegenOptions,

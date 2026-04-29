@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     codegen::locales::strings_accessor_method_name,
-    utils::{EitherIter, EitherOfWrapper, fit_in_leptos_tuple},
+    utils::{EitherOfWrapper, fit_in_leptos_tuple},
 };
 use leptos_i18n_parser::{
     extraction::{Literal, Locale, Value},
@@ -127,7 +127,15 @@ fn flatten_value(
                 );
             }
         }
-        Value::Plurals(plurals) => todo!(),
+        Value::Plurals(plurals) => {
+            let ts = super::plurals::gen_render_plurals(
+                plurals,
+                translations_ident,
+                strings_count,
+                locale_field,
+            );
+            tokens.push(ts);
+        }
     }
 }
 
@@ -227,28 +235,33 @@ pub fn gen_const_values_match_arms(
     })
 }
 
-pub fn captured_keys(value: &Value) -> impl Iterator<Item = &syn::Ident> {
+pub fn captured_keys(value: &Value) -> BTreeSet<Key> {
+    let mut keys = BTreeSet::new();
+    captured_keys_inner(value, &mut keys);
+    keys
+}
+
+pub fn captured_keys_inner(value: &Value, keys: &mut BTreeSet<Key>) {
     match value {
-        Value::Literal(_) => EitherIter::Iter1(EitherIter::Iter1(core::iter::empty())),
+        Value::Literal(_) => {}
         Value::Variable(variable) => {
-            EitherIter::Iter1(EitherIter::Iter2(core::iter::once(&*variable.key.ident)))
+            keys.insert(variable.key.clone());
         }
-        Value::Component(component) => match &component.inner {
-            None => EitherIter::Iter1(EitherIter::Iter1(core::iter::empty())),
-            Some(inner) => captured_keys(inner),
-        },
+        Value::Component(component) => {
+            keys.insert(component.key.clone());
+            if let Some(inner) = component.inner.as_deref() {
+                captured_keys_inner(inner, keys);
+            }
+        }
         Value::Bloc(values) => {
-            // we have to collect the iter for bloc and plurals or we get recursive types
-            let iter = values.iter().flat_map(captured_keys).collect::<Vec<_>>();
-            EitherIter::Iter2(iter.into_iter())
+            for value in values {
+                captured_keys_inner(value, keys);
+            }
         }
         Value::Plurals(plurals) => {
-            let iter = plurals
-                .forms
-                .iter_forms()
-                .flat_map(|(_, inner)| captured_keys(inner))
-                .collect::<Vec<_>>();
-            EitherIter::Iter2(iter.into_iter())
+            for (_, value) in plurals.forms.iter_forms() {
+                captured_keys_inner(value, keys);
+            }
         }
     }
 }
