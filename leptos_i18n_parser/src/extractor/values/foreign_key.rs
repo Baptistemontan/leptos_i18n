@@ -8,7 +8,7 @@ use fixed_decimal::{FloatPrecision, LimitError};
 use icu_plurals::PluralOperands;
 
 use crate::{
-    error::Diagnostics,
+    error::{Diagnostics, Error},
     extractor::values::plurals::{MergedPlurals, PluralForm, PluralForms, PluralRuleType, Plurals},
     options::Config,
     parser::{
@@ -102,8 +102,16 @@ pub fn resolve_foreign_key(
         }
     }
 
-    if let Some(loc) = fks.keys().next() {
-        todo!("foreign key cycle detected at {}", loc)
+    // leftovers are cycles, impossible to resolve
+    // emit error + create placeholder to reduce errors
+    for (loc, value) in fks {
+        let insert_loc = Loc {
+            key_path: &loc.key_path,
+            locale: &loc.locale,
+        };
+        let value = map_recursive_fk(value);
+        resolved.insert_at(insert_loc, ResolvedValueOrSubkeys::Value(value));
+        diag.emit_error(Error::RecursiveForeignKey { loc });
     }
 
     resolved
@@ -427,11 +435,7 @@ fn populate_attributes(
                 continue;
             }
         };
-        let arg_name = var
-            .name
-            .strip_prefix("var_")
-            .expect("variable keys must start with var_");
-        let Some(arg) = args.get(arg_name) else {
+        let Some(arg) = args.get(&*var.name) else {
             new_attrs.push(RawAttribute {
                 key: attr.key.clone(),
                 value: Some(RawAttributeValue::Variable(var.clone())),
@@ -442,14 +446,16 @@ fn populate_attributes(
         let attr_value = match arg {
             RawValue::Variable(variable) => RawAttributeValue::Variable(variable.key.clone()),
             RawValue::Literal(raw_literal) => RawAttributeValue::Literal(raw_literal.clone()),
-            RawValue::ForeignKey(_) => todo!(),
-            RawValue::Component(_) => todo!(),
+            RawValue::ForeignKey(_) => todo!("resolve this fk"),
+            RawValue::Component(_) => todo!("how did we got a component inside a fk arg ?"),
             RawValue::Bloc(bloc) => match extract_single_value_from_bloc(bloc) {
                 Ok(Some(RawValue::Variable(var))) => RawAttributeValue::Variable(var.key.clone()),
                 Ok(Some(RawValue::Literal(lit))) => RawAttributeValue::Literal(lit.clone()),
                 Ok(None) => RawAttributeValue::Literal(RawLiteral::String(String::new())),
-                Ok(Some(_)) => todo!(),
-                Err(()) => todo!(),
+                Ok(Some(_)) => {
+                    todo!("other type of args are not allowed with component attributes")
+                }
+                Err(()) => todo!("fk arg to comp attribute as multiple non-empty values"),
             },
         };
 
@@ -540,13 +546,12 @@ fn raw_value_has_deps(
                 Err(loc) => {
                     foreign_key.target_location = loc;
                     let loc = &foreign_key.target_location;
-                    if unset_fks.contains_key(loc) {
-                        let w = waiters.entry(loc.clone()).or_default();
-                        w.insert(current_loc.clone());
-                        return false;
+                    if !unset_fks.contains_key(loc) {
+                        todo!("invalid foreign key, path {} don't exist", loc.key_path)
                     }
-
-                    todo!("invalid foreign key, path {} don't exist", loc.key_path)
+                    let w = waiters.entry(loc.clone()).or_default();
+                    w.insert(current_loc.clone());
+                    return false;
                 }
             }
 
@@ -889,5 +894,43 @@ fn unmap_value(value: ResolvedValue) -> RawValue {
             RawValue::Bloc(bloc)
         }
         ResolvedValue::Plurals(_) => unreachable!(),
+    }
+}
+
+fn map_recursive_fk(value: MergedPlurals) -> ResolvedValue {
+    match value {
+        MergedPlurals::RawValue(value) => map_recursive_fk_value(value),
+        MergedPlurals::Plurals(plurals) => {
+            let forms = plurals.forms.map(map_recursive_fk_value);
+            ResolvedValue::Plurals(Plurals {
+                rule_type: plurals.rule_type,
+                count_key: plurals.count_key,
+                forms,
+            })
+        }
+    }
+}
+
+fn map_recursive_fk_value(value: RawValue) -> ResolvedValue {
+    match value {
+        // TODO: still try to resolve the fk, it might point to a non-recursive one
+        RawValue::ForeignKey(_) => ResolvedValue::Literal(RawLiteral::String(String::new())),
+        RawValue::Literal(raw_literal) => ResolvedValue::Literal(raw_literal),
+        RawValue::Variable(variable) => ResolvedValue::Variable(variable),
+        RawValue::Component(component) => {
+            let inner = component
+                .inner
+                .map(|inner| map_recursive_fk_value(*inner))
+                .map(Box::new);
+            ResolvedValue::Component(Component {
+                key: component.key,
+                inner,
+                attributes: component.attributes,
+            })
+        }
+        RawValue::Bloc(bloc) => {
+            let bloc = bloc.into_iter().map(map_recursive_fk_value).collect();
+            ResolvedValue::Bloc(bloc)
+        }
     }
 }
