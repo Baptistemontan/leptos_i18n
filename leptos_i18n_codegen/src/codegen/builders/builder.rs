@@ -131,7 +131,7 @@ fn gen_comp_methods(
         VarOrComp::get_bounded_comp_generics(&field.generic, into_view, self_closed);
 
     let [bounded_fmt_generics, into_view_bounded_fmt_generics] =
-        VarOrComp::get_bounded_comp_generics(&field.generic, into_view, self_closed);
+        VarOrComp::get_bounded_fmt_comp_generics(&field.generic, into_view, self_closed);
     let bounded_generics = quote! {
         #bounded_generics, #into_view_bounded_generics
     };
