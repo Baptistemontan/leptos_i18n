@@ -250,7 +250,7 @@ fn populate_variable(
     diag: &Diagnostics,
     cfg: &Config,
 ) -> ResolvedValue {
-    let Some(value) = args.get(variable.actual_name()) else {
+    let Some(value) = args.get(&*variable.key.name) else {
         return ResolvedValue::Variable(variable.clone());
     };
     resolve_raw_value_fk(value.clone(), resolved, set_fks, loc, diag, cfg)
@@ -278,7 +278,10 @@ fn populate_plurals(
                 forms,
             })
         }
-        Err(form) => plurals.forms.get_form_or_other(form).clone(),
+        Err(form) => {
+            let value = plurals.forms.get_form_or_other(form);
+            populate_value(value, args, resolved, set_fks, loc, diag, cfg)
+        }
     }
 }
 
@@ -316,11 +319,7 @@ fn map_plural_key(
     loc: &Location,
     diag: &Diagnostics,
 ) -> Result<Key, PluralForm> {
-    let var_name = count_key
-        .name
-        .strip_prefix("var_")
-        .expect("the count_key should have started with var_");
-    let Some(value) = args.get(var_name) else {
+    let Some(value) = args.get(&*count_key.name) else {
         return Ok(count_key.clone());
     };
 
