@@ -188,7 +188,7 @@ pub fn attribute_as_string_impl(
             quote! {{
                 core::write!(#formatter_ident, " ")?;
                 core::fmt::Display::fmt(#key, #formatter_ident)?;
-                core::write!(#formatter_ident, " =\"")?;
+                core::write!(#formatter_ident, "=\"")?;
                 #ts?;
                 core::write!(#formatter_ident, "\"")
             }}
