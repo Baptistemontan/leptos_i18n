@@ -164,7 +164,7 @@ fn merge_locales(
 
     let mut merged_locales = Locales {
         locales: Vec::with_capacity(locales.len()),
-        keys: Keys::new(default_locale.clone()),
+        keys: Keys::default(),
     };
 
     for locale in locales {
