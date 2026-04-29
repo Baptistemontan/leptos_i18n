@@ -27,7 +27,6 @@ pub fn gen_fmt_body(
     let render_match_arms = non_defaulted_locales.iter().map(|(l, value)| {
         let loc = &*l.name.key.ident;
         let accessor_name = strings_accessor_method_name(&l.name);
-        
         let strings_count = l.strings.len();
         let defaults = defaults.get(&l.name.key).map(|defaulted_locales| {
             defaulted_locales.iter().map(|key| {
@@ -110,7 +109,13 @@ pub fn gen_fmt_value(
                 }
             }
         },
-        Value::Plurals(plurals) => super::plurals::gen_fmt_plurals(plurals, translations_ident, strings_count, locale_field, formatter_ident),
+        Value::Plurals(plurals) => super::plurals::gen_fmt_plurals(
+            plurals,
+            translations_ident,
+            strings_count,
+            locale_field,
+            formatter_ident,
+        ),
     }
 }
 
