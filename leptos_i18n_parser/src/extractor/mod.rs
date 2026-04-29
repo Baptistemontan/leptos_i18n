@@ -101,7 +101,7 @@ pub fn extract_locales(
 ) -> Result<ParsedLocales> {
     let diag = diag.unwrap_or_default();
     let merged_plurals = plurals::merge_plurals(values, &diag);
-    let resolved_fk = values::foreign_key::resolve_foreign_key(merged_plurals, &diag);
+    let resolved_fk = values::foreign_key::resolve_foreign_key(merged_plurals, &diag, &cfg);
     let mut merged = merge_values(resolved_fk, &cfg, &diag);
 
     let builders = get_builders(&mut merged);

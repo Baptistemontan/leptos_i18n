@@ -243,6 +243,19 @@ impl<V> PluralForms<V> {
         .chain(core::iter::once((PluralForm::Other, &*self.other)))
     }
 
+    pub fn iter_forms_mut(&mut self) -> impl Iterator<Item = (PluralForm, &mut V)> {
+        [
+            self.zero.as_deref_mut().map(|f| (PluralForm::Zero, f)),
+            self.one.as_deref_mut().map(|f| (PluralForm::One, f)),
+            self.two.as_deref_mut().map(|f| (PluralForm::Two, f)),
+            self.few.as_deref_mut().map(|f| (PluralForm::Few, f)),
+            self.many.as_deref_mut().map(|f| (PluralForm::Many, f)),
+        ]
+        .into_iter()
+        .flatten()
+        .chain(core::iter::once((PluralForm::Other, &mut *self.other)))
+    }
+
     pub fn get_form(&self, form: PluralForm) -> Option<&V> {
         match form {
             PluralForm::Zero => self.zero.as_deref(),

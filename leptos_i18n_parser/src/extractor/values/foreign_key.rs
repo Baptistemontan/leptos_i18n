@@ -10,6 +10,7 @@ use icu_plurals::PluralOperands;
 use crate::{
     error::Diagnostics,
     extractor::values::plurals::{MergedPlurals, PluralForm, PluralForms, PluralRuleType, Plurals},
+    options::Config,
     parser::{
         dummy::Dummy,
         locale::{RawLocale, RawLocalesOrNamespaces, RawNamespace, RawValueOrSubkeys, RawValues},
@@ -66,21 +67,34 @@ pub struct ResolvedValues {
 pub fn resolve_foreign_key(
     values: RawLocalesOrNamespaces<MergedPlurals>,
     diag: &Diagnostics,
+    cfg: &Config,
 ) -> ResolvedLocalesOrNamespaces {
     let mut fks = BTreeMap::<Location, MergedPlurals>::new();
     let mut resolved = remove_fks(values, &mut fks);
     let mut set_fks = BTreeMap::<Location, ResolvedValue>::new();
 
-    for (path, value) in core::mem::take(&mut fks) {
-        // TODO: cycle detection
-        let mut waiting_on = BTreeSet::new();
-        let maybe_resolved = resolve_fk(value, &resolved, &set_fks, &path, diag, &mut waiting_on);
-        match maybe_resolved {
-            Ok(value) => {
-                set_fks.insert(path, value);
-            }
-            Err(value) => {
-                fks.insert(path, value);
+    while !fks.is_empty() {
+        let unset_fks = fks.keys().cloned().collect();
+        for (loc, value) in core::mem::take(&mut fks) {
+            // TODO: cycle detection
+            let mut waiting_on = BTreeSet::new();
+            let maybe_resolved = resolve_fk(
+                value,
+                &resolved,
+                &set_fks,
+                &unset_fks,
+                &loc,
+                diag,
+                &mut waiting_on,
+                cfg,
+            );
+            match maybe_resolved {
+                Ok(value) => {
+                    set_fks.insert(loc, value);
+                }
+                Err(value) => {
+                    fks.insert(loc, value);
+                }
             }
         }
     }
@@ -97,25 +111,27 @@ pub fn resolve_foreign_key(
 }
 
 fn resolve_fk(
-    value: MergedPlurals,
+    mut value: MergedPlurals,
     resolved: &ResolvedLocalesOrNamespaces,
     set_fks: &BTreeMap<Location, ResolvedValue>,
+    unset_fks: &BTreeSet<Location>,
     loc: &Location,
     diag: &Diagnostics,
     waiting_on: &mut BTreeSet<Location>,
+    cfg: &Config,
 ) -> Result<ResolvedValue, MergedPlurals> {
-    if !has_deps(&value, resolved, set_fks, &loc.locale, waiting_on) {
+    if !has_deps(&mut value, resolved, set_fks, unset_fks, waiting_on, cfg) {
         return Err(value);
     }
 
     let value = match value {
         MergedPlurals::RawValue(raw_value) => {
-            resolve_raw_value_fk(raw_value, resolved, set_fks, loc, diag)
+            resolve_raw_value_fk(raw_value, resolved, set_fks, loc, diag, cfg)
         }
         MergedPlurals::Plurals(plurals) => {
             let forms = plurals
                 .forms
-                .map(|value| resolve_raw_value_fk(value, resolved, set_fks, loc, diag));
+                .map(|value| resolve_raw_value_fk(value, resolved, set_fks, loc, diag, cfg));
 
             ResolvedValue::Plurals(Plurals {
                 rule_type: plurals.rule_type,
@@ -134,27 +150,22 @@ fn resolve_raw_value_fk(
     set_fks: &BTreeMap<Location, ResolvedValue>,
     loc: &Location,
     diag: &Diagnostics,
+    cfg: &Config,
 ) -> ResolvedValue {
     match value {
         RawValue::ForeignKey(foreign_key) => {
-            let path = &foreign_key.target_key_path;
-            let taget_loc = Loc {
-                key_path: path,
-                locale: &loc.locale,
+            let target_loc = Loc {
+                key_path: &foreign_key.target_location.key_path,
+                locale: &foreign_key.target_location.locale,
             };
-            let target_value = match resolved.get_value_at(taget_loc) {
-                Some(ResolvedValueOrSubkeys::Value(target_value)) => target_value,
-                None => {
-                    let loc: Location = taget_loc.into();
-                    set_fks
-                        .get(&loc)
-                        .expect("should have already been checked by has_deps")
-                }
-                Some(ResolvedValueOrSubkeys::Defaulted)
-                | Some(ResolvedValueOrSubkeys::Dummy(_))
-                | Some(ResolvedValueOrSubkeys::Subkeys(_)) => {
-                    unreachable!("should have already been checked by has_deps")
-                }
+            let target_value = get_value_at_with_defaulting(target_loc, resolved, cfg);
+            let target_value = match target_value {
+                Ok(ResolvedValueOrSubkeys::Value(target_value)) => target_value,
+                Err(loc) => set_fks
+                    .get(&loc)
+                    .expect("should have already been checked by has_deps"),
+                Ok(ResolvedValueOrSubkeys::Dummy(_)) => todo!(),
+                Ok(_) => unreachable!("should have already been checked by has_deps"),
             };
 
             populate_value(
@@ -164,6 +175,7 @@ fn resolve_raw_value_fk(
                 set_fks,
                 loc,
                 diag,
+                cfg,
             )
         }
         RawValue::Literal(raw_literal) => ResolvedValue::Literal(raw_literal),
@@ -171,7 +183,7 @@ fn resolve_raw_value_fk(
         RawValue::Component(component) => {
             let inner = component
                 .inner
-                .map(|inner| resolve_raw_value_fk(*inner, resolved, set_fks, loc, diag))
+                .map(|inner| resolve_raw_value_fk(*inner, resolved, set_fks, loc, diag, cfg))
                 .map(Box::new);
             ResolvedValue::Component(Component {
                 inner,
@@ -182,7 +194,7 @@ fn resolve_raw_value_fk(
         RawValue::Bloc(raw_values) => ResolvedValue::Bloc(
             raw_values
                 .into_iter()
-                .map(|v| resolve_raw_value_fk(v, resolved, set_fks, loc, diag))
+                .map(|v| resolve_raw_value_fk(v, resolved, set_fks, loc, diag, cfg))
                 .collect(),
         ),
     }
@@ -195,17 +207,18 @@ fn populate_value(
     set_fks: &BTreeMap<Location, ResolvedValue>,
     loc: &Location,
     diag: &Diagnostics,
+    cfg: &Config,
 ) -> ResolvedValue {
     match value {
         ResolvedValue::Literal(raw_literal) => ResolvedValue::Literal(raw_literal.clone()),
         ResolvedValue::Variable(variable) => {
-            populate_variable(variable, args, resolved, set_fks, loc, diag)
+            populate_variable(variable, args, resolved, set_fks, loc, diag, cfg)
         }
         ResolvedValue::Component(component) => {
             let inner = component
                 .inner
                 .as_deref()
-                .map(|inner| populate_value(inner, args, resolved, set_fks, loc, diag))
+                .map(|inner| populate_value(inner, args, resolved, set_fks, loc, diag, cfg))
                 .map(Box::new);
             let attributes =
                 populate_attributes(&component.attributes, args, resolved, set_fks, loc, diag);
@@ -218,12 +231,12 @@ fn populate_value(
         ResolvedValue::Bloc(resolved_values) => {
             let bloc = resolved_values
                 .iter()
-                .map(|value| populate_value(value, args, resolved, set_fks, loc, diag))
+                .map(|value| populate_value(value, args, resolved, set_fks, loc, diag, cfg))
                 .collect();
             ResolvedValue::Bloc(bloc)
         }
         ResolvedValue::Plurals(plurals) => {
-            populate_plurals(plurals, args, resolved, set_fks, loc, diag)
+            populate_plurals(plurals, args, resolved, set_fks, loc, diag, cfg)
         }
     }
 }
@@ -235,11 +248,12 @@ fn populate_variable(
     set_fks: &BTreeMap<Location, ResolvedValue>,
     loc: &Location,
     diag: &Diagnostics,
+    cfg: &Config,
 ) -> ResolvedValue {
     let Some(value) = args.get(variable.actual_name()) else {
         return ResolvedValue::Variable(variable.clone());
     };
-    resolve_raw_value_fk(value.clone(), resolved, set_fks, loc, diag)
+    resolve_raw_value_fk(value.clone(), resolved, set_fks, loc, diag, cfg)
 }
 
 fn populate_plurals(
@@ -249,6 +263,7 @@ fn populate_plurals(
     set_fks: &BTreeMap<Location, ResolvedValue>,
     loc: &Location,
     diag: &Diagnostics,
+    cfg: &Config,
 ) -> ResolvedValue {
     let mapped_count_key = map_plural_key(&plurals.count_key, plurals.rule_type, args, loc, diag);
 
@@ -256,7 +271,7 @@ fn populate_plurals(
         Ok(new_count_key) => {
             let forms = plurals
                 .forms
-                .map_ref(|value| populate_value(value, args, resolved, set_fks, loc, diag));
+                .map_ref(|value| populate_value(value, args, resolved, set_fks, loc, diag, cfg));
             ResolvedValue::Plurals(Plurals {
                 rule_type: plurals.rule_type,
                 count_key: new_count_key,
@@ -457,20 +472,21 @@ fn populate_attributes(
 }
 
 fn has_deps(
-    value: &MergedPlurals,
+    value: &mut MergedPlurals,
     resolved: &ResolvedLocalesOrNamespaces,
     set_fks: &BTreeMap<Location, ResolvedValue>,
-    locale: &LocaleName,
+    unset_fks: &BTreeSet<Location>,
     waiting_on: &mut BTreeSet<Location>,
+    cfg: &Config,
 ) -> bool {
     match value {
         MergedPlurals::RawValue(raw_value) => {
-            raw_value_has_deps(raw_value, resolved, set_fks, locale, waiting_on)
+            raw_value_has_deps(raw_value, resolved, set_fks, unset_fks, waiting_on, cfg)
         }
         MergedPlurals::Plurals(plurals) => {
             let mut has_deps = true;
-            for (_, value) in plurals.forms.iter_forms() {
-                if !raw_value_has_deps(value, resolved, set_fks, locale, waiting_on) {
+            for (_, value) in plurals.forms.iter_forms_mut() {
+                if !raw_value_has_deps(value, resolved, set_fks, unset_fks, waiting_on, cfg) {
                     has_deps = false;
                     break;
                 }
@@ -480,50 +496,82 @@ fn has_deps(
     }
 }
 
+fn get_value_at_with_defaulting<'a, 'b>(
+    mut loc: Loc<'b>,
+    values: &'a ResolvedLocalesOrNamespaces,
+    cfg: &'b Config,
+) -> Result<&'a ResolvedValueOrSubkeys, Location> {
+    loop {
+        match values.get_value_at(loc) {
+            Some(ResolvedValueOrSubkeys::Defaulted) => {}
+            Some(value) => break Ok(value),
+            None => break Err(loc.into()),
+        }
+
+        if loc.locale.key == cfg.default_locale {
+            todo!("explicit default in default locale")
+        }
+
+        let default_to_key = cfg
+            .extensions
+            .get(&loc.locale.key)
+            .unwrap_or(&cfg.default_locale);
+        let default_to = cfg
+            .locales
+            .iter()
+            .find(|l| l.key == *default_to_key)
+            .expect("this locale should exist");
+        loc.locale = default_to;
+    }
+}
+
 fn raw_value_has_deps(
-    value: &RawValue,
+    value: &mut RawValue,
     resolved: &ResolvedLocalesOrNamespaces,
     set_fks: &BTreeMap<Location, ResolvedValue>,
-    locale: &LocaleName,
+    unset_fks: &BTreeSet<Location>,
     waiting_on: &mut BTreeSet<Location>,
+    cfg: &Config,
 ) -> bool {
     match value {
         RawValue::ForeignKey(foreign_key) => {
-            let path = &foreign_key.target_key_path;
             let loc = Loc {
-                key_path: path,
-                locale,
+                key_path: &foreign_key.target_location.key_path,
+                locale: &foreign_key.target_location.locale,
             };
-            // TODO: check the kind of value we get back => if default, check default locale
-            // => if subkeys, error
-            match resolved.get_value_at(loc) {
-                Some(ResolvedValueOrSubkeys::Value(_)) => {}
-                // TODO: invalid values
-                Some(ResolvedValueOrSubkeys::Defaulted) => todo!(),
-                Some(ResolvedValueOrSubkeys::Dummy(_)) => todo!(),
-                Some(ResolvedValueOrSubkeys::Subkeys(_)) => todo!(),
-                None => {
-                    let loc: Location = loc.into();
-                    if set_fks.get(&loc).is_none() {
-                        waiting_on.insert(loc);
+            let pointed_value = get_value_at_with_defaulting(loc, resolved, cfg);
+            match pointed_value {
+                Ok(ResolvedValueOrSubkeys::Value(_)) => {}
+                Ok(ResolvedValueOrSubkeys::Defaulted) => unreachable!(),
+                //TODO: invalid values
+                Ok(ResolvedValueOrSubkeys::Dummy(_)) => todo!(),
+                Ok(ResolvedValueOrSubkeys::Subkeys(_)) => todo!(),
+                Err(loc) if set_fks.contains_key(&loc) => {}
+                Err(loc) => {
+                    foreign_key.target_location = loc;
+                    let loc = &foreign_key.target_location;
+                    if unset_fks.contains(loc) {
+                        waiting_on.insert(loc.clone());
                         return false;
                     }
+
+                    todo!("invalid foreign key, path {} don't exist", loc.key_path)
                 }
             }
 
             foreign_key
                 .args
-                .values()
-                .all(|arg| raw_value_has_deps(arg, resolved, set_fks, locale, waiting_on))
+                .values_mut()
+                .all(|arg| raw_value_has_deps(arg, resolved, set_fks, unset_fks, waiting_on, cfg))
         }
         RawValue::Literal(_) | RawValue::Variable(_) => true,
-        RawValue::Component(component) => match &component.inner {
-            Some(inner) => raw_value_has_deps(inner, resolved, set_fks, locale, waiting_on),
+        RawValue::Component(component) => match component.inner.as_deref_mut() {
+            Some(inner) => raw_value_has_deps(inner, resolved, set_fks, unset_fks, waiting_on, cfg),
             None => true,
         },
         RawValue::Bloc(raw_values) => raw_values
-            .iter()
-            .all(|v| raw_value_has_deps(v, resolved, set_fks, locale, waiting_on)),
+            .iter_mut()
+            .all(|v| raw_value_has_deps(v, resolved, set_fks, unset_fks, waiting_on, cfg)),
     }
 }
 

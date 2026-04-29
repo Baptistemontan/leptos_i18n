@@ -6,36 +6,19 @@ use crate::{
         ParseContext,
         raw_value::{RawLiteral, RawValue},
     },
-    utils::{Key, KeyPath, Loc},
+    utils::{Key, KeyPath, Loc, Location},
 };
-
-// #[derive(Default, Debug)]
-// pub struct ForeignKeysPaths(RefCell<BTreeSet<Location>>);
-
-// impl ForeignKeysPaths {
-//     pub fn new() -> Self {
-//         Default::default()
-//     }
-
-//     pub fn push_path(&self, loc: Location) {
-//         self.0.borrow_mut().insert(loc);
-//     }
-
-//     pub fn into_inner(self) -> BTreeSet<Location> {
-//         self.0.into_inner()
-//     }
-// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForeignKey {
-    pub target_key_path: KeyPath,
+    pub target_location: Location,
     pub args: BTreeMap<String, RawValue>,
 }
 
 impl ForeignKey {
-    fn new_inner(target_key_path: KeyPath, args: BTreeMap<String, RawValue>) -> Self {
+    fn new_inner(target_location: Location, args: BTreeMap<String, RawValue>) -> Self {
         ForeignKey {
-            target_key_path,
+            target_location,
             args,
         }
     }
@@ -63,7 +46,12 @@ impl ForeignKey {
             (Some(BTreeMap::new()), after)
         };
 
-        let this = args.map(|args| RawValue::ForeignKey(Self::new_inner(target_key_path, args)));
+        let target_location = Location {
+            key_path: target_key_path,
+            locale: ctx.loc.locale.clone(),
+        };
+
+        let this = args.map(|args| RawValue::ForeignKey(Self::new_inner(target_location, args)));
 
         let before = RawValue::parse(ctx, before);
         let after = RawValue::parse(ctx, after);
@@ -178,16 +166,21 @@ impl ForeignKey {
 mod tests {
     use std::rc::Rc;
 
-    use crate::{error::Diagnostics, formatters::Formatters, options::LocaleName};
-    use icu_locale::locale;
+    use crate::{error::Diagnostics, formatters::Formatters, options::LocaleName, parser::ParseFn};
 
     use super::*;
 
-    fn test_util(s: &str) -> Option<RawValue> {
+    struct TestResult {
+        value: Option<RawValue>,
+        locale: LocaleName,
+        diag: Diagnostics,
+    }
+
+    fn test_util(s: &str, locale: &str, parse_fns: &[ParseFn]) -> TestResult {
         let key_path = KeyPath::new(None);
         let locale = LocaleName {
-            key: Key::new("fr").unwrap(),
-            loc_id: Rc::new(locale!("fr")),
+            key: Key::new(locale).unwrap(),
+            loc_id: Rc::new(locale.parse().unwrap()),
         };
         let formatters = Formatters::new();
         let diag = Diagnostics::new();
@@ -199,28 +192,52 @@ mod tests {
             },
             formatters: &formatters,
             diag: &diag,
-            parse_fns: &[],
+            parse_fns,
         };
-        ForeignKey::parse(&ctx, s).transpose().unwrap()
+
+        let value = parse_fns
+            .iter()
+            .find_map(|parse_fn| parse_fn(&ctx, s).transpose().unwrap());
+
+        TestResult {
+            value,
+            locale,
+            diag,
+        }
     }
 
     #[test]
     fn test_parsing_namespaces() {
-        let value = test_util("before $t(second_namespace:common_key) after").unwrap();
+        let TestResult {
+            value,
+            locale,
+            diag,
+        } = test_util(
+            "before $t(second_namespace:common_key) after",
+            "fr",
+            &[ForeignKey::parse],
+        );
+        let value = value.unwrap();
 
         assert_eq!(
             value,
             RawValue::Bloc(vec![
                 RawValue::Literal(RawLiteral::String("before ".to_string())),
                 RawValue::ForeignKey(ForeignKey {
-                    target_key_path: KeyPath {
-                        namespace: Some(Key::new("second_namespace").unwrap()),
-                        path: vec![Key::new("common_key").unwrap()]
+                    target_location: Location {
+                        key_path: KeyPath {
+                            namespace: Some(Key::new("second_namespace").unwrap()),
+                            path: vec![Key::new("common_key").unwrap()]
+                        },
+                        locale
                     },
                     args: BTreeMap::new()
                 }),
                 RawValue::Literal(RawLiteral::String(" after".to_string()))
             ])
         );
+
+        assert!(diag.warnings().is_empty());
+        assert!(diag.errors().is_empty());
     }
 }
