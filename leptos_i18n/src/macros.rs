@@ -222,7 +222,7 @@ macro_rules! t {
     ($ctx: expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         {
             let __ctx = $ctx;
-            let __key = $crate::key!(__ctx, $first_key $($keys).+);
+            let __key = $crate::key!(__ctx, $($keys).+);
             let __key = $crate::build_key!(__key $(, $($args)*)?);
             $crate::render_proxy!(@ctx __ctx, __key)
         }
