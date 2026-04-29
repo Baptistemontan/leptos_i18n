@@ -823,10 +823,12 @@ fn map_value(value: RawValue) -> Result<ResolvedValue, RawValue> {
             if with_fks.is_empty() {
                 Ok(ResolvedValue::Bloc(no_fks))
             } else {
-                for value in no_fks {
-                    with_fks.push(unmap_value(value));
-                }
-                Err(RawValue::Bloc(with_fks))
+                let bloc = no_fks
+                    .into_iter()
+                    .map(unmap_value)
+                    .chain(with_fks)
+                    .collect();
+                Err(RawValue::Bloc(bloc))
             }
         }
     }
