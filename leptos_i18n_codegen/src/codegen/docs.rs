@@ -77,7 +77,8 @@ pub fn gen_fields_docs(docs: &mut String, fields: &[Field]) -> core::fmt::Result
     if components.peek().is_some() {
         writeln!(docs, "## Components :")?;
         for (key, self_closed) in components {
-            if self_closed {
+            // if dummy, use non-self-closed syntax
+            if self_closed.is_some_and(|sf| sf) {
                 writeln!(docs, "- `<{}/>`", key)?;
             } else {
                 writeln!(docs, "-  `<{}>`", key)?;

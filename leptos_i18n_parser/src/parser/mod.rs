@@ -186,12 +186,12 @@ impl<'de> serde::de::Visitor<'de> for ValueOrSubkeysSeed<'_> {
 
         let pv = RawValue::parse(&ctx, v);
 
-        if let Ok(pv) = pv {
-            Ok(RawValueOrSubkeys::Value(pv))
+        let value = if let Ok(pv) = pv {
+            pv
         } else {
-            let dummy = Dummy::parse(v, self.top_locale_name);
-            Ok(RawValueOrSubkeys::Dummy(dummy))
-        }
+            RawValue::Dummy(Dummy::parse(v, self.top_locale_name))
+        };
+        Ok(RawValueOrSubkeys::Value(value))
     }
 
     fn visit_bool<E>(self, v: bool) -> std::result::Result<Self::Value, E>

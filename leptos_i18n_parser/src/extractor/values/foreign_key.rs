@@ -49,6 +49,7 @@ pub enum ResolvedValue {
     Component(Component<Self>),
     Bloc(Vec<Self>),
     Plurals(Plurals<Self>),
+    Dummy(Dummy),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,7 +57,6 @@ pub enum ResolvedValueOrSubkeys<S = ResolvedValues> {
     Value(ResolvedValue),
     Subkeys(S),
     Defaulted,
-    Dummy(Dummy),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -177,7 +177,6 @@ fn resolve_raw_value_fk(
             let target_value = get_value_at_with_defaulting(target_loc, resolved, cfg);
             let target_value = match target_value {
                 Ok(ResolvedValueOrSubkeys::Value(target_value)) => target_value,
-                Ok(ResolvedValueOrSubkeys::Dummy(_)) => todo!(),
                 Ok(_) | Err(_) => unreachable!("should have already been checked by has_deps"),
             };
 
@@ -202,6 +201,7 @@ fn resolve_raw_value_fk(
                 .map(|v| resolve_raw_value_fk(v, resolved, loc, diag, cfg))
                 .collect(),
         ),
+        RawValue::Dummy(dummies) => ResolvedValue::Dummy(dummies),
     }
 }
 
@@ -241,6 +241,7 @@ fn populate_value(
         ResolvedValue::Plurals(plurals) => {
             populate_plurals(plurals, args, resolved, loc, diag, cfg)
         }
+        ResolvedValue::Dummy(_) => todo!(),
     }
 }
 
@@ -332,9 +333,10 @@ fn map_plural_key(
             Ok(Some(_)) => todo!(),
             Err(()) => todo!(),
         },
+        RawValue::Variable(var) => Ok(var.key.clone()),
         RawValue::Component(_) => todo!(),
         RawValue::ForeignKey(_) => todo!(),
-        RawValue::Variable(var) => Ok(var.key.clone()),
+        RawValue::Dummy(_) => todo!(),
     }
 }
 
@@ -457,6 +459,7 @@ fn populate_attributes(
                 }
                 Err(()) => todo!("fk arg to comp attribute as multiple non-empty values"),
             },
+            RawValue::Dummy(_) => todo!(),
         };
 
         new_attrs.push(RawAttribute {
@@ -540,9 +543,7 @@ fn raw_value_has_deps(
             match pointed_value {
                 Ok(ResolvedValueOrSubkeys::Value(_)) => {}
                 Ok(ResolvedValueOrSubkeys::Defaulted) => unreachable!(),
-                //TODO: invalid values
-                Ok(ResolvedValueOrSubkeys::Dummy(_)) => todo!(),
-                Ok(ResolvedValueOrSubkeys::Subkeys(_)) => todo!(),
+                Ok(ResolvedValueOrSubkeys::Subkeys(_)) => todo!("fk to subkeys are not allowed"),
                 Err(loc) => {
                     foreign_key.target_location = loc;
                     let loc = &foreign_key.target_location;
@@ -570,6 +571,7 @@ fn raw_value_has_deps(
         RawValue::Bloc(raw_values) => raw_values
             .iter_mut()
             .all(|v| raw_value_has_deps(v, current_loc, resolved, unset_fks, waiters, cfg)),
+        RawValue::Dummy(_) => todo!(),
     }
 }
 
@@ -751,7 +753,6 @@ where
             values, fks, loc,
         ))),
         RawValueOrSubkeys::Defaulted => Ok(ResolvedValueOrSubkeys::Defaulted),
-        RawValueOrSubkeys::Dummy(dummy) => Ok(ResolvedValueOrSubkeys::Dummy(dummy)),
     }
 }
 
@@ -877,6 +878,7 @@ fn map_value(value: RawValue) -> Result<ResolvedValue, RawValue> {
                 Err(RawValue::Bloc(bloc))
             }
         }
+        RawValue::Dummy(dummy) => Ok(ResolvedValue::Dummy(dummy)),
     }
 }
 
@@ -894,6 +896,7 @@ fn unmap_value(value: ResolvedValue) -> RawValue {
             RawValue::Bloc(bloc)
         }
         ResolvedValue::Plurals(_) => unreachable!(),
+        ResolvedValue::Dummy(dummy) => RawValue::Dummy(dummy),
     }
 }
 
@@ -932,5 +935,6 @@ fn map_recursive_fk_value(value: RawValue) -> ResolvedValue {
             let bloc = bloc.into_iter().map(map_recursive_fk_value).collect();
             ResolvedValue::Bloc(bloc)
         }
+        RawValue::Dummy(dummy) => ResolvedValue::Dummy(dummy),
     }
 }

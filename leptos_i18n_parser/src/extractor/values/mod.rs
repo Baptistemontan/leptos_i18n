@@ -4,6 +4,7 @@ use crate::error::Diagnostics;
 use crate::extractor::StringIndexer;
 use crate::extractor::values::attributes::{Attribute, AttributeValue};
 use crate::extractor::values::foreign_key::{ResolvedLocale, ResolvedValue};
+use crate::parser::dummy::Dummy;
 use crate::parser::options::Config;
 use crate::parser::raw_value::RawLiteral;
 use crate::parser::raw_value::component::{
@@ -48,6 +49,7 @@ pub enum Value {
     Component(Component<Self, Attributes>),
     Bloc(Vec<Self>),
     Plurals(Plurals),
+    Dummy(Dummy),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -130,7 +132,6 @@ pub fn merge_and_index_keys(
 
                 default_locale_for_values_or_sk(values, &current_locale_name.key, cfg);
             }
-            foreign_key::ResolvedValueOrSubkeys::Dummy(_) => todo!(),
         }
     }
 }
@@ -209,6 +210,7 @@ fn reduce_value_into(value: ResolvedValue, bloc: &mut Vec<ResolvedValue>) {
             });
             bloc.push(plurals);
         }
+        ResolvedValue::Dummy(dummy) => bloc.push(ResolvedValue::Dummy(dummy)),
     }
 }
 
@@ -253,6 +255,7 @@ fn reduce_and_index_value(value: ResolvedValue, str_indexer: &mut StringIndexer)
                 forms,
             })
         }
+        ResolvedValue::Dummy(dummy) => Value::Dummy(dummy),
     }
 }
 

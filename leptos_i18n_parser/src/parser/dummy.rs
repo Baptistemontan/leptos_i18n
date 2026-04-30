@@ -11,7 +11,7 @@ pub enum DummyArg {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Dummy {
-    dummies: Vec<DummyArg>,
+    pub dummies: Vec<DummyArg>,
 }
 
 impl Dummy {

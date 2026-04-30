@@ -10,6 +10,8 @@ mod fmt;
 mod into_view;
 mod plurals;
 
+struct DummyFound;
+
 use crate::{
     CodegenOptions,
     codegen::{builders::infos::BuildersInfos, locales::strings_accessor_method_name},
@@ -199,6 +201,55 @@ pub fn gen_values_modules_and_accessors(
         &data_ident,
     );
 
+    let render_fn = match render_body {
+        Ok(render_body) => quote! {
+            #[doc(hidden)]
+            pub #maybe_async fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView + core::clone::Clone + 'static {
+                let BuildedArgs #destructure = args;
+                #render_body
+            }
+        },
+        Err(DummyFound) => {
+            let message = format!("An error occured when parsing key {}", path);
+            quote! {
+                #[doc(hidden)]
+                pub #maybe_async fn __render<#bounded_generics>(_: BuildedArgs<#generics>, _: #enum_ident) {
+                    panic!(#message)
+                }
+            }
+        }
+    };
+
+    let fmt_fn = match fmt_body {
+        Ok(fmt_body) => quote! {
+            #[doc(hidden)]
+            pub fn __fmt<#bounded_fmt_generics>(
+                args: &BuildedArgs<#generics>,
+                #formatter_ident: &mut core::fmt::Formatter<'_>,
+                #locale_field: #enum_ident,
+                #data_ident: &__l_i18n_crate::keys::DisplayData
+            ) -> core::fmt::Result {
+                use core::fmt::Write;
+                let BuildedArgs #destructure = args;
+                #fmt_body
+            }
+        },
+        Err(DummyFound) => {
+            let message = format!("An error occured when parsing key {}", path);
+            quote! {
+                #[doc(hidden)]
+                pub fn __fmt<#bounded_fmt_generics>(
+                    _: &BuildedArgs<#generics>,
+                    _: &mut core::fmt::Formatter<'_>,
+                    _: #enum_ident,
+                    _: &__l_i18n_crate::keys::DisplayData
+                ) -> core::fmt::Result {
+                    panic!(#message)
+                }
+            }
+        }
+    };
+
     quote! {
         #docs
         pub mod #key {
@@ -327,11 +378,7 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            #[doc(hidden)]
-            pub #maybe_async fn __render<#bounded_generics>(args: BuildedArgs<#generics>, #locale_field: #enum_ident) -> impl __l_i18n_crate::reexports::leptos::IntoView + core::clone::Clone + 'static {
-                let BuildedArgs #destructure = args;
-                #render_body
-            }
+            #render_fn
 
             #[doc(hidden)]
             pub #maybe_async fn __get_data(locale: #enum_ident) -> __l_i18n_crate::keys::DisplayData {
@@ -342,17 +389,7 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            #[doc(hidden)]
-            pub fn __fmt<#bounded_fmt_generics>(
-                args: &BuildedArgs<#generics>,
-                #formatter_ident: &mut core::fmt::Formatter<'_>,
-                #locale_field: #enum_ident,
-                #data_ident: &__l_i18n_crate::keys::DisplayData
-            ) -> core::fmt::Result {
-                use core::fmt::Write;
-                let BuildedArgs #destructure = args;
-                #fmt_body
-            }
+            #fmt_fn
 
             #empty_marker
         }

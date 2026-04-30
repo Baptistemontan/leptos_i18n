@@ -112,7 +112,7 @@ fn gen_var_methods(
 fn gen_comp_methods(
     field: &Field,
     into_view: &syn::Ident,
-    self_closed: bool,
+    self_closed: Option<bool>,
     before: &[Field],
     after: &[Field],
 ) -> TokenStream {

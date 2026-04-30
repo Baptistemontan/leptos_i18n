@@ -8,7 +8,7 @@ use leptos_i18n_parser::{
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::codegen::locales::strings_accessor_method_name;
+use crate::codegen::{locales::strings_accessor_method_name, values::DummyFound};
 
 pub fn gen_fmt_body(
     non_defaulted_locales: &[(&Locale, &Value)],
@@ -18,7 +18,7 @@ pub fn gen_fmt_body(
     locale_field: &syn::Ident,
     formatter_ident: &syn::Ident,
     data_ident: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let translations_ident = if cfg!(feature = "dynamic_load") {
         format_ident!("__i18n_translations__")
     } else {
@@ -33,9 +33,9 @@ pub fn gen_fmt_body(
                 quote!(| #enum_ident::#key)
             }).collect::<TokenStream>()
         });
-        let fmt_value = gen_fmt_value(value, &translations_ident, strings_count, locale_field, formatter_ident);
+        let fmt_value = gen_fmt_value(value, &translations_ident, strings_count, locale_field, formatter_ident)?;
 
-        if cfg!(feature = "dynamic_load") {
+        let ts = if cfg!(feature = "dynamic_load") {
             quote! {
                 #enum_ident::#loc #defaults => {
                     let #translations_ident = __l_i18n_crate::__private::cast_unsized_strings::<_, #strings_count>(#data_ident);
@@ -49,16 +49,21 @@ pub fn gen_fmt_body(
                     #fmt_value
                 }
             }
-        }
-    });
+        };
 
-    quote! {
+        Ok(ts)
+    })
+    .collect::<Result<Vec<_>, DummyFound>>()?;
+
+    let ts = quote! {
         match #locale_field {
             #(
                 #render_match_arms,
             )*
         }
-    }
+    };
+
+    Ok(ts)
 }
 
 pub fn gen_fmt_value(
@@ -67,11 +72,16 @@ pub fn gen_fmt_value(
     strings_count: usize,
     locale_field: &syn::Ident,
     formatter_ident: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     match value {
-        Value::Literal(lit) => gen_fmt_lit(lit, translations_ident, strings_count, formatter_ident),
+        Value::Literal(lit) => Ok(gen_fmt_lit(
+            lit,
+            translations_ident,
+            strings_count,
+            formatter_ident,
+        )),
         Value::Variable(Variable { key, bound }) => {
-            bound.var_fmt(key, locale_field, formatter_ident)
+            Ok(bound.var_fmt(key, locale_field, formatter_ident))
         }
         Value::Component(component) => super::components::gen_fmt_component(
             component,
@@ -81,32 +91,30 @@ pub fn gen_fmt_value(
             formatter_ident,
         ),
         Value::Bloc(values) => match &**values {
-            [] => quote!(core::fmt::Result::Ok(())),
-            [values @ .., last_value] => {
-                let iter = values.iter().map(|value| {
-                    gen_fmt_value(
-                        value,
-                        translations_ident,
-                        strings_count,
-                        locale_field,
-                        formatter_ident,
-                    )
-                });
-                let last_value = gen_fmt_value(
-                    last_value,
-                    translations_ident,
-                    strings_count,
-                    locale_field,
-                    formatter_ident,
-                );
-                quote! {
+            [] => Ok(quote!(core::fmt::Result::Ok(()))),
+            values => {
+                let mut values = values
+                    .iter()
+                    .map(|value| {
+                        gen_fmt_value(
+                            value,
+                            translations_ident,
+                            strings_count,
+                            locale_field,
+                            formatter_ident,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, DummyFound>>()?;
+                let last_value = values.pop().unwrap();
+                let ts = quote! {
                     {
                         #(
-                            #iter?;
+                            #values?;
                         )*
                         #last_value
                     }
-                }
+                };
+                Ok(ts)
             }
         },
         Value::Plurals(plurals) => super::plurals::gen_fmt_plurals(
@@ -116,6 +124,7 @@ pub fn gen_fmt_value(
             locale_field,
             formatter_ident,
         ),
+        Value::Dummy(_) => Err(DummyFound),
     }
 }
 

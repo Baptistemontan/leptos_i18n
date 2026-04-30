@@ -17,7 +17,7 @@ pub enum VarOrComp {
     },
     Comp {
         into_view: syn::Ident,
-        self_closed: bool,
+        self_closed: Option<bool>,
     },
 }
 
@@ -259,13 +259,17 @@ impl VarOrComp {
     pub fn get_bounded_comp_generics(
         generic: &syn::Ident,
         into_view: &syn::Ident,
-        self_closed: bool,
+        self_closed: Option<bool>,
     ) -> [TokenStream; 2] {
         [
-            if self_closed {
-                quote!(#generic: __l_i18n_crate::__private::InterpolateCompSelfClosed<#into_view>)
-            } else {
-                quote!(#generic: __l_i18n_crate::__private::InterpolateComp<#into_view>)
+            match self_closed {
+                Some(true) => {
+                    quote!(#generic: __l_i18n_crate::__private::InterpolateCompSelfClosed<#into_view>)
+                }
+                Some(false) => {
+                    quote!(#generic: __l_i18n_crate::__private::InterpolateComp<#into_view>)
+                }
+                None => quote!(#generic: __l_i18n_crate::__private::InterpolateDummy<#into_view>),
             },
             quote!(#into_view: __l_i18n_crate::__private::AttributesArgMarker),
         ]
@@ -274,7 +278,7 @@ impl VarOrComp {
     pub fn get_bounded_fmt_comp_generics(
         generic: &syn::Ident,
         into_view: &syn::Ident,
-        _self_closed: bool,
+        _self_closed: Option<bool>,
     ) -> [TokenStream; 2] {
         [
             quote!(#generic: __l_i18n_crate::display::DisplayComponent<#into_view>),

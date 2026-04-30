@@ -2,6 +2,8 @@ use leptos_i18n_parser::extraction::{Attribute, AttributeValue, Attributes, Lite
 use proc_macro2::TokenStream;
 use quote::quote;
 
+use crate::codegen::values::DummyFound;
+
 type Component = leptos_i18n_parser::parsing::Component<Value, Attributes>;
 
 pub fn render_component(
@@ -9,11 +11,14 @@ pub fn render_component(
     translations_ident: &syn::Ident,
     strings_count: usize,
     locale_field: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let attributes = render_attributes(&component.attributes, translations_ident, strings_count);
 
-    match &component.inner {
-        None => render_self_closed_comp(&component.key.ident, &attributes),
+    match component.inner.as_deref() {
+        None => {
+            let ts = render_self_closed_comp(&component.key.ident, &attributes);
+            Ok(ts)
+        }
         Some(inner) => render_comp_with_children(
             &component.key.ident,
             inner,
@@ -32,11 +37,11 @@ fn render_comp_with_children(
     translations_ident: &syn::Ident,
     strings_count: usize,
     locale_field: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let captured_keys = super::into_view::captured_keys(inner);
 
     let inner =
-        super::into_view::gen_render_value(inner, translations_ident, strings_count, locale_field);
+        super::into_view::gen_render_value(inner, translations_ident, strings_count, locale_field)?;
     let children_fn = quote!(
         {
             #(
@@ -46,14 +51,16 @@ fn render_comp_with_children(
         }
     );
 
-    quote!({
+    let ts = quote!({
         let __boxed_children_fn = __l_i18n_crate::reexports::leptos::children::ToChildren::to_children(#children_fn);
         let __attrs = { #attributes };
         let #key = core::clone::Clone::clone(&#key);
         move || {
             __l_i18n_crate::__private::InterpolateComp::to_view(&#key, core::clone::Clone::clone(&__boxed_children_fn), &__attrs)
         }
-    })
+    });
+
+    Ok(ts)
 }
 
 fn render_self_closed_comp(key: &syn::Ident, attributes: &TokenStream) -> TokenStream {
@@ -116,7 +123,7 @@ pub fn gen_fmt_component(
     strings_count: usize,
     locale_field: &syn::Ident,
     formatter_ident: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let key = &*component.key.ident;
     let attrs_ts = attributes_as_string_impl(
         &component.attributes,
@@ -127,7 +134,7 @@ pub fn gen_fmt_component(
     let attrs_ts = quote! {
         let __attrs: &[&dyn Fn(&mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result] = { #attrs_ts };
     };
-    match component.inner.as_deref() {
+    let ts = match component.inner.as_deref() {
         Some(inner_value) => {
             let inner_ts = super::fmt::gen_fmt_value(
                 inner_value,
@@ -135,7 +142,7 @@ pub fn gen_fmt_component(
                 strings_count,
                 locale_field,
                 formatter_ident,
-            );
+            )?;
             quote!({
                 #attrs_ts
                 __l_i18n_crate::display::DisplayComponent::fmt(#key, #formatter_ident, { |#formatter_ident| #inner_ts }, __l_i18n_crate::display::Attributes(__attrs))
@@ -145,7 +152,9 @@ pub fn gen_fmt_component(
             #attrs_ts
             __l_i18n_crate::display::DisplayComponent::fmt_self_closing(#key, #formatter_ident, __l_i18n_crate::display::Attributes(__attrs))
         }),
-    }
+    };
+
+    Ok(ts)
 }
 
 pub fn attributes_as_string_impl(

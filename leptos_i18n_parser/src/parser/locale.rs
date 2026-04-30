@@ -9,7 +9,6 @@ use crate::{
     error::{Diagnostics, Error, Result, Warning},
     parser::{
         ValuesSeed,
-        dummy::Dummy,
         options::{Config, FileFormat, LocaleName, ParseOptions},
         raw_value::RawValue,
     },
@@ -47,7 +46,6 @@ pub enum RawValueOrSubkeys<V = RawValue, S = RawValues<V>> {
     Value(V),
     Subkeys(S),
     Defaulted,
-    Dummy(Dummy),
 }
 
 impl RawLocalesOrNamespaces {

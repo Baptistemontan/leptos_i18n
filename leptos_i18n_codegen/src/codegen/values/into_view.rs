@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
-    codegen::locales::strings_accessor_method_name,
+    codegen::{locales::strings_accessor_method_name, values::DummyFound},
     utils::{EitherOfWrapper, fit_in_leptos_tuple},
 };
 use leptos_i18n_parser::{
@@ -18,7 +18,7 @@ pub fn gen_render_body(
     enum_ident: &syn::Ident,
     keys_ident: &syn::Ident,
     locale_field: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let translations_ident = if cfg!(feature = "dynamic_load") {
         format_ident!("__i18n_translations__")
     } else {
@@ -34,9 +34,9 @@ pub fn gen_render_body(
                 quote!(| #enum_ident::#key)
             }).collect::<TokenStream>()
         });
-        let render_value = gen_render_value(value, &translations_ident, strings_count, locale_field);
+        let render_value = gen_render_value(value, &translations_ident, strings_count, locale_field)?;
         let render_value = either_of.wrap(i, render_value);
-        if cfg!(feature = "dynamic_load") {
+        let ts = if cfg!(feature = "dynamic_load") {
             let maybe_await = if cfg!(not(feature = "ssr")) {
                 quote!(.await)
             } else {
@@ -55,16 +55,20 @@ pub fn gen_render_body(
                     #render_value
                 }
             }
-        }
-    });
+        };
 
-    quote! {
+        Ok(ts)
+    }).collect::<Result<Vec<_>, DummyFound>>()?;
+
+    let ts = quote! {
         match #locale_field {
             #(
                 #render_match_arms,
             )*
         }
-    }
+    };
+
+    Ok(ts)
 }
 
 pub fn gen_render_value(
@@ -72,7 +76,7 @@ pub fn gen_render_value(
     translations_ident: &syn::Ident,
     strings_count: usize,
     locale_field: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let mut tokens = Vec::new();
     flatten_value(
         value,
@@ -80,12 +84,14 @@ pub fn gen_render_value(
         translations_ident,
         strings_count,
         locale_field,
-    );
-    match tokens.as_mut_slice() {
+    )?;
+    let ts = match tokens.as_mut_slice() {
         [] => quote!(""),
         [value] => core::mem::take(value),
         values => fit_in_leptos_tuple(values),
-    }
+    };
+
+    Ok(ts)
 }
 
 fn flatten_value(
@@ -94,11 +100,12 @@ fn flatten_value(
     translations_ident: &syn::Ident,
     strings_count: usize,
     locale_field: &syn::Ident,
-) {
+) -> Result<(), DummyFound> {
     match value {
         Value::Literal(lit) => {
             let ts = gen_render_lit(lit, translations_ident, strings_count);
             tokens.push(ts);
+            Ok(())
         }
         Value::Variable(Variable { key, bound }) => {
             let ts = bound.var_to_view(&key.ident, locale_field);
@@ -106,6 +113,7 @@ fn flatten_value(
                 let #key = core::clone::Clone::clone(&#key);
                 #ts
             }});
+            Ok(())
         }
         Value::Component(component) => {
             let ts = super::components::render_component(
@@ -113,8 +121,9 @@ fn flatten_value(
                 translations_ident,
                 strings_count,
                 locale_field,
-            );
+            )?;
             tokens.push(ts);
+            Ok(())
         }
         Value::Bloc(values) => {
             for value in values {
@@ -124,8 +133,9 @@ fn flatten_value(
                     translations_ident,
                     strings_count,
                     locale_field,
-                );
+                )?;
             }
+            Ok(())
         }
         Value::Plurals(plurals) => {
             let ts = super::plurals::gen_render_plurals(
@@ -133,9 +143,11 @@ fn flatten_value(
                 translations_ident,
                 strings_count,
                 locale_field,
-            );
+            )?;
             tokens.push(ts);
+            Ok(())
         }
+        Value::Dummy(_) => Err(DummyFound),
     }
 }
 
@@ -263,5 +275,7 @@ pub fn captured_keys_inner(value: &Value, keys: &mut BTreeSet<Key>) {
                 captured_keys_inner(value, keys);
             }
         }
+        // kind of pointless to push the dummy keys because it won't be rendered anyway
+        Value::Dummy(_) => {}
     }
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, de::Visitor};
 
-use crate::error::Result;
+use crate::{error::Result, parser::dummy::Dummy};
 
 use super::{ParseContext, ParseFn};
 
@@ -28,6 +28,7 @@ pub enum RawValue {
     Variable(Variable),
     Component(Component),
     Bloc(Vec<Self>),
+    Dummy(Dummy),
 }
 
 impl Default for RawValue {

@@ -4,14 +4,14 @@ use leptos_i18n_parser::extraction::{PluralForm, PluralRuleType, Plurals, Value}
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::utils::EitherOfWrapper;
+use crate::{codegen::values::DummyFound, utils::EitherOfWrapper};
 
 pub fn gen_render_plurals(
     plurals: &Plurals,
     translations_ident: &syn::Ident,
     strings_count: usize,
     locale_field: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let mut captured_keys = BTreeSet::new();
     for (_, value) in plurals.forms.iter_forms() {
         super::into_view::captured_keys_inner(value, &mut captured_keys);
@@ -36,9 +36,10 @@ pub fn gen_render_plurals(
                 strings_count,
                 locale_field,
             )
-        });
+        })
+        .collect::<Result<Vec<_>, DummyFound>>()?;
 
-    quote! {{
+    let ts = quote! {{
         #(
             let #captured_keys = core::clone::Clone::clone(&#captured_keys);
         )*
@@ -50,7 +51,9 @@ pub fn gen_render_plurals(
                 )*
             }
         }
-    }}
+    }};
+
+    Ok(ts)
 }
 
 fn render_rule_type(rule_type: PluralRuleType) -> TokenStream {
@@ -72,11 +75,11 @@ fn render_plural_form_match_arm(
     translations_ident: &syn::Ident,
     strings_count: usize,
     locale_field: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let render_value_ts =
-        super::into_view::gen_render_value(value, translations_ident, strings_count, locale_field);
+        super::into_view::gen_render_value(value, translations_ident, strings_count, locale_field)?;
     let render_value_ts = either_of.wrap(idx, render_value_ts);
-    match plural_form {
+    let ts = match plural_form {
         PluralForm::Zero => quote! {
             __l_i18n_crate::reexports::icu::plurals::PluralCategory::Zero => #render_value_ts
         },
@@ -95,7 +98,8 @@ fn render_plural_form_match_arm(
         PluralForm::Other => quote! {
             _ => #render_value_ts
         },
-    }
+    };
+    Ok(ts)
 }
 
 pub fn gen_fmt_plurals(
@@ -104,29 +108,35 @@ pub fn gen_fmt_plurals(
     strings_count: usize,
     locale_field: &syn::Ident,
     formatter_ident: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let rule_type_ts = render_rule_type(plurals.rule_type);
     let count_key = &*plurals.count_key.ident;
 
-    let match_arms = plurals.forms.iter_forms().map(|(plural_form, value)| {
-        fmt_plural_form_match_arm(
-            plural_form,
-            value,
-            translations_ident,
-            strings_count,
-            locale_field,
-            formatter_ident,
-        )
-    });
+    let match_arms = plurals
+        .forms
+        .iter_forms()
+        .map(|(plural_form, value)| {
+            fmt_plural_form_match_arm(
+                plural_form,
+                value,
+                translations_ident,
+                strings_count,
+                locale_field,
+                formatter_ident,
+            )
+        })
+        .collect::<Result<Vec<_>, DummyFound>>()?;
 
-    quote! {{
+    let ts = quote! {{
         let _plural_rules = __l_i18n_crate::__private::get_plural_rules(#locale_field, #rule_type_ts);
         match _plural_rules.category_for(core::clone::Clone::clone(#count_key)) {
             #(
                 #match_arms,
             )*
         }
-    }}
+    }};
+
+    Ok(ts)
 }
 
 fn fmt_plural_form_match_arm(
@@ -136,15 +146,15 @@ fn fmt_plural_form_match_arm(
     strings_count: usize,
     locale_field: &syn::Ident,
     formatter_ident: &syn::Ident,
-) -> TokenStream {
+) -> Result<TokenStream, DummyFound> {
     let render_value_ts = super::fmt::gen_fmt_value(
         value,
         translations_ident,
         strings_count,
         locale_field,
         formatter_ident,
-    );
-    match plural_form {
+    )?;
+    let ts = match plural_form {
         PluralForm::Zero => quote! {
             __l_i18n_crate::reexports::icu::plurals::PluralCategory::Zero => #render_value_ts
         },
@@ -163,5 +173,7 @@ fn fmt_plural_form_match_arm(
         PluralForm::Other => quote! {
             _ => #render_value_ts
         },
-    }
+    };
+
+    Ok(ts)
 }

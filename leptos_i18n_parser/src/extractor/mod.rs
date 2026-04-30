@@ -10,7 +10,7 @@ use crate::{
         Value, Values,
         foreign_key::{ResolvedLocale, ResolvedLocalesOrNamespaces, ResolvedNamespace},
     },
-    parser::options::LocaleName,
+    parser::{dummy::DummyArg, options::LocaleName},
     utils::{KeyPath, Location},
 };
 use crate::{
@@ -74,7 +74,7 @@ pub struct BuilderId(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CompInfos {
-    pub self_closed: bool,
+    pub self_closed: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -266,9 +266,9 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
                 .components
                 .entry(component.key.clone())
                 .or_insert(CompInfos {
-                    self_closed: is_self_closed,
+                    self_closed: Some(is_self_closed),
                 });
-            if info.self_closed != is_self_closed {
+            if info.self_closed.is_some_and(|sf| sf != is_self_closed) {
                 todo!("can't have self closed and normal component sharing the same key")
             }
         }
@@ -283,6 +283,21 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
             }
             let var_info = keys.vars.entry(plurals.count_key.clone()).or_default();
             var_info.plural = true;
+        }
+        Value::Dummy(dummies) => {
+            for dummy in &dummies.dummies {
+                match dummy {
+                    DummyArg::Component(key) => {
+                        keys.components
+                            .entry(key.clone())
+                            .or_insert(CompInfos { self_closed: None });
+                    }
+                    DummyArg::Variable(key) => {
+                        let info = keys.vars.entry(key.clone()).or_default();
+                        info.bounds.insert(VarBound::Dummy);
+                    }
+                }
+            }
         }
     }
 }
@@ -390,7 +405,8 @@ impl InterpolationKeys {
         }
         for (key, info) in &self.components {
             s.push_str(&key.name);
-            if info.self_closed {
+
+            if info.self_closed.is_some_and(|sf| sf) {
                 s.push_str("sf");
             }
             s.push('_');

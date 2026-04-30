@@ -461,7 +461,6 @@ fn merge_values_plurals(
             }
             RawValueOrSubkeys::Value(value) => RawValueOrSubkeys::<_, NoSubkey>::Value(value),
             RawValueOrSubkeys::Defaulted => RawValueOrSubkeys::<_, NoSubkey>::Defaulted,
-            RawValueOrSubkeys::Dummy(dummy) => RawValueOrSubkeys::<_, NoSubkey>::Dummy(dummy),
         };
         if let Err(err) = merge_value(value, key, &mut possible_plurals, &mut merged_values) {
             todo!("err: {err}")
@@ -555,7 +554,6 @@ fn merge_values_plurals(
 fn map_value(value: RawValueOrSubkeys<RawValue, NoSubkey>) -> RawValueOrSubkeys<MergedPlurals> {
     match value {
         RawValueOrSubkeys::Defaulted => RawValueOrSubkeys::Defaulted,
-        RawValueOrSubkeys::Dummy(dummy) => RawValueOrSubkeys::Dummy(dummy),
         RawValueOrSubkeys::Value(value) => RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
     }
 }
@@ -563,7 +561,6 @@ fn map_value(value: RawValueOrSubkeys<RawValue, NoSubkey>) -> RawValueOrSubkeys<
 fn check_plural_value(value: RawValueOrSubkeys<RawValue, NoSubkey>) -> Result<RawValue> {
     match value {
         RawValueOrSubkeys::Defaulted => todo!(),
-        RawValueOrSubkeys::Dummy(_) => todo!(),
         RawValueOrSubkeys::Value(v) => Ok(v),
     }
 }
