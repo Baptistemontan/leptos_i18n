@@ -19,7 +19,7 @@ use crate::{
             NoSubkey, RawLocale, RawLocalesOrNamespaces, RawNamespace, RawValueOrSubkeys, RawValues,
         },
         options::LocaleName,
-        raw_value::RawValue,
+        raw_value::{RawLiteral, RawValue},
     },
     utils::{Key, KeyPath, Loc, Location},
 };
@@ -437,7 +437,7 @@ fn merge_locale_plurals(
     let mut loc = Location::new(locale.name.clone(), key_path);
     RawLocale {
         name: locale.name,
-        values: merge_values_plurals(locale.values, diag, &mut loc),
+        values: merge_values_plurals(locale.values, &mut loc, diag),
     }
 }
 
@@ -445,16 +445,16 @@ type PossiblePlurals = BTreeMap<String, BTreeMap<PluralForm, (Key, PluralRuleTyp
 
 fn merge_values_plurals(
     values: RawValues,
-    diag: &Diagnostics,
     loc: &mut Location,
+    diag: &Diagnostics,
 ) -> RawValues<MergedPlurals> {
     let mut merged_values = BTreeMap::new();
     let mut possible_plurals: PossiblePlurals = BTreeMap::new();
     for (key, value) in values.values {
+        let mut loc = loc.push_key(key.clone());
         let value = match value {
             RawValueOrSubkeys::Subkeys(subkeys) => {
-                let mut loc = loc.push_key(key.clone());
-                let merged_keys = merge_values_plurals(subkeys, diag, &mut loc);
+                let merged_keys = merge_values_plurals(subkeys, &mut loc, diag);
                 // TODO: check key conflict on insert
                 merged_values.insert(key, RawValueOrSubkeys::Subkeys(merged_keys));
                 continue;
@@ -462,9 +462,14 @@ fn merge_values_plurals(
             RawValueOrSubkeys::Value(value) => RawValueOrSubkeys::<_, NoSubkey>::Value(value),
             RawValueOrSubkeys::Defaulted => RawValueOrSubkeys::<_, NoSubkey>::Defaulted,
         };
-        if let Err(err) = merge_value(value, key, &mut possible_plurals, &mut merged_values) {
-            todo!("err: {err}")
-        }
+        merge_value(
+            value,
+            key,
+            &loc,
+            &mut possible_plurals,
+            &mut merged_values,
+            diag,
+        );
     }
 
     let mut disabled_error_emitted = false;
@@ -558,29 +563,33 @@ fn map_value(value: RawValueOrSubkeys<RawValue, NoSubkey>) -> RawValueOrSubkeys<
     }
 }
 
-fn check_plural_value(value: RawValueOrSubkeys<RawValue, NoSubkey>) -> Result<RawValue> {
-    match value {
-        RawValueOrSubkeys::Defaulted => todo!(),
-        RawValueOrSubkeys::Value(v) => Ok(v),
-    }
-}
-
 fn merge_value(
     value: RawValueOrSubkeys<RawValue, NoSubkey>,
     key: Key,
+    loc: &Location,
     possible_plurals: &mut PossiblePlurals,
     merged_values: &mut BTreeMap<Key, RawValueOrSubkeys<MergedPlurals>>,
-) -> Result<()> {
+    diag: &Diagnostics,
+) {
     if let Some((base_key, rule_type, plural_form)) = is_possible_plural(&key) {
         let map = possible_plurals.entry(base_key.to_owned()).or_default();
-        let value = check_plural_value(value)?;
+
+        let value = match value {
+            RawValueOrSubkeys::Value(v) => v,
+            RawValueOrSubkeys::Defaulted => {
+                diag.emit_error(Error::ExplicitDefaultInPlurals {
+                    loc: loc.clone(),
+                    form: plural_form,
+                });
+                RawValue::Literal(RawLiteral::String(String::new()))
+            }
+        };
         map.insert(plural_form, (key, rule_type, value));
     } else {
         let value = map_value(value);
         // TODO: check key conflict on insert
         merged_values.insert(key, value);
     }
-    Ok(())
 }
 
 fn is_possible_plural(key: &Key) -> Option<(&str, PluralRuleType, PluralForm)> {

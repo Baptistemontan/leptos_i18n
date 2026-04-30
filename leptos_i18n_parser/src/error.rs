@@ -5,7 +5,6 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 use std::{
     cell::{Ref, RefCell},
-    collections::BTreeSet,
     fmt::{Debug, Display},
     io,
     num::TryFromIntError,
@@ -39,16 +38,11 @@ pub enum Error {
     },
     PluralRulesError(IcuDataError),
     CargoDirEnvNotPresent(std::env::VarError),
-    ManifestNotFound(std::io::Error),
-    ConfigNotPresent,
-    ConfigFileDeser(toml::de::Error),
     LocaleFileNotFound(Vec<(PathBuf, std::io::Error)>),
     LocaleFileDeser {
         path: PathBuf,
         err: SerdeError,
     },
-    DuplicateLocalesInConfig(BTreeSet<Key>),
-    DuplicateNamespacesInConfig(BTreeSet<Key>),
     SubKeyMissmatch {
         loc: Location,
     },
@@ -63,6 +57,10 @@ pub enum Error {
     InvalidFallback,
     MultipleFallbacks,
     ExplicitDefaultInDefault(KeyPath),
+    ExplicitDefaultInPlurals {
+        loc: Location,
+        form: PluralForm,
+    },
     RecursiveForeignKey {
         loc: Location,
     },
@@ -165,18 +163,6 @@ impl Display for Error {
                     "Error, can't access env variable \"CARGO_MANIFEST_DIR\": {err}"
                 )
             }
-            Error::ManifestNotFound(err) => {
-                write!(f, "Error accessing cargo manifest (Cargo.toml) : {err}")
-            }
-            Error::ConfigNotPresent => {
-                write!(
-                    f,
-                    "Could not found \"[package.metadata.leptos-i18n]\" in cargo manifest (Cargo.toml)"
-                )
-            }
-            Error::ConfigFileDeser(err) => {
-                write!(f, "Parsing of cargo manifest (Cargo.toml) failed: {err}")
-            }
             Error::LocaleFileNotFound(errs) => {
                 for (path, err) in errs {
                     writeln!(f, "Could not found file {path:?} : {err}")?;
@@ -186,14 +172,6 @@ impl Display for Error {
             Error::LocaleFileDeser { path, err } => {
                 write!(f, "Parsing of file {path:?} failed: {err}")
             }
-            Error::DuplicateLocalesInConfig(duplicates) => write!(
-                f,
-                "Found duplicates locales in configuration (Cargo.toml): {duplicates:?}"
-            ),
-            Error::DuplicateNamespacesInConfig(duplicates) => write!(
-                f,
-                "Found duplicates namespaces in configuration (Cargo.toml): {duplicates:?}"
-            ),
             Error::InvalidKey(key) => write!(
                 f,
                 "invalid key {key:?}, it can't be used as a rust identifier, try removing whitespaces and special characters."
@@ -340,6 +318,12 @@ impl Display for Error {
                 write!(
                     f,
                     "Tried to declare inheritance for the default locale at {loc}"
+                )
+            }
+            Error::ExplicitDefaultInPlurals { loc, form } => {
+                write!(
+                    f,
+                    "Explicit default in plurals is not allowed, at {loc}{form}"
                 )
             }
         }
