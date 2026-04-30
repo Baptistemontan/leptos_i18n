@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::error::Diagnostics;
+use crate::error::{Diagnostics, Error, Warning};
 use crate::extractor::StringIndexer;
 use crate::extractor::values::attributes::{Attribute, AttributeValue};
 use crate::extractor::values::foreign_key::{ResolvedLocale, ResolvedValue};
@@ -70,15 +70,14 @@ pub fn merge_and_index_keys(
     str_indexer: &mut StringIndexer,
     diag: &Diagnostics,
 ) {
-    // TODO: diag
-    let _ = diag;
     let current_locale_name = values.name;
     let is_default = current_locale_name.key == *default_locale;
 
     if !is_default {
         for (key, values_or_sk) in keys.values.iter_mut() {
             if !values.values.values.contains_key(key) {
-                // TODO: warn missing key
+                let loc = loc.push_key(key.clone());
+                diag.emit_warning(Warning::MissingKey { loc: loc.clone() });
                 default_locale_for_values_or_sk(values_or_sk, &current_locale_name.key, cfg);
             }
         }
@@ -92,19 +91,29 @@ pub fn merge_and_index_keys(
                     .values
                     .entry(key.clone())
                     .or_insert(ValuesOrSubkeys::Values(Values::new(default_locale.clone())));
-                let ValuesOrSubkeys::Values(keys) = keys else {
-                    todo!("missmatch")
+                let values = match keys {
+                    ValuesOrSubkeys::Values(values) => values,
+                    ValuesOrSubkeys::Subkeys(keys) => {
+                        diag.emit_error(Error::SubKeyMissmatch { loc: loc.clone() });
+                        default_locale_for_subkeys(keys, &current_locale_name.key, cfg);
+                        continue;
+                    }
                 };
                 let value = reduce_and_index_value(resolved_value, str_indexer);
-                keys.values.insert(current_locale_name.key.clone(), value);
+                values.values.insert(current_locale_name.key.clone(), value);
             }
             foreign_key::ResolvedValueOrSubkeys::Subkeys(sk) => {
                 let keys = keys
                     .values
                     .entry(key.clone())
                     .or_insert(ValuesOrSubkeys::Subkeys(Keys::default()));
-                let ValuesOrSubkeys::Subkeys(keys) = keys else {
-                    todo!("missmatch")
+                let keys = match keys {
+                    ValuesOrSubkeys::Subkeys(keys) => keys,
+                    ValuesOrSubkeys::Values(values) => {
+                        diag.emit_error(Error::SubKeyMissmatch { loc: loc.clone() });
+                        default_locale_for_values(values, &current_locale_name.key, cfg);
+                        continue;
+                    }
                 };
                 let values = ResolvedLocale {
                     name: current_locale_name.clone(),
@@ -123,11 +132,13 @@ pub fn merge_and_index_keys(
             }
             foreign_key::ResolvedValueOrSubkeys::Defaulted => {
                 if is_default {
-                    todo!("default in default locale");
+                    diag.emit_error(Error::ExplicitDefaultInDefault(loc.key_path.clone()));
+                    continue;
                 }
 
                 let Some(values) = keys.values.get_mut(&key) else {
-                    todo!("key not present in default locale");
+                    diag.emit_warning(Warning::SurplusKey { loc: loc.clone() });
+                    continue;
                 };
 
                 default_locale_for_values_or_sk(values, &current_locale_name.key, cfg);
@@ -141,14 +152,19 @@ fn default_locale_for_values_or_sk(
     locale_to_default: &Key,
     cfg: &Config,
 ) {
-    let keys = match values {
+    match values {
         ValuesOrSubkeys::Values(values) => {
-            values.defaults.push(locale_to_default.clone(), cfg);
-            return;
+            default_locale_for_values(values, locale_to_default, cfg)
         }
-        ValuesOrSubkeys::Subkeys(keys) => keys,
-    };
+        ValuesOrSubkeys::Subkeys(keys) => default_locale_for_subkeys(keys, locale_to_default, cfg),
+    }
+}
 
+fn default_locale_for_values(values: &mut Values, locale_to_default: &Key, cfg: &Config) {
+    values.defaults.push(locale_to_default.clone(), cfg);
+}
+
+fn default_locale_for_subkeys(keys: &mut Keys, locale_to_default: &Key, cfg: &Config) {
     for values in keys.values.values_mut() {
         default_locale_for_values_or_sk(values, locale_to_default, cfg);
     }

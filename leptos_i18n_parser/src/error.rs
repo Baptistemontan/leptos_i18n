@@ -50,8 +50,7 @@ pub enum Error {
     DuplicateLocalesInConfig(BTreeSet<Key>),
     DuplicateNamespacesInConfig(BTreeSet<Key>),
     SubKeyMissmatch {
-        locale: Key,
-        key_path: KeyPath,
+        loc: Location,
     },
     InvalidKey(String),
     InvalidKeyAt {
@@ -208,10 +207,11 @@ impl Display for Error {
             Error::NestedRanges => write!(f, "nested ranges are not allowed"),
             Error::InvalidFallback => write!(f, "fallbacks are only allowed in last position"),
             Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
-            Error::SubKeyMissmatch { locale, key_path } => {
+            Error::SubKeyMissmatch { loc } => {
                 write!(
                     f,
-                    "Missmatch value type beetween locale {locale:?} and default at key \"{key_path}\": one has subkeys and the other has direct value."
+                    "Missmatch value type beetween locale {:?} and default at key \"{}\": one has subkeys and the other has direct value.",
+                    loc.locale, loc.key_path
                 )
             }
             Error::ExplicitDefaultInDefault(key_path) => write!(
