@@ -39,6 +39,11 @@ pub enum Error {
     PluralRulesError(IcuDataError),
     CargoDirEnvNotPresent(std::env::VarError),
     LocaleFileNotFound(Vec<(PathBuf, std::io::Error)>),
+    PluralsMergingOverlap {
+        loc: Location,
+        is_rule_type_overlap: bool,
+        is_other_subkeys: bool,
+    },
     LocaleFileDeser {
         path: PathBuf,
         err: SerdeError,
@@ -326,6 +331,33 @@ impl Display for Error {
                     "Explicit default in plurals is not allowed, at {loc}{form}"
                 )
             }
+            Error::PluralsMergingOverlap {
+                loc,
+                is_rule_type_overlap: false,
+                is_other_subkeys: false,
+            } => write!(
+                f,
+                "once merged, plurals for key {} overlap with a normal value",
+                loc
+            ),
+            Error::PluralsMergingOverlap {
+                loc,
+                is_rule_type_overlap: true,
+                is_other_subkeys: _,
+            } => write!(
+                f,
+                "key {} is both ordinal and cardinal plurals, this is not allowed.",
+                loc
+            ),
+            Error::PluralsMergingOverlap {
+                loc,
+                is_rule_type_overlap: _,
+                is_other_subkeys: true,
+            } => write!(
+                f,
+                "once merged, plurals for key {} overlap with subkeys",
+                loc
+            ),
         }
     }
 }

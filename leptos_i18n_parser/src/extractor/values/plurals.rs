@@ -455,8 +455,13 @@ fn merge_values_plurals(
         let value = match value {
             RawValueOrSubkeys::Subkeys(subkeys) => {
                 let merged_keys = merge_values_plurals(subkeys, &mut loc, diag);
-                // TODO: check key conflict on insert
-                merged_values.insert(key, RawValueOrSubkeys::Subkeys(merged_keys));
+                check_insert_value(
+                    &mut merged_values,
+                    RawValueOrSubkeys::Subkeys(merged_keys),
+                    key,
+                    &loc,
+                    diag,
+                );
                 continue;
             }
             RawValueOrSubkeys::Value(value) => RawValueOrSubkeys::<_, NoSubkey>::Value(value),
@@ -477,20 +482,24 @@ fn merge_values_plurals(
     for (base_key, mut plurals) in possible_plurals {
         if plurals.len() == 1 {
             for (_, (key, _, value)) in plurals {
-                // TODO: check key conflict on insert
-                merged_values.insert(
-                    key,
+                check_insert_value(
+                    &mut merged_values,
                     RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
+                    key,
+                    loc,
+                    diag,
                 );
             }
             continue;
         }
         let Some((_, rule_type, other)) = plurals.remove(&PluralForm::Other) else {
             for (_, (key, _, value)) in plurals {
-                // TODO: check key conflict on insert
-                merged_values.insert(
-                    key,
+                check_insert_value(
+                    &mut merged_values,
                     RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
+                    key,
+                    loc,
+                    diag,
                 );
             }
             continue;
@@ -587,8 +596,7 @@ fn merge_value(
         map.insert(plural_form, (key, rule_type, value));
     } else {
         let value = map_value(value);
-        // TODO: check key conflict on insert
-        merged_values.insert(key, value);
+        check_insert_value(merged_values, value, key, loc, diag);
     }
 }
 
@@ -600,4 +608,28 @@ fn is_possible_plural(key: &Key) -> Option<(&str, PluralRuleType, PluralForm)> {
     };
 
     PluralForm::try_from_str(suffix).map(|form| (base_key, rule_type, form))
+}
+
+fn check_insert_value(
+    merged_values: &mut BTreeMap<Key, RawValueOrSubkeys<MergedPlurals>>,
+    value: RawValueOrSubkeys<MergedPlurals>,
+    key: Key,
+    loc: &Location,
+    diag: &Diagnostics,
+) {
+    let is_plural = matches!(&value, RawValueOrSubkeys::Value(MergedPlurals::Plurals(_)));
+    let Some(previous) = merged_values.insert(key, value) else {
+        return;
+    };
+    let is_other_plurals = matches!(
+        &previous,
+        RawValueOrSubkeys::Value(MergedPlurals::Plurals(_))
+    );
+    let is_other_subkeys = matches!(&previous, RawValueOrSubkeys::Subkeys(_));
+
+    diag.emit_error(Error::PluralsMergingOverlap {
+        loc: loc.clone(),
+        is_rule_type_overlap: is_other_plurals && is_plural,
+        is_other_subkeys,
+    });
 }
