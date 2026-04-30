@@ -586,16 +586,24 @@ impl<A: DisplayArgs> Display for DisplayKey<A> {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub enum Literal {
+pub enum NoRecurse {}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub enum Literal<M = &'static [Literal<NoRecurse>]>
+where
+    M: Copy + 'static,
+{
     String(&'static str),
     Signed(i64),
     Unsigned(u64),
     Float(f64),
     Bool(bool),
+    Multiple(M),
 }
 
-impl Literal {
+impl<M: Copy + 'static> Literal<M> {
     pub const fn str(self) -> Option<&'static str> {
         if let Literal::String(v) = self {
             Some(v)
@@ -630,6 +638,14 @@ impl Literal {
 
     pub const fn bool(self) -> Option<bool> {
         if let Literal::Bool(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub const fn multiple(self) -> Option<M> {
+        if let Literal::Multiple(v) = self {
             Some(v)
         } else {
             None

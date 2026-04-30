@@ -204,47 +204,87 @@ pub fn gen_const_values_match_arms(
     keys_ident: &syn::Ident,
 ) -> impl Iterator<Item = TokenStream> {
     non_defaulted_locales.iter().map(move |(locale, value)| {
-        let Value::Literal(lit) = value else { todo!() };
         let loc_ident = &*locale.name.key.ident;
         let defaults = defaults.get(&locale.name.key).map(|defaulted_locales| {
-            defaulted_locales.iter().map(|key| {
-                quote!(| #enum_ident::#key)
-            }).collect::<TokenStream>()
+            defaulted_locales
+                .iter()
+                .map(|key| quote!(| #enum_ident::#key))
+                .collect::<TokenStream>()
         });
-        let value = match lit {
-            Literal::String(index) => {
-                if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-                    let value = &*locale.strings[*index];
-                    quote!(__l_i18n_crate::keys::Literal::String(#value))
-                } else {
-                    let string_count = locale.strings.len();
-                    let string_accessor = strings_accessor_method_name(&locale.name);
-                    let string_accessor = if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
-                        format_ident!("{}_no_register", string_accessor)
-                    } else {
-                        string_accessor
-                    };
-                    quote!(
-                        const {
-                            __l_i18n_crate::keys::Literal::String(
-                                __l_i18n_crate::__private::index_translations::<#string_count, #index>(
-                                    super::#keys_ident::#string_accessor()
-                                )
-                            )
-                        }
-                    )
-                }
-            }
-            Literal::Signed(n) => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
-            Literal::Unsigned(n) => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
-            Literal::Float(n) => quote!(__l_i18n_crate::keys::Literal::Float(#n)),
-            Literal::Bool(n) => quote!(__l_i18n_crate::keys::Literal::Bool(#n)),
-        };
+
+        let ts = gen_const_value(value, locale, keys_ident);
 
         quote! {
-            #enum_ident::#loc_ident #defaults => #value
+            #enum_ident::#loc_ident #defaults => #ts
         }
     })
+}
+
+fn gen_const_value(value: &Value, locale: &Locale, keys_ident: &syn::Ident) -> TokenStream {
+    let mut tokens = Vec::new();
+    flatten_const_value(value, locale, &mut tokens, keys_ident);
+    match tokens.as_mut_slice() {
+        [] => todo!(),
+        [single] => core::mem::take(single),
+        values => quote! {{
+            const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
+            __l_i18n_crate::keys::Literal::Multiple(__VALUES)
+        }},
+    }
+}
+
+fn flatten_const_value(
+    value: &Value,
+    locale: &Locale,
+    tokens: &mut Vec<TokenStream>,
+    keys_ident: &syn::Ident,
+) {
+    let lit = match value {
+        Value::Literal(literal) => literal,
+        Value::Bloc(values) => {
+            for value in values {
+                flatten_const_value(value, locale, tokens, keys_ident);
+            }
+            return;
+        }
+        Value::Variable(_) | Value::Component(_) | Value::Plurals(_) | Value::Dummy(_) => {
+            unreachable!(
+                "shouldn't have called the generation of const value on a value with variables"
+            )
+        }
+    };
+
+    let ts = match lit {
+        Literal::String(index) => {
+            if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
+                let value = &*locale.strings[*index];
+                quote!(__l_i18n_crate::keys::Literal::String(#value))
+            } else {
+                let string_count = locale.strings.len();
+                let string_accessor = strings_accessor_method_name(&locale.name);
+                let string_accessor = if cfg!(all(feature = "dynamic_load", feature = "ssr")) {
+                    format_ident!("{}_no_register", string_accessor)
+                } else {
+                    string_accessor
+                };
+                quote!(
+                    const {
+                        __l_i18n_crate::keys::Literal::String(
+                            __l_i18n_crate::__private::index_translations::<#string_count, #index>(
+                                super::#keys_ident::#string_accessor()
+                            )
+                        )
+                    }
+                )
+            }
+        }
+        Literal::Signed(n) => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
+        Literal::Unsigned(n) => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
+        Literal::Float(n) => quote!(__l_i18n_crate::keys::Literal::Float(#n)),
+        Literal::Bool(n) => quote!(__l_i18n_crate::keys::Literal::Bool(#n)),
+    };
+
+    tokens.push(ts);
 }
 
 pub fn captured_keys(value: &Value) -> BTreeSet<Key> {
