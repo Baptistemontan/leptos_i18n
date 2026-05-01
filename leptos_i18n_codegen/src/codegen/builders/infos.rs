@@ -271,7 +271,7 @@ impl VarOrComp {
                 }
                 None => quote!(#generic: __l_i18n_crate::__private::InterpolateDummy<#into_view>),
             },
-            quote!(#into_view: __l_i18n_crate::__private::AttributesArgMarker),
+            quote!(#into_view: __l_i18n_crate::__private::CompMarker),
         ]
     }
 
