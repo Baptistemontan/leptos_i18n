@@ -69,11 +69,11 @@ pub enum Error {
     RecursiveForeignKey {
         loc: Location,
     },
-    MissingForeignKey {
+    InvalidForeignKey {
         foreign_key: KeyPath,
         loc: Location,
     },
-    InvalidForeignKey {
+    ForeignKeyToSubkey {
         foreign_key: KeyPath,
         loc: Location,
     },
@@ -87,6 +87,12 @@ pub enum Error {
     InvalidForeignKeyArgs {
         loc: Location,
         err: serde_json::Error,
+    },
+    InvalidPluralOperandForeignKeyArg {
+        loc: Location,
+        arg_name: String,
+        value: String,
+        err: String,
     },
     InvalidCountArg {
         loc: Location,
@@ -205,11 +211,11 @@ impl Display for Error {
                 f,
                 "Borrow Error while linking foreign key at {loc}, check for recursive foreign key."
             ),
-            Error::MissingForeignKey { foreign_key, loc } => write!(
+            Error::InvalidForeignKey { foreign_key, loc } => write!(
                 f,
                 "Invalid foreign key \"{foreign_key}\" at {loc}, key don't exist."
             ),
-            Error::InvalidForeignKey { foreign_key, loc } => write!(
+            Error::ForeignKeyToSubkey { foreign_key, loc } => write!(
                 f,
                 "Invalid foreign key \"{foreign_key}\" at {loc}, foreign key to subkeys are not allowed."
             ),
@@ -357,6 +363,15 @@ impl Display for Error {
                 f,
                 "once merged, plurals for key {} overlap with subkeys",
                 loc
+            ),
+            Error::InvalidPluralOperandForeignKeyArg {
+                loc,
+                arg_name,
+                value,
+                err,
+            } => write!(
+                f,
+                "Invalid value for foreign key arg \"{arg_name}\" at {loc}. Value \"{value}\" can't be used as a plural operand: {err}"
             ),
         }
     }

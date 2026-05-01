@@ -12,7 +12,7 @@ use crate::{
     extractor::values::plurals::{MergedPlurals, PluralForm, PluralForms, PluralRuleType, Plurals},
     options::Config,
     parser::{
-        dummy::Dummy,
+        dummy::{Dummy, DummyArg},
         locale::{RawLocale, RawLocalesOrNamespaces, RawNamespace, RawValueOrSubkeys, RawValues},
         options::LocaleName,
         raw_value::{
@@ -127,7 +127,15 @@ fn resolve_fk(
     waiters: &mut Waiters,
     cfg: &Config,
 ) -> Result<ResolvedValue, MergedPlurals> {
-    if !has_deps(&mut value, current_loc, resolved, unset_fks, waiters, cfg) {
+    if !has_deps(
+        &mut value,
+        current_loc,
+        resolved,
+        unset_fks,
+        waiters,
+        cfg,
+        diag,
+    ) {
         return Err(value);
     }
 
@@ -174,12 +182,11 @@ fn resolve_raw_value_fk(
                 key_path: &foreign_key.target_location.key_path,
                 locale: &foreign_key.target_location.locale,
             };
-            let target_value = get_value_at_with_defaulting(target_loc, resolved, cfg);
-            let target_value = match target_value {
-                Ok(ResolvedValueOrSubkeys::Value(target_value)) => target_value,
-                Ok(_) | Err(_) => unreachable!("should have already been checked by has_deps"),
+            let Ok(ResolvedValueOrSubkeys::Value(target_value)) =
+                get_value_at_with_defaulting(target_loc, resolved, cfg)
+            else {
+                unreachable!("should have already been checked by has_deps");
             };
-
             populate_value(target_value, &foreign_key.args, resolved, loc, diag, cfg)
         }
         RawValue::Literal(raw_literal) => ResolvedValue::Literal(raw_literal),
@@ -241,7 +248,35 @@ fn populate_value(
         ResolvedValue::Plurals(plurals) => {
             populate_plurals(plurals, args, resolved, loc, diag, cfg)
         }
-        ResolvedValue::Dummy(_) => todo!(),
+        ResolvedValue::Dummy(dumdum) => {
+            let mut bloc = Vec::new();
+            let mut dummies = Vec::new();
+            for dummy in &dumdum.dummies {
+                match dummy {
+                    DummyArg::Variable(key) => {
+                        let Some(arg) = args.get(&*key.name) else {
+                            dummies.push(DummyArg::Variable(key.clone()));
+                            continue;
+                        };
+
+                        let value = resolve_raw_value_fk(arg.clone(), resolved, loc, diag, cfg);
+                        bloc.push(ResolvedValue::Dummy(Dummy {
+                            dummies: core::mem::take(&mut dummies),
+                        }));
+                        bloc.push(value);
+                    }
+                    DummyArg::Component(key) => dummies.push(DummyArg::Component(key.clone())),
+                }
+            }
+            if bloc.is_empty() {
+                ResolvedValue::Dummy(Dummy { dummies })
+            } else if dummies.is_empty() {
+                ResolvedValue::Bloc(bloc)
+            } else {
+                bloc.push(ResolvedValue::Dummy(Dummy { dummies }));
+                ResolvedValue::Bloc(bloc)
+            }
+        }
     }
 }
 
@@ -321,12 +356,13 @@ fn map_plural_key(
     loc: &Location,
     diag: &Diagnostics,
 ) -> Result<Key, PluralForm> {
-    let Some(value) = args.get(&*count_key.name) else {
+    let arg_name = &*count_key.name;
+    let Some(value) = args.get(arg_name) else {
         return Ok(count_key.clone());
     };
 
     match value {
-        RawValue::Literal(lit) => Err(get_form_for_literal(lit, rule_type, &loc.locale, diag)),
+        RawValue::Literal(lit) => Err(get_form_for_literal(lit, rule_type, loc, arg_name, diag)),
         RawValue::Bloc(bloc) => match extract_single_value_from_bloc(bloc) {
             Ok(Some(RawValue::Variable(var))) => Ok(var.key.clone()),
             Ok(None) => todo!(),
@@ -343,17 +379,18 @@ fn map_plural_key(
 fn get_form_for_literal(
     lit: &RawLiteral,
     rule_type: PluralRuleType,
-    locale: &LocaleName,
+    loc: &Location,
+    arg_name: &str,
     diag: &Diagnostics,
 ) -> PluralForm {
     match lit {
-        RawLiteral::Signed(value) => get_plural_form_for(rule_type, locale, *value, diag),
-        RawLiteral::Unsigned(value) => get_plural_form_for(rule_type, locale, *value, diag),
+        RawLiteral::Signed(value) => get_plural_form_for(rule_type, loc, *value, arg_name, diag),
+        RawLiteral::Unsigned(value) => get_plural_form_for(rule_type, loc, *value, arg_name, diag),
         RawLiteral::String(value) => {
-            get_plural_form_for(rule_type, locale, StrToPluralOperands(value), diag)
+            get_plural_form_for(rule_type, loc, StrToPluralOperands(value), arg_name, diag)
         }
         RawLiteral::Float(value) => {
-            get_plural_form_for(rule_type, locale, F64ToPluralOperands(*value), diag)
+            get_plural_form_for(rule_type, loc, F64ToPluralOperands(*value), arg_name, diag)
         }
         RawLiteral::Bool(_) => todo!(),
     }
@@ -394,23 +431,30 @@ impl<'a> TryFrom<StrToPluralOperands<'a>> for PluralOperands {
 
 fn get_plural_form_for<V, E>(
     rule_type: PluralRuleType,
-    locale: &LocaleName,
+    loc: &Location,
     value: V,
+    arg_name: &str,
     diag: &Diagnostics,
 ) -> PluralForm
 where
     V: TryInto<PluralOperands, Error = E> + Display + Copy,
     E: Display,
 {
+    let str_value = value.to_string();
     let plural_op = match value.try_into() {
         Ok(op) => op,
         Err(err) => {
-            let _ = (err, diag);
-            todo!()
+            diag.emit_error(Error::InvalidPluralOperandForeignKeyArg {
+                loc: loc.clone(),
+                arg_name: arg_name.to_string(),
+                value: str_value,
+                err: err.to_string(),
+            });
+            return PluralForm::Other;
         }
     };
     let rules =
-        Plurals::<RawValue>::get_plural_rules(rule_type, locale).expect("some plural rules");
+        Plurals::<RawValue>::get_plural_rules(rule_type, &loc.locale).expect("some plural rules");
     rules.category_for(plural_op).into()
 }
 
@@ -478,15 +522,23 @@ fn has_deps(
     unset_fks: &BTreeMap<Location, MergedPlurals>,
     waiters: &mut Waiters,
     cfg: &Config,
+    diag: &Diagnostics,
 ) -> bool {
     match value {
-        MergedPlurals::RawValue(raw_value) => {
-            raw_value_has_deps(raw_value, current_loc, resolved, unset_fks, waiters, cfg)
-        }
+        MergedPlurals::RawValue(raw_value) => raw_value_has_deps(
+            raw_value,
+            current_loc,
+            resolved,
+            unset_fks,
+            waiters,
+            cfg,
+            diag,
+        ),
         MergedPlurals::Plurals(plurals) => {
             let mut has_deps = true;
             for (_, value) in plurals.forms.iter_forms_mut() {
-                if !raw_value_has_deps(value, current_loc, resolved, unset_fks, waiters, cfg) {
+                if !raw_value_has_deps(value, current_loc, resolved, unset_fks, waiters, cfg, diag)
+                {
                     has_deps = false;
                     break;
                 }
@@ -509,7 +561,17 @@ fn get_value_at_with_defaulting<'a, 'b>(
         }
 
         if loc.locale.key == cfg.default_locale {
-            todo!("explicit default in default locale")
+            // This is a complicated situation here,
+            // we need this check to stop an infinite loop
+            // and we technically would want to emit an error here,
+            // but it will duplicate the error in later step
+            // the later step take precedence because it is more general
+            // so here we just return a static ref to an empty string value
+            // and let the next step deal with emitting the error and replacing the value.
+            const PLACEHOLDER: &ResolvedValueOrSubkeys = &ResolvedValueOrSubkeys::Value(
+                ResolvedValue::Literal(RawLiteral::String(String::new())),
+            );
+            break Ok(PLACEHOLDER);
         }
 
         let default_to_key = cfg
@@ -532,6 +594,7 @@ fn raw_value_has_deps(
     unset_fks: &BTreeMap<Location, MergedPlurals>,
     waiters: &mut Waiters,
     cfg: &Config,
+    diag: &Diagnostics,
 ) -> bool {
     match value {
         RawValue::ForeignKey(foreign_key) => {
@@ -543,12 +606,26 @@ fn raw_value_has_deps(
             match pointed_value {
                 Ok(ResolvedValueOrSubkeys::Value(_)) => {}
                 Ok(ResolvedValueOrSubkeys::Defaulted) => unreachable!(),
-                Ok(ResolvedValueOrSubkeys::Subkeys(_)) => todo!("fk to subkeys are not allowed"),
+                Ok(ResolvedValueOrSubkeys::Subkeys(_)) => {
+                    diag.emit_error(Error::ForeignKeyToSubkey {
+                        foreign_key: loc.key_path.clone(),
+                        loc: current_loc.clone(),
+                    });
+                    // remove this invalid fk by setting it to an empty string
+                    *value = RawValue::Literal(RawLiteral::String(String::new()));
+                    return true;
+                }
                 Err(loc) => {
                     foreign_key.target_location = loc;
                     let loc = &foreign_key.target_location;
                     if !unset_fks.contains_key(loc) {
-                        todo!("invalid foreign key, path {} don't exist", loc.key_path)
+                        diag.emit_error(Error::InvalidForeignKey {
+                            foreign_key: loc.key_path.clone(),
+                            loc: current_loc.clone(),
+                        });
+                        // remove this invalid fk by setting it to an empty string
+                        *value = RawValue::Literal(RawLiteral::String(String::new()));
+                        return true;
                     }
                     let w = waiters.entry(loc.clone()).or_default();
                     w.insert(current_loc.clone());
@@ -556,22 +633,21 @@ fn raw_value_has_deps(
                 }
             }
 
-            foreign_key
-                .args
-                .values_mut()
-                .all(|arg| raw_value_has_deps(arg, current_loc, resolved, unset_fks, waiters, cfg))
+            foreign_key.args.values_mut().all(|arg| {
+                raw_value_has_deps(arg, current_loc, resolved, unset_fks, waiters, cfg, diag)
+            })
         }
         RawValue::Literal(_) | RawValue::Variable(_) => true,
         RawValue::Component(component) => match component.inner.as_deref_mut() {
             Some(inner) => {
-                raw_value_has_deps(inner, current_loc, resolved, unset_fks, waiters, cfg)
+                raw_value_has_deps(inner, current_loc, resolved, unset_fks, waiters, cfg, diag)
             }
             None => true,
         },
         RawValue::Bloc(raw_values) => raw_values
             .iter_mut()
-            .all(|v| raw_value_has_deps(v, current_loc, resolved, unset_fks, waiters, cfg)),
-        RawValue::Dummy(_) => todo!(),
+            .all(|v| raw_value_has_deps(v, current_loc, resolved, unset_fks, waiters, cfg, diag)),
+        RawValue::Dummy(_) => true,
     }
 }
 
