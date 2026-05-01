@@ -67,6 +67,16 @@ fn gen_inner_module(
         (quote!(), quote!())
     };
 
+    let id_key_match_arms = infos.id_variants.iter().map(|(path, variant)| {
+        let keys = iter_path_keys(path);
+        quote! {
+            Id::#variant => {
+                use super::super::keys::#(#keys ::)* Id as __Id;
+                <__Id as __l_i18n_crate::keys::KeyId>::key(__Id)
+            }
+        }
+    });
+
     let render_match_arms = infos
         .id_variants
         .iter()
@@ -264,6 +274,16 @@ fn gen_inner_module(
                 #(
                     #variants,
                 )*
+            }
+
+            impl __l_i18n_crate::keys::KeyId for Id {
+                fn key(self) -> &'static str {
+                    match self {
+                        #(
+                            #id_key_match_arms,
+                        )*
+                    }
+                }
             }
 
             impl __l_i18n_crate::keys::ArgsBuilder for ArgsBuilder {

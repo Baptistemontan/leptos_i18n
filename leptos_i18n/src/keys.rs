@@ -12,14 +12,12 @@ use leptos::{
 
 use crate::locale_traits::BaseLocale;
 
-// TODO: manual impl of Debug to print key path
-#[derive(Debug)]
 pub struct KeyBuilder<B: ArgsBuilder> {
     id: B::Id,
     _marker: PhantomData<B>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Key<A: Args> {
     id: A::Id,
     args: A,
@@ -56,7 +54,7 @@ pub type DisplayData = &'static [&'static str];
 pub type DisplayData = &'static [Box<str>];
 
 pub trait ArgsBuilder: Copy + 'static {
-    type Id: Send + Sync + Copy + Hash + Ord + 'static;
+    type Id: KeyId;
     type Builder: 'static;
     type Locale: BaseLocale;
 
@@ -67,6 +65,10 @@ pub trait DisplayArgsBuilder: ArgsBuilder {
     type DisplayBuilder;
 
     fn new_display() -> Self::DisplayBuilder;
+}
+
+pub trait KeyId: Send + Sync + Copy + Hash + Ord + 'static {
+    fn key(self) -> &'static str;
 }
 
 pub trait DowngradableArgBuilder: ArgsBuilder {
@@ -107,7 +109,7 @@ impl<F> IntoViewFuture for F where F: Future<Output: IntoView + Clone + 'static>
 
 pub trait Args: Sized {
     type Locale: BaseLocale;
-    type Id: Send + Sync + Copy + Hash + Ord + 'static;
+    type Id: KeyId;
 }
 
 pub trait IntoViewArgs: Args {
@@ -275,13 +277,22 @@ impl<L: BaseLocale, Data> Clone for AnyDisplayArgs<'_, L, Data> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AnyArgsId(&'static str);
+
+impl KeyId for AnyArgsId {
+    fn key(self) -> &'static str {
+        self.0
+    }
+}
+
 impl<L: BaseLocale> Args for AnyIntoViewArgs<L> {
-    type Id = ();
+    type Id = AnyArgsId;
     type Locale = L;
 }
 
 impl<L: BaseLocale, Data> Args for AnyDisplayArgs<'_, L, Data> {
-    type Id = ();
+    type Id = AnyArgsId;
     type Locale = L;
 }
 
@@ -540,8 +551,12 @@ impl<A: Args> Key<A> {
     where
         A: IntoViewArgs + Clone + Send + Sync + 'static,
     {
+        let key_id = self.id.key();
         let any = AnyIntoViewArgs::from_args(self.args, self.id);
-        Key { id: (), args: any }
+        Key {
+            id: AnyArgsId(key_id),
+            args: any,
+        }
     }
 
     pub fn downgrade_any_display<'a>(self) -> Key<AnyDisplayArgs<'a, A::Locale, A::Data>>
@@ -549,8 +564,12 @@ impl<A: Args> Key<A> {
         A: DisplayArgs + Clone + Send + Sync + 'a,
         A::Data: Send + Sync + 'a,
     {
+        let key_id = self.id.key();
         let any = AnyDisplayArgs::from_args(self.args, self.id);
-        Key { id: (), args: any }
+        Key {
+            id: AnyArgsId(key_id),
+            args: any,
+        }
     }
 
     #[doc(hidden)]
@@ -575,14 +594,33 @@ impl<A: Args> Key<A> {
 }
 
 impl<A: DisplayArgs> Debug for DisplayKey<A> {
-    fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DisplayKey")
+            .field("key", &self.id.key())
+            .finish()
     }
 }
 
 impl<A: DisplayArgs> Display for DisplayKey<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         A::fmt(&self.args, f, self.id, self.locale, &self.data)
+    }
+}
+
+impl<B: ArgsBuilder> Debug for KeyBuilder<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeyBuilder")
+            .field("key", &self.id.key())
+            .finish()
+    }
+}
+
+impl<A: Args + Debug> Debug for Key<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Key")
+            .field("key", &self.id.key())
+            .field("args", &self.args)
+            .finish()
     }
 }
 

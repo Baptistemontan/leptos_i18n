@@ -250,6 +250,8 @@ pub fn gen_values_modules_and_accessors(
         }
     };
 
+    let str_key_path = path.to_string();
+
     quote! {
         #docs
         pub mod #key {
@@ -259,7 +261,14 @@ pub fn gen_values_modules_and_accessors(
 
             pub type BuildedArgs<#generics> = __builders::#builder_name::BuildedArgs<#generics>;
 
-            pub type Id = ();
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+            pub struct Id;
+
+            impl __l_i18n_crate::keys::KeyId for Id {
+                fn key(self) -> &'static str {
+                    #str_key_path
+                }
+            }
 
             #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
             pub struct ArgsBuilder;
@@ -319,7 +328,7 @@ pub fn gen_values_modules_and_accessors(
             }
 
             impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__IntoViewMarker, #generics> {
-                fn render(self, _: (), locale: Self::Locale) -> #render_fn_out_type {
+                fn render(self, _: Id, locale: Self::Locale) -> #render_fn_out_type {
                     let Self(builder, _) = self;
                     __render(builder, locale)
                 }
@@ -354,7 +363,7 @@ pub fn gen_values_modules_and_accessors(
                 type Downgraded = __builders::#builder_name::Args<__Marker, #generics>;
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
-                    let (Self(args, _), ()) = __l_i18n_crate::keys::Key::into_args_and_id(this);
+                    let (Self(args, _), Id) = __l_i18n_crate::keys::Key::into_args_and_id(this);
                     let args = __builders::#builder_name::Args(args, core::marker::PhantomData);
                     __l_i18n_crate::keys::Key::from_args_and_id(args, __builders::#builder_name::Id::#variant_ident)
                 }
@@ -372,7 +381,7 @@ pub fn gen_values_modules_and_accessors(
                 type Downgraded = __builders::#builder_name::Args<__Marker, #generics>;
 
                 fn downgrade(this: __l_i18n_crate::keys::Key<Self>) -> __l_i18n_crate::keys::Key<Self::Downgraded> {
-                    let (Self(args, _), ()) = __l_i18n_crate::keys::Key::into_args_and_id(this);
+                    let (Self(args, _), Id) = __l_i18n_crate::keys::Key::into_args_and_id(this);
                     let args = __builders::#builder_name::Args(args, core::marker::PhantomData);
                     __l_i18n_crate::keys::Key::from_args_and_id(args, __builders::#builder_name::Id::#variant_ident)
                 }
@@ -397,7 +406,7 @@ pub fn gen_values_modules_and_accessors(
         impl #keys_ident {
             #docs
             pub const fn #key(self) -> __l_i18n_crate::keys::KeyBuilder<#key::ArgsBuilder> {
-                __l_i18n_crate::keys::KeyBuilder::from_id(())
+                __l_i18n_crate::keys::KeyBuilder::from_id(#key::Id)
             }
         }
     }
