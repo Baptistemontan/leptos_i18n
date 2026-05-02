@@ -90,14 +90,16 @@ pub enum NoArgs {}
 
 pub trait ConstArgs: Args + Copy + 'static {
     const THIS: Self;
+    type Value: LiteralValue;
 
-    fn value(id: Self::Id, locale: Self::Locale) -> Literal;
+    fn value(id: Self::Id, locale: Self::Locale) -> Self::Value;
 }
 
 #[doc(hidden)]
 pub trait ConstArgsMarker: ArgsBuilder {
     type Builded;
-    type Args: ConstArgs<Locale = Self::Locale, Id = Self::Id>;
+    type Value: LiteralValue;
+    type Args: ConstArgs<Locale = Self::Locale, Id = Self::Id, Value = Self::Value>;
 }
 
 #[doc(hidden)]
@@ -628,10 +630,22 @@ impl<A: Args + Debug> Debug for Key<A> {
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum NoRecurse {}
 
+#[doc(hidden)]
+pub trait LiteralValue: Copy + 'static {}
+
+impl LiteralValue for bool {}
+impl LiteralValue for i64 {}
+impl LiteralValue for u64 {}
+impl LiteralValue for f64 {}
+impl LiteralValue for &'static str {}
+impl LiteralValue for &'static [Literal<NoRecurse>] {}
+impl LiteralValue for Literal {}
+impl LiteralValue for NoRecurse {}
+
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Literal<M = &'static [Literal<NoRecurse>]>
 where
-    M: Copy + 'static,
+    M: LiteralValue,
 {
     String(&'static str),
     Signed(i64),
@@ -641,7 +655,7 @@ where
     Multiple(M),
 }
 
-impl<M: Copy + 'static> Literal<M> {
+impl<M: LiteralValue> Literal<M> {
     pub const fn str(self) -> Option<&'static str> {
         if let Literal::String(v) = self {
             Some(v)

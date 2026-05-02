@@ -729,21 +729,24 @@ where
 
 #[doc(hidden)]
 #[derive(Clone, Copy)]
-pub struct I18nPath<A: ConstArgs>(A::Id);
+pub struct I18nPath<A: ConstArgs<Value = &'static str>>(A::Id);
 
-impl<A: ConstArgs> Debug for I18nPath<A> {
+impl<A: ConstArgs<Value = &'static str>> Debug for I18nPath<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("I18nPath").finish()
+        let mut builder = f.debug_struct("I18nPath");
+        for locale in <A::Locale as BaseLocale>::ALL_VARIANTS {
+            builder.field(BaseLocale::as_str(*locale), &A::value(self.0, *locale));
+        }
+        builder.finish()
     }
 }
 
-impl<A: ConstArgs> I18nPath<A> {
+impl<A: ConstArgs<Value = &'static str>> I18nPath<A> {
     fn segments_for_current_locale(
         &self,
     ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
         let locale = get_current_route_locale::<A::Locale>();
-        let lit = A::value(self.0, locale);
-        let s = lit.str().expect("the key should be to a string");
+        let s = A::value(self.0, locale);
 
         s.split('/')
             .filter(|p| !p.is_empty())
@@ -751,7 +754,7 @@ impl<A: ConstArgs> I18nPath<A> {
     }
 }
 
-impl<A: ConstArgs> PossibleRouteMatch for I18nPath<A> {
+impl<A: ConstArgs<Value = &'static str>> PossibleRouteMatch for I18nPath<A> {
     fn optional(&self) -> bool {
         false
     }
@@ -795,7 +798,7 @@ impl<A: ConstArgs> PossibleRouteMatch for I18nPath<A> {
 #[doc(hidden)]
 pub const fn make_i18n_path<B>(key: KeyBuilder<B>) -> I18nPath<B::Args>
 where
-    B: leptos_i18n::keys::ConstArgsMarker,
+    B: leptos_i18n::keys::ConstArgsMarker<Value = &'static str>,
 {
     I18nPath(KeyBuilder::into_id(key))
 }

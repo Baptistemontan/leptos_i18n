@@ -116,7 +116,7 @@ fn gen_inner_module(
         let const_value_match_arms = infos.id_variants.iter().map(|(path, variant)| {
             let keys = iter_path_keys(path);
             quote! {
-                Id::#variant => super::super::keys::#(#keys ::)* __const_value(locale)
+                Id::#variant => super::super::keys::#(#keys ::)* __const_value_as_lit(locale)
             }
         });
 
@@ -124,10 +124,12 @@ fn gen_inner_module(
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 type Args = Args<__l_i18n_crate::keys::NoArgs>;
                 type Builded = BuildedArgs;
+                type Value = __l_i18n_crate::keys::Literal;
             }
 
             impl __l_i18n_crate::keys::ConstArgs for Args<__l_i18n_crate::keys::NoArgs> {
                 const THIS: Self = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
+                type Value = __l_i18n_crate::keys::Literal;
 
                 fn value(id: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
                     Self::__const_value(Self::THIS, id, locale)

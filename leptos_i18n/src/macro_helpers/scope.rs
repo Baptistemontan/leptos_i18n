@@ -1,4 +1,4 @@
-use crate::{I18nContext, Locale, Scope, keys::Literal, scopes::ScopedLocale};
+use crate::{I18nContext, Locale, Scope, keys::LiteralValue, scopes::ScopedLocale};
 
 #[doc(hidden)]
 pub const fn scope_ctx_util<OS: Scope, NS: Scope<BaseLocale = OS::BaseLocale>>(
@@ -39,6 +39,6 @@ pub const fn check_is_scope<S: Scope>(scope: S) -> S {
 }
 
 #[doc(hidden)]
-pub const fn check_is_literal(lit: Literal) -> Literal {
+pub const fn check_is_literal<L: LiteralValue>(lit: L) -> L {
     lit
 }

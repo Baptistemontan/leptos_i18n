@@ -202,6 +202,7 @@ pub fn gen_const_values_match_arms(
     defaults: &BTreeMap<Key, BTreeSet<Key>>,
     enum_ident: &syn::Ident,
     keys_ident: &syn::Ident,
+    all_same: bool,
 ) -> impl Iterator<Item = TokenStream> {
     non_defaulted_locales.iter().map(move |(locale, value)| {
         let loc_ident = &*locale.name.key.ident;
@@ -212,7 +213,7 @@ pub fn gen_const_values_match_arms(
                 .collect::<TokenStream>()
         });
 
-        let ts = gen_const_value(value, locale, keys_ident);
+        let ts = gen_const_value(value, locale, keys_ident, all_same);
 
         quote! {
             #enum_ident::#loc_ident #defaults => #ts
@@ -220,12 +221,21 @@ pub fn gen_const_values_match_arms(
     })
 }
 
-fn gen_const_value(value: &Value, locale: &Locale, keys_ident: &syn::Ident) -> TokenStream {
+fn gen_const_value(
+    value: &Value,
+    locale: &Locale,
+    keys_ident: &syn::Ident,
+    all_same: bool,
+) -> TokenStream {
     let mut tokens = Vec::new();
-    flatten_const_value(value, locale, &mut tokens, keys_ident);
+    flatten_const_value(value, locale, &mut tokens, keys_ident, all_same);
     match tokens.as_mut_slice() {
         [] => todo!(),
         [single] => core::mem::take(single),
+        values if all_same => quote! {{
+            const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
+            __VALUES
+        }},
         values => quote! {{
             const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
             __l_i18n_crate::keys::Literal::Multiple(__VALUES)
@@ -238,12 +248,13 @@ fn flatten_const_value(
     locale: &Locale,
     tokens: &mut Vec<TokenStream>,
     keys_ident: &syn::Ident,
+    all_same: bool,
 ) {
     let lit = match value {
         Value::Literal(literal) => literal,
         Value::Bloc(values) => {
             for value in values {
-                flatten_const_value(value, locale, tokens, keys_ident);
+                flatten_const_value(value, locale, tokens, keys_ident, all_same);
             }
             return;
         }
@@ -258,7 +269,11 @@ fn flatten_const_value(
         Literal::String(index) => {
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 let value = &*locale.strings[*index];
-                quote!(__l_i18n_crate::keys::Literal::String(#value))
+                if all_same {
+                    quote!(#value)
+                } else {
+                    quote!(__l_i18n_crate::keys::Literal::String(#value))
+                }
             } else {
                 let string_count = locale.strings.len();
                 let string_accessor = strings_accessor_method_name(&locale.name);
@@ -267,17 +282,31 @@ fn flatten_const_value(
                 } else {
                     string_accessor
                 };
-                quote!(
-                    const {
-                        __l_i18n_crate::keys::Literal::String(
+                if all_same {
+                    quote!(
+                        const {
                             __l_i18n_crate::__private::index_translations::<#string_count, #index>(
                                 super::#keys_ident::#string_accessor()
                             )
-                        )
-                    }
-                )
+                        }
+                    )
+                } else {
+                    quote!(
+                        const {
+                            __l_i18n_crate::keys::Literal::String(
+                                __l_i18n_crate::__private::index_translations::<#string_count, #index>(
+                                    super::#keys_ident::#string_accessor()
+                                )
+                            )
+                        }
+                    )
+                }
             }
         }
+        Literal::Signed(n) if all_same => quote!(#n),
+        Literal::Unsigned(n) if all_same => quote!(#n),
+        Literal::Float(n) if all_same => quote!(#n),
+        Literal::Bool(n) if all_same => quote!(#n),
         Literal::Signed(n) => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
         Literal::Unsigned(n) => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
         Literal::Float(n) => quote!(__l_i18n_crate::keys::Literal::Float(#n)),

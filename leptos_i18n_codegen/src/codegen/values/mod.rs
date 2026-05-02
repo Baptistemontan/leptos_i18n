@@ -1,5 +1,5 @@
 use leptos_i18n_parser::{
-    extraction::{Locales, Values},
+    extraction::{Literal, Locales, Value, Values},
     utils::{Key, KeyPath},
 };
 use proc_macro2::TokenStream;
@@ -114,29 +114,74 @@ pub fn gen_values_modules_and_accessors(
     };
 
     let empty_marker = if builder_infos.fields.is_empty() {
+        let iter = values.values.values().map(core::mem::discriminant);
+        let all_same = iter_all_eq(iter);
+        let (out_type, into_lit) = if all_same {
+            match values.values.values().next() {
+                Some(Value::Literal(Literal::Bool(_))) => (
+                    quote!(bool),
+                    quote!(__l_i18n_crate::keys::Literal::String(__const_value(locale))),
+                ),
+                Some(Value::Literal(Literal::Signed(_))) => (
+                    quote!(i64),
+                    quote!(__l_i18n_crate::keys::Literal::Signed(__const_value(locale))),
+                ),
+                Some(Value::Literal(Literal::Unsigned(_))) => (
+                    quote!(u64),
+                    quote!(__l_i18n_crate::keys::Literal::Unsigned(__const_value(
+                        locale
+                    ))),
+                ),
+                Some(Value::Literal(Literal::Float(_))) => (
+                    quote!(f64),
+                    quote!(__l_i18n_crate::keys::Literal::Float(__const_value(locale))),
+                ),
+                Some(Value::Bloc(_)) => (
+                    quote!(
+                        &'static [__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>]
+                    ),
+                    quote!(__l_i18n_crate::keys::Literal::Multiple(__const_value(
+                        locale
+                    ))),
+                ),
+                _ => (
+                    quote!(&'static str),
+                    quote!(__l_i18n_crate::keys::Literal::String(__const_value(locale))),
+                ),
+            }
+        } else {
+            (
+                quote!(__l_i18n_crate::keys::Literal),
+                quote!(__const_value(locale)),
+            )
+        };
+
         let match_arms = into_view::gen_const_values_match_arms(
             &non_defaulted_locales,
             &defaults,
             enum_ident,
             keys_ident,
+            all_same,
         );
         quote! {
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
                 type Args = Args<__l_i18n_crate::keys::NoArgs>;
                 type Builded = BuildedArgs;
+                type Value = #out_type;
             }
 
             impl __l_i18n_crate::keys::ConstArgs for Args<__l_i18n_crate::keys::NoArgs> {
                 const THIS: Self = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
+                type Value = #out_type;
 
-                fn value(id: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                fn value(id: Id, locale: #enum_ident) -> Self::Value {
                     Self::__const_value(Self::THIS, id, locale)
                 }
             }
 
             impl Args<__l_i18n_crate::keys::NoArgs> {
                 #[doc(hidden)]
-                pub const fn __const_value(self, _: Id, locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                pub const fn __const_value(self, _: Id, locale: #enum_ident) -> #out_type {
                     __const_value(locale)
                 }
             }
@@ -171,12 +216,17 @@ pub fn gen_values_modules_and_accessors(
             }
 
             #[doc(hidden)]
-            pub const fn __const_value(locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+            pub const fn __const_value(locale: #enum_ident) -> #out_type {
                 match locale {
                     #(
                         #match_arms,
                     )*
                 }
+            }
+
+            #[doc(hidden)]
+            pub const fn __const_value_as_lit(locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+                #into_lit
             }
         }
     } else {
@@ -410,4 +460,17 @@ pub fn gen_values_modules_and_accessors(
             }
         }
     }
+}
+
+fn iter_all_eq<I>(iter: I) -> bool
+where
+    I: IntoIterator,
+    I::Item: PartialEq,
+{
+    let mut iter = iter.into_iter();
+    let Some(first) = iter.next() else {
+        return true;
+    };
+
+    iter.all(|e| e == first)
 }

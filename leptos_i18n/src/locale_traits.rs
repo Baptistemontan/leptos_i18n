@@ -280,9 +280,9 @@ mod test {
         }
         let ssk = key!(scope = Locale, sk.ssk);
         let fr_ssk = const_value!(ssk, Locale::fr);
-        assert!(check_str_eq_const(fr_ssk.str().unwrap(), "test fr"));
+        assert!(check_str_eq_const(fr_ssk, "test fr"));
         let en_ssk = const_value!(ssk, Locale::en);
-        assert!(check_str_eq_const(en_ssk.str().unwrap(), "test en"));
+        assert!(check_str_eq_const(en_ssk, "test en"));
     };
 
     #[test]
@@ -306,11 +306,10 @@ mod test {
     #[test]
     #[cfg(not(feature = "dynamic_load"))]
     fn test_scope() {
-        use crate::keys::Literal;
         let sk = scope!(Locale::en, sk);
         let ssk = key!(sk, ssk);
 
-        assert_eq!(const_value!(ssk, Locale::en), Literal::String("test en"));
-        assert_eq!(const_value!(ssk, Locale::fr), Literal::String("test fr"));
+        assert_eq!(const_value!(ssk, Locale::en), "test en");
+        assert_eq!(const_value!(ssk, Locale::fr), "test fr");
     }
 }
