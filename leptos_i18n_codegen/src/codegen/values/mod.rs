@@ -114,13 +114,21 @@ pub fn gen_values_modules_and_accessors(
     };
 
     let empty_marker = if builder_infos.fields.is_empty() {
-        let iter = values.values.values().map(core::mem::discriminant);
-        let all_same = iter_all_eq(iter);
-        let (out_type, into_lit) = if all_same {
+        let iter = values.values.values().map(|v| match v {
+            Value::Literal(lit) => Some(core::mem::discriminant(lit)),
+            _ => None,
+        });
+        let multi_kind = !iter_all_eq(iter);
+        let (out_type, into_lit) = if multi_kind {
+            (
+                quote!(__l_i18n_crate::keys::Literal),
+                quote!(__const_value(locale)),
+            )
+        } else {
             match values.values.values().next() {
                 Some(Value::Literal(Literal::Bool(_))) => (
                     quote!(bool),
-                    quote!(__l_i18n_crate::keys::Literal::String(__const_value(locale))),
+                    quote!(__l_i18n_crate::keys::Literal::Bool(__const_value(locale))),
                 ),
                 Some(Value::Literal(Literal::Signed(_))) => (
                     quote!(i64),
@@ -149,11 +157,6 @@ pub fn gen_values_modules_and_accessors(
                     quote!(__l_i18n_crate::keys::Literal::String(__const_value(locale))),
                 ),
             }
-        } else {
-            (
-                quote!(__l_i18n_crate::keys::Literal),
-                quote!(__const_value(locale)),
-            )
         };
 
         let match_arms = into_view::gen_const_values_match_arms(
@@ -161,7 +164,7 @@ pub fn gen_values_modules_and_accessors(
             &defaults,
             enum_ident,
             keys_ident,
-            all_same,
+            multi_kind,
         );
         quote! {
             impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {

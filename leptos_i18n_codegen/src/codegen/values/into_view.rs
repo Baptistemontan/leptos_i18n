@@ -202,7 +202,7 @@ pub fn gen_const_values_match_arms(
     defaults: &BTreeMap<Key, BTreeSet<Key>>,
     enum_ident: &syn::Ident,
     keys_ident: &syn::Ident,
-    all_same: bool,
+    multi_kind: bool,
 ) -> impl Iterator<Item = TokenStream> {
     non_defaulted_locales.iter().map(move |(locale, value)| {
         let loc_ident = &*locale.name.key.ident;
@@ -213,7 +213,7 @@ pub fn gen_const_values_match_arms(
                 .collect::<TokenStream>()
         });
 
-        let ts = gen_const_value(value, locale, keys_ident, all_same);
+        let ts = gen_const_value(value, locale, keys_ident, multi_kind);
 
         quote! {
             #enum_ident::#loc_ident #defaults => #ts
@@ -225,20 +225,20 @@ fn gen_const_value(
     value: &Value,
     locale: &Locale,
     keys_ident: &syn::Ident,
-    all_same: bool,
+    multi_kind: bool,
 ) -> TokenStream {
     let mut tokens = Vec::new();
-    flatten_const_value(value, locale, &mut tokens, keys_ident, all_same);
+    flatten_const_value(value, locale, &mut tokens, keys_ident, multi_kind);
     match tokens.as_mut_slice() {
         [] => todo!(),
         [single] => core::mem::take(single),
-        values if all_same => quote! {{
+        values if multi_kind => quote! {{
             const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
-            __VALUES
+            __l_i18n_crate::keys::Literal::Multiple(__VALUES)
         }},
         values => quote! {{
             const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
-            __l_i18n_crate::keys::Literal::Multiple(__VALUES)
+            __VALUES
         }},
     }
 }
@@ -248,13 +248,13 @@ fn flatten_const_value(
     locale: &Locale,
     tokens: &mut Vec<TokenStream>,
     keys_ident: &syn::Ident,
-    all_same: bool,
+    multi_kind: bool,
 ) {
     let lit = match value {
         Value::Literal(literal) => literal,
         Value::Bloc(values) => {
             for value in values {
-                flatten_const_value(value, locale, tokens, keys_ident, all_same);
+                flatten_const_value(value, locale, tokens, keys_ident, multi_kind);
             }
             return;
         }
@@ -269,10 +269,10 @@ fn flatten_const_value(
         Literal::String(index) => {
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 let value = &*locale.strings[*index];
-                if all_same {
-                    quote!(#value)
-                } else {
+                if multi_kind {
                     quote!(__l_i18n_crate::keys::Literal::String(#value))
+                } else {
+                    quote!(#value)
                 }
             } else {
                 let string_count = locale.strings.len();
@@ -282,15 +282,7 @@ fn flatten_const_value(
                 } else {
                     string_accessor
                 };
-                if all_same {
-                    quote!(
-                        const {
-                            __l_i18n_crate::__private::index_translations::<#string_count, #index>(
-                                super::#keys_ident::#string_accessor()
-                            )
-                        }
-                    )
-                } else {
+                if multi_kind {
                     quote!(
                         const {
                             __l_i18n_crate::keys::Literal::String(
@@ -300,17 +292,25 @@ fn flatten_const_value(
                             )
                         }
                     )
+                } else {
+                    quote!(
+                        const {
+                            __l_i18n_crate::__private::index_translations::<#string_count, #index>(
+                                super::#keys_ident::#string_accessor()
+                            )
+                        }
+                    )
                 }
             }
         }
-        Literal::Signed(n) if all_same => quote!(#n),
-        Literal::Unsigned(n) if all_same => quote!(#n),
-        Literal::Float(n) if all_same => quote!(#n),
-        Literal::Bool(n) if all_same => quote!(#n),
-        Literal::Signed(n) => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
-        Literal::Unsigned(n) => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
-        Literal::Float(n) => quote!(__l_i18n_crate::keys::Literal::Float(#n)),
-        Literal::Bool(n) => quote!(__l_i18n_crate::keys::Literal::Bool(#n)),
+        Literal::Signed(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
+        Literal::Unsigned(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
+        Literal::Float(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Float(#n)),
+        Literal::Bool(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Bool(#n)),
+        Literal::Signed(n) => quote!(#n),
+        Literal::Unsigned(n) => quote!(#n),
+        Literal::Float(n) => quote!(#n),
+        Literal::Bool(n) => quote!(#n),
     };
 
     tokens.push(ts);
