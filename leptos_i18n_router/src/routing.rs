@@ -3,7 +3,6 @@ use std::{
     collections::{BTreeSet, HashMap},
     fmt::Debug,
     future::Future,
-    marker::PhantomData,
     rc::Rc,
     sync::Arc,
 };
@@ -730,7 +729,7 @@ where
 
 #[doc(hidden)]
 #[derive(Clone, Copy)]
-pub struct I18nPath<A: ConstArgs>(PhantomData<A>);
+pub struct I18nPath<A: ConstArgs>(A::Id);
 
 impl<A: ConstArgs> Debug for I18nPath<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -738,12 +737,12 @@ impl<A: ConstArgs> Debug for I18nPath<A> {
     }
 }
 
-impl<A: ConstArgs<Id = ()>> I18nPath<A> {
+impl<A: ConstArgs> I18nPath<A> {
     fn segments_for_current_locale(
         &self,
     ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
         let locale = get_current_route_locale::<A::Locale>();
-        let lit = A::value((), locale);
+        let lit = A::value(self.0, locale);
         let s = lit.str().expect("the key should be to a string");
 
         s.split('/')
@@ -752,7 +751,7 @@ impl<A: ConstArgs<Id = ()>> I18nPath<A> {
     }
 }
 
-impl<A: ConstArgs<Id = ()>> PossibleRouteMatch for I18nPath<A> {
+impl<A: ConstArgs> PossibleRouteMatch for I18nPath<A> {
     fn optional(&self) -> bool {
         false
     }
@@ -794,9 +793,9 @@ impl<A: ConstArgs<Id = ()>> PossibleRouteMatch for I18nPath<A> {
 }
 
 #[doc(hidden)]
-pub const fn make_i18n_path<B>(_: KeyBuilder<B>) -> I18nPath<B::Args>
+pub const fn make_i18n_path<B>(key: KeyBuilder<B>) -> I18nPath<B::Args>
 where
-    B: leptos_i18n::keys::ConstArgsMarker<Id = ()>,
+    B: leptos_i18n::keys::ConstArgsMarker,
 {
-    I18nPath(PhantomData)
+    I18nPath(KeyBuilder::into_id(key))
 }
