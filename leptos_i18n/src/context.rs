@@ -153,8 +153,8 @@ impl<S: Scope> IntoDirective<(leptos::tachys::renderer::types::Element,), ()> fo
         let this = *self;
         Effect::new(move || {
             let locale = this.get_locale();
-            let _ = el.set_attribute("lang", BaseLocale::as_str(locale));
-            let dir = BaseLocale::direction(locale);
+            let _ = el.set_attribute("lang", locale.as_str());
+            let dir = Locale::direction(locale);
             let _ = el.set_attribute("dir", dir.as_str());
         });
     }
@@ -543,10 +543,10 @@ fn provide_i18n_context_component_inner<L: BaseLocale, Chil: IntoView>(
     let embed_translations = view! { <script /> };
     let lang = set_lang_attr_on_html
         .unwrap_or(true)
-        .then_some(move || BaseLocale::as_str(i18n.get_locale()));
+        .then_some(move || i18n.get_locale().as_str());
     let dir = set_dir_attr_on_html
         .unwrap_or(true)
-        .then_some(move || BaseLocale::direction(i18n.get_locale()).as_str());
+        .then_some(move || i18n.get_locale().direction().as_str());
 
     view! {
         // Render children first, for 2 reasons: register the used translations and if it change the locale <Html> will have the correct one.

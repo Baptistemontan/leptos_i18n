@@ -7,7 +7,7 @@ use icu_locale::{
     subtags::{Language, Variant},
 };
 
-use crate::locale_traits::BaseLocale;
+use crate::Locale;
 
 fn lang_matches(lhs: &Language, rhs: &Language, self_as_range: bool, other_as_range: bool) -> bool {
     (self_as_range && lhs.is_unknown()) || (other_as_range && rhs.is_unknown()) || lhs == rhs
@@ -43,18 +43,18 @@ fn lang_id_matches(
         && subtags_match(&lhs.variants, &rhs.variants, self_as_range, other_as_range)
 }
 
-pub fn filter_matches<L: BaseLocale>(requested: &[LanguageIdentifier], available: &[L]) -> Vec<L> {
+pub fn filter_matches<L: Locale>(
+    requested: &[LanguageIdentifier],
+    mut available_locales: Vec<L>,
+) -> Vec<L> {
     let mut supported_locales = vec![];
-
-    let mut available_locales: Vec<L> = available.to_vec();
 
     for req in requested.iter().cloned() {
         macro_rules! test_strategy {
             ($self_as_range:expr) => {{
                 let mut match_found = false;
                 available_locales.retain(|locale| {
-                    if lang_id_matches(BaseLocale::as_langid(*locale), &req, $self_as_range, false)
-                    {
+                    if lang_id_matches(Locale::as_langid(*locale), &req, $self_as_range, false) {
                         match_found = true;
                         supported_locales.push(*locale);
                         return false;
@@ -80,7 +80,7 @@ pub fn filter_matches<L: BaseLocale>(requested: &[LanguageIdentifier], available
     supported_locales
 }
 
-pub fn find_match<L: BaseLocale>(requested: &[LanguageIdentifier], available: &[L]) -> L {
+pub fn find_match<L: Locale>(requested: &[LanguageIdentifier], available: Vec<L>) -> L {
     filter_matches(requested, available)
         .first()
         .copied()
@@ -126,13 +126,13 @@ mod test {
     fn test_hirarchy() {
         const LOCALES: &[Locale] = &[Locale::de, Locale::en_US, Locale::de_DE, Locale::de_CH];
 
-        let res = filter_matches(&[langid!("de")], LOCALES);
+        let res = filter_matches(&[langid!("de")], LOCALES.to_vec());
         assert_eq!(res, [Locale::de]);
 
-        let res = filter_matches(&[langid!("de-DE")], LOCALES);
+        let res = filter_matches(&[langid!("de-DE")], LOCALES.to_vec());
         assert_eq!(res, [Locale::de_DE, Locale::de]);
 
-        let res = filter_matches(&[langid!("de-CH")], LOCALES);
+        let res = filter_matches(&[langid!("de-CH")], LOCALES.to_vec());
         assert_eq!(res, [Locale::de_CH, Locale::de]);
     }
 
@@ -140,16 +140,16 @@ mod test {
     fn test_find_match() {
         let res = find_match(
             &[langid!("de-DE")],
-            &[Locale::de_DE, Locale::de, Locale::en_US, Locale::de_CH],
+            vec![Locale::de_DE, Locale::de, Locale::en_US, Locale::de_CH],
         );
         assert_eq!(res, Locale::de_DE);
 
-        let res = find_match(&[langid!("de-DE")], &[Locale::de, Locale::de_DE]);
+        let res = find_match(&[langid!("de-DE")], vec![Locale::de, Locale::de_DE]);
         assert_eq!(res, Locale::de_DE);
 
         let res = find_match(
             &[langid!("en"), langid!("de-DE")],
-            &[Locale::en, Locale::de_DE],
+            vec![Locale::en, Locale::de_DE],
         );
         assert_eq!(res, Locale::en);
     }

@@ -140,6 +140,10 @@ pub use context::provide_i18n_context;
 pub use leptos_i18n_macro::IcuDataProvider;
 pub use scopes::{Scope, ScopedLocale};
 
+pub mod error {
+    pub use crate::macro_helpers::LocaleFromStrError;
+}
+
 /// This module contain utilities for plurals.
 #[cfg(feature = "plurals")]
 pub mod plurals {

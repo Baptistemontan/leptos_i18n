@@ -30,31 +30,52 @@ pub trait Locale: LocaleRequirementsMarker {
 
     /// Return a static str that represent the base locale.
     fn as_str(self) -> &'static str {
-        BaseLocale::as_str(self.to_base_locale())
+        Locale::as_str(self.to_base_locale())
     }
 
     /// Return a static reference to a icu `Locale`
     fn as_icu_locale(self) -> &'static IcuLocale {
-        BaseLocale::as_icu_locale(self.to_base_locale())
+        Locale::as_icu_locale(self.to_base_locale())
     }
 
     /// Return the direction of the locale.
     fn direction(self) -> Direction {
-        BaseLocale::direction(self.to_base_locale())
+        Locale::direction(self.to_base_locale())
     }
 
     /// Return a static reference to a `LanguageIdentifier`
     fn as_langid(self) -> &'static LanguageIdentifier {
-        BaseLocale::as_langid(self.to_base_locale())
+        let icu_locale = Locale::as_icu_locale(self);
+        &icu_locale.id
     }
 
-    /// Return a static reference to an array containing all variants of this enum
-    fn get_all() -> &'static [Self::BaseLocale] {
-        BaseLocale::get_all()
+    /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
+    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
+        let langids = convert_vec_str_to_langids_lossy(accepted_languages);
+        let availables = Self::iter_variants().collect();
+        find_match(&langids, availables)
+    }
+
+    /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
+    ///
+    /// This function does not fallback to default if no match is found.
+    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
+        let availables = Self::iter_variants().collect();
+        filter_matches(std::slice::from_ref(langid.as_ref()), availables)
+    }
+
+    fn iter_variants() -> impl Iterator<Item = Self> {
+        <Self::BaseLocale as BaseLocale>::ALL_VARIANTS
+            .iter()
+            .copied()
+            .map(Locale::from_base_locale)
     }
 }
 
 /// Trait implemented the enum representing the supported locales of the application
+///
+/// Carefull when implementing this trait, methods `as_str`, `as_icu_locale` and `direction` on the `Locale` trait have their default impl based on the base locale impl,
+/// so when implementing `BaseLocale` for your type you must also override the impls of those methods on your impl of `Locale` to not have infinite recursion.
 pub trait BaseLocale: Locale<BaseLocale = Self> + LocaleRequirementsMarker {
     const ALL_VARIANTS: &'static [Self];
 
@@ -64,38 +85,6 @@ pub trait BaseLocale: Locale<BaseLocale = Self> + LocaleRequirementsMarker {
     /// Associated `#[server]` function type to request the translations
     #[cfg(all(feature = "dynamic_load", not(feature = "csr")))]
     type ServerFn: leptos::server_fn::ServerFn;
-
-    /// Return a static str that represent the locale.
-    fn as_str(self) -> &'static str;
-
-    /// Return a static reference to a icu `Locale`
-    fn as_icu_locale(self) -> &'static IcuLocale;
-
-    /// Return the direction of the locale.
-    fn direction(self) -> Direction;
-
-    /// Return a static reference to a `LanguageIdentifier`
-    fn as_langid(self) -> &'static LanguageIdentifier {
-        &BaseLocale::as_icu_locale(self).id
-    }
-
-    /// Return a static reference to an array containing all variants of this enum
-    fn get_all() -> &'static [Self] {
-        Self::ALL_VARIANTS
-    }
-
-    /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
-    fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
-        let langids = convert_vec_str_to_langids_lossy(accepted_languages);
-        find_match(&langids, BaseLocale::get_all())
-    }
-
-    /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
-    ///
-    /// This function does not fallback to default if no match is found.
-    fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
-        filter_matches(std::slice::from_ref(langid.as_ref()), BaseLocale::get_all())
-    }
 
     /// Associated `#[server]` function to request the translations
     #[cfg(feature = "dynamic_load")]
@@ -119,9 +108,8 @@ pub trait BaseLocale: Locale<BaseLocale = Self> + LocaleRequirementsMarker {
 pub trait LocaleRequirementsMarker:
     'static
     + Default
-    + Clone
     + Copy
-    + FromStr
+    + FromStr<Err: Display>
     + AsRef<LanguageIdentifier>
     + AsRef<IcuLocale>
     + AsRef<str>
@@ -141,9 +129,8 @@ pub trait LocaleRequirementsMarker:
 impl<L> LocaleRequirementsMarker for L where
     L: 'static
         + Default
-        + Clone
         + Copy
-        + FromStr
+        + FromStr<Err: Display>
         + AsRef<LanguageIdentifier>
         + AsRef<IcuLocale>
         + AsRef<str>
@@ -158,16 +145,6 @@ impl<L> LocaleRequirementsMarker for L where
         + serde::de::DeserializeOwned
         + Scope
 {
-}
-
-impl<L: BaseLocale> Locale for L {
-    fn to_base_locale(self) -> Self::BaseLocale {
-        self
-    }
-
-    fn from_base_locale(locale: Self::BaseLocale) -> Self {
-        locale
-    }
 }
 
 /// Trait for the type giving an ID to each section of the translations
@@ -233,7 +210,7 @@ mod test {
         },
     }
 
-    use super::BaseLocale as _;
+    use super::Locale as _;
     use crate::key;
     use i18n::Locale;
 
@@ -260,7 +237,6 @@ mod test {
         };
     }
 
-    #[cfg(not(feature = "dynamic_load"))]
     const _: () = {
         const fn check_str_eq_const(a: &str, b: &str) -> bool {
             if a.len() != b.len() {
@@ -304,7 +280,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(not(feature = "dynamic_load"))]
     fn test_scope() {
         let sk = scope!(Locale::en, sk);
         let ssk = key!(sk, ssk);

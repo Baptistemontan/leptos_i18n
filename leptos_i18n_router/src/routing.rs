@@ -112,17 +112,14 @@ fn match_path_segments(
     segments_iter.next().is_none().then_some(matches)
 }
 
-fn get_locale_from_path<L: BaseLocale>(path: &str, base_path: &str) -> Option<L> {
+fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
     let base_path = base_path.trim_start_matches('/');
     let stripped_path = path
         .trim_start_matches('/')
         .strip_prefix(base_path)?
         .trim_start_matches('/');
     let (to_match, _) = stripped_path.split_once('/').unwrap_or((stripped_path, ""));
-    BaseLocale::get_all()
-        .iter()
-        .copied()
-        .find(|l: &L| BaseLocale::as_str(*l) == to_match)
+    L::iter_variants().find(|l| l.as_str() == to_match)
 }
 
 fn construct_path_segments<'b, 'p: 'b>(
@@ -621,12 +618,10 @@ where
         &'a self,
         path: &'a str,
     ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
-        let res = <L as BaseLocale>::get_all()
-            .iter()
-            .copied()
+        let res = L::iter_variants()
             .find_map(|locale| {
                 set_current_route_locale(locale);
-                StaticSegment(BaseLocale::as_str(locale))
+                StaticSegment(locale.as_str())
                     .test(path)
                     .and_then(|partial_path_match| {
                         let remaining = partial_path_match.remaining();
@@ -680,9 +675,7 @@ where
                 })
         })
         .flatten();
-        <L as BaseLocale>::get_all()
-            .iter()
-            .copied()
+        L::iter_variants()
             .flat_map(|locale| {
                 set_current_route_locale(locale);
                 MatchNestedRoutes::generate_routes(&self.route)
@@ -690,7 +683,7 @@ where
                     .map(move |mut generated_route| {
                         if let Some(first) = generated_route.segments.first_mut() {
                             // replace the empty segment set by the inner route with the locale one
-                            *first = PathSegment::Static(BaseLocale::as_str(locale).into())
+                            *first = PathSegment::Static(locale.as_str().into())
                         }
                         generated_route
                     })
@@ -712,7 +705,7 @@ where
 {
     let mut segments = RouteSegments::default();
 
-    for &locale in BaseLocale::get_all() {
+    for locale in L::iter_variants() {
         set_current_route_locale(locale);
         let inner_segments: Vec<_> = MatchNestedRoutes::generate_routes(route)
             .into_iter()
@@ -735,7 +728,7 @@ impl<A: ConstArgs<Value = &'static str>> Debug for I18nPath<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut builder = f.debug_struct("I18nPath");
         for locale in <A::Locale as BaseLocale>::ALL_VARIANTS {
-            builder.field(BaseLocale::as_str(*locale), &A::value(self.0, *locale));
+            builder.field(locale.as_str(), &A::value(self.0, *locale));
         }
         builder.finish()
     }

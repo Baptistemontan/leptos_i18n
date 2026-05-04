@@ -468,13 +468,7 @@ pub fn gen_enum(
             }
         }
 
-        impl __l_i18n_crate::locale_traits::BaseLocale for #enum_ident {
-            const ALL_VARIANTS: &'static [Self] = &[#(#enum_ident::#locales_variants,)*];
-
-            type TranslationUnitId = keys::#translation_unit_enum_ident;
-
-            #server_fn_type
-
+        impl __l_i18n_crate::locale_traits::Locale for #enum_ident {
             fn as_str(self) -> &'static str {
                 let s = match self {
                     #(
@@ -503,18 +497,34 @@ pub fn gen_enum(
                 }
             }
 
+            fn to_base_locale(self) -> Self {
+                self
+            }
+
+            fn from_base_locale(locale: Self::BaseLocale) -> Self {
+                locale
+            }
+        }
+
+        impl __l_i18n_crate::locale_traits::BaseLocale for #enum_ident {
+            const ALL_VARIANTS: &'static [Self] = &[#(#enum_ident::#locales_variants,)*];
+
+            type TranslationUnitId = keys::#translation_unit_enum_ident;
+
+            #server_fn_type
+
             #request_translations
 
             #init_translations
         }
 
         impl core::str::FromStr for #enum_ident {
-            type Err = ();
+            type Err = __l_i18n_crate::__private::LocaleFromStrError<Self>;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 match s.trim() {
                     #(#from_str_match_arms,)*
-                    _ => Err(())
+                    other => Err(__l_i18n_crate::__private::LocaleFromStrError::new(String::from(other)))
                 }
             }
         }

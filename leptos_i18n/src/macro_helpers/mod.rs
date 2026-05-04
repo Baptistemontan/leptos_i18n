@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fmt::Display, future::Future, marker::PhantomData};
+use std::{fmt::Display, marker::PhantomData};
 
 pub mod formatting;
 mod interpol_args;
@@ -8,166 +8,42 @@ mod scope;
 use crate::{
     Locale,
     keys::{DisplayArgs, DisplayKey},
-    locale_traits::BaseLocale,
 };
 pub use formatting::*;
 pub use interpol_args::*;
-use leptos::IntoView;
 pub use scope::*;
 
-#[doc(hidden)]
-pub trait Literal: Sized + Display + IntoView + Copy {
-    type AsStr;
-    fn into_str(self) -> Self::AsStr;
+fn write_locale_array<L: Locale>(f: &mut core::fmt::Formatter) -> core::fmt::Result {
+    let mut locale_iter = L::iter_variants();
+    let first = locale_iter
+        .next()
+        .expect("Locale should have at least one variant");
+    write!(f, "[{}", first)?;
+    for locale in locale_iter {
+        write!(f, ", {}", locale.as_str())?;
+    }
+    write!(f, "]")
 }
 
-impl Literal for &'static str {
-    type AsStr = Self;
-    fn into_str(self) -> Self::AsStr {
-        self
+#[derive(Debug, Clone)]
+pub struct LocaleFromStrError<L> {
+    got: String,
+    _marker: PhantomData<L>,
+}
+
+impl<L: Locale> Display for LocaleFromStrError<L> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Unknown locale {}, expected one of ", self.got)?;
+        write_locale_array::<L>(f)
     }
 }
 
-impl Literal for bool {
-    type AsStr = &'static str;
-    fn into_str(self) -> Self::AsStr {
-        match self {
-            true => "true",
-            false => "false",
+impl<L> LocaleFromStrError<L> {
+    pub fn new(got: String) -> Self {
+        LocaleFromStrError {
+            got,
+            _marker: PhantomData,
         }
-    }
-}
-
-macro_rules! impl_build_lit_nums {
-    ($t:ty) => {
-        impl Literal for $t {
-            type AsStr = String;
-            fn into_str(self) -> Self::AsStr {
-                self.to_string()
-            }
-        }
-    };
-    ($t:ty, $($tt:tt)*) => {
-        impl_build_lit_nums!($t);
-        impl_build_lit_nums!($($tt)*);
-    }
-}
-
-impl_build_lit_nums!(u64, i64, f64);
-
-#[doc(hidden)]
-#[diagnostic::on_unimplemented(
-    message = "Interpolated values can't be used inside t_string/t_display without the \"interpolate_display\" option enabled."
-)]
-pub trait InterpolationStringBuilder
-where
-    Self: Sized,
-{
-    fn check(self) -> Self {
-        self
-    }
-}
-
-#[doc(hidden)]
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct LitWrapper<T>(T);
-
-impl<T: Literal> LitWrapper<T> {
-    pub const fn new(v: T) -> Self {
-        LitWrapper(v)
-    }
-
-    pub const fn builder(self) -> Self {
-        self
-    }
-
-    pub const fn display_builder(self) -> Self {
-        self
-    }
-
-    pub const fn build(self) -> Self {
-        self
-    }
-
-    pub fn into_view(self) -> impl IntoView + Copy {
-        self.0
-    }
-
-    pub fn build_string(self) -> T::AsStr {
-        Literal::into_str(self.0)
-    }
-
-    pub const fn inner(self) -> T {
-        self.0
-    }
-
-    pub fn build_display(self) -> impl Display {
-        self.0
-    }
-}
-
-#[doc(hidden)]
-#[repr(transparent)]
-pub struct LitWrapperFut<T>(T);
-
-impl<T: Literal, F: Future<Output = LitWrapper<T>>> LitWrapperFut<F> {
-    pub const fn new(v: F) -> Self {
-        LitWrapperFut(v)
-    }
-
-    pub const fn builder(self) -> Self {
-        self
-    }
-
-    pub const fn display_builder(self) -> Self {
-        self
-    }
-
-    pub const fn build(self) -> Self {
-        self
-    }
-
-    pub async fn into_view(self) -> impl IntoView + Copy {
-        self.0.await.into_view()
-    }
-
-    pub async fn build_string(self) -> T::AsStr {
-        self.0.await.build_string()
-    }
-
-    pub async fn build_display(self) -> impl Display {
-        self.0.await.build_display()
-    }
-}
-
-impl<T: Literal> LitWrapperFut<LitWrapper<T>> {
-    pub const fn new_not_fut(v: T) -> Self {
-        LitWrapperFut(LitWrapper::new(v))
-    }
-
-    pub const fn builder(self) -> Self {
-        self
-    }
-
-    pub const fn display_builder(self) -> Self {
-        self
-    }
-
-    pub const fn build(self) -> Self {
-        self
-    }
-
-    pub fn into_view(self) -> impl IntoView + Copy {
-        self.0.into_view()
-    }
-
-    pub async fn build_string(self) -> T::AsStr {
-        self.0.build_string()
-    }
-
-    pub async fn build_display(self) -> impl Display {
-        self.0.build_display()
     }
 }
 
@@ -191,22 +67,17 @@ impl<'de, L: Locale> serde::de::Visitor<'de> for LocaleVisitor<L> {
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "one of: [")?;
-        let mut locale_iter = <L::BaseLocale as BaseLocale>::get_all().iter();
-        let first = locale_iter
-            .next()
-            .expect("Locale should have at least one variant");
-        write!(formatter, "{}", BaseLocale::as_str(*first))?;
-        for locale in locale_iter {
-            write!(formatter, ", {}", BaseLocale::as_str(*locale))?;
-        }
-        write!(formatter, "]")
+        write_locale_array::<L>(formatter)
     }
 
     fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(L::from_str(v).unwrap_or_default())
+        match L::from_str(v) {
+            Ok(v) => Ok(v),
+            Err(err) => Err(E::custom(err)),
+        }
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
