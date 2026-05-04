@@ -1,4 +1,4 @@
-use leptos_i18n_parser::extraction::{Keys, ValuesOrSubkeys};
+use leptos_i18n_parser::extraction::{ChildrenKind, Keys, ValuesOrSubkeys};
 
 use crate::codegen::builders::infos::{Field, VarOrComp};
 
@@ -67,18 +67,18 @@ pub fn gen_fields_docs(docs: &mut String, fields: &[Field]) -> core::fmt::Result
         .iter()
         .filter_map(|field| match &field.var_or_comp {
             VarOrComp::Var { .. } => None,
-            VarOrComp::Comp { self_closed, .. } => {
+            VarOrComp::Comp { children_kind, .. } => {
                 let key = field.key.name.strip_prefix("comp_")?;
-                Some((key, *self_closed))
+                Some((key, *children_kind))
             }
         })
         .peekable();
 
     if components.peek().is_some() {
         writeln!(docs, "## Components :")?;
-        for (key, self_closed) in components {
-            // if dummy, use non-self-closed syntax
-            if self_closed.is_some_and(|sf| sf) {
+        for (key, children_kind) in components {
+            // if dummy or missmatch, use non-self-closed syntax
+            if matches!(children_kind, ChildrenKind::SelfClosed) {
                 writeln!(docs, "- `<{}/>`", key)?;
             } else {
                 writeln!(docs, "-  `<{}>`", key)?;

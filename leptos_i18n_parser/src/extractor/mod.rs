@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    error::{Diagnostics, Result},
+    error::{Diagnostics, Error, Result},
     extraction::{AttributeValue, Attributes},
     extractor::values::{
         Value, Values,
@@ -72,9 +72,17 @@ pub struct Builders {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BuilderId(usize);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChildrenKind {
+    SelfClosed,
+    Normal,
+    Dummy,
+    Missmatch,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CompInfos {
-    pub self_closed: Option<bool>,
+    pub children_kind: ChildrenKind,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -105,7 +113,7 @@ pub fn extract_locales(
     let resolved_fk = values::foreign_key::resolve_foreign_key(merged_plurals, &diag, &cfg);
     let mut merged = merge_values(resolved_fk, &cfg, &diag);
 
-    let builders = get_builders(&mut merged);
+    let builders = get_builders(&mut merged, &diag);
 
     Ok(ParsedLocales {
         values: merged,
@@ -202,54 +210,69 @@ struct BuilderIndexer {
     keys: BTreeSet<String>,
 }
 
-fn get_builders(locales: &mut LocalesOrNamespaces) -> Builders {
+fn get_builders(locales: &mut LocalesOrNamespaces, diag: &Diagnostics) -> Builders {
     let mut ids = BuilderIndexer::default();
 
     match locales {
         LocalesOrNamespaces::Namespaces(namespaces) => {
             for ns in namespaces {
                 let mut path = KeyPath::new(Some(ns.name.clone()));
-                get_keys_builders(&mut ns.locales.keys, &mut ids, &mut path);
+                get_keys_builders(&mut ns.locales.keys, &mut ids, &mut path, diag);
             }
         }
         LocalesOrNamespaces::Locales(locales) => {
             let mut path = KeyPath::new(None);
-            get_keys_builders(&mut locales.keys, &mut ids, &mut path);
+            get_keys_builders(&mut locales.keys, &mut ids, &mut path, diag);
         }
     }
 
     ids.into_builders()
 }
 
-fn get_keys_builders(keys: &mut Keys, ids: &mut BuilderIndexer, path: &mut KeyPath) {
+fn get_keys_builders(
+    keys: &mut Keys,
+    ids: &mut BuilderIndexer,
+    path: &mut KeyPath,
+    diag: &Diagnostics,
+) {
     for (key, value) in keys.values.iter_mut() {
         let mut path = path.push_key(key.clone());
         match value {
             values::ValuesOrSubkeys::Values(values) => {
-                get_values_builders(values, ids, path.clone())
+                get_values_builders(values, ids, path.clone(), diag)
             }
-            values::ValuesOrSubkeys::Subkeys(keys) => get_keys_builders(keys, ids, &mut path),
+            values::ValuesOrSubkeys::Subkeys(keys) => get_keys_builders(keys, ids, &mut path, diag),
         }
     }
 }
 
-fn get_values_builders(values: &mut Values, ids: &mut BuilderIndexer, path: KeyPath) {
-    let interpolation_keys = make_keys(values);
+fn get_values_builders(
+    values: &mut Values,
+    ids: &mut BuilderIndexer,
+    path: KeyPath,
+    diag: &Diagnostics,
+) {
+    let interpolation_keys = make_keys(values, &path, diag);
     let id = ids.push_keys(interpolation_keys, path);
     values.builder_id = id;
 }
 
-fn make_keys(values: &Values) -> InterpolationKeys {
+fn make_keys(values: &Values, path: &KeyPath, diag: &Diagnostics) -> InterpolationKeys {
     let mut interpolation_keys = InterpolationKeys::default();
 
     for value in values.values.values() {
-        extract_value_keys(value, &mut interpolation_keys);
+        extract_value_keys(value, &mut interpolation_keys, path, diag);
     }
 
     interpolation_keys
 }
 
-fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
+fn extract_value_keys(
+    value: &Value,
+    keys: &mut InterpolationKeys,
+    path: &KeyPath,
+    diag: &Diagnostics,
+) {
     match value {
         Value::Literal(_) => {}
         Value::Variable(variable) => {
@@ -258,28 +281,48 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
         }
         Value::Component(component) => {
             if let Some(inner) = &component.inner {
-                extract_value_keys(inner, keys);
+                extract_value_keys(inner, keys, path, diag);
             }
             extract_attributes_keys(&component.attributes, keys);
-            let is_self_closed = component.inner.is_none();
+            let children_kind = if component.inner.is_none() {
+                ChildrenKind::SelfClosed
+            } else {
+                ChildrenKind::Normal
+            };
             let info = keys
                 .components
                 .entry(component.key.clone())
-                .or_insert(CompInfos {
-                    self_closed: Some(is_self_closed),
-                });
-            if info.self_closed.is_some_and(|sf| sf != is_self_closed) {
-                todo!("can't have self closed and normal component sharing the same key")
+                .or_insert(CompInfos { children_kind });
+            match info.children_kind {
+                ChildrenKind::Dummy => {
+                    info.children_kind = children_kind;
+                }
+                ChildrenKind::Normal | ChildrenKind::SelfClosed
+                    if info.children_kind != children_kind =>
+                {
+                    let component_key = component
+                        .key
+                        .name
+                        .strip_prefix("comp_")
+                        .expect("components key must start with comp_")
+                        .to_string();
+                    diag.emit_error(Error::ComponentSelfClosedMissmatch {
+                        path: path.clone(),
+                        component_key,
+                    });
+                    info.children_kind = ChildrenKind::Missmatch
+                }
+                _ => {}
             }
         }
         Value::Bloc(values) => {
             for value in values {
-                extract_value_keys(value, keys);
+                extract_value_keys(value, keys, path, diag);
             }
         }
         Value::Plurals(plurals) => {
             for (_, value) in plurals.forms.iter_forms() {
-                extract_value_keys(value, keys);
+                extract_value_keys(value, keys, path, diag);
             }
             let var_info = keys.vars.entry(plurals.count_key.clone()).or_default();
             var_info.plural = true;
@@ -288,9 +331,9 @@ fn extract_value_keys(value: &Value, keys: &mut InterpolationKeys) {
             for dummy in &dummies.dummies {
                 match dummy {
                     DummyArg::Component(key) => {
-                        keys.components
-                            .entry(key.clone())
-                            .or_insert(CompInfos { self_closed: None });
+                        keys.components.entry(key.clone()).or_insert(CompInfos {
+                            children_kind: ChildrenKind::Dummy,
+                        });
                     }
                     DummyArg::Variable(key) => {
                         let info = keys.vars.entry(key.clone()).or_default();
@@ -406,7 +449,7 @@ impl InterpolationKeys {
         for (key, info) in &self.components {
             s.push_str(&key.name);
 
-            if info.self_closed.is_some_and(|sf| sf) {
+            if matches!(info.children_kind, ChildrenKind::SelfClosed) {
                 s.push_str("sf");
             }
             s.push('_');

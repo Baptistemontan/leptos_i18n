@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 
 use leptos_i18n_parser::{
-    extraction::{Builder, BuilderId, Builders, CompInfos, InterpolationKeys, VarInfos},
+    extraction::{
+        Builder, BuilderId, Builders, ChildrenKind, CompInfos, InterpolationKeys, VarInfos,
+    },
     formatters::VarBound,
     utils::{Key, KeyPath},
 };
@@ -17,7 +19,7 @@ pub enum VarOrComp {
     },
     Comp {
         into_view: syn::Ident,
-        self_closed: Option<bool>,
+        children_kind: ChildrenKind,
     },
 }
 
@@ -172,7 +174,7 @@ impl Field {
         let into_view = format_ident!("__into_view_{}__", key);
         let var_or_comp = VarOrComp::Comp {
             into_view,
-            self_closed: infos.self_closed,
+            children_kind: infos.children_kind,
         };
         let generic = format_ident!("__{}__", key);
         Field {
@@ -259,17 +261,19 @@ impl VarOrComp {
     pub fn get_bounded_comp_generics(
         generic: &syn::Ident,
         into_view: &syn::Ident,
-        self_closed: Option<bool>,
+        children_kind: ChildrenKind,
     ) -> [TokenStream; 2] {
         [
-            match self_closed {
-                Some(true) => {
-                    quote!(#generic: __l_i18n_crate::__private::InterpolateCompSelfClosed<#into_view>)
-                }
-                Some(false) => {
+            match children_kind {
+                ChildrenKind::Normal => {
                     quote!(#generic: __l_i18n_crate::__private::InterpolateComp<#into_view>)
                 }
-                None => quote!(#generic: __l_i18n_crate::__private::InterpolateDummy<#into_view>),
+                ChildrenKind::SelfClosed => {
+                    quote!(#generic: __l_i18n_crate::__private::InterpolateCompSelfClosed<#into_view>)
+                }
+                ChildrenKind::Dummy | ChildrenKind::Missmatch => {
+                    quote!(#generic: __l_i18n_crate::__private::InterpolateDummy<#into_view>)
+                }
             },
             quote!(#into_view: __l_i18n_crate::__private::CompMarker),
         ]
@@ -278,7 +282,7 @@ impl VarOrComp {
     pub fn get_bounded_fmt_comp_generics(
         generic: &syn::Ident,
         into_view: &syn::Ident,
-        _self_closed: Option<bool>,
+        _children_kind: ChildrenKind,
     ) -> [TokenStream; 2] {
         [
             quote!(#generic: __l_i18n_crate::display::DisplayComponent<#into_view>),
@@ -294,9 +298,9 @@ impl VarOrComp {
             }
             VarOrComp::Comp {
                 into_view,
-                self_closed,
+                children_kind,
             } => {
-                let ts = Self::get_bounded_comp_generics(generic, into_view, *self_closed);
+                let ts = Self::get_bounded_comp_generics(generic, into_view, *children_kind);
                 EitherIter::Iter2(ts.into_iter())
             }
         }
@@ -313,9 +317,9 @@ impl VarOrComp {
             }
             VarOrComp::Comp {
                 into_view,
-                self_closed,
+                children_kind,
             } => {
-                let ts = Self::get_bounded_fmt_comp_generics(generic, into_view, *self_closed);
+                let ts = Self::get_bounded_fmt_comp_generics(generic, into_view, *children_kind);
                 EitherIter::Iter2(ts.into_iter())
             }
         }
@@ -329,7 +333,7 @@ impl VarOrComp {
             } => None,
             VarOrComp::Comp {
                 into_view,
-                self_closed: _,
+                children_kind: _,
             } => Some(into_view),
         }
     }

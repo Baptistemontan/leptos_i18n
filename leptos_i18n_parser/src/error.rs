@@ -148,6 +148,10 @@ pub enum Error {
     DefaultLocaleCantInherit {
         loc: &'static panic::Location<'static>,
     },
+    ComponentSelfClosedMissmatch {
+        path: KeyPath,
+        component_key: String,
+    },
 
     Custom(String),
 }
@@ -346,6 +350,15 @@ impl Display for Error {
                 f,
                 "Invalid value for foreign key arg \"{arg_name}\" at {loc}. Value \"{value}\" can't be used as a plural operand: {err}"
             ),
+            Error::ComponentSelfClosedMissmatch {
+                path,
+                component_key,
+            } => {
+                write!(
+                    f,
+                    "At {path} the component \"{component_key}\" is both used as a self-closed component and a normal one, this is not allowed."
+                )
+            }
         }
     }
 }

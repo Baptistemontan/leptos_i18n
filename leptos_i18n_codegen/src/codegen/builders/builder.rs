@@ -1,4 +1,4 @@
-use leptos_i18n_parser::formatters::VarBound;
+use leptos_i18n_parser::{extraction::ChildrenKind, formatters::VarBound};
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -112,7 +112,7 @@ fn gen_var_methods(
 fn gen_comp_methods(
     field: &Field,
     into_view: &syn::Ident,
-    self_closed: Option<bool>,
+    children_kind: ChildrenKind,
     before: &[Field],
     after: &[Field],
 ) -> TokenStream {
@@ -128,10 +128,10 @@ fn gen_comp_methods(
     let missing_message = format!("Missing component {var_name}");
 
     let [bounded_generics, into_view_bounded_generics] =
-        VarOrComp::get_bounded_comp_generics(&field.generic, into_view, self_closed);
+        VarOrComp::get_bounded_comp_generics(&field.generic, into_view, children_kind);
 
     let [bounded_fmt_generics, into_view_bounded_fmt_generics] =
-        VarOrComp::get_bounded_fmt_comp_generics(&field.generic, into_view, self_closed);
+        VarOrComp::get_bounded_fmt_comp_generics(&field.generic, into_view, children_kind);
     let bounded_generics = quote! {
         #bounded_generics, #into_view_bounded_generics
     };
@@ -290,8 +290,8 @@ fn gen_methods(field: &Field, before: &[Field], after: &[Field]) -> TokenStream 
         VarOrComp::Var { bounds, plural } => gen_var_methods(field, bounds, *plural, before, after),
         VarOrComp::Comp {
             into_view,
-            self_closed,
-        } => gen_comp_methods(field, into_view, *self_closed, before, after),
+            children_kind,
+        } => gen_comp_methods(field, into_view, *children_kind, before, after),
     }
 }
 

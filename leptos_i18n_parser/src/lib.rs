@@ -28,7 +28,7 @@ pub mod extraction {
     pub use super::extractor::values::plurals::{PluralForm, PluralForms, PluralRuleType, Plurals};
     pub use super::extractor::values::{Keys, Literal, Value, Values, ValuesOrSubkeys};
     pub use super::extractor::{
-        Builder, BuilderId, Builders, CompInfos, InterpolationKeys, Locale, Locales,
+        Builder, BuilderId, Builders, ChildrenKind, CompInfos, InterpolationKeys, Locale, Locales,
         LocalesOrNamespaces, Namespace, ParsedLocales, VarInfos, extract_locales,
     };
 }
