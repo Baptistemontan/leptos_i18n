@@ -171,7 +171,7 @@ mod register {
             let entries: Vec<TranslationOut<'_>> = inner_guard
                 .iter()
                 .map(|((locale, id), values)| TranslationOut {
-                    locale: BaseLocale::as_str(*locale),
+                    locale: locale.as_str(),
                     id: id.to_str(),
                     values,
                 })
@@ -228,7 +228,7 @@ pub fn init_translations<L: BaseLocale>() -> impl leptos::IntoView {
                 L::init_translations(*locale, *id, values.clone());
 
                 TranslationOut {
-                    locale: BaseLocale::as_str(*locale),
+                    locale: locale.as_str(),
                     id: id.to_str(),
                     values,
                 }
