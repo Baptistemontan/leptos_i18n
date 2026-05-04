@@ -34,7 +34,6 @@ pub struct I18nContext<S: Scope> {
     locale_signal: RwSignal<AnyLocale>,
     #[cfg(not(feature = "unified_contexts"))]
     locale_signal: RwSignal<S::BaseLocale>,
-    locale_marker: PhantomData<S::BaseLocale>,
     scope_marker: PhantomData<S>,
 }
 
@@ -91,7 +90,7 @@ impl<S: Scope> I18nContext<S> {
     #[track_caller]
     pub fn set_locale(self, lang: S::BaseLocale) {
         #[cfg(feature = "unified_contexts")]
-        return self.locale_signal.set(AnyLocale(BaseLocale::as_str(lang)));
+        return self.locale_signal.set(AnyLocale(lang.as_str()));
         #[cfg(not(feature = "unified_contexts"))]
         self.locale_signal.set(lang);
     }
@@ -103,7 +102,7 @@ impl<S: Scope> I18nContext<S> {
         #[cfg(feature = "unified_contexts")]
         {
             let mut guard = self.locale_signal.write_untracked();
-            *guard = AnyLocale(BaseLocale::as_str(lang));
+            *guard = AnyLocale(lang.as_str());
         }
         #[cfg(not(feature = "unified_contexts"))]
         {
@@ -117,7 +116,6 @@ impl<S: Scope> I18nContext<S> {
     pub const fn scope<NS: Scope<BaseLocale = S::BaseLocale>>(self) -> I18nContext<NS> {
         I18nContext {
             locale_signal: self.locale_signal,
-            locale_marker: PhantomData,
             scope_marker: PhantomData,
         }
     }
@@ -128,7 +126,6 @@ impl<S: Scope> I18nContext<S> {
             let locale_signal = use_context::<RwSignal<AnyLocale>>()?;
             Some(Self {
                 locale_signal,
-                locale_marker: PhantomData,
                 scope_marker: PhantomData,
             })
         }
@@ -177,12 +174,12 @@ const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
 #[track_caller]
 fn init_context_inner<L: BaseLocale>(
-    set_lang_cookie: WriteSignal<Option<L::BaseLocale>>,
-    initial_locale: Memo<L::BaseLocale>,
+    set_lang_cookie: WriteSignal<Option<L>>,
+    initial_locale: Memo<L>,
 ) -> I18nContext<L> {
     #[cfg(feature = "unified_contexts")]
     let locale_signal = {
-        let init_loc = AnyLocale(BaseLocale::as_str(initial_locale.get_untracked()));
+        let init_loc = AnyLocale(initial_locale.get_untracked().as_str());
         RwSignal::new(init_loc)
     };
     #[cfg(not(feature = "unified_contexts"))]
@@ -191,7 +188,7 @@ fn init_context_inner<L: BaseLocale>(
     Effect::new(move |_| {
         let l = initial_locale.get();
         #[cfg(feature = "unified_contexts")]
-        locale_signal.set(AnyLocale(BaseLocale::as_str(l)));
+        locale_signal.set(AnyLocale(l.as_str()));
         #[cfg(not(feature = "unified_contexts"))]
         locale_signal.set(l);
     });
@@ -210,7 +207,6 @@ fn init_context_inner<L: BaseLocale>(
     I18nContext::<L> {
         locale_signal,
         scope_marker: PhantomData,
-        locale_marker: PhantomData,
     }
 }
 
