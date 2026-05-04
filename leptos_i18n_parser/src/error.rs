@@ -7,7 +7,6 @@ use std::{
     cell::{Ref, RefCell},
     fmt::{Debug, Display},
     io,
-    num::TryFromIntError,
     path::PathBuf,
 };
 
@@ -56,9 +55,6 @@ pub enum Error {
         key: String,
         loc: Location,
     },
-    EmptyRange,
-    InvalidRangeType(String),
-    NestedRanges,
     InvalidFallback,
     MultipleFallbacks,
     ExplicitDefaultInDefault(KeyPath),
@@ -98,17 +94,9 @@ pub enum Error {
         loc: Location,
         foreign_key: KeyPath,
     },
-    CountArgOutsideRange {
-        loc: Location,
-        foreign_key: KeyPath,
-        err: TryFromIntError,
-    },
     UnexpectedToken {
         loc: Location,
         message: String,
-    },
-    RangeAndPluralsMix {
-        key_path: KeyPath,
     },
     PluralsAtNormalKey {
         loc: Location,
@@ -191,9 +179,6 @@ impl Display for Error {
                 f,
                 "invalid key {key:?} at {loc}, it can't be used as a rust identifier, try removing whitespaces and special characters."
             ),
-            Error::EmptyRange => write!(f, "empty ranges are not allowed"),
-            Error::InvalidRangeType(t) => write!(f, "invalid range type {t:?}"),
-            Error::NestedRanges => write!(f, "nested ranges are not allowed"),
             Error::InvalidFallback => write!(f, "fallbacks are only allowed in last position"),
             Error::MultipleFallbacks => write!(f, "only one fallback is allowed"),
             Error::SubKeyMissmatch { loc } => {
@@ -230,23 +215,11 @@ impl Display for Error {
             }
             Error::InvalidCountArg { loc, foreign_key } => write!(
                 f,
-                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" for plurals or ranges can only be a literal number or a single variable."
-            ),
-            Error::CountArgOutsideRange {
-                loc,
-                foreign_key,
-                err,
-            } => write!(
-                f,
-                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" is outside range: {err}"
+                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" for plurals can only be a literal number or a single variable."
             ),
             Error::UnexpectedToken { loc, message } => write!(
                 f,
                 "Unexpected error occured while parsing at {loc}: {message}"
-            ),
-            Error::RangeAndPluralsMix { key_path } => write!(
-                f,
-                "mixing plurals and ranges are not supported yet, for key \"{key_path}\""
             ),
             Error::PluralsAtNormalKey { loc } => write!(
                 f,

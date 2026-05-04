@@ -254,38 +254,7 @@ impl<'de> serde::de::Visitor<'de> for ValueOrSubkeysSeed<'_> {
         Ok(RawValueOrSubkeys::Defaulted)
     }
 
-    // fn visit_seq<A>(mut self, map: A) -> Result<Self::Value, A::Error>
-    // where
-    //     A: serde::de::SeqAccess<'de>,
-    // {
-    //     self.diag.set_has_ranges();
-    //     // nested ranges are not allowed, the code technically supports it,
-    //     // but it's pointless and probably nobody will ever needs it.
-    //     if std::mem::replace(&mut self.in_range, true) {
-    //         return Err(serde::de::Error::custom(Error::NestedRanges));
-    //     }
-    //     let ranges = Ranges::from_serde_seq(map, self)?;
-
-    //     let (invalid_fallback, fallback_count, should_have_fallback) =
-    //         ranges.check_deserialization();
-
-    //     if invalid_fallback {
-    //         Err(serde::de::Error::custom(Error::InvalidFallback))
-    //     } else if fallback_count > 1 {
-    //         Err(serde::de::Error::custom(Error::MultipleFallbacks))
-    //     } else if fallback_count == 0 && should_have_fallback {
-    //         Err(serde::de::Error::custom(Error::MissingFallback(
-    //             ranges.get_type(),
-    //         )))
-    //     } else {
-    //         Ok(ParsedValue::Ranges(ranges))
-    //     }
-    // }
-
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            formatter,
-            "either a string, a sequence of ranges or a map of subkeys"
-        )
+        write!(formatter, "either a string or a map of subkeys")
     }
 }
