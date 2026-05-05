@@ -63,11 +63,11 @@ impl BuilderInfos {
         use core::fmt::Write;
         let mut buff = String::new();
         if let Some(ns) = &keypath.namespace {
-            write!(&mut buff, "{}_", &ns.ident).unwrap();
+            write!(&mut buff, "{}_", ns.ident).unwrap();
         }
 
         for key in &keypath.path {
-            write!(&mut buff, "{}_", &key.ident).unwrap();
+            write!(&mut buff, "{}_", key.ident).unwrap();
         }
 
         while variants.contains(&buff) {
