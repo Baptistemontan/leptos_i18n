@@ -224,18 +224,18 @@ pub fn init_translations<L: BaseLocale>() -> impl leptos::IntoView {
     let json = {
         let entries: Vec<TranslationOut<'_>> = translations
             .iter()
-            .map(|TranslationIn { locale, id, values }| {
-                L::init_translations(*locale, *id, values.clone());
-
-                TranslationOut {
-                    locale: locale.as_str(),
-                    id: id.to_str(),
-                    values,
-                }
+            .map(|TranslationIn { locale, id, values }| TranslationOut {
+                locale: locale.as_str(),
+                id: id.to_str(),
+                values,
             })
             .collect();
         serde_json::to_string(&entries).unwrap_throw()
     };
+
+    for TranslationIn { locale, id, values } in translations {
+        L::init_translations(locale, id, values);
+    }
 
     let mut buf = String::with_capacity(JS_PREFIX.len() + json.len() + 1);
     buf.push_str(JS_PREFIX);
