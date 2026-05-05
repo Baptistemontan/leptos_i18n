@@ -71,7 +71,7 @@ pub fn gen_values_modules_and_accessors(
     let (render_fn_out_type, maybe_async, maybe_await) =
         if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
             (
-                quote!(impl __l_i18n_crate::keys::IntoViewFuture),
+                quote!(impl __l_i18n_crate::keys::view::IntoViewFuture),
                 quote!(async),
                 quote!(.await),
             )
@@ -121,40 +121,50 @@ pub fn gen_values_modules_and_accessors(
         let multi_kind = !iter_all_eq(iter);
         let (out_type, into_lit) = if multi_kind {
             (
-                quote!(__l_i18n_crate::keys::Literal),
+                quote!(__l_i18n_crate::keys::comp_time::Literal),
                 quote!(__const_value(locale)),
             )
         } else {
             match values.values.values().next() {
                 Some(Value::Literal(Literal::Bool(_))) => (
                     quote!(bool),
-                    quote!(__l_i18n_crate::keys::Literal::Bool(__const_value(locale))),
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::Bool(
+                        __const_value(locale)
+                    )),
                 ),
                 Some(Value::Literal(Literal::Signed(_))) => (
                     quote!(i64),
-                    quote!(__l_i18n_crate::keys::Literal::Signed(__const_value(locale))),
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::Signed(
+                        __const_value(locale)
+                    )),
                 ),
                 Some(Value::Literal(Literal::Unsigned(_))) => (
                     quote!(u64),
-                    quote!(__l_i18n_crate::keys::Literal::Unsigned(__const_value(
-                        locale
-                    ))),
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::Unsigned(
+                        __const_value(locale)
+                    )),
                 ),
                 Some(Value::Literal(Literal::Float(_))) => (
                     quote!(f64),
-                    quote!(__l_i18n_crate::keys::Literal::Float(__const_value(locale))),
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::Float(
+                        __const_value(locale)
+                    )),
                 ),
                 Some(Value::Bloc(_)) => (
                     quote!(
-                        &'static [__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>]
+                        &'static [__l_i18n_crate::keys::comp_time::Literal<
+                            __l_i18n_crate::keys::comp_time::NoRecurse,
+                        >]
                     ),
-                    quote!(__l_i18n_crate::keys::Literal::Multiple(__const_value(
-                        locale
-                    ))),
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::Multiple(
+                        __const_value(locale)
+                    )),
                 ),
                 _ => (
                     quote!(&'static str),
-                    quote!(__l_i18n_crate::keys::Literal::String(__const_value(locale))),
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::String(
+                        __const_value(locale)
+                    )),
                 ),
             }
         };
@@ -167,13 +177,13 @@ pub fn gen_values_modules_and_accessors(
             multi_kind,
         );
         quote! {
-            impl __l_i18n_crate::keys::ConstArgsMarker for ArgsBuilder {
-                type Args = Args<__l_i18n_crate::keys::NoArgs>;
+            impl __l_i18n_crate::keys::comp_time::ConstArgsMarker for ArgsBuilder {
+                type Args = Args<__l_i18n_crate::keys::comp_time::NoArgs>;
                 type Builded = BuildedArgs;
                 type Value = #out_type;
             }
 
-            impl __l_i18n_crate::keys::ConstArgs for Args<__l_i18n_crate::keys::NoArgs> {
+            impl __l_i18n_crate::keys::comp_time::ConstArgs for Args<__l_i18n_crate::keys::comp_time::NoArgs> {
                 const THIS: Self = Args(BuildedArgs::__const_new(), core::marker::PhantomData);
                 type Value = #out_type;
 
@@ -182,26 +192,26 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl Args<__l_i18n_crate::keys::NoArgs> {
+            impl Args<__l_i18n_crate::keys::comp_time::NoArgs> {
                 #[doc(hidden)]
                 pub const fn __const_value(self, _: Id, locale: #enum_ident) -> #out_type {
                     __const_value(locale)
                 }
             }
 
-            impl<#generics> __l_i18n_crate::keys::IntoViewArgs for Args<__l_i18n_crate::keys::NoArgs, #generics>
-                where Args<__IntoViewMarker, #generics>: __l_i18n_crate::keys::IntoViewArgs,
+            impl<#generics> __l_i18n_crate::keys::view::IntoViewArgs for Args<__l_i18n_crate::keys::comp_time::NoArgs, #generics>
+                where Args<__IntoViewMarker, #generics>: __l_i18n_crate::keys::view::IntoViewArgs,
             {
                 fn render(self, id: Self::Id, locale: Self::Locale) -> #render_fn_out_type {
-                    <Args<__IntoViewMarker, #generics> as __l_i18n_crate::keys::IntoViewArgs>::render(Args(
+                    <Args<__IntoViewMarker, #generics> as __l_i18n_crate::keys::view::IntoViewArgs>::render(Args(
                         self.0,
                         core::marker::PhantomData
                     ), id, locale)
                 }
             }
 
-            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgs for Args<__l_i18n_crate::keys::NoArgs, #generics> {
-                type Data = __l_i18n_crate::keys::DisplayData;
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::display::DisplayArgs for Args<__l_i18n_crate::keys::comp_time::NoArgs, #generics> {
+                type Data = __l_i18n_crate::keys::display::DisplayData;
 
                 #maybe_async fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> Self::Data {
                     __get_data(locale) #maybe_await
@@ -228,7 +238,7 @@ pub fn gen_values_modules_and_accessors(
             }
 
             #[doc(hidden)]
-            pub const fn __const_value_as_lit(locale: #enum_ident) -> __l_i18n_crate::keys::Literal {
+            pub const fn __const_value_as_lit(locale: #enum_ident) -> __l_i18n_crate::keys::comp_time::Literal {
                 #into_lit
             }
         }
@@ -280,7 +290,7 @@ pub fn gen_values_modules_and_accessors(
                 args: &BuildedArgs<#generics>,
                 #formatter_ident: &mut core::fmt::Formatter<'_>,
                 #locale_field: #enum_ident,
-                #data_ident: &__l_i18n_crate::keys::DisplayData
+                #data_ident: &__l_i18n_crate::keys::display::DisplayData
             ) -> core::fmt::Result {
                 use core::fmt::Write;
                 let BuildedArgs #destructure = args;
@@ -295,7 +305,7 @@ pub fn gen_values_modules_and_accessors(
                     _: &BuildedArgs<#generics>,
                     _: &mut core::fmt::Formatter<'_>,
                     _: #enum_ident,
-                    _: &__l_i18n_crate::keys::DisplayData
+                    _: &__l_i18n_crate::keys::display::DisplayData
                 ) -> core::fmt::Result {
                     panic!(#message)
                 }
@@ -326,7 +336,7 @@ pub fn gen_values_modules_and_accessors(
             #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
             pub struct ArgsBuilder;
 
-            impl __l_i18n_crate::keys::ArgsBuilder for ArgsBuilder {
+            impl __l_i18n_crate::keys::builder::ArgsBuilder for ArgsBuilder {
                 type Id = Id;
                 type Builder = Builder<__IntoViewMarker>;
                 type Locale = #enum_ident;
@@ -336,7 +346,7 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl __l_i18n_crate::keys::DisplayArgsBuilder for ArgsBuilder {
+            impl __l_i18n_crate::keys::display::DisplayArgsBuilder for ArgsBuilder {
                 type DisplayBuilder = Builder<__DisplayMarker>;
 
                 fn new_display() -> Self::DisplayBuilder {
@@ -344,7 +354,7 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl __l_i18n_crate::keys::DowngradableArgBuilder for ArgsBuilder {
+            impl __l_i18n_crate::keys::builder::DowngradableArgBuilder for ArgsBuilder {
                 type Downgraded = __builders::#builder_name::ArgsBuilder;
                 const ID: __builders::#builder_name::Id = __builders::#builder_name::Id::#variant_ident;
             }
@@ -359,7 +369,7 @@ pub fn gen_values_modules_and_accessors(
 
             impl<__Marker, #generics> core::marker::Copy for Args<__Marker, #generics> where BuildedArgs<#generics>: core::marker::Copy {}
 
-            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+            impl<#bounded_generics> __l_i18n_crate::keys::view::IntoViewArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
                 type Args = Args<__IntoViewMarker, #generics>;
 
                 fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
@@ -367,7 +377,7 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::display::DisplayArgsMarker<BuildedArgs<#generics>> for ArgsBuilder {
                 type Args = Args<__DisplayMarker, #generics>;
 
                 fn into_args(builder: BuildedArgs<#generics>) -> Self::Args {
@@ -375,20 +385,20 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl<__Marker, #generics> __l_i18n_crate::keys::Args for Args<__Marker, #generics> {
+            impl<__Marker, #generics> __l_i18n_crate::keys::args::Args for Args<__Marker, #generics> {
                 type Locale = #enum_ident;
                 type Id = Id;
             }
 
-            impl<#bounded_generics> __l_i18n_crate::keys::IntoViewArgs for Args<__IntoViewMarker, #generics> {
+            impl<#bounded_generics> __l_i18n_crate::keys::view::IntoViewArgs for Args<__IntoViewMarker, #generics> {
                 fn render(self, _: Id, locale: Self::Locale) -> #render_fn_out_type {
                     let Self(builder, _) = self;
                     __render(builder, locale)
                 }
             }
 
-            impl<#bounded_fmt_generics> __l_i18n_crate::keys::DisplayArgs for Args<__DisplayMarker, #generics> {
-                type Data = __l_i18n_crate::keys::DisplayData;
+            impl<#bounded_fmt_generics> __l_i18n_crate::keys::display::DisplayArgs for Args<__DisplayMarker, #generics> {
+                type Data = __l_i18n_crate::keys::display::DisplayData;
 
                 #maybe_async fn get_data(&self, _id: Self::Id, locale: Self::Locale) -> Self::Data {
                     __get_data(locale) #maybe_await
@@ -405,13 +415,13 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableArgs for Args<__Marker, #generics>
+            impl<__Marker, #generics> __l_i18n_crate::keys::view::DowngradableArgs for Args<__Marker, #generics>
                 where
-                __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::IntoViewArgs<
+                __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::view::IntoViewArgs<
                     Locale = #enum_ident,
                     Id =  __builders::#builder_name::Id,
                 >,
-                Self: __l_i18n_crate::keys::IntoViewArgs<Locale = #enum_ident, Id = Id>
+                Self: __l_i18n_crate::keys::view::IntoViewArgs<Locale = #enum_ident, Id = Id>
             {
                 type Downgraded = __builders::#builder_name::Args<__Marker, #generics>;
 
@@ -422,14 +432,14 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
-            impl<__Marker, #generics> __l_i18n_crate::keys::DowngradableDisplayArgs for Args<__Marker, #generics>
+            impl<__Marker, #generics> __l_i18n_crate::keys::display::DowngradableDisplayArgs for Args<__Marker, #generics>
                 where
-                __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::DisplayArgs<
+                __builders::#builder_name::Args<__Marker, #generics>: __l_i18n_crate::keys::display::DisplayArgs<
                     Locale = #enum_ident,
                     Id =  __builders::#builder_name::Id,
                     Data = Self::Data
                 >,
-                Self: __l_i18n_crate::keys::DisplayArgs<Locale = #enum_ident, Id = Id>
+                Self: __l_i18n_crate::keys::display::DisplayArgs<Locale = #enum_ident, Id = Id>
             {
                 type Downgraded = __builders::#builder_name::Args<__Marker, #generics>;
 
@@ -443,7 +453,7 @@ pub fn gen_values_modules_and_accessors(
             #render_fn
 
             #[doc(hidden)]
-            pub #maybe_async fn __get_data(locale: #enum_ident) -> __l_i18n_crate::keys::DisplayData {
+            pub #maybe_async fn __get_data(locale: #enum_ident) -> __l_i18n_crate::keys::display::DisplayData {
                 match locale {
                     #(
                         #get_data_match_arms,
@@ -458,8 +468,8 @@ pub fn gen_values_modules_and_accessors(
 
         impl #keys_ident {
             #docs
-            pub const fn #key(self) -> __l_i18n_crate::keys::KeyBuilder<#key::ArgsBuilder> {
-                __l_i18n_crate::keys::KeyBuilder::from_id(#key::Id)
+            pub const fn #key(self) -> __l_i18n_crate::keys::builder::KeyBuilder<#key::ArgsBuilder> {
+                __l_i18n_crate::keys::builder::KeyBuilder::from_id(#key::Id)
             }
         }
     }

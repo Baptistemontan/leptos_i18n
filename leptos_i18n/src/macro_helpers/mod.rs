@@ -7,7 +7,7 @@ mod scope;
 
 use crate::{
     Locale,
-    keys::{DisplayArgs, DisplayKey},
+    keys::display::{DisplayArgs, DisplayKey},
 };
 pub use formatting::*;
 pub use interpol_args::*;

@@ -18,7 +18,7 @@ use leptos_router::{
 
 use leptos_i18n::{
     I18nContext, Locale,
-    keys::{ConstArgs, KeyBuilder},
+    keys::{builder::KeyBuilder, comp_time::ConstArgs},
     locale_traits::BaseLocale,
     use_i18n_context,
 };
@@ -791,7 +791,7 @@ impl<A: ConstArgs<Value = &'static str>> PossibleRouteMatch for I18nPath<A> {
 #[doc(hidden)]
 pub const fn make_i18n_path<B>(key: KeyBuilder<B>) -> I18nPath<B::Args>
 where
-    B: leptos_i18n::keys::ConstArgsMarker<Value = &'static str>,
+    B: leptos_i18n::keys::comp_time::ConstArgsMarker<Value = &'static str>,
 {
     I18nPath(KeyBuilder::into_id(key))
 }

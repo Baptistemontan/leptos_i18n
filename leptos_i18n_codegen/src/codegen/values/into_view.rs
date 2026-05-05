@@ -233,11 +233,11 @@ fn gen_const_value(
         [] => todo!(),
         [single] => core::mem::take(single),
         values if multi_kind => quote! {{
-            const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
-            __l_i18n_crate::keys::Literal::Multiple(__VALUES)
+            const __VALUES: &[__l_i18n_crate::keys::comp_time::Literal<__l_i18n_crate::keys::comp_time::NoRecurse>] = &[#(#values,)*];
+            __l_i18n_crate::keys::comp_time::Literal::Multiple(__VALUES)
         }},
         values => quote! {{
-            const __VALUES: &[__l_i18n_crate::keys::Literal<__l_i18n_crate::keys::NoRecurse>] = &[#(#values,)*];
+            const __VALUES: &[__l_i18n_crate::keys::comp_time::Literal<__l_i18n_crate::keys::comp_time::NoRecurse>] = &[#(#values,)*];
             __VALUES
         }},
     }
@@ -270,7 +270,7 @@ fn flatten_const_value(
             if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
                 let value = &*locale.strings[*index];
                 if multi_kind {
-                    quote!(__l_i18n_crate::keys::Literal::String(#value))
+                    quote!(__l_i18n_crate::keys::comp_time::Literal::String(#value))
                 } else {
                     quote!(#value)
                 }
@@ -285,7 +285,7 @@ fn flatten_const_value(
                 if multi_kind {
                     quote!(
                         const {
-                            __l_i18n_crate::keys::Literal::String(
+                            __l_i18n_crate::keys::comp_time::Literal::String(
                                 __l_i18n_crate::__private::index_translations::<#string_count, #index>(
                                     super::#keys_ident::#string_accessor()
                                 )
@@ -303,10 +303,18 @@ fn flatten_const_value(
                 }
             }
         }
-        Literal::Signed(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Signed(#n)),
-        Literal::Unsigned(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Unsigned(#n)),
-        Literal::Float(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Float(#n)),
-        Literal::Bool(n) if multi_kind => quote!(__l_i18n_crate::keys::Literal::Bool(#n)),
+        Literal::Signed(n) if multi_kind => {
+            quote!(__l_i18n_crate::keys::comp_time::Literal::Signed(#n))
+        }
+        Literal::Unsigned(n) if multi_kind => {
+            quote!(__l_i18n_crate::keys::comp_time::Literal::Unsigned(#n))
+        }
+        Literal::Float(n) if multi_kind => {
+            quote!(__l_i18n_crate::keys::comp_time::Literal::Float(#n))
+        }
+        Literal::Bool(n) if multi_kind => {
+            quote!(__l_i18n_crate::keys::comp_time::Literal::Bool(#n))
+        }
         Literal::Signed(n) => quote!(#n),
         Literal::Unsigned(n) => quote!(#n),
         Literal::Float(n) => quote!(#n),

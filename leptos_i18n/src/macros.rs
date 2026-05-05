@@ -10,26 +10,26 @@ macro_rules! declare_locales {
 #[macro_export]
 macro_rules! build_key {
     ($builder: expr) => {
-        $crate::keys::KeyBuilder::const_build($builder, &|__builder| {
+        $crate::keys::builder::KeyBuilder::const_build($builder, &|__builder| {
             #[deny(deprecated)]
             __builder.build()
         })
     };
     ($builder: expr, $($tt:tt)*) => {
-        $crate::keys::KeyBuilder::build($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
+        $crate::keys::builder::KeyBuilder::build($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
     }
 }
 
 #[macro_export]
 macro_rules! build_key_display {
     ($builder: expr) => {
-        $crate::keys::KeyBuilder::const_build($builder, &|__builder| {
+        $crate::keys::builder::KeyBuilder::const_build($builder, &|__builder| {
             #[deny(deprecated)]
             __builder.build()
         })
     };
     ($builder: expr, $($tt:tt)*) => {
-        $crate::keys::KeyBuilder::build_display($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
+        $crate::keys::builder::KeyBuilder::build_display($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
     }
 }
 
