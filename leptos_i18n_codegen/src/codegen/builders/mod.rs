@@ -107,7 +107,7 @@ fn gen_inner_module(
     });
 
     let render_fn_out_type = if cfg!(all(feature = "dynamic_load", not(feature = "ssr"))) {
-        quote!(impl __l_i18n_crate::keys::IntoViewFuture)
+        quote!(impl __l_i18n_crate::keys::view::IntoViewFuture)
     } else {
         quote!(impl __l_i18n_crate::reexports::leptos::IntoView + core::clone::Clone + 'static)
     };

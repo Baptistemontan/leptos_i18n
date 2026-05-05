@@ -26,7 +26,7 @@ pub trait KeyId: Send + Sync + Copy + Hash + Ord + 'static {
 impl<A: Args> Key<A> {
     #[doc(hidden)]
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    pub fn render(this: Self, locale: A::Locale) -> impl IntoViewFuture
+    pub fn render(this: Self, locale: A::Locale) -> impl view::IntoViewFuture
     where
         A: IntoViewArgs,
     {
