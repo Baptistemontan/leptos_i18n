@@ -229,8 +229,9 @@ fn gen_const_value(
 ) -> TokenStream {
     let mut tokens = Vec::new();
     flatten_const_value(value, locale, &mut tokens, keys_ident, multi_kind);
+
     match tokens.as_mut_slice() {
-        [] => todo!(),
+        [] => unreachable!("should have at least one value"),
         [single] => core::mem::take(single),
         values if multi_kind => quote! {{
             const __VALUES: &[__l_i18n_crate::keys::comp_time::Literal<__l_i18n_crate::keys::comp_time::NoRecurse>] = &[#(#values,)*];
