@@ -38,7 +38,7 @@ impl<L: BaseLocale, I: KeyId> Args for FailedArgs<L, I> {
 
 impl<L: BaseLocale, I: KeyId> super::view::IntoViewArgs for FailedArgs<L, I> {
     #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
-    fn render(self, _: Self::Id, _: Self::Locale) -> impl IntoViewFuture {
+    fn render(self, _: Self::Id, _: Self::Locale) -> impl super::view::IntoViewFuture {
         async {}
     }
 
@@ -49,6 +49,12 @@ impl<L: BaseLocale, I: KeyId> super::view::IntoViewArgs for FailedArgs<L, I> {
 impl<L: BaseLocale, I: KeyId> super::display::DisplayArgs for FailedArgs<L, I> {
     type Data = super::display::DisplayData;
 
+    #[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+    async fn get_data(&self, _: Self::Id, _: Self::Locale) -> Self::Data {
+        match self.failed_builder {}
+    }
+
+    #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
     fn get_data(&self, _: Self::Id, _: Self::Locale) -> Self::Data {
         match self.failed_builder {}
     }
