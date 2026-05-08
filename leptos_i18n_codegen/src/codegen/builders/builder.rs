@@ -276,12 +276,12 @@ fn gen_methods_inner(
         }
 
         impl<__Marker, #generics> Builder<__Marker, #build_right_generics> {
+            #[track_caller]
             #[deprecated(note = #missing_message)]
-            pub fn build(self) -> ! {
-                panic!()
+            pub fn build(self) -> __l_i18n_crate::keys::builder::FailedBuilder {
+                panic!(#missing_message)
             }
         }
-
     }
 }
 

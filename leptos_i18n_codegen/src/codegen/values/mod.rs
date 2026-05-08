@@ -385,6 +385,28 @@ pub fn gen_values_modules_and_accessors(
                 }
             }
 
+            impl __l_i18n_crate::keys::view::IntoViewArgsMarker<__l_i18n_crate::keys::builder::FailedBuilder> for ArgsBuilder {
+                type Args = __l_i18n_crate::keys::args::FailedArgs<#enum_ident, Id>;
+
+                fn into_args(builder: __l_i18n_crate::keys::builder::FailedBuilder) -> Self::Args {
+                    __l_i18n_crate::keys::args::FailedArgs {
+                        _marker: core::marker::PhantomData,
+                        failed_builder: builder
+                    }
+                }
+            }
+
+            impl __l_i18n_crate::keys::display::DisplayArgsMarker<__l_i18n_crate::keys::builder::FailedBuilder> for ArgsBuilder {
+                type Args = __l_i18n_crate::keys::args::FailedArgs<#enum_ident, Id>;
+
+                fn into_args(builder: __l_i18n_crate::keys::builder::FailedBuilder) -> Self::Args {
+                    __l_i18n_crate::keys::args::FailedArgs {
+                        _marker: core::marker::PhantomData,
+                        failed_builder: builder
+                    }
+                }
+            }
+
             impl<__Marker, #generics> __l_i18n_crate::keys::args::Args for Args<__Marker, #generics> {
                 type Locale = #enum_ident;
                 type Id = Id;

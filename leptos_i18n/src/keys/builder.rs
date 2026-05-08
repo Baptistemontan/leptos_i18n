@@ -22,6 +22,10 @@ pub trait ArgsBuilder: Copy + 'static {
     fn new() -> Self::Builder;
 }
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FailedBuilder {}
+
 pub trait DowngradableArgBuilder: ArgsBuilder {
     type Downgraded: ArgsBuilder<Locale = Self::Locale, Builder = Self::Builder>;
     const ID: <Self::Downgraded as ArgsBuilder>::Id;
