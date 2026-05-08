@@ -205,7 +205,14 @@ fn resolve_foreign_key(
         })
         .collect::<BTreeMap<String, ResolvedValue>>();
 
-    let value = populate_value(target_value, &args, loc, diag, cfg);
+    let value = populate_value(
+        target_value,
+        &args,
+        loc,
+        &foreign_key.target_location.key_path,
+        diag,
+        cfg,
+    );
 
     Some(value)
 }
@@ -249,6 +256,7 @@ fn populate_value(
     value: &ResolvedValue,
     args: &BTreeMap<String, ResolvedValue>,
     loc: &Location,
+    fk_path: &KeyPath,
     diag: &Diagnostics,
     cfg: &Config,
 ) -> ResolvedValue {
@@ -259,9 +267,9 @@ fn populate_value(
             let inner = component
                 .inner
                 .as_deref()
-                .map(|inner| populate_value(inner, args, loc, diag, cfg))
+                .map(|inner| populate_value(inner, args, loc, fk_path, diag, cfg))
                 .map(Box::new);
-            let attributes = populate_attributes(&component.attributes, args, loc, diag);
+            let attributes = populate_attributes(&component.attributes, args, loc, fk_path, diag);
             ResolvedValue::Component(Component {
                 key: component.key.clone(),
                 inner,
@@ -271,11 +279,11 @@ fn populate_value(
         ResolvedValue::Bloc(resolved_values) => {
             let bloc = resolved_values
                 .iter()
-                .map(|value| populate_value(value, args, loc, diag, cfg))
+                .map(|value| populate_value(value, args, loc, fk_path, diag, cfg))
                 .collect();
             ResolvedValue::Bloc(bloc)
         }
-        ResolvedValue::Plurals(plurals) => populate_plurals(plurals, args, loc, diag, cfg),
+        ResolvedValue::Plurals(plurals) => populate_plurals(plurals, args, loc, fk_path, diag, cfg),
         ResolvedValue::Dummy(dumdum) => {
             let mut bloc = Vec::new();
             let mut dummies = Vec::new();
@@ -317,16 +325,24 @@ fn populate_plurals(
     plurals: &Plurals<ResolvedValue>,
     args: &BTreeMap<String, ResolvedValue>,
     loc: &Location,
+    fk_path: &KeyPath,
     diag: &Diagnostics,
     cfg: &Config,
 ) -> ResolvedValue {
-    let mapped_count_key = map_plural_key(&plurals.count_key, plurals.rule_type, args, loc, diag);
+    let mapped_count_key = map_plural_key(
+        &plurals.count_key,
+        plurals.rule_type,
+        args,
+        loc,
+        fk_path,
+        diag,
+    );
 
     match mapped_count_key {
         Ok(new_count_key) => {
             let forms = plurals
                 .forms
-                .map_ref(|value| populate_value(value, args, loc, diag, cfg));
+                .map_ref(|value| populate_value(value, args, loc, fk_path, diag, cfg));
             ResolvedValue::Plurals(Plurals {
                 rule_type: plurals.rule_type,
                 count_key: new_count_key,
@@ -335,20 +351,13 @@ fn populate_plurals(
         }
         Err(form) => {
             let value = plurals.forms.get_form_or_other(form);
-            populate_value(value, args, loc, diag, cfg)
+            populate_value(value, args, loc, fk_path, diag, cfg)
         }
     }
 }
 
 fn extract_single_value_from_bloc(bloc: &[ResolvedValue]) -> Result<Option<&ResolvedValue>, ()> {
-    let mut iter = bloc.iter().peekable();
-    while let Some(v) = iter.peek() {
-        if v.is_empty() {
-            iter.next();
-        } else {
-            break;
-        }
-    }
+    let mut iter = bloc.iter().skip_while(|v| v.is_empty());
 
     let value = match iter.next() {
         Some(ResolvedValue::Bloc(bloc)) => extract_single_value_from_bloc(bloc)?,
@@ -372,6 +381,7 @@ fn map_plural_key(
     rule_type: PluralRuleType,
     args: &BTreeMap<String, ResolvedValue>,
     loc: &Location,
+    fk_path: &KeyPath,
     diag: &Diagnostics,
 ) -> Result<Key, PluralForm> {
     let arg_name = &*count_key.name;
@@ -380,26 +390,41 @@ fn map_plural_key(
     };
 
     match value {
-        ResolvedValue::Literal(lit) => {
-            Err(get_form_for_literal(lit, rule_type, loc, arg_name, diag))
-        }
+        ResolvedValue::Literal(lit) => Err(get_form_for_literal(
+            lit, rule_type, count_key, loc, fk_path, arg_name, diag,
+        )),
+        ResolvedValue::Variable(var) => Ok(var.key.clone()),
         ResolvedValue::Bloc(bloc) => match extract_single_value_from_bloc(bloc) {
             Ok(Some(ResolvedValue::Variable(var))) => Ok(var.key.clone()),
-            Ok(None) => todo!(),
-            Ok(Some(_)) => todo!(),
-            Err(()) => todo!(),
+            Ok(Some(ResolvedValue::Literal(lit))) => Err(get_form_for_literal(
+                lit, rule_type, count_key, loc, fk_path, arg_name, diag,
+            )),
+            Ok(None) | Ok(Some(_)) | Err(()) => {
+                diag.emit_error(Error::InvalidFkCountArg {
+                    key: count_key.clone(),
+                    loc: loc.clone(),
+                    foreign_key: fk_path.clone(),
+                });
+                Ok(count_key.clone())
+            }
         },
-        ResolvedValue::Variable(var) => Ok(var.key.clone()),
-        ResolvedValue::Component(_) => todo!(),
-        ResolvedValue::Dummy(_) => todo!(),
-        ResolvedValue::Plurals(_) => todo!(),
+        ResolvedValue::Component(_) | ResolvedValue::Plurals(_) | ResolvedValue::Dummy(_) => {
+            diag.emit_error(Error::InvalidFkCountArg {
+                key: count_key.clone(),
+                loc: loc.clone(),
+                foreign_key: fk_path.clone(),
+            });
+            Ok(count_key.clone())
+        }
     }
 }
 
 fn get_form_for_literal(
     lit: &RawLiteral,
     rule_type: PluralRuleType,
+    count_key: &Key,
     loc: &Location,
+    fk_path: &KeyPath,
     arg_name: &str,
     diag: &Diagnostics,
 ) -> PluralForm {
@@ -412,7 +437,14 @@ fn get_form_for_literal(
         RawLiteral::Float(value) => {
             get_plural_form_for(rule_type, loc, F64ToPluralOperands(*value), arg_name, diag)
         }
-        RawLiteral::Bool(_) => todo!(),
+        RawLiteral::Bool(_) => {
+            diag.emit_error(Error::InvalidFkCountArg {
+                key: count_key.clone(),
+                loc: loc.clone(),
+                foreign_key: fk_path.clone(),
+            });
+            PluralForm::Other
+        }
     }
 }
 
@@ -482,6 +514,7 @@ fn populate_attributes(
     attrs: &RawAttributes,
     args: &BTreeMap<String, ResolvedValue>,
     loc: &Location,
+    fk_path: &KeyPath,
     diag: &Diagnostics,
 ) -> RawAttributes {
     let mut new_attrs = Vec::with_capacity(attrs.attrs.len());
@@ -505,11 +538,11 @@ fn populate_attributes(
             continue;
         };
 
-        let value = populate_attribute(arg, loc, diag);
+        let value = populate_attribute(arg, var, loc, fk_path, diag);
 
         new_attrs.push(RawAttribute {
             key: attr.key.clone(),
-            value,
+            value: Some(value),
         });
     }
 
@@ -518,28 +551,35 @@ fn populate_attributes(
 
 fn populate_attribute(
     arg: &ResolvedValue,
+    var_key: &Key,
     loc: &Location,
+    fk_path: &KeyPath,
     diag: &Diagnostics,
-) -> Option<RawAttributeValue> {
-    // TODO: diags
-    let _ = (loc, diag);
-    let value = match arg {
+) -> RawAttributeValue {
+    match arg {
         ResolvedValue::Variable(variable) => RawAttributeValue::Variable(variable.key.clone()),
         ResolvedValue::Literal(raw_literal) => RawAttributeValue::Literal(raw_literal.clone()),
-        ResolvedValue::Component(_) => todo!("how did we got a component inside a fk arg ?"),
         ResolvedValue::Bloc(bloc) => match extract_single_value_from_bloc(bloc) {
             Ok(Some(ResolvedValue::Variable(var))) => RawAttributeValue::Variable(var.key.clone()),
             Ok(Some(ResolvedValue::Literal(lit))) => RawAttributeValue::Literal(lit.clone()),
-            Ok(None) => RawAttributeValue::Literal(RawLiteral::String(String::new())),
-            Ok(Some(_)) => {
-                todo!("other type of args are not allowed with component attributes")
+            Ok(None) | Ok(Some(_)) | Err(()) => {
+                diag.emit_error(Error::InvalidFkAttrArg {
+                    key: var_key.clone(),
+                    loc: loc.clone(),
+                    foreign_key: fk_path.clone(),
+                });
+                RawAttributeValue::Literal(RawLiteral::String(String::new()))
             }
-            Err(()) => todo!("fk arg to comp attribute as multiple non-empty values"),
         },
-        ResolvedValue::Dummy(_) => todo!(),
-        ResolvedValue::Plurals(_) => todo!(),
-    };
-    Some(value)
+        ResolvedValue::Component(_) | ResolvedValue::Plurals(_) | ResolvedValue::Dummy(_) => {
+            diag.emit_error(Error::InvalidFkAttrArg {
+                key: var_key.clone(),
+                loc: loc.clone(),
+                foreign_key: fk_path.clone(),
+            });
+            RawAttributeValue::Literal(RawLiteral::String(String::new()))
+        }
+    }
 }
 
 fn has_deps(

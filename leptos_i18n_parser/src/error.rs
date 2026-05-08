@@ -90,7 +90,13 @@ pub enum Error {
         value: String,
         err: String,
     },
-    InvalidCountArg {
+    InvalidFkCountArg {
+        key: Key,
+        loc: Location,
+        foreign_key: KeyPath,
+    },
+    InvalidFkAttrArg {
+        key: Key,
         loc: Location,
         foreign_key: KeyPath,
     },
@@ -217,9 +223,23 @@ impl Display for Error {
             Error::InvalidForeignKeyArgs { loc, err } => {
                 write!(f, "Malformed foreign key args at {loc}: {err}.")
             }
-            Error::InvalidCountArg { loc, foreign_key } => write!(
+            Error::InvalidFkCountArg {
+                key,
+                loc,
+                foreign_key,
+            } => write!(
                 f,
-                "Invalid arg \"count\" at {loc} to foreign key \"{foreign_key}\": argument \"count\" for plurals can only be a literal number or a single variable."
+                "Invalid arg \"{}\" at {loc} to foreign key \"{foreign_key}\": arguments for plurals count can only be a literal number or a single variable.",
+                key.name
+            ),
+            Error::InvalidFkAttrArg {
+                key,
+                loc,
+                foreign_key,
+            } => write!(
+                f,
+                "Invalid arg \"{}\" at {loc} to foreign key \"{foreign_key}\": argument attributes can only be a literal or a single variable.",
+                key.name
             ),
             Error::UnexpectedToken { loc, message } => write!(
                 f,
