@@ -29,32 +29,38 @@ struct AnyLocale(&'static str);
 ///
 /// You access the translations and read/update the current locale through it.
 #[derive(Debug)]
-pub struct I18nContext<L: Locale, S: Scope<L> = <L as Locale>::Keys> {
+pub struct I18nContext<S: Scope> {
     #[cfg(feature = "unified_contexts")]
     locale_signal: RwSignal<AnyLocale>,
     #[cfg(not(feature = "unified_contexts"))]
-    locale_signal: RwSignal<L>,
-    locale_marker: PhantomData<L>,
+    locale_signal: RwSignal<S::BaseLocale>,
     scope_marker: PhantomData<S>,
 }
 
-impl<L: Locale, S: Scope<L>> Clone for I18nContext<L, S> {
+impl<S: Scope> Clone for I18nContext<S> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<L: Locale, S: Scope<L>> Copy for I18nContext<L, S> {}
+impl<S: Scope> Copy for I18nContext<S> {}
 
-impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
+impl<S: Scope> Scope for I18nContext<S> {
+    type BaseLocale = S::BaseLocale;
+    type Keys = S::Keys;
+}
+
+impl<S: Scope> I18nContext<S> {
     /// Return the current locale subscribing to any changes.
     #[inline]
     #[track_caller]
-    pub fn get_locale(self) -> L {
+    pub fn get_locale(self) -> S::BaseLocale {
         #[cfg(feature = "unified_contexts")]
         {
+            use std::str::FromStr;
+
             let any_loc = self.locale_signal.get();
-            L::from_str(any_loc.0).unwrap_or_default()
+            <S::BaseLocale as FromStr>::from_str(any_loc.0).unwrap_or_default()
         }
         #[cfg(not(feature = "unified_contexts"))]
         {
@@ -65,11 +71,13 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Return the current locale but does not subscribe to changes
     #[inline]
     #[track_caller]
-    pub fn get_locale_untracked(self) -> L {
+    pub fn get_locale_untracked(self) -> S::BaseLocale {
         #[cfg(feature = "unified_contexts")]
         {
+            use std::str::FromStr;
+
             let any_loc = self.locale_signal.get_untracked();
-            L::from_str(any_loc.0).unwrap_or_default()
+            <S::BaseLocale as FromStr>::from_str(any_loc.0).unwrap_or_default()
         }
         #[cfg(not(feature = "unified_contexts"))]
         {
@@ -77,24 +85,10 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
         }
     }
 
-    /// Return the keys for the current locale subscribing to any changes
-    #[inline]
-    #[track_caller]
-    pub fn get_keys(self) -> S::Keys {
-        LocaleKeys::from_locale(self.get_locale())
-    }
-
-    /// Return the keys for the current locale but does not subscribe to changes
-    #[inline]
-    #[track_caller]
-    pub fn get_keys_untracked(self) -> S::Keys {
-        LocaleKeys::from_locale(self.get_locale_untracked())
-    }
-
     /// Set the locale and notify all subscribers
     #[inline]
     #[track_caller]
-    pub fn set_locale(self, lang: L) {
+    pub fn set_locale(self, lang: S::BaseLocale) {
         #[cfg(feature = "unified_contexts")]
         return self.locale_signal.set(AnyLocale(lang.as_str()));
         #[cfg(not(feature = "unified_contexts"))]
@@ -104,7 +98,7 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     /// Set the locale but does not notify the subscribers
     #[inline]
     #[track_caller]
-    pub fn set_locale_untracked(self, lang: L) {
+    pub fn set_locale_untracked(self, lang: S::BaseLocale) {
         #[cfg(feature = "unified_contexts")]
         {
             let mut guard = self.locale_signal.write_untracked();
@@ -119,10 +113,9 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
 
     /// Map the context to a new scope
     #[inline]
-    pub const fn scope<NS: Scope<L>>(self) -> I18nContext<L, NS> {
+    pub const fn scope<NS: Scope<BaseLocale = S::BaseLocale>>(self) -> I18nContext<NS> {
         I18nContext {
             locale_signal: self.locale_signal,
-            locale_marker: PhantomData,
             scope_marker: PhantomData,
         }
     }
@@ -133,7 +126,6 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
             let locale_signal = use_context::<RwSignal<AnyLocale>>()?;
             Some(Self {
                 locale_signal,
-                locale_marker: PhantomData,
                 scope_marker: PhantomData,
             })
         }
@@ -151,9 +143,7 @@ impl<L: Locale, S: Scope<L>> I18nContext<L, S> {
     }
 }
 
-impl<L: Locale, S: Scope<L>> IntoDirective<(leptos::tachys::renderer::types::Element,), ()>
-    for I18nContext<L, S>
-{
+impl<S: Scope> IntoDirective<(leptos::tachys::renderer::types::Element,), ()> for I18nContext<S> {
     type Cloneable = Self;
 
     fn run(&self, el: leptos::tachys::renderer::types::Element, _param: ()) {
@@ -161,7 +151,7 @@ impl<L: Locale, S: Scope<L>> IntoDirective<(leptos::tachys::renderer::types::Ele
         Effect::new(move || {
             let locale = this.get_locale();
             let _ = el.set_attribute("lang", locale.as_str());
-            let dir = locale.direction();
+            let dir = Locale::direction(locale);
             let _ = el.set_attribute("dir", dir.as_str());
         });
     }
@@ -183,7 +173,7 @@ pub(crate) const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
 
 #[track_caller]
-fn init_context_inner<L: Locale>(
+fn init_context_inner<L: BaseLocale>(
     set_lang_cookie: WriteSignal<Option<L>>,
     initial_locale: Memo<L>,
 ) -> I18nContext<L> {
@@ -217,7 +207,6 @@ fn init_context_inner<L: Locale>(
     I18nContext::<L> {
         locale_signal,
         scope_marker: PhantomData,
-        locale_marker: PhantomData,
     }
 }
 
@@ -229,7 +218,7 @@ fn init_context_inner<L: Locale>(
 #[derive(default_struct_builder::DefaultBuilder)]
 pub struct I18nContextOptions<'a, L>
 where
-    L: Locale,
+    L: BaseLocale,
 {
     /// Should set a cookie to keep track of the locale when page reload (default to true) (do nothing without the "cookie" feature)
     pub enable_cookie: bool,
@@ -242,7 +231,7 @@ where
     pub ssr_lang_header_getter: UseLocalesOptions,
 }
 
-impl<L: Locale> Default for I18nContextOptions<'_, L> {
+impl<L: BaseLocale> Default for I18nContextOptions<'_, L> {
     fn default() -> Self {
         I18nContextOptions {
             enable_cookie: ENABLE_COOKIE,
@@ -255,7 +244,9 @@ impl<L: Locale> Default for I18nContextOptions<'_, L> {
 
 /// Same as `init_i18n_context` but with some cookies options.
 #[track_caller]
-pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>) -> I18nContext<L> {
+pub fn init_i18n_context_with_options<L: BaseLocale>(
+    options: I18nContextOptions<L>,
+) -> I18nContext<L> {
     let I18nContextOptions {
         enable_cookie,
         cookie_name,
@@ -277,7 +268,7 @@ pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>)
 
 /// Initialize a `I18nContext` without providing it.
 #[track_caller]
-pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
+pub fn init_i18n_context<L: BaseLocale>() -> I18nContext<L> {
     init_i18n_context_with_options(Default::default())
 }
 
@@ -293,13 +284,13 @@ pub fn init_i18n_context<L: Locale>() -> I18nContext<L> {
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
 #[track_caller]
-pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
+pub fn provide_i18n_context<L: BaseLocale>() -> I18nContext<L> {
     provide_i18n_context_with_options_inner(Default::default())
 }
 
 #[doc(hidden)]
 #[track_caller]
-pub fn provide_i18n_context_with_options_inner<L: Locale>(
+pub fn provide_i18n_context_with_options_inner<L: BaseLocale>(
     options: I18nContextOptions<L>,
 ) -> I18nContext<L> {
     provide_meta_context();
@@ -316,7 +307,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
 #[track_caller]
-pub fn provide_i18n_context_with_options<L: Locale>(
+pub fn provide_i18n_context_with_options<L: BaseLocale>(
     options: I18nContextOptions<L>,
 ) -> I18nContext<L> {
     provide_i18n_context_with_options_inner(options)
@@ -327,15 +318,15 @@ pub fn provide_i18n_context_with_options<L: Locale>(
 // *********************************************
 
 #[track_caller]
-fn init_subcontext_with_options<L: Locale>(
-    initial_locale: Signal<Option<L>>,
+fn init_subcontext_with_options<L: BaseLocale>(
+    initial_locale: Signal<Option<L::BaseLocale>>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: CookieOptions<L>,
+    cookie_options: CookieOptions<L::BaseLocale>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = match cookie_name {
         Some(cookie_name) if ENABLE_COOKIE => leptos_use::use_cookie_with_options::<
-            L,
+            L::BaseLocale,
             FromToStringCodec,
         >(&cookie_name, cookie_options),
         _ => {
@@ -368,7 +359,9 @@ fn init_subcontext_with_options<L: Locale>(
 }
 
 #[track_caller]
-fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) -> Signal<Option<L>> {
+fn derive_initial_locale_signal<L: BaseLocale>(
+    initial_locale: Option<Signal<L>>,
+) -> Signal<Option<L>> {
     initial_locale
         .map(|s| Signal::derive(move || Some(s.get())))
         .unwrap_or_default()
@@ -385,7 +378,7 @@ fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) ->
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 #[track_caller]
-pub fn init_i18n_subcontext_with_options<L: Locale>(
+pub fn init_i18n_subcontext_with_options<L: BaseLocale>(
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
     cookie_options: Option<CookieOptions<L>>,
@@ -410,7 +403,7 @@ pub fn init_i18n_subcontext_with_options<L: Locale>(
 /// - locale of the parent context
 /// - if no parent context, use the same resolution used by a main context.
 #[track_caller]
-pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
+pub fn init_i18n_subcontext<L: BaseLocale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     init_i18n_subcontext_with_options::<L>(initial_locale, None, None, None)
 }
 
@@ -427,13 +420,13 @@ pub fn init_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18
 /// Or you can create a subcontext with `init_i18n_subcontext_*` and manually provide it with `Provider` or `provide_context`.
 #[deprecated(note = "see function documentation", since = "0.6.0")]
 #[track_caller]
-pub fn provide_i18n_subcontext<L: Locale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
+pub fn provide_i18n_subcontext<L: BaseLocale>(initial_locale: Option<Signal<L>>) -> I18nContext<L> {
     let ctx = init_i18n_subcontext::<L>(initial_locale);
     I18nContext::provide(ctx);
     ctx
 }
 
-fn run_as_children<L: Locale, Chil: IntoView>(
+fn run_as_children<L: BaseLocale, Chil: IntoView>(
     ctx: I18nContext<L>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
@@ -449,7 +442,7 @@ fn run_as_children<L: Locale, Chil: IntoView>(
 
 #[doc(hidden)]
 #[track_caller]
-pub fn i18n_sub_context_provider_inner<L: Locale, Chil: IntoView>(
+pub fn i18n_sub_context_provider_inner<L: BaseLocale, Chil: IntoView>(
     children: TypedChildren<Chil>,
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
@@ -467,7 +460,7 @@ pub fn i18n_sub_context_provider_inner<L: Locale, Chil: IntoView>(
 
 #[doc(hidden)]
 #[track_caller]
-pub fn i18n_sub_context_provider_island<L: Locale>(
+pub fn i18n_sub_context_provider_island<L: BaseLocale>(
     children: children::Children,
     initial_locale: Option<L>,
     cookie_name: Option<Cow<str>>,
@@ -484,24 +477,14 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
 /// Panics if the context is missing.
 #[inline]
 #[track_caller]
-pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
-    I18nContext::from_context().expect("I18n context is missing")
-}
-
-/// Return the `I18nContext` previously set.
-///
-/// Is scoped to the given scope.
-///
-/// ## Panic
-///
-/// Panics if the context is missing.
-#[track_caller]
-pub fn use_i18n_with_scope<L: Locale, S: Scope<L>>() -> I18nContext<L, S> {
-    use_i18n_context::<L>().scope()
+pub fn use_i18n_context<S: Scope>() -> I18nContext<S> {
+    I18nContext::<S::BaseLocale>::from_context()
+        .expect("I18n context is missing")
+        .scope()
 }
 
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
-fn embed_translations_fn<L: Locale>(
+fn embed_translations_fn<L: BaseLocale>(
     reg_ctx: crate::fetch_translations::RegisterCtx<L>,
 ) -> impl IntoView {
     let translations = reg_ctx.to_array();
@@ -528,7 +511,7 @@ macro_rules! fill_options {
 }
 
 #[track_caller]
-fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
+fn provide_i18n_context_component_inner<L: BaseLocale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
     set_dir_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
@@ -571,7 +554,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
 
 #[doc(hidden)]
 #[track_caller]
-pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
+pub fn provide_i18n_context_component<L: BaseLocale, Chil: IntoView>(
     set_lang_attr_on_html: Option<bool>,
     set_dir_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
@@ -593,7 +576,7 @@ pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
 
 #[doc(hidden)]
 #[track_caller]
-pub fn provide_i18n_context_component_island<L: Locale>(
+pub fn provide_i18n_context_component_island<L: BaseLocale>(
     set_lang_attr_on_html: Option<bool>,
     set_dir_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
@@ -613,8 +596,8 @@ pub fn provide_i18n_context_component_island<L: Locale>(
 
 // get locale
 #[cfg(feature = "nightly")]
-impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
-    type Output = L;
+impl<S: Scope> FnOnce<()> for I18nContext<S> {
+    type Output = S::BaseLocale;
     #[inline]
     extern "rust-call" fn call_once(self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -622,7 +605,7 @@ impl<L: Locale, S: Scope<L>> FnOnce<()> for I18nContext<L, S> {
 }
 
 #[cfg(feature = "nightly")]
-impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
+impl<S: Scope> FnMut<()> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call_mut(&mut self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -630,7 +613,7 @@ impl<L: Locale, S: Scope<L>> FnMut<()> for I18nContext<L, S> {
 }
 
 #[cfg(feature = "nightly")]
-impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
+impl<S: Scope> Fn<()> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call(&self, _args: ()) -> Self::Output {
         self.get_locale()
@@ -639,26 +622,26 @@ impl<L: Locale, S: Scope<L>> Fn<()> for I18nContext<L, S> {
 
 // set locale
 #[cfg(feature = "nightly")]
-impl<L: Locale, S: Scope<L>> FnOnce<(L,)> for I18nContext<L, S> {
+impl<S: Scope, L: Locale<BaseLocale = S::BaseLocale>> FnOnce<(L,)> for I18nContext<S> {
     type Output = ();
     #[inline]
     extern "rust-call" fn call_once(self, (locale,): (L,)) -> Self::Output {
-        self.set_locale(locale)
+        self.set_locale(Locale::to_base_locale(locale))
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<L: Locale, S: Scope<L>> FnMut<(L,)> for I18nContext<L, S> {
+impl<S: Scope, L: Locale<BaseLocale = S::BaseLocale>> FnMut<(L,)> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call_mut(&mut self, (locale,): (L,)) -> Self::Output {
-        self.set_locale(locale)
+        self.set_locale(Locale::to_base_locale(locale))
     }
 }
 
 #[cfg(feature = "nightly")]
-impl<L: Locale, S: Scope<L>> Fn<(L,)> for I18nContext<L, S> {
+impl<S: Scope, L: Locale<BaseLocale = S::BaseLocale>> Fn<(L,)> for I18nContext<S> {
     #[inline]
     extern "rust-call" fn call(&self, (locale,): (L,)) -> Self::Output {
-        self.set_locale(locale)
+        self.set_locale(Locale::to_base_locale(locale))
     }
 }

@@ -1,9 +1,8 @@
+use super::PluralForm;
 use proc_macro2::Span;
 use quote::ToTokens;
 use std::{collections::BTreeMap, fmt::Display};
 use syn::{Expr, Ident, Token, parse::ParseBuffer, spanned::Spanned, token::Comma};
-
-use leptos_i18n_codegen::load_locales::plurals::PluralForm;
 
 pub struct ParsedInput {
     pub context: Expr,

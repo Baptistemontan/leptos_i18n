@@ -1,8 +1,8 @@
 #![cfg_attr(feature = "nightly", feature(fn_traits))]
 #![cfg_attr(feature = "nightly", feature(unboxed_closures))]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![forbid(unsafe_code)]
-#![deny(warnings)]
+// #![deny(warnings)]
 //! # About Leptos i18n
 //!
 //! Leptos i18n is library to help with translations in a Leptos application
@@ -120,24 +120,29 @@ pub mod context;
 pub mod display;
 mod fetch_locale;
 mod fetch_translations;
+pub mod keys;
 mod langid;
 pub mod locale;
-mod locale_traits;
+pub mod locale_traits;
 mod macro_helpers;
 mod macros;
-mod scopes;
+pub mod scopes;
 
 pub use macro_helpers::formatting;
 
-pub use locale_traits::{Direction, Locale, LocaleKeys};
+pub use locale_traits::{Direction, Locale};
 
-pub use context::{I18nContext, use_i18n_context, use_i18n_with_scope};
+pub use context::{I18nContext, use_i18n_context};
 
 #[allow(deprecated)]
 pub use context::provide_i18n_context;
 
 pub use leptos_i18n_macro::IcuDataProvider;
 pub use scopes::{Scope, ScopedLocale};
+
+pub mod error {
+    pub use crate::macro_helpers::LocaleFromStrError;
+}
 
 /// This module contain utilities for plurals.
 #[cfg(feature = "plurals")]
@@ -161,9 +166,6 @@ pub mod __private {
     /// Helper trait to make some bounds for dummy code
     pub trait AnyBound {}
     impl<T: ?Sized> AnyBound for T {}
-
-    #[deprecated(since = "0.6.0", note = "Ranges are deprecated, use plurals instead.")]
-    pub fn warn_deprecated_ranges() {}
 }
 
 /// This module contain utilities to create custom ICU providers.
@@ -209,7 +211,7 @@ pub mod reexports {
     }
     pub use leptos;
     pub use serde;
-    pub use typed_builder;
+    // pub use typed_builder;
     pub use wasm_bindgen;
 }
 

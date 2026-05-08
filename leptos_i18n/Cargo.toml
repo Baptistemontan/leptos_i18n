@@ -36,7 +36,7 @@ icu_experimental = { workspace = true, optional = true, features = [
 ], default-features = false }
 writeable = { workspace = true, default-features = false }
 tinystr = { workspace = true, optional = true, default-features = false }
-typed-builder = { workspace = true, default-features = true }
+# typed-builder = { workspace = true, default-features = true }
 serde = { workspace = true, default-features = true }
 async-once-cell = { optional = true, workspace = true, default-features = true }
 js-sys = { optional = true, workspace = true, default-features = true }

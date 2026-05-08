@@ -15,28 +15,41 @@ pub struct WithoutAttributes<O>(PhantomData<O>);
 /// Marker for closure that take attributes as argument
 pub struct WithAttributes<O>(PhantomData<O>);
 
-/// Marker trait for differenciating closure based on their arguments
-pub trait AttributesArgMarker: 'static {
-    /// The actual type being turned into a view
-    type IntoView: IntoView + 'static;
+/// Marker for closure that don't take children as argument
+pub struct WithoutChildren<O>(PhantomData<O>);
+/// Marker for closure that take children as argument
+pub struct WithChildren<O>(PhantomData<O>);
+
+/// Marker trait for differenciating closures based on their arguments
+pub trait CompMarker: 'static {
+    /// The actual output
+    type Output: IntoView + 'static;
 }
 
-impl<O: IntoView + 'static> AttributesArgMarker for WithAttributes<O> {
-    type IntoView = O;
+impl<O: CompMarker + 'static> CompMarker for WithAttributes<O> {
+    type Output = O::Output;
 }
 
-impl<O: IntoView + 'static> AttributesArgMarker for WithoutAttributes<O> {
-    type IntoView = O;
+impl<O: CompMarker + 'static> CompMarker for WithoutAttributes<O> {
+    type Output = O::Output;
 }
 
-impl<O: IntoView + 'static> AttributesArgMarker for O {
-    type IntoView = O;
+impl<O: CompMarker + 'static> CompMarker for WithoutChildren<O> {
+    type Output = O::Output;
+}
+
+impl<O: CompMarker + 'static> CompMarker for WithChildren<O> {
+    type Output = O::Output;
+}
+
+impl<O: IntoView + 'static> CompMarker for O {
+    type Output = O;
 }
 
 /// Trait for a type that can be used as an interpolation component.
-pub trait InterpolateComp<O: AttributesArgMarker>: Clone + 'static + Send + Sync {
+pub trait InterpolateComp<O: CompMarker>: Clone + 'static + Send + Sync {
     /// Create a view from self
-    fn to_view(&self, children: leptos::children::ChildrenFn, attrs: &Attributes) -> O::IntoView;
+    fn to_view(&self, children: leptos::children::ChildrenFn, attrs: &Attributes) -> O::Output;
 }
 
 impl<
@@ -59,10 +72,10 @@ impl<
     }
 }
 
-/// Marker trait for a type that can be used as an interpolation self-closed component.
-pub trait InterpolateCompSelfClosed<O: AttributesArgMarker>: Clone + 'static + Send + Sync {
+/// Trait for a type that can be used as an interpolation self-closed component.
+pub trait InterpolateCompSelfClosed<O: CompMarker>: Clone + 'static + Send + Sync {
     /// Create a view from self
-    fn to_view(&self, attrs: &Attributes) -> O::IntoView;
+    fn to_view(&self, attrs: &Attributes) -> O::Output;
 }
 
 impl<O: IntoView + 'static, T: Fn() -> O + Clone + 'static + Send + Sync>
@@ -81,10 +94,34 @@ impl<O: IntoView + 'static, T: Fn(Attributes) -> O + Clone + 'static + Send + Sy
     }
 }
 
-/// Marker trait for a type that can be used to produce a count for a range key.
-pub trait InterpolateRangeCount<T>: Fn() -> T + Clone + 'static + Send + Sync {}
+/// Marker trait for dummy components where no information about self-closeness was found.
+/// Very rare case, but still possible
+#[doc(hidden)]
+pub trait InterpolateDummy<O: CompMarker>: Clone + 'static + Send + Sync {}
 
-impl<T, F: Fn() -> T + Clone + 'static + Send + Sync> InterpolateRangeCount<T> for F {}
+impl<O: IntoView + 'static, T: Fn() -> O + Clone + 'static + Send + Sync>
+    InterpolateDummy<WithoutChildren<WithoutAttributes<O>>> for T
+{
+}
+
+impl<O: IntoView + 'static, T: Fn(Attributes) -> O + Clone + 'static + Send + Sync>
+    InterpolateDummy<WithoutChildren<WithAttributes<O>>> for T
+{
+}
+
+impl<
+    O: IntoView + 'static,
+    T: Fn(leptos::children::ChildrenFn) -> O + Clone + 'static + Send + Sync,
+> InterpolateDummy<WithChildren<WithoutAttributes<O>>> for T
+{
+}
+
+impl<
+    O: IntoView + 'static,
+    T: Fn(leptos::children::ChildrenFn, Attributes) -> O + Clone + 'static + Send + Sync,
+> InterpolateDummy<WithChildren<WithAttributes<O>>> for T
+{
+}
 
 /// Marker trait for a type that can produce a `icu::plurals::PluralOperands`
 #[cfg(feature = "plurals")]

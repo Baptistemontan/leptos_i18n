@@ -2,9 +2,10 @@
 
 use std::{
     fmt::{self, Debug, Display},
-    marker::PhantomData,
     rc, sync,
 };
+
+use crate::macro_helpers::{WithAttributes, WithChildren, WithoutAttributes, WithoutChildren};
 
 /// Function that takes a formatter to format things like children or attributes
 pub type DynDisplayFn<'a> = &'a dyn Fn(&mut fmt::Formatter<'_>) -> fmt::Result;
@@ -43,15 +44,6 @@ impl Display for Children<'_> {
         self.0(f)
     }
 }
-
-#[doc(hidden)]
-pub struct WithAttributes<M>(PhantomData<M>);
-#[doc(hidden)]
-pub struct WithoutAttributes<M>(PhantomData<M>);
-#[doc(hidden)]
-pub struct WithChildren<M>(PhantomData<M>);
-#[doc(hidden)]
-pub struct WithoutChildren;
 
 #[doc(hidden)]
 pub struct ChildrenFn;
@@ -133,7 +125,7 @@ where
     }
 }
 
-impl<F> DisplayComponent<WithAttributes<WithoutChildren>> for F
+impl<F> DisplayComponent<WithAttributes<WithoutChildren<()>>> for F
 where
     F: Fn(&mut fmt::Formatter<'_>, Attributes) -> fmt::Result,
 {
@@ -149,7 +141,7 @@ where
     }
 }
 
-impl<F> DisplayComponent<WithoutAttributes<WithoutChildren>> for F
+impl<F> DisplayComponent<WithoutAttributes<WithoutChildren<()>>> for F
 where
     F: Fn(&mut fmt::Formatter<'_>) -> fmt::Result,
 {

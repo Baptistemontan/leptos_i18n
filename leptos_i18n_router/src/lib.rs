@@ -11,14 +11,21 @@ pub use components::I18nRoute;
 /// Create a localized path (one or more static segments) based on a locale.
 ///
 /// ```rust, ignore
-/// <Route path=i18n_path!(Locale, |locale| td_string!(locale, routes.some_path)) view=.. />
+/// <Route path=i18n_path!(Locale, routes.some_path) view=.. />
 /// ```
 #[macro_export]
 macro_rules! i18n_path {
-    ($t:ty, $func:expr) => {{ $crate::__private::make_i18n_path::<$t, _>($func) }};
+    ($scope:ty, $($keys:ident).+) => {
+        const {
+            $crate::__private::make_i18n_path(
+                $crate::__private::leptos_i18n::key!(scope = $scope, $($keys).+)
+            )
+        }
+    };
 }
 
 #[doc(hidden)]
 pub mod __private {
     pub use crate::routing::make_i18n_path;
+    pub use leptos_i18n;
 }

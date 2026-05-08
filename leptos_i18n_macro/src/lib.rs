@@ -8,95 +8,22 @@
 //!
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
+mod build_key;
 mod data_provider;
-pub(crate) mod load_locales;
-pub(crate) mod scoped;
+pub(crate) mod declare_locales;
 pub(crate) mod t_format;
-pub(crate) mod t_macro;
 pub(crate) mod t_plural;
 
-use leptos_i18n_codegen::load_locales::plurals::PluralRuleType;
-use t_macro::{InputType, OutputType};
-
-#[proc_macro]
-pub fn load_locales(_tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    match load_locales::load_locales() {
-        Ok(ts) => ts.into(),
-        Err(err) => {
-            let err = err.to_string();
-            quote::quote!(compile_error!(#err);).into()
-        }
-    }
-}
+use t_plural::PluralRuleType;
 
 #[proc_macro]
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    load_locales::declare_locales::declare_locales(tokens)
+    declare_locales::declare_locales(tokens)
 }
 
 #[proc_macro]
-pub fn t(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Context, OutputType::View)
-}
-
-#[proc_macro]
-pub fn tu(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Untracked, OutputType::View)
-}
-
-#[proc_macro]
-pub fn td(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::View)
-}
-
-#[proc_macro]
-pub fn t_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Context, OutputType::String)
-}
-
-#[proc_macro]
-pub fn tu_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Untracked, OutputType::String)
-}
-
-#[proc_macro]
-pub fn t_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Context, OutputType::Display)
-}
-
-#[proc_macro]
-pub fn tu_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Untracked, OutputType::Display)
-}
-
-#[proc_macro]
-pub fn td_string(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::String)
-}
-
-#[proc_macro]
-pub fn td_display(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    t_macro::t_macro(tokens, InputType::Locale, OutputType::Display)
-}
-
-#[proc_macro]
-pub fn use_i18n_scoped(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::use_i18n_scoped(tokens)
-}
-
-#[proc_macro]
-pub fn scope_i18n(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::scope_i18n(tokens)
-}
-
-#[proc_macro]
-pub fn scope_locale(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::scope_locale(tokens)
-}
-
-#[proc_macro]
-pub fn define_scope(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    scoped::define_scope(tokens)
+pub fn build_key_inner(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    build_key::build_key_macro(tokens)
 }
 
 #[proc_macro]

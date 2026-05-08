@@ -1,48 +1,5 @@
 use proc_macro2::TokenStream;
-use quote::{ToTokens, TokenStreamExt, format_ident, quote};
-use syn::Token;
-
-pub enum Keys {
-    SingleKey(syn::Ident),
-    Subkeys(Vec<syn::Ident>),
-}
-
-fn parse_subkeys(input: syn::parse::ParseStream, keys: &mut Vec<syn::Ident>) -> syn::Result<()> {
-    keys.push(input.parse()?);
-    while input.peek(Token![.]) {
-        input.parse::<Token![.]>()?;
-        keys.push(input.parse()?);
-    }
-    Ok(())
-}
-
-impl syn::parse::Parse for Keys {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let first_key = input.parse()?;
-        let dot = input.peek(Token![.]);
-        if dot || input.peek(Token![::]) {
-            if dot {
-                input.parse::<Token![.]>()?;
-            } else {
-                input.parse::<Token![::]>()?;
-            }
-            let mut keys = vec![first_key];
-            parse_subkeys(input, &mut keys)?;
-            Ok(Keys::Subkeys(keys))
-        } else {
-            Ok(Keys::SingleKey(first_key))
-        }
-    }
-}
-
-impl quote::ToTokens for Keys {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            Keys::SingleKey(key) => tokens.append(key.clone()),
-            Keys::Subkeys(keys) => tokens.append_separated(keys, quote!(().)),
-        }
-    }
-}
+use quote::{ToTokens, format_ident, quote};
 
 #[derive(Debug, Clone)]
 pub enum EitherOfWrapper {
@@ -53,10 +10,11 @@ pub enum EitherOfWrapper {
 }
 
 impl EitherOfWrapper {
+    #[track_caller]
     pub fn new(size: usize) -> EitherOfWrapper {
         match size {
             0 => {
-                unreachable!("0 locales ? how is this possible ? should have been checked by now.")
+                unreachable!("EitherOfWrapper requires at least one element.")
             }
             1 => EitherOfWrapper::Single,
             2 => EitherOfWrapper::Duo,
@@ -72,24 +30,24 @@ impl EitherOfWrapper {
         match self {
             EitherOfWrapper::Single => ts.into_token_stream(),
             EitherOfWrapper::Duo if i == 0 => {
-                quote!(l_i18n_crate::reexports::leptos::either::Either::Left(#ts))
+                quote!(__l_i18n_crate::reexports::leptos::either::Either::Left(#ts))
             }
             EitherOfWrapper::Duo => {
-                quote!(l_i18n_crate::reexports::leptos::either::Either::Right(#ts))
+                quote!(__l_i18n_crate::reexports::leptos::either::Either::Right(#ts))
             }
             EitherOfWrapper::Multiple(ident) => {
                 let variant = format_ident!("{}", LETTERS[i]);
-                quote!(l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
+                quote!(__l_i18n_crate::reexports::leptos::either::#ident::#variant(#ts))
             }
             EitherOfWrapper::Nested(last) => match i {
                 0..=14 => {
                     let variant = format_ident!("{}", LETTERS[i]);
-                    quote!(l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
+                    quote!(__l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
                 }
                 15.. => {
                     let variant = format_ident!("{}", LETTERS[15]);
                     let ts = last.wrap(i - 15, ts);
-                    quote!(l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
+                    quote!(__l_i18n_crate::reexports::leptos::either::EitherOf16::#variant(#ts))
                 }
             },
         }
@@ -105,5 +63,36 @@ pub fn fit_in_leptos_tuple(values: &[TokenStream]) -> TokenStream {
         let chunk_size = values_len.div_ceil(TUPLE_MAX_SIZE);
         let values = values.chunks(chunk_size).map(fit_in_leptos_tuple);
         quote!((#(#values,)*))
+    }
+}
+
+#[derive(Clone)]
+pub enum EitherIter<A, B> {
+    Iter1(A),
+    Iter2(B),
+}
+
+impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A, B> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            EitherIter::Iter1(iter) => iter.next(),
+            EitherIter::Iter2(iter) => iter.next(),
+        }
+    }
+}
+
+impl<T, A, B> ExactSizeIterator for EitherIter<A, B>
+where
+    A: ExactSizeIterator<Item = T>,
+    B: ExactSizeIterator<Item = T>,
+    Self: Iterator<Item = T>,
+{
+    fn len(&self) -> usize {
+        match self {
+            EitherIter::Iter1(iter) => ExactSizeIterator::len(iter),
+            EitherIter::Iter2(iter) => ExactSizeIterator::len(iter),
+        }
     }
 }
