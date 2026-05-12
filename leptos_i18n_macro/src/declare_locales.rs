@@ -147,6 +147,10 @@ fn parse_values(
     input.parse::<Token![:]>()?;
     let key = Key::from_ident(ident);
     let mut loc = loc.push_key(key.clone());
+    if input.peek(Token![_]) {
+        input.parse::<Token![_]>()?;
+        return Ok((key, RawValueOrSubkeys::Defaulted));
+    }
     if let Some(parsed_value) = parse_str_value(input, &loc, formatters)? {
         return Ok((key, RawValueOrSubkeys::Value(parsed_value)));
     }
