@@ -1,3 +1,9 @@
+//! Scope module
+//!
+//! A Scope is a way to scope the keys of the translations to some subkeys,
+//! so instead of having to write the whole path for some nested keys, like "path.to.some.keys",
+//! you can create a scope to "path.to", and use that scope to shorten the full path to "some.keys".
+
 use std::{
     fmt::{self, Debug},
     hash::Hash,
@@ -8,17 +14,21 @@ use crate::locale_traits::{BaseLocale, Locale};
 
 /// Represent a scope in a locale.
 pub trait Scope: 'static + Send + Sync {
+    /// The base locale of that scope
     type BaseLocale: BaseLocale;
 
     /// The keys of the scopes
     type Keys: Keys<BaseLocale = Self::BaseLocale>;
 
+    /// Return the keys this scopes point to
     fn get_keys() -> Self::Keys {
         Self::Keys::THIS
     }
 }
 
+/// Keys of translations, a ZST that only serves as a way to navigate the keys of the translations
 pub trait Keys: 'static + Send + Sync + Copy + Scope<Keys = Self> {
+    /// A const created version of Self
     const THIS: Self;
 }
 
@@ -34,6 +44,7 @@ impl<S: Scope> ScopedLocale<S> {
         ScopedLocale { locale }
     }
 
+    /// Return the base locale of that scope
     pub const fn locale(self) -> S::BaseLocale {
         self.locale
     }

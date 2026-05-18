@@ -1,7 +1,7 @@
 #![cfg_attr(feature = "nightly", feature(fn_traits))]
 #![cfg_attr(feature = "nightly", feature(unboxed_closures))]
-// #![deny(missing_docs)]
 #![forbid(unsafe_code)]
+// #![deny(missing_docs)]
 // #![deny(warnings)]
 //! # About Leptos i18n
 //!
@@ -140,6 +140,7 @@ pub use context::provide_i18n_context;
 pub use leptos_i18n_macro::IcuDataProvider;
 pub use scopes::{Scope, ScopedLocale};
 
+/// Module for errors that might occurs
 pub mod error {
     pub use crate::macro_helpers::LocaleFromStrError;
 }

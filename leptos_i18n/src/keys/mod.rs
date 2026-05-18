@@ -1,3 +1,5 @@
+//! Module for keys
+
 use std::fmt::Debug;
 use std::hash::Hash;
 

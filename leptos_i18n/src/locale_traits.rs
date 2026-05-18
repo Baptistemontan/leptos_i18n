@@ -1,3 +1,5 @@
+//! Module containing trait for the `Locale` type
+
 use icu_locale::{LanguageIdentifier, Locale as IcuLocale};
 use std::{
     fmt::{Debug, Display},
@@ -11,6 +13,9 @@ use crate::{
     scopes::ScopedLocale,
 };
 
+/// Trait implemented the enum representing the supported locales of the application
+///
+/// Most functions of this crate are generic of type implementing this trait
 pub trait Locale: LocaleRequirementsMarker {
     /// Convert this type to the base locale, this is used for wrappers around a locale such as scopes.
     fn to_base_locale(self) -> Self::BaseLocale;
@@ -64,7 +69,8 @@ pub trait Locale: LocaleRequirementsMarker {
         filter_matches(std::slice::from_ref(langid.as_ref()), availables)
     }
 
-    fn iter_variants() -> impl Iterator<Item = Self> {
+    /// Iterate over the variants of this locale
+    fn iter_variants() -> impl ExactSizeIterator<Item = Self> + Clone {
         <Self::BaseLocale as BaseLocale>::ALL_VARIANTS
             .iter()
             .copied()
@@ -77,6 +83,7 @@ pub trait Locale: LocaleRequirementsMarker {
 /// Carefull when implementing this trait, methods `as_str`, `as_icu_locale` and `direction` on the `Locale` trait have their default impl based on the base locale impl,
 /// so when implementing `BaseLocale` for your type you must also override the impls of those methods on your impl of `Locale` to not have infinite recursion.
 pub trait BaseLocale: Locale<BaseLocale = Self> + LocaleRequirementsMarker {
+    /// Static ref to an array containing all variants of this locale with no duplicates
     const ALL_VARIANTS: &'static [Self];
 
     /// Enum where each variants is an ID of a translation unit
@@ -105,6 +112,7 @@ pub trait BaseLocale: Locale<BaseLocale = Self> + LocaleRequirementsMarker {
     fn init_translations(self, translations_id: Self::TranslationUnitId, values: Vec<Box<str>>);
 }
 
+/// Requirements for the locale trait
 pub trait LocaleRequirementsMarker:
     'static
     + Default
@@ -211,7 +219,7 @@ mod test {
     }
 
     use super::Locale as _;
-    use crate::key;
+    use crate::key_builder;
     use i18n::Locale;
 
     macro_rules! scope {
@@ -254,7 +262,7 @@ mod test {
                 }
             }
         }
-        let ssk = key!(scope = Locale, sk.ssk);
+        let ssk = key_builder!(scope = Locale, sk.ssk);
         let fr_ssk = const_value!(ssk, Locale::fr);
         assert!(check_str_eq_const(fr_ssk, "test fr"));
         let en_ssk = const_value!(ssk, Locale::en);
@@ -282,7 +290,7 @@ mod test {
     #[test]
     fn test_scope() {
         let sk = scope!(Locale::en, sk);
-        let ssk = key!(sk, ssk);
+        let ssk = key_builder!(sk, ssk);
 
         assert_eq!(const_value!(ssk, Locale::en), "test en");
         assert_eq!(const_value!(ssk, Locale::fr), "test fr");
