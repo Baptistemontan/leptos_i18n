@@ -158,3 +158,16 @@ impl<'de, S: Scope> serde::Deserialize<'de> for ScopedLocale<S> {
         Ok(Self::from_base_locale(base_locale))
     }
 }
+
+#[doc(hidden)]
+pub mod markers {
+    use super::{Keys, Scope};
+
+    pub trait SubkeyKeyAccessor<T>: Keys {
+        type Inner: Keys<BaseLocale = Self::BaseLocale>;
+    }
+
+    pub type ScopeHelper<S, M> = <<S as Scope>::Keys as SubkeyKeyAccessor<M>>::Inner;
+
+    pub struct Marker<const C: char>;
+}

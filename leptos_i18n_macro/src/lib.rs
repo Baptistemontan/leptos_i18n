@@ -11,6 +11,7 @@
 mod build_key;
 mod data_provider;
 pub(crate) mod declare_locales;
+pub(crate) mod scope_marker;
 pub(crate) mod t_format;
 pub(crate) mod t_plural;
 
@@ -161,4 +162,9 @@ pub fn td_plural_ordinal(tokens: proc_macro::TokenStream) -> proc_macro::TokenSt
 #[proc_macro_derive(IcuDataProvider)]
 pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     data_provider::derive_icu_data_provider(input)
+}
+
+#[proc_macro]
+pub fn scope_marker(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    scope_marker::scope_marker(tokens)
 }

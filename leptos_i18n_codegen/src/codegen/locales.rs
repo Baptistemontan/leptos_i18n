@@ -103,6 +103,7 @@ pub fn gen_locales(
     };
 
     let mut path = KeyPath::new(namespace.cloned());
+    let crate_path = syn::Path::from(format_ident!("__l_i18n_crate"));
 
     let keys_impls = gen_subkeys_impls(
         &locales.keys,
@@ -111,6 +112,7 @@ pub fn gen_locales(
         locales,
         builders,
         &mut path,
+        &crate_path,
         options,
     );
 

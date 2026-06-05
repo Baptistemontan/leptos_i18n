@@ -20,11 +20,12 @@ pub fn gen_subkeys_impls(
     locales: &Locales,
     builders: &BuildersInfos,
     path: &mut KeyPath,
+    crate_path: &syn::Path,
     options: &CodegenOptions,
 ) -> impl Iterator<Item = TokenStream> {
     keys.values.iter().map(|(key, value)| match value {
         ValuesOrSubkeys::Subkeys(keys) => gen_subkeys_module_and_accessor(
-            key, keys, keys_ident, enum_ident, locales, builders, path, options,
+            key, keys, keys_ident, enum_ident, locales, builders, path, crate_path, options,
         ),
         ValuesOrSubkeys::Values(values) => {
             let path = path.push_key(key.clone());
@@ -43,6 +44,7 @@ fn gen_subkeys_module_and_accessor(
     locales: &Locales,
     builders: &BuildersInfos,
     path: &mut KeyPath,
+    crate_path: &syn::Path,
     options: &CodegenOptions,
 ) -> TokenStream {
     let mut path = path.push_key(key.clone());
@@ -57,8 +59,10 @@ fn gen_subkeys_module_and_accessor(
     };
 
     let module_impl = gen_subkeys_module(
-        keys, keys_ident, enum_ident, locales, builders, &docs, &mut path, options,
+        keys, keys_ident, enum_ident, locales, builders, &docs, &mut path, crate_path, options,
     );
+
+    let scope_marker = crate::utils::scope_marker::key_to_scope_marker(&key.name, crate_path);
 
     quote! {
 
@@ -76,6 +80,10 @@ fn gen_subkeys_module_and_accessor(
                 #key::#keys_ident
             }
         }
+
+        impl __l_i18n_crate::scopes::markers::SubkeyKeyAccessor<#scope_marker> for #keys_ident {
+            type Inner = #key::#keys_ident;
+        }
     }
 }
 
@@ -87,10 +95,11 @@ fn gen_subkeys_module(
     builders: &BuildersInfos,
     docs: &TokenStream,
     path: &mut KeyPath,
+    crate_path: &syn::Path,
     options: &CodegenOptions,
 ) -> TokenStream {
     let keys_impls = gen_subkeys_impls(
-        keys, keys_ident, enum_ident, locales, builders, path, options,
+        keys, keys_ident, enum_ident, locales, builders, path, crate_path, options,
     );
 
     let string_accessors = locales.locales.iter().map(|locale| {

@@ -1,6 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 
+pub mod scope_marker;
+
 #[derive(Debug, Clone)]
 pub enum EitherOfWrapper {
     Single,

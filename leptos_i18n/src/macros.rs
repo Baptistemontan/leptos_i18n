@@ -749,11 +749,22 @@ macro_rules! scope_locale {
 /// ```
 #[macro_export]
 macro_rules! define_scope {
-    ($($mod_path:ident)::+ $(, $($keys:ident).+)?) => {
-        $($mod_path)::+::keys $($(::$keys)*)? ::__I18nKeys
+    ($scope:ty, $key:ident $(, $($path:tt)*)?) => {
+        <
+            <$scope as $crate::scopes::Scope>::Keys as $crate::scopes::markers::SubkeyKeyAccessor<
+                $crate::__private::macros_reexport::scope_marker!(
+                    $key $(, $($path)*)?
+                )
+            >
+        >::Inner
     };
-    (::$($mod_path:ident)::+ $(, $($keys:ident).+)?) => {
-        ::$($mod_path)::+::keys $($(::$keys)*)? ::__I18nKeys
+    ($scope:ty, $first_key:ident $(.$keys:ident)+ $(, $($path:tt)*)?) => {
+        $crate::define_scope!(
+            $crate::define_scope!(
+                $scope, $first_key $(, $($path)*)?
+            ),
+            $($keys).+ $(, $($path)*)?
+        )
     };
 }
 

@@ -262,7 +262,8 @@ mod test {
                 }
             }
         }
-        let ssk = key_builder!(scope = Locale, sk.ssk);
+        type SkScope = crate::define_scope!(Locale, sk, crate);
+        let ssk = key_builder!(scope = SkScope, ssk);
         let fr_ssk = const_value!(ssk, Locale::fr);
         assert!(check_str_eq_const(fr_ssk, "test fr"));
         let en_ssk = const_value!(ssk, Locale::en);
