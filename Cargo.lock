@@ -2176,7 +2176,11 @@ dependencies = [
 name = "leptos_i18n_router"
 version = "0.6.2"
 dependencies = [
+ "http 0.2.12",
+ "http 1.4.0",
  "leptos",
+ "leptos_actix",
+ "leptos_axum",
  "leptos_i18n",
  "leptos_router",
 ]

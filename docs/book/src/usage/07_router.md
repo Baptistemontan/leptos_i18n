@@ -43,9 +43,31 @@ If a locale is found those ways and it is not the default locale, this will trig
 
 This means if you access `"/counter"` with the cookie set to `fr` (default being `en`), then you will be redirected to `"/fr/counter"`.
 
+## Prefixing the Default Locale
+
+By default the default locale is served _without_ a prefix (`/`, `/counter`), while every other locale is prefixed (`/fr`, `/fr/counter`). If you would rather have _every_ locale prefixed, including the default one, pass the `prefix_default` prop:
+
+```rust,ignore
+use leptos_i18n_router::{I18nRoute, PrefixDefault};
+
+view! {
+    <I18nRoute<Locale, _, _> view=Outlet prefix_default=PrefixDefault::Always>
+        <Route path=path!("") view=Home />
+        <Route path=path!("counter") view=Counter />
+    </I18nRoute<Locale, _, _>>
+}
+```
+
+`PrefixDefault` has two variants:
+
+- `PrefixDefault::Never` (the default): the default locale is served unprefixed. Path prefixed with the default locale (`/{def}/..`) will be redirected to the unprefixed one (`/..`) and emit a 301 status code on the server.
+- `PrefixDefault::Always`: the default locale is served prefixed like the others. Unprefixed paths (`/..`) redirects to a path prefixed with the resolved locale (`/{loc}/..`) and emit a 302 status code on the server.
+
+> note: The 301 redirect is only possible if you enabled the "axum"/"actix" feature on `leptos_i18n_router`, if not then a 302 redirect is emitted, as by default the server supplied redirect function only emits 302, so we need to patch it to emit 301.
+
 ## Switching Locale
 
-Switching locale updates the prefix accordingly. Switching from `en` to `fr` will set the prefix to `fr`, but switching to the default locale will remove the locale prefix entirely.
+Switching locale updates the prefix accordingly. Switching from `en` to `fr` will set the prefix to `fr`, but switching to the default locale will remove the locale prefix entirely (unless `prefix_default=PrefixDefault::Always`, in which case the default locale keeps its prefix).
 
 ## State Keeping
 

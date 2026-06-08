@@ -41,9 +41,9 @@ ssr = [
   "dep:leptos_axum",
   "leptos/ssr",
   "leptos_meta/ssr",
-  "leptos_i18n/axum",
   "leptos_router/ssr",
-  "leptos_i18n_router/ssr",
+  "leptos_i18n/axum",
+  "leptos_i18n_router/axum",
   "leptos_i18n_build/ssr",
 ]
 
