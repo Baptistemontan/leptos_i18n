@@ -47,7 +47,7 @@ tinystr = { default-features = false, version = "0.8" }
 default-struct-builder = { default-features = false, version = "0.5" }
 serde_json = { default-features = false, version = "1.0" }
 futures = { default-features = false, version = "0.3" }
-leptos-use = { default-features = false, version = "0.18" }
+leptos-use = { default-features = false, version = "0.19" }
 writeable = { default-features = false, version = "0.6" }
 prettyplease = { default-features = false, version = "0.2" }
 serde-wasm-bindgen = { default-features = false, version = "0.6" }
