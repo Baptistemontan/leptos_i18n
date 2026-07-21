@@ -490,8 +490,13 @@ fn maybe_redirect<L: Locale>(
     Some(new_path)
 }
 
+/// Wrap the view of the matched route to set up the locale reactivity around it.
+///
+/// The second field is the wrapped view itself, kept to be able to preload it: the closure can't
+/// be called for that, it also registers the effects and the history listener, which must happen
+/// once and only when the route is actually chosen.
 #[derive(Clone)]
-struct ViewWrapper<T, A, B>(T)
+struct ViewWrapper<T, A, B>(T, A)
 where
     T: Fn() -> Either<A, B> + Send + Clone + 'static,
     A: ChooseView,
@@ -508,7 +513,9 @@ where
         ChooseView::choose(inner)
     }
 
-    async fn preload(&self) {}
+    fn preload(&self) -> impl Future<Output = ()> {
+        ChooseView::preload(&self.1)
+    }
 }
 
 fn view_wrapper<L, View>(
@@ -691,6 +698,7 @@ where
 
     fn into_view_and_child(self) -> (impl ChooseView, Option<Self::Child>) {
         let (view, child) = MatchInterface::into_view_and_child(self.inner_match);
+        let to_preload = view.clone();
         let new_view = move || {
             view_wrapper(
                 view.clone(),
@@ -699,7 +707,7 @@ where
                 self.segments.clone(),
             )
         };
-        (ViewWrapper(new_view), child)
+        (ViewWrapper(new_view, to_preload), child)
     }
 }
 
