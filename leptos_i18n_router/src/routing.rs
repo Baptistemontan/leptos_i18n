@@ -104,8 +104,20 @@ fn match_path_segments(
         }
     }
 
-    // if iter is empty, perfect match !
-    segments_iter.next().is_none().then_some(matches)
+    // The path is exhausted, but the route can legitimately end with segments matching zero path
+    // segments: the zero width static of a nested index route (`path=""`), an absent optional
+    // param, or a splat matching an empty rest. Anything else means the route is longer than the
+    // path, and so doesn't match.
+    for segment in segments_iter {
+        match segment {
+            PathSegment::Unit | PathSegment::OptionalParam(_) => {}
+            PathSegment::Static(to_match) if to_match.is_empty() => {}
+            PathSegment::Splat(_) => matches.splat = segments.len(),
+            PathSegment::Static(_) | PathSegment::Param(_) => return None,
+        }
+    }
+
+    Some(matches)
 }
 
 /// Strip `prefix` from the front of `path`, but only if `prefix` covers whole path segments.
@@ -948,5 +960,39 @@ mod tests {
         // `/foobar` is not under the `/foo` base path, there is nothing to rewrite in it.
         let new_path = localize_pathname("/foobar", "/foo", Some("fr"), None, None, None);
         assert_eq!(new_path, "/foo/fr");
+    }
+
+    #[test]
+    fn a_route_made_of_zero_width_segments_matches_the_root_path() {
+        // the `I18nRoute` base route contributes its own `StaticSegment("")`, so an index route
+        // mounted at the root of the application is only made of zero width segments.
+        assert!(match_path_segments(&[], &route(&[])).is_some());
+        assert!(match_path_segments(&[], &route(&[seg("")])).is_some());
+        assert!(match_path_segments(&["about"], &route(&[seg("about"), seg("")])).is_some());
+    }
+
+    #[test]
+    fn absent_optional_param_still_matches() {
+        // `path!("users/:id?")` matches /users, so localizing /users must match it too.
+        let users = route(&[seg("users"), PathSegment::OptionalParam("id".into())]);
+        assert!(match_path_segments(&["users"], &users).is_some());
+    }
+
+    #[test]
+    fn catch_all_matching_zero_segments_is_localized() {
+        // `path!("files/*any")` matches /files, so localizing /files must match it too.
+        let en = vec![route(&[seg("files"), PathSegment::Splat("any".into())])];
+        let fr = vec![route(&[seg("fichiers"), PathSegment::Splat("any".into())])];
+        let new_path =
+            localize_pathname("/files", "/", Some("fr"), Some("en"), Some(&en), Some(&fr));
+        assert_eq!(new_path, "/fr/fichiers");
+    }
+
+    #[test]
+    fn a_route_longer_than_the_path_does_not_match() {
+        let users = route(&[seg("users"), seg("list")]);
+        assert!(match_path_segments(&["users"], &users).is_none());
+        let user = route(&[seg("users"), PathSegment::Param("id".into())]);
+        assert!(match_path_segments(&["users"], &user).is_none());
     }
 }
