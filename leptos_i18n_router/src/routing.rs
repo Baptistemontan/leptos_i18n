@@ -208,6 +208,50 @@ fn localize_path<'b, 'p: 'b>(
     true
 }
 
+/// Rewrite `path_name` for a new locale.
+///
+/// This is the pure part of [`get_new_path`]: `old_locale_prefix` is the locale prefix currently
+/// present in the URL (`None` if there is none), and `new_locale_prefix` is the one to put in the
+/// new URL (`None` for the default locale, which is not prefixed).
+fn localize_pathname<'a>(
+    path_name: &'a str,
+    base_path: &'a str,
+    new_locale_prefix: Option<&'a str>,
+    old_locale_prefix: Option<&str>,
+    old_locale_segments: Option<&[Vec<PathSegment>]>,
+    new_locale_segments: Option<&'a [Vec<PathSegment>]>,
+) -> String {
+    let mut path_builder = PathBuilder::default();
+    path_builder.push(base_path);
+    if let Some(new_locale_prefix) = new_locale_prefix {
+        path_builder.push(new_locale_prefix);
+    }
+    if let Some(path_rest) = path_name.strip_prefix(base_path) {
+        let path_rest = match old_locale_prefix {
+            None => path_rest,
+            // if the prefix is not there the URL is not localized, keep the path as is.
+            Some(l) => strip_path_prefix(path_rest, l).unwrap_or(path_rest),
+        };
+
+        let localized = match (old_locale_segments, new_locale_segments) {
+            (Some(old_locale_segments), Some(new_locale_segments)) => localize_path(
+                path_rest,
+                old_locale_segments,
+                new_locale_segments,
+                &mut path_builder,
+            ),
+            _ => false,
+        };
+
+        if !localized {
+            path_builder.push(path_rest);
+        }
+
+        // else ?
+    }
+    path_builder.build()
+}
+
 fn get_new_path<L: Locale>(
     location: &Location,
     base_path: &str,
@@ -216,43 +260,14 @@ fn get_new_path<L: Locale>(
     segments: &RouteSegments<L>,
 ) -> String {
     let mut new_path = location.pathname.with_untracked(|path_name| {
-        let mut path_builder = PathBuilder::default();
-        path_builder.push(base_path);
-        if new_locale != L::default() {
-            path_builder.push(new_locale.as_str());
-        }
-        if let Some(path_rest) = path_name.strip_prefix(base_path) {
-            let path_rest = match locale {
-                None => path_rest,
-                Some(l) => {
-                    if let Some(path_rest) = path_rest.strip_prefix(l.as_str()) {
-                        path_rest
-                    } else {
-                        path_rest // Should happen only if l == L::default()
-                    }
-                }
-            };
-
-            let old_locale_segments = segments.get(&locale.unwrap_or_default());
-            let new_locale_segments = segments.get(&new_locale);
-
-            let localized = match (old_locale_segments, new_locale_segments) {
-                (Some(old_locale_segments), Some(new_locale_segments)) => localize_path(
-                    path_rest,
-                    old_locale_segments,
-                    new_locale_segments,
-                    &mut path_builder,
-                ),
-                _ => false,
-            };
-
-            if !localized {
-                path_builder.push(path_rest);
-            }
-
-            // else ?
-        }
-        path_builder.build()
+        localize_pathname(
+            path_name,
+            base_path,
+            (new_locale != L::default()).then(|| new_locale.as_str()),
+            locale.map(Locale::as_str),
+            segments.get(&locale.unwrap_or_default()).map(Vec::as_slice),
+            segments.get(&new_locale).map(Vec::as_slice),
+        )
     });
 
     location.search.with_untracked(|search| {
@@ -834,6 +849,18 @@ where
 mod tests {
     use super::*;
 
+    fn seg(s: &'static str) -> PathSegment {
+        PathSegment::Static(s.into())
+    }
+
+    /// Build a route the way `NestedRoute::generate_routes` does for the `I18nRoute` base route:
+    /// the base route's own `StaticSegment("")` first, then the children segments.
+    fn route(segments: &[PathSegment]) -> Vec<PathSegment> {
+        let mut route = vec![seg("")];
+        route.extend_from_slice(segments);
+        route
+    }
+
     #[test]
     fn strip_path_prefix_accepts_all_documented_base_path_forms() {
         for base_path in ["foo", "/foo", "foo/", "/foo/"] {
@@ -865,5 +892,25 @@ mod tests {
         // `/fooen/x` is not under `/foo`, so there is no locale segment to find in it.
         assert_eq!(get_path_locale_segment("/fooen/x", "foo"), None);
         assert_eq!(get_path_locale_segment("/barfoo/en", "foo"), None);
+    }
+
+    #[test]
+    fn old_locale_prefix_is_stripped_when_present() {
+        let en = vec![route(&[seg("about")])];
+        let fr = vec![route(&[seg("apropos")])];
+        // on /fr/apropos, switching back to the default locale `en`
+        let new_path =
+            localize_pathname("/fr/apropos", "/", None, Some("fr"), Some(&fr), Some(&en));
+        assert_eq!(new_path, "/about");
+    }
+
+    #[test]
+    fn old_locale_prefix_is_only_stripped_on_a_segment_boundary() {
+        let en = vec![route(&[seg("enroll")])];
+        let fr = vec![route(&[seg("enroll")])];
+        // on /enroll with the default locale `en` (so no prefix in the URL), switching to `fr`
+        let new_path =
+            localize_pathname("/enroll", "/", Some("fr"), Some("en"), Some(&en), Some(&fr));
+        assert_eq!(new_path, "/fr/enroll");
     }
 }
