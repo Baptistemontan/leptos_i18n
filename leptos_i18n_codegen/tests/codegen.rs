@@ -153,3 +153,82 @@ fn non_colliding_keys_are_not_reported() {
 
     assert!(!code.contains("compile_error"), "{code}");
 }
+
+/// Extract the brace balanced block following `start`.
+fn block_after(code: &str, start: &str) -> String {
+    let start = code
+        .find(start)
+        .expect("pattern not found in generated code");
+    let block_start = code[start..].find('{').expect("no block found") + start;
+    let mut depth = 0usize;
+    for (i, c) in code[block_start..].char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return code[block_start..=block_start + i].to_string();
+                }
+            }
+            _ => {}
+        }
+    }
+    panic!("unbalanced block in generated code");
+}
+
+/// Only floats are required to have a fallback, so integer ranges can leave holes in the domain of
+/// the count, which would generate a non exhaustive `match` (`E0004`).
+#[test]
+fn non_exhaustive_integer_ranges_are_reported() {
+    let dir = fixture(
+        "non_exhaustive_integer_ranges_are_reported",
+        BASE_CARGO,
+        &[(
+            "locales/en.json",
+            r#"{ "r": [["zero", 0], ["some", "1..=3"]] }"#,
+        )],
+    );
+
+    let code = gen_for(dir);
+    let block = block_after(&code, "match var_count ()");
+
+    assert!(block.contains("_ => core :: compile_error !"), "{block}");
+    assert!(
+        block.contains("missing: -2147483648..=-1, 4..=2147483647"),
+        "{block}"
+    );
+}
+
+#[test]
+fn exhaustive_integer_ranges_have_no_wildcard_arm() {
+    let dir = fixture(
+        "exhaustive_integer_ranges_have_no_wildcard_arm",
+        BASE_CARGO,
+        &[(
+            "locales/en.json",
+            r#"{ "r": [["neg", "..0"], ["zero", 0], ["pos", "1.."]] }"#,
+        )],
+    );
+
+    let code = gen_for(dir);
+    let block = block_after(&code, "match var_count ()");
+
+    // an unneeded wildcard arm would trigger `unreachable_patterns` in the user crate.
+    assert!(!block.contains("_ =>"), "{block}");
+}
+
+#[test]
+fn integer_ranges_with_fallback_have_no_error_arm() {
+    let dir = fixture(
+        "integer_ranges_with_fallback_have_no_error_arm",
+        BASE_CARGO,
+        &[(
+            "locales/en.json",
+            r#"{ "r": [["zero", 0], ["some", "1..=3"], ["other", "_"]] }"#,
+        )],
+    );
+
+    let code = gen_for(dir);
+
+    assert!(!code.contains("compile_error"), "{code}");
+}

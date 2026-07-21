@@ -1,4 +1,4 @@
-use std::ops::Bound;
+use std::{fmt::Display, ops::Bound};
 
 use leptos_i18n_parser::{
     parse_locales::{
@@ -63,7 +63,138 @@ impl ToTokens for RangeType {
     }
 }
 
-fn to_tokens_integers_string<T: RangeNumber>(
+/// Integers specific operations, needed to check that a set of ranges covers the whole domain of
+/// the type. `RangeNumber` alone doesn't expose the bounds nor a way to step through values.
+trait IntegerRangeNumber: RangeNumber + Ord + Display {
+    const MIN: Self;
+    const MAX: Self;
+
+    fn checked_pred(self) -> Option<Self>;
+    fn checked_succ(self) -> Option<Self>;
+}
+
+macro_rules! impl_integer_range_number {
+    ($($num_type:ty)*) => {
+        $(
+            impl IntegerRangeNumber for $num_type {
+                const MIN: Self = <$num_type>::MIN;
+                const MAX: Self = <$num_type>::MAX;
+
+                fn checked_pred(self) -> Option<Self> {
+                    self.checked_sub(1)
+                }
+
+                fn checked_succ(self) -> Option<Self> {
+                    self.checked_add(1)
+                }
+            }
+        )*
+    };
+}
+
+impl_integer_range_number!(i8 i16 i32 i64 u8 u16 u32 u64);
+
+/// Push the values matched by `range` as inclusive intervals.
+fn push_covered_intervals<T: IntegerRangeNumber>(range: &Range<T>, covered: &mut Vec<(T, T)>) {
+    match range {
+        Range::Exact(value) => covered.push((*value, *value)),
+        Range::Bounds { start, end } => {
+            let start = start.unwrap_or(T::MIN);
+            let end = match end {
+                Bound::Included(end) => Some(*end),
+                // `x..MIN` matches nothing.
+                Bound::Excluded(end) => end.checked_pred(),
+                Bound::Unbounded => Some(T::MAX),
+            };
+            if let Some(end) = end
+                && start <= end
+            {
+                covered.push((start, end));
+            }
+        }
+        Range::Multiple(ranges) => {
+            for range in ranges {
+                push_covered_intervals(range, covered);
+            }
+        }
+        Range::Fallback => covered.push((T::MIN, T::MAX)),
+    }
+}
+
+/// Compute the inclusive intervals of `T` left unmatched by `ranges`.
+///
+/// Only a fallback is mandatory for floats (`RangeType::should_have_fallback`), so integer ranges
+/// can leave holes in the domain of the count. The generated `match` would then be
+/// non-exhaustive, failing the user build with a `E0004` pointing inside generated code, so the
+/// holes are computed here to report them properly.
+fn uncovered_intervals<T: IntegerRangeNumber>(ranges: &[(Range<T>, ParsedValue)]) -> Vec<(T, T)> {
+    let mut covered = Vec::with_capacity(ranges.len());
+
+    for (range, _) in ranges {
+        push_covered_intervals(range, &mut covered);
+    }
+
+    covered.sort_unstable_by_key(|(start, _)| *start);
+
+    let mut uncovered = Vec::new();
+    // smallest value not covered by the intervals seen so far, `None` means the domain is
+    // exhausted.
+    let mut cursor = Some(T::MIN);
+
+    for (start, end) in covered {
+        let Some(current) = cursor else {
+            break;
+        };
+        if start > current {
+            // `start > current >= T::MIN` so `start` has a predecessor.
+            uncovered.push((
+                current,
+                start.checked_pred().unwrap_at("uncovered_intervals_1"),
+            ));
+        }
+        if end >= current {
+            cursor = end.checked_succ();
+        }
+    }
+
+    if let Some(current) = cursor {
+        uncovered.push((current, T::MAX));
+    }
+
+    uncovered
+}
+
+/// A `_` arm reporting the values not covered by `ranges`, if any.
+fn missing_ranges_arm<T: IntegerRangeNumber>(
+    ranges: &[(Range<T>, ParsedValue)],
+) -> Option<TokenStream> {
+    let uncovered = uncovered_intervals(ranges);
+
+    if uncovered.is_empty() {
+        return None;
+    }
+
+    let missing = uncovered
+        .iter()
+        .map(|(start, end)| {
+            if start == end {
+                format!("{start}")
+            } else {
+                format!("{start}..={end}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    let msg = format!(
+        "ranges don't cover every possible value of `{}`, missing: {missing}. Add a \"_\" fallback range or widen the existing ones.",
+        T::TYPE
+    );
+
+    Some(quote!(_ => core::compile_error!(#msg)))
+}
+
+fn to_tokens_integers_string<T: IntegerRangeNumber>(
     ranges: &[(Range<T>, ParsedValue)],
     count_key: &Key,
     strings_count: usize,
@@ -74,12 +205,15 @@ fn to_tokens_integers_string<T: RangeNumber>(
         quote!(#range => #value)
     });
 
+    let missing_ranges_arm = missing_ranges_arm(ranges);
+
     quote! {
         {
             match *#count_key {
                 #(
                     #match_arms,
                 )*
+                #missing_ranges_arm
             }
         }
     }
@@ -111,7 +245,7 @@ fn to_tokens_floats_string<T: RangeNumber>(
     }
 }
 
-fn to_tokens_integers<T: RangeNumber>(
+fn to_tokens_integers<T: IntegerRangeNumber>(
     ranges: &[(Range<T>, ParsedValue)],
     count_key: &Key,
     strings_count: usize,
@@ -140,12 +274,15 @@ fn to_tokens_integers<T: RangeNumber>(
             .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
         quote!(#(#keys)*)
     });
+    let missing_ranges_arm = missing_ranges_arm(ranges);
+
     let match_statement = quote! {
         {
             match #count_key() {
                 #(
                     #match_arms,
                 )*
+                #missing_ranges_arm
             }
         }
     };
@@ -318,5 +455,49 @@ fn range_to_token_stream<T: RangeNumber>(range: &Range<T>) -> proc_macro2::Token
                 quote!()
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ranges<T: IntegerRangeNumber>(
+        ranges: impl IntoIterator<Item = &'static str>,
+    ) -> Vec<(Range<T>, ParsedValue)> {
+        ranges
+            .into_iter()
+            .map(|range| (Range::new(range).unwrap(), ParsedValue::Default))
+            .collect()
+    }
+
+    #[test]
+    fn full_domain_is_covered() {
+        assert!(uncovered_intervals(&ranges::<i32>(["..0", "0", "1.."])).is_empty());
+        assert!(uncovered_intervals(&ranges::<u8>(["..=127", "128.."])).is_empty());
+        assert!(uncovered_intervals(&ranges::<i8>(["_"])).is_empty());
+        assert!(uncovered_intervals(&ranges::<u8>(["0..=255"])).is_empty());
+        // overlapping ranges
+        assert!(uncovered_intervals(&ranges::<u8>(["..=200", "100.."])).is_empty());
+        // out of order ranges
+        assert!(uncovered_intervals(&ranges::<u8>(["128..", "..=127"])).is_empty());
+        // "|" separated ranges
+        assert!(uncovered_intervals(&ranges::<u8>(["0..=127 | 128..=255"])).is_empty());
+    }
+
+    #[test]
+    fn holes_are_found() {
+        assert_eq!(
+            uncovered_intervals(&ranges::<u8>(["0", "1..=3"])),
+            [(4, 255)]
+        );
+        assert_eq!(
+            uncovered_intervals(&ranges::<i8>(["0", "1..=3"])),
+            [(-128, -1), (4, 127)]
+        );
+        assert_eq!(uncovered_intervals(&ranges::<u8>(["1.."])), [(0, 0)]);
+        assert_eq!(uncovered_intervals(&ranges::<u8>([])), [(0, 255)]);
+        // exclusive end
+        assert_eq!(uncovered_intervals(&ranges::<u8>(["..255"])), [(255, 255)]);
     }
 }
