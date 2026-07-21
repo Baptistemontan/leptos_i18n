@@ -16,28 +16,43 @@ use leptos_i18n_parser::{
     },
     utils::{Key, KeyPath, Loc, ParseContext},
 };
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use syn::{
-    Ident, Lit, LitStr, Token, parse::ParseBuffer, parse_macro_input, punctuated::Punctuated,
-    token::Comma,
-};
+use syn::{Ident, Lit, LitStr, Token, parse::ParseBuffer, punctuated::Punctuated, token::Comma};
 
 pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    declare_locales_inner(tokens.into()).into()
+}
+
+fn to_compile_error<T: Display>(err: T) -> TokenStream {
+    let err = err.to_string();
+    quote::quote!(compile_error!(#err);)
+}
+
+fn declare_locales_inner(tokens: TokenStream) -> TokenStream {
     let ParsedInput {
         cfg_file,
         locales,
         crate_path,
         foreign_keys_paths,
         interpolate_display,
-    } = parse_macro_input!(tokens as ParsedInput);
+    } = match syn::parse2::<ParsedInput>(tokens) {
+        Ok(input) => input,
+        Err(err) => return err.into_compile_error(),
+    };
     let diag = Diagnostics::new();
 
     let mut cfg: Config = cfg_file.into();
 
     cfg.options = ParseOptions::default().interpolate_display(interpolate_display);
 
-    let builder_keys = make_builder_keys(locales, &cfg, foreign_keys_paths, &diag).unwrap();
+    // validation errors are regular user errors (missing foreign key, subkeys
+    // missmatch, ...), report them like `load_locales!` does instead of
+    // aborting the compiler with a proc macro panic.
+    let builder_keys = match make_builder_keys(locales, &cfg, foreign_keys_paths, &diag) {
+        Ok(builder_keys) => builder_keys,
+        Err(err) => return to_compile_error(err),
+    };
 
     let parsed_locales = ParsedLocales {
         cfg,
@@ -49,11 +64,8 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
     let result =
         leptos_i18n_codegen::gen_code(&parsed_locales, Some(&crate_path), true, None, true);
     match result {
-        Ok(ts) => ts.into(),
-        Err(err) => {
-            let err = err.to_string();
-            quote::quote!(compile_error!(#err);).into()
-        }
+        Ok(ts) => ts,
+        Err(err) => to_compile_error(err),
     }
 }
 
@@ -499,5 +511,51 @@ impl<'a, 'de> ParseRanges<'a, 'de> for RangeParseBuffer<'de> {
         seed: Self::Seed,
     ) -> Self::Result<()> {
         parse_range_pairs(&self.0, ranges, seed)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use quote::quote;
+
+    fn expand_err(tokens: TokenStream) -> String {
+        let expanded = declare_locales_inner(tokens).to_string();
+        assert!(
+            expanded.contains("compile_error"),
+            "expected a compile error, got: {expanded}"
+        );
+        expanded
+    }
+
+    #[test]
+    fn validation_errors_are_reported_as_compile_errors() {
+        let expanded = expand_err(quote! {
+            path: crate,
+            default: "en",
+            locales: ["en"],
+            en: {
+                key: "$t(missing_key)",
+            },
+        });
+        assert!(
+            expanded.contains("Invalid foreign key"),
+            "unexpected error: {expanded}"
+        );
+    }
+
+    #[test]
+    fn subkeys_missmatch_is_reported_as_compile_error() {
+        expand_err(quote! {
+            path: crate,
+            default: "en",
+            locales: ["en", "fr"],
+            en: {
+                key: { sub: "en" },
+            },
+            fr: {
+                key: "fr",
+            },
+        });
     }
 }
