@@ -1,10 +1,12 @@
 use icu_provider::{DataMarker, DataMarkerInfo};
-use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBounds};
-use leptos_i18n_parser::parse_locales::locale::{
-    BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural,
+use leptos_i18n_parser::{
+    formatters::{self, FormatterToTokens, VarBounds},
+    parse_locales::locale::{BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural},
 };
-use std::any::{Any, TypeId};
-use std::collections::HashSet;
+use std::{
+    any::{Any, TypeId},
+    collections::HashSet,
+};
 
 /// This enum represent the different `Formatters` and options your translations could be using.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -96,7 +98,7 @@ impl FormatterOptions {
     /// Return a `Vec<DataMarkerInfo>` needed to use the given option.
     pub fn into_data_markers(self) -> Vec<DataMarkerInfo> {
         match self {
-            FormatterOptions::Plurals => icu::calendar::provider::MARKERS.to_vec(),
+            FormatterOptions::Plurals => icu::plurals::provider::MARKERS.to_vec(),
             FormatterOptions::FormatDateTime => [
                 icu::datetime::provider::MARKERS,
                 icu::plurals::provider::MARKERS,
@@ -115,6 +117,56 @@ impl FormatterOptions {
             .iter()
             .flat_map(|m| m.to_vec())
             .collect(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every option must at least bake the data of the ICU component it stands for,
+    /// otherwise the generated provider compiles but fails at runtime with a
+    /// missing data error.
+    #[test]
+    fn options_bake_the_data_of_their_own_component() {
+        let contains = |option: FormatterOptions, markers: &[DataMarkerInfo]| {
+            let baked = option.into_data_markers();
+            markers.iter().all(|marker| baked.contains(marker))
+        };
+
+        assert!(contains(
+            FormatterOptions::Plurals,
+            icu::plurals::provider::MARKERS
+        ));
+        assert!(contains(
+            FormatterOptions::FormatDateTime,
+            icu::datetime::provider::MARKERS
+        ));
+        assert!(contains(
+            FormatterOptions::FormatList,
+            icu::list::provider::MARKERS
+        ));
+        assert!(contains(
+            FormatterOptions::FormatNums,
+            icu::decimal::provider::MARKERS
+        ));
+        assert!(contains(
+            FormatterOptions::FormatCurrency,
+            icu::decimal::provider::MARKERS
+        ));
+    }
+
+    /// `Plurals` used to be mapped to the calendar markers, which baked Japanese
+    /// calendar and week data while leaving the plural rules out entirely.
+    #[test]
+    fn plurals_does_not_bake_calendar_data() {
+        let baked = FormatterOptions::Plurals.into_data_markers();
+        for marker in icu::calendar::provider::MARKERS {
+            assert!(
+                !baked.contains(marker),
+                "`FormatterOptions::Plurals` should not pull in calendar data"
+            );
         }
     }
 }
