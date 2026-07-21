@@ -108,13 +108,37 @@ fn match_path_segments(
     segments_iter.next().is_none().then_some(matches)
 }
 
-fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
-    let base_path = base_path.trim_start_matches('/');
-    let stripped_path = path
-        .trim_start_matches('/')
-        .strip_prefix(base_path)?
-        .trim_start_matches('/');
+/// Strip `prefix` from the front of `path`, but only if `prefix` covers whole path segments.
+///
+/// Surrounding `/` are insignificant on both sides, so `"foo"`, `"/foo"`, `"foo/"` and `"/foo/"`
+/// are all equivalent prefixes. Returns `None` if `path` is not under `prefix`, notably when they
+/// only share a string prefix that stops in the middle of a segment (`"/foobar"` is not under
+/// `"/foo"`). The returned remainder never starts with a `/`.
+fn strip_path_prefix<'a>(path: &'a str, prefix: &str) -> Option<&'a str> {
+    let prefix = prefix.trim_matches('/');
+    let path = path.trim_start_matches('/');
+    if prefix.is_empty() {
+        return Some(path);
+    }
+    let rest = path.strip_prefix(prefix)?;
+    match rest.as_bytes().first() {
+        None => Some(rest),
+        Some(b'/') => Some(rest.trim_start_matches('/')),
+        // the prefix ended in the middle of a segment, `path` is not under `prefix`
+        Some(_) => None,
+    }
+}
+
+/// Return the first path segment of `path` located after `base_path`,
+/// or `None` if `path` is not under `base_path`.
+fn get_path_locale_segment<'a>(path: &'a str, base_path: &str) -> Option<&'a str> {
+    let stripped_path = strip_path_prefix(path, base_path)?;
     let (to_match, _) = stripped_path.split_once('/').unwrap_or((stripped_path, ""));
+    Some(to_match)
+}
+
+fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
+    let to_match = get_path_locale_segment(path, base_path)?;
     L::get_all()
         .iter()
         .copied()
@@ -803,5 +827,43 @@ where
     I18nPath {
         func: f,
         marker: PhantomData,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_path_prefix_accepts_all_documented_base_path_forms() {
+        for base_path in ["foo", "/foo", "foo/", "/foo/"] {
+            assert_eq!(strip_path_prefix("/foo/about", base_path), Some("about"));
+            assert_eq!(strip_path_prefix("/foo", base_path), Some(""));
+            assert_eq!(strip_path_prefix("/foo/", base_path), Some(""));
+        }
+        for base_path in ["", "/"] {
+            assert_eq!(strip_path_prefix("/about", base_path), Some("about"));
+            assert_eq!(strip_path_prefix("/", base_path), Some(""));
+        }
+    }
+
+    #[test]
+    fn strip_path_prefix_requires_a_segment_boundary() {
+        assert_eq!(strip_path_prefix("/foobar", "foo"), None);
+        assert_eq!(strip_path_prefix("/fooen/x", "/foo"), None);
+    }
+
+    #[test]
+    fn path_locale_segment_is_read_after_the_base_path() {
+        assert_eq!(get_path_locale_segment("/foo/en/x", "foo"), Some("en"));
+        assert_eq!(get_path_locale_segment("/en/x", "/"), Some("en"));
+        assert_eq!(get_path_locale_segment("/", "/"), Some(""));
+    }
+
+    #[test]
+    fn path_locale_segment_is_not_read_outside_of_the_base_path() {
+        // `/fooen/x` is not under `/foo`, so there is no locale segment to find in it.
+        assert_eq!(get_path_locale_segment("/fooen/x", "foo"), None);
+        assert_eq!(get_path_locale_segment("/barfoo/en", "foo"), None);
     }
 }
