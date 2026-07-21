@@ -239,7 +239,7 @@ pub(crate) mod inner {
     use icu_locale::Locale as IcuLocale;
     use std::{
         collections::HashMap,
-        sync::{OnceLock, RwLock},
+        sync::{OnceLock, PoisonError, RwLock},
     };
 
     #[cfg(feature = "format_datetime")]
@@ -269,7 +269,13 @@ pub(crate) mod inner {
             T: Default,
         {
             let mutex = self.0.get_or_init(Default::default);
-            let mut guard = mutex.write().unwrap();
+            // Formatter construction can panic (a data provider missing a marker or a
+            // locale), and it does so while this guard is held, which poisons the lock.
+            // The cache stays consistent in that case, as `HashMap`'s entry API inserts
+            // nothing when the `or_insert_with` closure unwinds, so the poison flag is
+            // ignored: one failing formatter must not turn every later formatting call,
+            // for any locale and any formatter kind, into a `PoisonError` panic.
+            let mut guard = mutex.write().unwrap_or_else(PoisonError::into_inner);
             f(&mut guard)
         }
     }
@@ -317,6 +323,39 @@ pub(crate) mod inner {
             formatters.provider =
                 super::data_provider::BakedDataProvider(Some(Box::new(data_provider)));
         });
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::{HashMap, StaticLock};
+
+        // A formatter that fails to be built panics inside `with_mut`, i.e. while the
+        // write guard is held. Every later use of the cache must still work, whatever
+        // the locale or the formatter kind.
+        #[test]
+        fn cache_survives_a_failing_formatter_creation() {
+            static CACHE: StaticLock<HashMap<&'static str, usize>> = StaticLock::new();
+
+            CACHE.with_mut(|cache| cache.insert("en", 1));
+
+            let panicked = std::panic::catch_unwind(|| {
+                CACHE.with_mut(|cache| {
+                    cache
+                        .entry("de")
+                        .or_insert_with(|| panic!("A DecimalFormatter"));
+                })
+            });
+            assert!(panicked.is_err());
+
+            // Would panic with a `PoisonError` if the poison flag was propagated.
+            let (en, de_entries) = CACHE.with_mut(|cache| (cache.get("en").copied(), cache.len()));
+            assert_eq!(en, Some(1));
+            // the entry API inserted nothing for the key that failed
+            assert_eq!(de_entries, 1);
+
+            CACHE.with_mut(|cache| cache.insert("de", 2));
+            assert_eq!(CACHE.with_mut(|cache| cache.get("de").copied()), Some(2));
+        }
     }
 }
 
