@@ -1589,7 +1589,7 @@ fn create_namespaces_types(
                     #(
                         #deserialize_match_arms,
                     )*
-                    _ => Err(<D::Error as leptos_i18n::reexports::serde::de::Error>::custom(format!("invalid translation unit id: {s}")))
+                    _ => Err(<D::Error as l_i18n_crate::reexports::serde::de::Error>::custom(format!("invalid translation unit id: {s}")))
                 }
             }
         }

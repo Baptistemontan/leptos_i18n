@@ -253,3 +253,31 @@ fn non_finite_floats() {
     assert!(code.contains("f64 :: NEG_INFINITY"), "{code}");
     assert!(code.contains("1.5f64"), "{code}");
 }
+
+/// Generated code must only reference the runtime crate through the `l_i18n_crate` alias, the
+/// crate can be renamed or behind a reexport.
+#[test]
+fn no_hardcoded_crate_path() {
+    let cargo = r#"
+[package]
+name = "test"
+
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en"]
+namespaces = ["common"]
+"#;
+    let dir = fixture(
+        "no_hardcoded_crate_path",
+        cargo,
+        &[("locales/en/common.json", r#"{ "hello": "world" }"#)],
+    );
+
+    let code = gen_with(dir, Some("my_renamed_crate"), FileFormat::Json);
+
+    assert!(
+        code.contains("use my_renamed_crate as l_i18n_crate"),
+        "{code}"
+    );
+    assert!(!code.contains("leptos_i18n :: reexports"), "{code}");
+}
