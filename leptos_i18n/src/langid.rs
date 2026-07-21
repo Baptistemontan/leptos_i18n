@@ -50,11 +50,9 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
 
     for req in requested.iter().cloned() {
         macro_rules! test_strategy {
-            ($self_as_range:expr) => {{
-                let mut match_found = false;
+            ($self_as_range:expr, $other_as_range:expr) => {{
                 available_locales.retain(|locale| {
-                    if lang_id_matches(locale.as_langid(), &req, $self_as_range, false) {
-                        match_found = true;
+                    if lang_id_matches(locale.as_langid(), &req, $self_as_range, $other_as_range) {
                         supported_locales.push(*locale);
                         return false;
                     }
@@ -64,16 +62,23 @@ pub fn filter_matches<L: Locale>(requested: &[LanguageIdentifier], available: &[
         }
 
         // 1) Try to find a simple (case-insensitive) string match for the request.
-        test_strategy!(false);
+        test_strategy!(false, false);
 
         // 2) Try to match against the available locales treated as ranges.
-        test_strategy!(true);
+        test_strategy!(true, false);
 
         // Per Unicode TR35, 4.4 Locale Matching, we don't add likely subtags to
         // requested locales, so we'll skip it from the rest of the steps.
         if req.language.is_unknown() {
             continue;
         }
+
+        // 3) Try to match against the requested locale treated as a range.
+        //
+        // Without this step a request for a bare language ("de") never matches a
+        // region qualified available locale ("de-DE"), and silently falls back to
+        // the default locale.
+        test_strategy!(true, true);
     }
 
     supported_locales
@@ -125,14 +130,30 @@ mod test {
     fn test_hirarchy() {
         const LOCALES: &[Locale] = &[Locale::de, Locale::en_US, Locale::de_DE, Locale::de_CH];
 
+        // an exact match comes first, then the regional variants of that language
         let res = filter_matches(&[langid!("de")], LOCALES);
-        assert_eq!(res, [Locale::de]);
+        assert_eq!(res, [Locale::de, Locale::de_DE, Locale::de_CH]);
 
         let res = filter_matches(&[langid!("de-DE")], LOCALES);
         assert_eq!(res, [Locale::de_DE, Locale::de]);
 
         let res = filter_matches(&[langid!("de-CH")], LOCALES);
         assert_eq!(res, [Locale::de_CH, Locale::de]);
+    }
+
+    #[test]
+    fn test_bare_language_matches_regional_locale() {
+        // A browser sending "de" must be served "de-DE" if that is the only
+        // german locale declared by the app, instead of falling back to the default.
+        let res = filter_matches(&[langid!("de")], &[Locale::en, Locale::de_DE]);
+        assert_eq!(res, [Locale::de_DE]);
+
+        let res = find_match(&[langid!("de")], &[Locale::en, Locale::de_DE]);
+        assert_eq!(res, Locale::de_DE);
+
+        // Same for a request carrying a script but no region.
+        let res = find_match(&[langid!("fr")], &[Locale::en, Locale::fr_FR]);
+        assert_eq!(res, Locale::fr_FR);
     }
 
     #[test]
