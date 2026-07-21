@@ -210,30 +210,36 @@ impl TranslationsInfos {
     }
 
     /// Same as `generate_data` but can be supplied additionnal ICU `DataMarker`.
+    ///
+    /// # Warning
+    ///
+    /// `mod_directory` is recursively removed before the data is generated,
+    /// see [`generate_data`](Self::generate_data).
     pub fn generate_data_with_data_markers(
         &self,
         mod_directory: PathBuf,
         keys: impl IntoIterator<Item = DataMarkerInfo>,
     ) -> Result<ExportMetadata, DataError> {
-        // This is'nt really needed, but ICU4X wants the directory to be empty
-        // and Rust Analyzer can trigger the build.rs without cleaning the out directory.
-        if mod_directory.exists() {
-            std::fs::remove_dir_all(&mod_directory).unwrap();
-        }
-
+        // `overwrite` makes `BakedExporter::new` recursively remove `mod_directory`,
+        // which ICU4X wants empty and Rust Analyzer can leave behind by triggering
+        // the build.rs without cleaning the out directory.
         let exporter = BakedExporter::new(mod_directory, {
             let mut options = baked_exporter::Options::default();
             options.overwrite = true;
             options.use_internal_fallback = false;
             options
-        })
-        .unwrap();
+        })?;
 
         self.build_datagen_driver_with_data_keys(keys)
             .export(&SourceDataProvider::new(), exporter)
     }
 
     /// Same as `generate_data` but can be supplied additionnal options.
+    ///
+    /// # Warning
+    ///
+    /// `mod_directory` is recursively removed before the data is generated,
+    /// see [`generate_data`](Self::generate_data).
     pub fn generate_data_with_options(
         &self,
         mod_directory: PathBuf,
@@ -243,6 +249,12 @@ impl TranslationsInfos {
     }
 
     /// Generate an ICU datagen at the given mod_directory using the infos from the translations.
+    ///
+    /// # Warning
+    ///
+    /// If `mod_directory` already exists it is **recursively removed** before the
+    /// data is generated, so it must be a directory dedicated to that data,
+    /// typically one under `OUT_DIR`. Anything else stored there is lost.
     pub fn generate_data(&self, mod_directory: PathBuf) -> Result<ExportMetadata, DataError> {
         self.generate_data_with_options(mod_directory, std::iter::empty())
     }

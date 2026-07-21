@@ -39,3 +39,24 @@ fn written_translations_are_valid_json() {
     assert!(strings.iter().any(|s| s.contains('\u{7f}')));
     assert!(strings.iter().any(|s| s.contains('\u{301}')));
 }
+
+/// Datagen returns `Result`, so an unusable output path has to surface as an
+/// error rather than take the whole build script down with a panic.
+#[test]
+fn generate_data_reports_io_errors() {
+    let out = out_dir("generate_data_reports_io_errors");
+    std::fs::create_dir_all(&out).unwrap();
+
+    // A file where a directory is expected: clearing the output path fails.
+    let mod_directory = out.join("baked_data");
+    std::fs::write(&mod_directory, "not a directory").unwrap();
+
+    let err = parse_fixtures()
+        .generate_data(mod_directory)
+        .expect_err("generating into a path that cannot be cleared should fail");
+
+    assert!(
+        matches!(err.kind, icu_provider::DataErrorKind::Io(_)),
+        "expected an IO error, got {err:?}"
+    );
+}
