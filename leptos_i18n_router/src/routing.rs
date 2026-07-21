@@ -307,11 +307,62 @@ fn get_new_path<L: Locale>(
     new_path
 }
 
+/// State shared between the effects to absorb a browser history navigation.
+///
+/// We step out of the Leptos routes reactivity, so we don't get forward and backward history
+/// change triggers and have to handle them manually. On a history change the URL is the source of
+/// truth: the locale is updated to follow it, and neither effect must navigate in reaction.
+///
+/// Both flags are armed by [`check_history_change`] and each is consumed by exactly one effect.
+/// They are only armed when the locale actually changes, because that is the only case where the
+/// effects re-run to consume them, and each is consumed on every path of its effect: a flag left
+/// armed would swallow the next locale switch, or rewrite the URL of the next navigation back to
+/// the previous locale.
+struct HistoryChange<L> {
+    /// Locale of the URL navigated to, consumed by [`update_path_effect`].
+    locale: Cell<Option<L>>,
+    /// Whether the pending pathname change comes from the history,
+    /// consumed by [`correct_locale_prefix_effect`].
+    pending: Cell<bool>,
+}
+
+impl<L: PartialEq> HistoryChange<L> {
+    fn new() -> Self {
+        HistoryChange {
+            locale: Cell::new(None),
+            pending: Cell::new(false),
+        }
+    }
+
+    /// Record a history navigation to a URL holding `path_locale`, the application currently being
+    /// on `current_locale`. Returns `true` if the locale must be updated to follow the URL.
+    fn record(&self, current_locale: L, path_locale: L) -> bool {
+        if current_locale == path_locale {
+            // The locale signal is not going to change, so the effects won't re-run to consume the
+            // flags, and arming them would leave them armed for an unrelated future change.
+            return false;
+        }
+        self.locale.set(Some(path_locale));
+        self.pending.set(true);
+        true
+    }
+
+    /// Consume the locale of a pending history navigation.
+    fn take_locale(&self) -> Option<L> {
+        self.locale.take()
+    }
+
+    /// Consume the pending history navigation flag.
+    fn take(&self) -> bool {
+        self.pending.replace(false)
+    }
+}
+
 /// navigate to a new path when the locale changes
 fn update_path_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
-    history_changed_locale: Rc<Cell<Option<L>>>,
+    history: Rc<HistoryChange<L>>,
     segments: Arc<RouteSegments<L>>,
 ) -> impl Fn(Option<L>) -> L + 'static {
     let location = use_location();
@@ -321,9 +372,8 @@ fn update_path_effect<L: Locale>(
             .pathname
             .with_untracked(|path| get_locale_from_path::<L>(path, base_path));
         let new_locale = i18n.get_locale();
-        // don't react on history change.
-        if let Some(new_locale) = history_changed_locale.get() {
-            history_changed_locale.set(None);
+        // don't react on history change, the URL is already the one we want.
+        if let Some(new_locale) = history.take_locale() {
             return new_locale;
         }
         let Some(prev_loc) = prev_loc else {
@@ -358,7 +408,7 @@ fn correct_locale_prefix_effect<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     segments: Arc<RouteSegments<L>>,
-    history_changed: Rc<Cell<bool>>,
+    history: Rc<HistoryChange<L>>,
 ) -> impl Fn(Option<()>) + 'static {
     let location = use_location();
     let navigate = use_navigate();
@@ -368,12 +418,14 @@ fn correct_locale_prefix_effect<L: Locale>(
             .with(|path| get_locale_from_path::<L>(path, base_path));
         let current_locale = i18n.get_locale_untracked();
 
+        // consume it even when returning early, this pathname change is the one it was armed for.
+        let history_changed = history.take();
+
         if current_locale == path_locale.unwrap_or_default() {
             return;
         }
 
-        let new_locale = if history_changed.get() {
-            history_changed.set(false);
+        let new_locale = if history_changed {
             current_locale
         } else {
             path_locale.unwrap_or(current_locale)
@@ -404,8 +456,7 @@ fn correct_locale_prefix_effect<L: Locale>(
 fn check_history_change<L: Locale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
-    sync: Rc<Cell<Option<L>>>,
-    history_changed: Rc<Cell<bool>>,
+    history: Rc<HistoryChange<L>>,
 ) -> impl Fn(ev::PopStateEvent) + 'static {
     let location = use_location();
 
@@ -414,10 +465,7 @@ fn check_history_change<L: Locale>(
             .pathname
             .with_untracked(|path| get_locale_from_path::<L>(path, base_path).unwrap_or_default());
 
-        sync.set(Some(path_locale));
-        history_changed.set(true);
-
-        if i18n.get_locale_untracked() != path_locale {
+        if history.record(i18n.get_locale_untracked(), path_locale) {
             i18n.set_locale(path_locale);
         }
     }
@@ -487,35 +535,30 @@ where
         maybe_redirect(previously_resolved_locale, base_path, &segments)
     };
 
-    // This variable is there to sync history changes, because we step out of the Leptos routes reactivity we don't get forward and backward history changes triggers
-    // So we have to do it manually
-    // but changing the locale on history change will trigger the locale change effect, causing to change the URL again but with a wrong previous locale
-    // so this variable sync them together on what is the locale currently in the URL.
-    // it starts at None such that on the first render the effect don't change the locale instantly.
-    let sync = Rc::new(Cell::new(None));
-    let history_changed = Rc::new(Cell::new(false));
+    // Changing the locale on a history change would trigger the locale change effect, causing to
+    // change the URL again but with a wrong previous locale, so this state syncs the effects
+    // together on what is the locale currently in the URL.
+    // It starts unarmed such that on the first render the effects don't change the locale instantly.
+    let history = Rc::new(HistoryChange::new());
 
     Effect::new(update_path_effect(
         i18n,
         base_path,
-        sync.clone(),
+        history.clone(),
         segments.clone(),
     ));
 
     // listen for history changes
     let handle = window_event_listener(
         ev::popstate,
-        check_history_change(i18n, base_path, sync, history_changed.clone()),
+        check_history_change(i18n, base_path, history.clone()),
     );
 
     on_cleanup(move || handle.remove());
 
     // correct the url when using <a> that removes the locale prefix
     Effect::new(correct_locale_prefix_effect(
-        i18n,
-        base_path,
-        segments,
-        history_changed,
+        i18n, base_path, segments, history,
     ));
 
     match redir {
@@ -869,6 +912,12 @@ where
 mod tests {
     use super::*;
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum TestLocale {
+        En,
+        Fr,
+    }
+
     fn seg(s: &'static str) -> PathSegment {
         PathSegment::Static(s.into())
     }
@@ -1045,5 +1094,29 @@ mod tests {
         assert!(match_path_segments(&["users"], &users).is_none());
         let user = route(&[seg("users"), PathSegment::Param("id".into())]);
         assert!(match_path_segments(&["users"], &user).is_none());
+    }
+
+    #[test]
+    fn a_history_change_keeping_the_locale_arms_nothing() {
+        // back/forward between two pages of the same locale: the locale signal doesn't change,
+        // so no effect re-runs and nothing must be left armed for a later locale switch.
+        let history = HistoryChange::new();
+        assert!(!history.record(TestLocale::En, TestLocale::En));
+        assert_eq!(history.take_locale(), None);
+        assert!(!history.take());
+    }
+
+    #[test]
+    fn a_history_change_switching_locale_is_consumed_once() {
+        let history = HistoryChange::new();
+        assert!(history.record(TestLocale::En, TestLocale::Fr));
+
+        // both effects re-run and consume their flag
+        assert_eq!(history.take_locale(), Some(TestLocale::Fr));
+        assert!(history.take());
+
+        // nothing is left for an unrelated later locale switch or navigation
+        assert_eq!(history.take_locale(), None);
+        assert!(!history.take());
     }
 }
