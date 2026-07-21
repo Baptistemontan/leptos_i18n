@@ -434,16 +434,110 @@ impl<'a> LocaleTranslations<'a> {
     }
 }
 
+/// Write `s` as a JSON string, surrounding quotes included.
+///
+/// `str`'s `Debug` impl looks close enough but is not a JSON serializer:
+/// it escapes control characters as `\u{7f}` and nul as `\0`, neither of which
+/// JSON accepts, and it escapes a leading combining mark the same way.
+fn write_json_str(f: &mut std::fmt::Formatter<'_>, s: &str) -> std::fmt::Result {
+    f.write_char('"')?;
+    // Index of the first byte not yet written, everything that needs no escaping
+    // is copied in one go when an escape is met or at the end of the string.
+    let mut copied = 0;
+    for (index, c) in s.char_indices() {
+        let escape = match c {
+            '"' => "\\\"",
+            '\\' => "\\\\",
+            '\u{8}' => "\\b",
+            '\u{c}' => "\\f",
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
+            // Anything above U+001F is allowed as is, JSON only requires the
+            // control characters to be escaped.
+            _ if c >= '\u{20}' => continue,
+            _ => {
+                f.write_str(&s[copied..index])?;
+                write!(f, "\\u{:04x}", c as u32)?;
+                copied = index + c.len_utf8();
+                continue;
+            }
+        };
+        f.write_str(&s[copied..index])?;
+        f.write_str(escape)?;
+        copied = index + c.len_utf8();
+    }
+    f.write_str(&s[copied..])?;
+    f.write_char('"')
+}
+
 impl Display for TranslationsFormatter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_char('[')?;
         let mut iter = self.strings.iter();
         if let Some(first) = iter.next() {
-            write!(f, "{first:?}")?;
+            write_json_str(f, first)?;
         }
         for s in iter {
-            write!(f, ",{s:?}")?;
+            f.write_char(',')?;
+            write_json_str(f, s)?;
         }
         f.write_char(']')
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn format(strings: &[&str]) -> String {
+        let strings: Vec<Rc<str>> = strings.iter().copied().map(Rc::from).collect();
+        TranslationsFormatter { strings: &strings }.to_string()
+    }
+
+    #[test]
+    fn control_characters_use_json_escapes() {
+        assert_eq!(format(&["a\0b"]), r#"["a\u0000b"]"#);
+        assert_eq!(format(&["\u{7}"]), r#"["\u0007"]"#);
+        assert_eq!(format(&["\u{1f}"]), r#"["\u001f"]"#);
+        assert_eq!(format(&["\u{8}\u{c}\n\r\t"]), r#"["\b\f\n\r\t"]"#);
+        assert_eq!(format(&[r#"say "hi"\"#]), r#"["say \"hi\"\\"]"#);
+    }
+
+    #[test]
+    fn printable_characters_are_left_alone() {
+        // U+007F and combining marks are valid JSON string content, but `Debug`
+        // escapes them with the Rust-only `\u{..}` syntax.
+        assert_eq!(format(&["x\u{7f}y"]), "[\"x\u{7f}y\"]");
+        assert_eq!(format(&["\u{301}a"]), "[\"\u{301}a\"]");
+        assert_eq!(format(&["héllo 🎉"]), "[\"héllo 🎉\"]");
+    }
+
+    #[test]
+    fn array_layout() {
+        assert_eq!(format(&[]), "[]");
+        assert_eq!(format(&["a"]), r#"["a"]"#);
+        assert_eq!(format(&["a", "b", "c"]), r#"["a","b","c"]"#);
+    }
+
+    /// The emitted files are fetched and parsed as JSON by the `dynamic_load`
+    /// client, so they have to match what a JSON serializer would produce.
+    #[test]
+    fn matches_serde_json() {
+        let strings = [
+            "",
+            "a\0b",
+            "\u{7}\u{8}\u{c}\n\r\t\u{1f}",
+            "x\u{7f}y",
+            "\u{301}a",
+            r#"quotes " and backslashes \"#,
+            "héllo 🎉",
+        ];
+        let rendered = format(&strings);
+        assert_eq!(rendered, serde_json::to_string(&strings).unwrap());
+        assert_eq!(
+            serde_json::from_str::<Vec<String>>(&rendered).unwrap(),
+            strings
+        );
     }
 }
