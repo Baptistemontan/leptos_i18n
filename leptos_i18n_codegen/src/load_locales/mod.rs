@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, ops::Not};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    ops::Not,
+};
 
 pub mod interpolate;
 pub mod locale;
@@ -712,6 +715,56 @@ fn create_scopes_module_inner(
         })
 }
 
+/// Keys are distinguished by their raw name, but two distinct names can sanitize to the same Rust
+/// identifier: `"a-b"` and `"a_b"` both give `a_b`. Generating an accessor for each of them would
+/// emit duplicate definitions in the same `impl` block, failing the user build with a `E0592`
+/// pointing inside generated code.
+///
+/// Report the offending keys instead, along with the ones to skip so the duplicate definitions
+/// don't bury the actual error.
+fn check_ident_collisions<'a, T>(
+    keys: &'a BTreeMap<Key, T>,
+    key_path: &KeyPath,
+) -> (TokenStream, BTreeSet<&'a Key>) {
+    let mut by_ident: BTreeMap<&syn::Ident, Vec<&Key>> = BTreeMap::new();
+
+    for key in keys.keys() {
+        by_ident.entry(&key.ident).or_default().push(key);
+    }
+
+    let mut errors = TokenStream::new();
+    let mut skipped = BTreeSet::new();
+
+    for (ident, keys) in by_ident {
+        let [first, others @ ..] = &keys[..] else {
+            continue;
+        };
+        if others.is_empty() {
+            continue;
+        }
+
+        skipped.extend(others);
+
+        let path = key_path.to_string();
+        let at = if path.is_empty() {
+            String::new()
+        } else {
+            format!(" at \"{path}\"")
+        };
+        let names = std::iter::once(first)
+            .chain(others)
+            .map(|key| key.name.as_ref())
+            .collect::<Vec<_>>()
+            .join("\", \"");
+        let msg = format!(
+            "conflicting keys{at}: \"{names}\" all resolve to the Rust identifier \"{ident}\", rename them so that they don't conflict.",
+        );
+        errors.extend(quote!(core::compile_error!(#msg);));
+    }
+
+    (errors, skipped)
+}
+
 fn create_locale_type_inner<const IS_TOP: bool>(
     type_ident: &syn::Ident,
     parent_ident: Option<&syn::Ident>,
@@ -728,8 +781,11 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 ) -> TokenStream {
     let translations_key = Key::new(TRANSLATIONS_KEY).unwrap_at("TRANSLATIONS_KEY");
 
+    let (ident_collisions, skipped_keys) = check_ident_collisions(keys, key_path);
+
     let literal_keys = keys
         .iter()
+        .filter(|(key, _)| !skipped_keys.contains(key))
         .filter_map(|(key, value)| match value {
             LocaleValue::Value {
                 value: InterpolOrLit::Lit(t),
@@ -866,6 +922,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let subkeys = keys
         .iter()
+        .filter(|(key, _)| !skipped_keys.contains(key))
         .filter_map(|(key, value)| match value {
             LocaleValue::Subkeys { locales, keys } => {
                 Some(Subkeys::new(key.clone(), key_path, locales, keys, gen_docs))
@@ -927,6 +984,7 @@ fn create_locale_type_inner<const IS_TOP: bool>(
 
     let builders = keys
         .iter()
+        .filter(|(key, _)| !skipped_keys.contains(key))
         .filter_map(|(key, value)| match value {
             LocaleValue::Value {
                 value: InterpolOrLit::Interpol(keys),
@@ -1216,6 +1274,8 @@ fn create_locale_type_inner<const IS_TOP: bool>(
     };
 
     quote! {
+        #ident_collisions
+
         #docs
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
@@ -1298,8 +1358,11 @@ fn create_namespaces_types(
         quote! {}
     };
 
+    let (ident_collisions, skipped_keys) = check_ident_collisions(keys, &KeyPath::new(None));
+
     let namespaces = namespaces
         .iter()
+        .filter(|ns| !skipped_keys.contains(&ns.key))
         .map(|ns| {
             let namespace_module_ident = create_namespace_mod_ident(&ns.key.ident);
             let docs = if gen_docs {
@@ -1445,6 +1508,8 @@ fn create_namespaces_types(
     };
 
     quote! {
+        #ident_collisions
+
         #[doc(hidden)]
         pub mod namespaces {
             use super::{#enum_ident, l_i18n_crate};

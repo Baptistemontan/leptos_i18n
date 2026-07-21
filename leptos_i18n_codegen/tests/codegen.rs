@@ -80,3 +80,76 @@ fn kebab_case_key_without_interpolation() {
 
     assert!(code.contains("pub const fn my_key (self)"));
 }
+
+/// `"a-b"` and `"a_b"` are two distinct keys resolving to the same ident, generating an accessor
+/// for both would emit duplicate methods (`E0592`).
+#[test]
+fn colliding_keys_are_reported() {
+    let dir = fixture(
+        "colliding_keys_are_reported",
+        BASE_CARGO,
+        &[("locales/en.json", r#"{ "a-b": "x", "a_b": "y" }"#)],
+    );
+
+    let code = gen_for(dir);
+
+    assert!(code.contains("conflicting keys"), "{code}");
+    assert!(code.contains("\\\"a-b\\\", \\\"a_b\\\""), "{code}");
+    // the duplicated accessor is skipped so the collision is the only reported error.
+    assert_eq!(code.matches("pub const fn a_b (self)").count(), 1, "{code}");
+}
+
+#[test]
+fn colliding_subkeys_are_reported() {
+    let dir = fixture(
+        "colliding_subkeys_are_reported",
+        BASE_CARGO,
+        &[(
+            "locales/en.json",
+            r#"{ "sub": { "a-b": "x", "a_b": "y" } }"#,
+        )],
+    );
+
+    let code = gen_for(dir);
+
+    assert!(code.contains("conflicting keys at \\\"sub\\\""), "{code}");
+}
+
+#[test]
+fn colliding_namespaces_are_reported() {
+    let cargo = r#"
+[package]
+name = "test"
+
+[package.metadata.leptos-i18n]
+default = "en"
+locales = ["en"]
+namespaces = ["a-b", "a_b"]
+"#;
+    let dir = fixture(
+        "colliding_namespaces_are_reported",
+        cargo,
+        &[
+            ("locales/en/a-b.json", r#"{ "hello": "world" }"#),
+            ("locales/en/a_b.json", r#"{ "hello": "world" }"#),
+        ],
+    );
+
+    let code = gen_for(dir);
+
+    assert!(code.contains("conflicting keys"), "{code}");
+    assert_eq!(code.matches("pub fn a_b (self)").count(), 1, "{code}");
+}
+
+#[test]
+fn non_colliding_keys_are_not_reported() {
+    let dir = fixture(
+        "non_colliding_keys_are_not_reported",
+        BASE_CARGO,
+        &[("locales/en.json", r#"{ "a-b": "x", "c_d": "y" }"#)],
+    );
+
+    let code = gen_for(dir);
+
+    assert!(!code.contains("compile_error"), "{code}");
+}
