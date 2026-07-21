@@ -226,7 +226,7 @@ fn localize_pathname<'a>(
     if let Some(new_locale_prefix) = new_locale_prefix {
         path_builder.push(new_locale_prefix);
     }
-    if let Some(path_rest) = path_name.strip_prefix(base_path) {
+    if let Some(path_rest) = strip_path_prefix(path_name, base_path) {
         let path_rest = match old_locale_prefix {
             None => path_rest,
             // if the prefix is not there the URL is not localized, keep the path as is.
@@ -912,5 +912,41 @@ mod tests {
         let new_path =
             localize_pathname("/enroll", "/", Some("fr"), Some("en"), Some(&en), Some(&fr));
         assert_eq!(new_path, "/fr/enroll");
+    }
+
+    #[test]
+    fn every_documented_base_path_form_rewrites_the_same_url() {
+        let en = vec![route(&[seg("about")])];
+        let fr = vec![route(&[seg("about")])];
+        for base_path in ["foo", "/foo", "foo/", "/foo/"] {
+            // default locale -> `fr`
+            let new_path = localize_pathname(
+                "/foo/about",
+                base_path,
+                Some("fr"),
+                Some("en"),
+                Some(&en),
+                Some(&fr),
+            );
+            assert_eq!(new_path, "/foo/fr/about", "base_path: {base_path:?}");
+
+            // `fr` -> default locale
+            let new_path = localize_pathname(
+                "/foo/fr/about",
+                base_path,
+                None,
+                Some("fr"),
+                Some(&fr),
+                Some(&en),
+            );
+            assert_eq!(new_path, "/foo/about", "base_path: {base_path:?}");
+        }
+    }
+
+    #[test]
+    fn base_path_is_only_stripped_on_a_segment_boundary() {
+        // `/foobar` is not under the `/foo` base path, there is nothing to rewrite in it.
+        let new_path = localize_pathname("/foobar", "/foo", Some("fr"), None, None, None);
+        assert_eq!(new_path, "/foo/fr");
     }
 }
