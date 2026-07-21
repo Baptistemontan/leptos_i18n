@@ -675,8 +675,17 @@ impl ParsedValue {
                     }
                     depth -= 1;
                 }
-            } else if tag_content == key {
-                depth += 1;
+            } else {
+                // the tag name is everything up to the first space, the rest is attributes.
+                // Splitting the same way `find_valid_component` does, so a nested opening tag
+                // carrying attributes is still counted and doesn't make us take its closing
+                // tag for ours.
+                let tag_name = tag_content
+                    .split_once(' ')
+                    .map_or(tag_content, |(name, _)| name);
+                if tag_name == key {
+                    depth += 1;
+                }
             }
         }
 
@@ -1764,6 +1773,41 @@ mod tests {
                     attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_nested_comp_with_attributes() {
+        let value =
+            reduced_parsed_value("<comp>before<comp attr=\"x\">inner</comp>after</comp>end");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::Component {
+                    key: new_key("comp_comp"),
+                    inner: Some(Box::new(ParsedValue::Bloc(vec![
+                        ParsedValue::Literal(Literal::String("before".to_string(), usize::MAX)),
+                        ParsedValue::Component {
+                            key: new_key("comp_comp"),
+                            inner: Some(Box::new(ParsedValue::Literal(Literal::String(
+                                "inner".to_string(),
+                                usize::MAX
+                            )))),
+                            attributes: Attributes(vec![Attribute {
+                                key: "attr".to_string(),
+                                value: Some(AttributeValue::Literal(Literal::String(
+                                    "x".to_string(),
+                                    usize::MAX
+                                )))
+                            }])
+                        },
+                        ParsedValue::Literal(Literal::String("after".to_string(), usize::MAX)),
+                    ]))),
+                    attributes: Attributes::default()
+                },
+                ParsedValue::Literal(Literal::String("end".to_string(), usize::MAX)),
             ])
         )
     }
