@@ -232,3 +232,24 @@ fn integer_ranges_with_fallback_have_no_error_arm() {
 
     assert!(!code.contains("compile_error"), "{code}");
 }
+
+/// `proc_macro2` asserts float literals are finite, but YAML and JSON5 can express `NaN` and
+/// infinities.
+#[test]
+fn non_finite_floats() {
+    let dir = fixture(
+        "non_finite_floats",
+        BASE_CARGO,
+        &[(
+            "locales/en.yaml",
+            "nan: .nan\ninf: .inf\nneg_inf: -.inf\nfinite: 1.5\n",
+        )],
+    );
+
+    let code = gen_with(dir, None, FileFormat::Yaml);
+
+    assert!(code.contains("f64 :: NAN"), "{code}");
+    assert!(code.contains("f64 :: INFINITY"), "{code}");
+    assert!(code.contains("f64 :: NEG_INFINITY"), "{code}");
+    assert!(code.contains("1.5f64"), "{code}");
+}
