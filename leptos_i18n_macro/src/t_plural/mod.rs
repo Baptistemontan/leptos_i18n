@@ -49,9 +49,11 @@ pub fn t_plural_inner(
     let get_locale = input_type.get_locale(&ctx);
 
     let match_arms = forms.iter().map(|(form, block)| quote!(#form => #block));
+    // the trailing comma has to be part of the optional arm, otherwise a missing
+    // fallback leaves a dangling `,` in the generated match.
     let fallback = fallback.map(|(expr, span)| {
         let fb = quote_spanned! { span => _ };
-        quote!(#fb => #expr)
+        quote!(#fb => #expr,)
     });
 
     let ts = quote! {
@@ -59,7 +61,7 @@ pub fn t_plural_inner(
             #(
                 #match_arms,
             )*
-            #fallback,
+            #fallback
         }
     };
 
