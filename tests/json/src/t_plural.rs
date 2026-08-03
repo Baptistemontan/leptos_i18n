@@ -55,3 +55,32 @@ fn ordinal_plural() {
     let fr = td_plural_ordinal!(Locale::fr, count = count, one => "one", two => "two", few => "few", _ => "other");
     assert_eq!(fr, "other");
 }
+
+#[test]
+fn exhaustive_plural_no_fallback() {
+    let count = move || 1;
+    let en = td_plural!(
+        Locale::en,
+        count = count,
+        zero => "zero",
+        one => "one",
+        two => "two",
+        few => "few",
+        many => "many",
+        other => "other"
+    );
+    assert_eq!(en, "one");
+
+    let count = move || 2;
+    let en = td_plural!(
+        Locale::en,
+        count = count,
+        zero => "zero",
+        one => "one",
+        two => "two",
+        few => "few",
+        many => "many",
+        other => "other"
+    );
+    assert_eq!(en, "other");
+}
