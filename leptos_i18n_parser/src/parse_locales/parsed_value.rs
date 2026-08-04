@@ -605,14 +605,17 @@ impl ParsedValue {
 
         let mut values = Vec::new();
 
-        // `before` is literal text only (no components) - just add as literal if non-empty
+        // `before` can't contain any component (any tag in it already failed to find a closing tag),
+        // but it can still contain variables and foreign keys, so it must be parsed too.
         if let Some(before) = before
             && !before.is_empty()
         {
-            values.push(ParsedValue::Literal(Literal::String(
-                before.to_string(),
-                usize::MAX,
-            )));
+            let before_parsed = nested_result_try!(ParsedValue::new(ctx, before));
+            // Flatten if before_parsed is a Bloc
+            match before_parsed {
+                ParsedValue::Bloc(mut before_values) => values.append(&mut before_values),
+                other => values.push(other),
+            }
         }
 
         let inner = match between {
@@ -672,8 +675,17 @@ impl ParsedValue {
                     }
                     depth -= 1;
                 }
-            } else if tag_content == key {
-                depth += 1;
+            } else {
+                // the tag name is everything up to the first space, the rest is attributes.
+                // Splitting the same way `find_valid_component` does, so a nested opening tag
+                // carrying attributes is still counted and doesn't make us take its closing
+                // tag for ours.
+                let tag_name = tag_content
+                    .split_once(' ')
+                    .map_or(tag_content, |(name, _)| name);
+                if tag_name == key {
+                    depth += 1;
+                }
             }
         }
 
@@ -1656,6 +1668,12 @@ mod tests {
         Key::new(key).unwrap()
     }
 
+    fn reduced_parsed_value(value: &str) -> ParsedValue {
+        let mut value = new_parsed_value(value);
+        value.reduce();
+        value
+    }
+
     #[test]
     fn parse_normal_string() {
         let value = new_parsed_value("test");
@@ -1755,6 +1773,104 @@ mod tests {
                     attributes: Attributes::default()
                 },
                 ParsedValue::Literal(Literal::String(" after".to_string(), usize::MAX))
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_nested_comp_with_attributes() {
+        let value =
+            reduced_parsed_value("<comp>before<comp attr=\"x\">inner</comp>after</comp>end");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::Component {
+                    key: new_key("comp_comp"),
+                    inner: Some(Box::new(ParsedValue::Bloc(vec![
+                        ParsedValue::Literal(Literal::String("before".to_string(), usize::MAX)),
+                        ParsedValue::Component {
+                            key: new_key("comp_comp"),
+                            inner: Some(Box::new(ParsedValue::Literal(Literal::String(
+                                "inner".to_string(),
+                                usize::MAX
+                            )))),
+                            attributes: Attributes(vec![Attribute {
+                                key: "attr".to_string(),
+                                value: Some(AttributeValue::Literal(Literal::String(
+                                    "x".to_string(),
+                                    usize::MAX
+                                )))
+                            }])
+                        },
+                        ParsedValue::Literal(Literal::String("after".to_string(), usize::MAX)),
+                    ]))),
+                    attributes: Attributes::default()
+                },
+                ParsedValue::Literal(Literal::String("end".to_string(), usize::MAX)),
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_variable_before_comp() {
+        let value = reduced_parsed_value("{{ count }} items in <b>cart</b>");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::Variable {
+                    key: new_key("var_count"),
+                    bounds: VarBounds::None
+                },
+                ParsedValue::Literal(Literal::String(" items in ".to_string(), usize::MAX)),
+                ParsedValue::Component {
+                    key: new_key("comp_b"),
+                    inner: Some(Box::new(ParsedValue::Literal(Literal::String(
+                        "cart".to_string(),
+                        usize::MAX
+                    )))),
+                    attributes: Attributes::default()
+                },
+            ])
+        )
+    }
+
+    #[test]
+    fn parse_foreign_key_before_comp() {
+        // foreign keys can't be `reduce`d before being resolved, so flatten by hand.
+        let value = new_parsed_value("$t(common.hello) <b>world</b>");
+
+        fn contains_foreign_key(value: &ParsedValue) -> bool {
+            match value {
+                ParsedValue::ForeignKey(_) => true,
+                ParsedValue::Bloc(values) => values.iter().any(contains_foreign_key),
+                _ => false,
+            }
+        }
+
+        assert!(
+            contains_foreign_key(&value),
+            "expected the foreign key before the component to be parsed, got {value:?}"
+        );
+    }
+
+    #[test]
+    fn parse_variable_before_self_closing_comp() {
+        let value = reduced_parsed_value("{{ count }}<br/>");
+
+        assert_eq!(
+            value,
+            ParsedValue::Bloc(vec![
+                ParsedValue::Variable {
+                    key: new_key("var_count"),
+                    bounds: VarBounds::None
+                },
+                ParsedValue::Component {
+                    key: new_key("comp_br"),
+                    inner: None,
+                    attributes: Attributes::default()
+                },
             ])
         )
     }
