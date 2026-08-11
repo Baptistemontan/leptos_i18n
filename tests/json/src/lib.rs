@@ -4,6 +4,7 @@
 include!(concat!(env!("OUT_DIR"), "/i18n/mod.rs"));
 
 mod components;
+mod context;
 mod defaulted;
 mod foreign;
 mod formatting;

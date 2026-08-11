@@ -43,6 +43,26 @@ pub fn Foo() -> impl IntoView {
 }
 ```
 
+## Access the Context Without a Provider
+
+`use_i18n` panics if no context has been provided. If a component can be rendered outside of any `I18nContextProvider`, such as a shared loading placeholder or an error screen, use `try_use_i18n` instead: it returns `Option<I18nContext<Locale>>` and lets you fallback instead of panicking.
+
+```rust,ignore
+use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Loading() -> impl IntoView {
+    let Some(i18n) = try_use_i18n() else {
+        return view! { <p>"Loading..."</p> }.into_any();
+    };
+
+    view! { <p>{t!(i18n, loading)}</p> }.into_any()
+}
+```
+
+A scoped counterpart exists: `try_use_i18n_scoped::<MyScope>()`.
+
 ## Access the Current Locale
 
 With the context, you can access the current locale with the `get_locale` method:

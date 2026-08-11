@@ -485,7 +485,17 @@ pub fn i18n_sub_context_provider_island<L: Locale>(
 #[inline]
 #[track_caller]
 pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
-    I18nContext::from_context().expect("I18n context is missing")
+    try_use_i18n_context().expect("I18n context is missing")
+}
+
+/// Return the `I18nContext` previously set, or `None` if it is missing.
+///
+/// This is the fallible counterpart to `use_i18n_context`, for components that can be
+/// rendered outside of any provider and want to fallback instead of panicking.
+#[inline]
+#[track_caller]
+pub fn try_use_i18n_context<L: Locale>() -> Option<I18nContext<L>> {
+    I18nContext::from_context()
 }
 
 /// Return the `I18nContext` previously set.
@@ -498,6 +508,17 @@ pub fn use_i18n_context<L: Locale>() -> I18nContext<L> {
 #[track_caller]
 pub fn use_i18n_with_scope<L: Locale, S: Scope<L>>() -> I18nContext<L, S> {
     use_i18n_context::<L>().scope()
+}
+
+/// Return the `I18nContext` previously set, or `None` if it is missing.
+///
+/// Is scoped to the given scope.
+///
+/// This is the fallible counterpart to `use_i18n_with_scope`, for components that can be
+/// rendered outside of any provider and want to fallback instead of panicking.
+#[track_caller]
+pub fn try_use_i18n_with_scope<L: Locale, S: Scope<L>>() -> Option<I18nContext<L, S>> {
+    try_use_i18n_context::<L>().map(I18nContext::scope)
 }
 
 #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
@@ -660,5 +681,76 @@ impl<L: Locale, S: Scope<L>> Fn<(L,)> for I18nContext<L, S> {
     #[inline]
     extern "rust-call" fn call(&self, (locale,): (L,)) -> Self::Output {
         self.set_locale(locale)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    leptos_i18n_macro::declare_locales! {
+        path: crate,
+        default: "en",
+        locales: ["en", "fr"],
+        en: {
+            sk: {
+                ssk: "test en",
+            },
+        },
+        fr: {
+            sk: {
+                ssk: "test fr",
+            },
+        },
+    }
+
+    use super::{I18nContext, try_use_i18n_context, try_use_i18n_with_scope, use_i18n_context};
+    use core::marker::PhantomData;
+    use i18n::Locale;
+    use leptos::prelude::*;
+
+    type SkScope = leptos_i18n_macro::define_scope!(i18n, sk);
+
+    fn make_context() -> I18nContext<Locale> {
+        #[cfg(feature = "unified_contexts")]
+        let locale_signal = {
+            use crate::Locale as _;
+            RwSignal::new(super::AnyLocale(Locale::fr.as_str()))
+        };
+        #[cfg(not(feature = "unified_contexts"))]
+        let locale_signal = RwSignal::new(Locale::fr);
+
+        I18nContext {
+            locale_signal,
+            locale_marker: PhantomData,
+            scope_marker: PhantomData,
+        }
+    }
+
+    #[test]
+    fn try_use_context_without_provider() {
+        let owner = Owner::new();
+        owner.with(|| {
+            assert!(try_use_i18n_context::<Locale>().is_none());
+            assert!(try_use_i18n_with_scope::<Locale, SkScope>().is_none());
+            assert!(i18n::try_use_i18n().is_none());
+            assert!(i18n::try_use_i18n_scoped::<SkScope>().is_none());
+        });
+    }
+
+    #[test]
+    fn try_use_context_with_provider() {
+        let owner = Owner::new();
+        owner.with(|| {
+            I18nContext::provide(make_context());
+
+            let ctx = try_use_i18n_context::<Locale>().expect("context should be found");
+            assert_eq!(ctx.get_locale_untracked(), Locale::fr);
+            assert_eq!(
+                use_i18n_context::<Locale>().get_locale_untracked(),
+                Locale::fr
+            );
+
+            let scoped = i18n::try_use_i18n_scoped::<SkScope>().expect("context should be found");
+            assert_eq!(scoped.get_locale_untracked(), Locale::fr);
+        });
     }
 }

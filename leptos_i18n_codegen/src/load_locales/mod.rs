@@ -252,10 +252,24 @@ pub fn load_locales(
                 l_i18n_crate::use_i18n_context()
             }
 
+            /// Same as `use_i18n` but return `None` if no context has been provided instead of panicking.
+            #[inline]
+            #[track_caller]
+            pub fn try_use_i18n() -> Option<l_i18n_crate::I18nContext<#enum_ident>> {
+                l_i18n_crate::try_use_i18n_context()
+            }
+
             #[inline]
             #[track_caller]
             pub fn use_i18n_scoped<S: l_i18n_crate::Scope<#enum_ident>>() -> l_i18n_crate::I18nContext<#enum_ident, S> {
                 l_i18n_crate::use_i18n_with_scope()
+            }
+
+            /// Same as `use_i18n_scoped` but return `None` if no context has been provided instead of panicking.
+            #[inline]
+            #[track_caller]
+            pub fn try_use_i18n_scoped<S: l_i18n_crate::Scope<#enum_ident>>() -> Option<l_i18n_crate::I18nContext<#enum_ident, S>> {
+                l_i18n_crate::try_use_i18n_with_scope()
             }
 
             #[deprecated(
