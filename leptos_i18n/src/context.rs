@@ -221,6 +221,22 @@ fn init_context_inner<L: Locale>(
     }
 }
 
+/// Create a standalone `I18nContext` for the given locale.
+///
+/// It is not tied to any provider: no cookie, no locale resolution, no effects.
+fn detached_context<L: Locale>(locale: L) -> I18nContext<L> {
+    #[cfg(feature = "unified_contexts")]
+    let locale_signal = RwSignal::new(AnyLocale(locale.as_str()));
+    #[cfg(not(feature = "unified_contexts"))]
+    let locale_signal = RwSignal::new(locale);
+
+    I18nContext {
+        locale_signal,
+        locale_marker: PhantomData,
+        scope_marker: PhantomData,
+    }
+}
+
 // *********************************************
 // * CONTEXT
 // *********************************************
@@ -498,6 +514,31 @@ pub fn try_use_i18n_context<L: Locale>() -> Option<I18nContext<L>> {
     I18nContext::from_context()
 }
 
+/// Return the `I18nContext` previously set, or a standalone one for the given locale if it is
+/// missing.
+///
+/// The fallback context is detached: it is not provided to children, is not backed by a cookie and
+/// does not sync with any other context, so `set_locale` on it only affects that instance.
+/// It allocates a signal on each call where no context is found.
+#[inline]
+#[track_caller]
+pub fn use_i18n_context_or<L: Locale>(locale: L) -> I18nContext<L> {
+    try_use_i18n_context().unwrap_or_else(|| detached_context(locale))
+}
+
+/// Return the `I18nContext` previously set, or a standalone one for the locale returned by `f` if
+/// it is missing.
+///
+/// `f` is only called when no context is found.
+/// The fallback context is detached: it is not provided to children, is not backed by a cookie and
+/// does not sync with any other context, so `set_locale` on it only affects that instance.
+/// It allocates a signal on each call where no context is found.
+#[inline]
+#[track_caller]
+pub fn use_i18n_context_or_else<L: Locale>(f: impl FnOnce() -> L) -> I18nContext<L> {
+    try_use_i18n_context().unwrap_or_else(|| detached_context(f()))
+}
+
 /// Return the `I18nContext` previously set.
 ///
 /// Is scoped to the given scope.
@@ -702,28 +743,15 @@ mod test {
         },
     }
 
-    use super::{I18nContext, try_use_i18n_context, try_use_i18n_with_scope, use_i18n_context};
-    use core::marker::PhantomData;
+    use super::{
+        I18nContext, detached_context, try_use_i18n_context, try_use_i18n_with_scope,
+        use_i18n_context, use_i18n_context_or, use_i18n_context_or_else,
+    };
+    use core::cell::Cell;
     use i18n::Locale;
     use leptos::prelude::*;
 
     type SkScope = leptos_i18n_macro::define_scope!(i18n, sk);
-
-    fn make_context() -> I18nContext<Locale> {
-        #[cfg(feature = "unified_contexts")]
-        let locale_signal = {
-            use crate::Locale as _;
-            RwSignal::new(super::AnyLocale(Locale::fr.as_str()))
-        };
-        #[cfg(not(feature = "unified_contexts"))]
-        let locale_signal = RwSignal::new(Locale::fr);
-
-        I18nContext {
-            locale_signal,
-            locale_marker: PhantomData,
-            scope_marker: PhantomData,
-        }
-    }
 
     #[test]
     fn try_use_context_without_provider() {
@@ -740,7 +768,7 @@ mod test {
     fn try_use_context_with_provider() {
         let owner = Owner::new();
         owner.with(|| {
-            I18nContext::provide(make_context());
+            I18nContext::provide(detached_context(Locale::fr));
 
             let ctx = try_use_i18n_context::<Locale>().expect("context should be found");
             assert_eq!(ctx.get_locale_untracked(), Locale::fr);
@@ -751,6 +779,79 @@ mod test {
 
             let scoped = i18n::try_use_i18n_scoped::<SkScope>().expect("context should be found");
             assert_eq!(scoped.get_locale_untracked(), Locale::fr);
+        });
+    }
+
+    #[test]
+    fn use_context_or_without_provider() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let ctx = use_i18n_context_or(Locale::fr);
+            assert_eq!(ctx.get_locale_untracked(), Locale::fr);
+            assert_eq!(
+                i18n::use_i18n_or(Locale::fr).get_locale_untracked(),
+                Locale::fr
+            );
+
+            let called = Cell::new(false);
+            let ctx = use_i18n_context_or_else(|| {
+                called.set(true);
+                Locale::fr
+            });
+            assert_eq!(ctx.get_locale_untracked(), Locale::fr);
+            assert!(called.get(), "the fallback should be called");
+
+            assert_eq!(
+                i18n::use_i18n_or_else(|| Locale::fr).get_locale_untracked(),
+                Locale::fr
+            );
+        });
+    }
+
+    #[test]
+    fn use_context_or_with_provider() {
+        let owner = Owner::new();
+        owner.with(|| {
+            I18nContext::provide(detached_context(Locale::fr));
+
+            // the provided context wins, the fallback locale is ignored
+            assert_eq!(
+                use_i18n_context_or(Locale::en).get_locale_untracked(),
+                Locale::fr
+            );
+            assert_eq!(
+                i18n::use_i18n_or(Locale::en).get_locale_untracked(),
+                Locale::fr
+            );
+
+            let called = Cell::new(false);
+            let ctx = use_i18n_context_or_else(|| {
+                called.set(true);
+                Locale::en
+            });
+            assert_eq!(ctx.get_locale_untracked(), Locale::fr);
+            assert!(!called.get(), "the fallback should not be called");
+
+            assert_eq!(
+                i18n::use_i18n_or_else(|| Locale::en).get_locale_untracked(),
+                Locale::fr
+            );
+        });
+    }
+
+    #[test]
+    fn fallback_context_is_detached() {
+        let owner = Owner::new();
+        owner.with(|| {
+            let ctx = use_i18n_context_or(Locale::en);
+            ctx.set_locale_untracked(Locale::fr);
+
+            // the fallback is standalone: setting its locale provides nothing to the tree
+            assert!(try_use_i18n_context::<Locale>().is_none());
+            assert_eq!(
+                use_i18n_context_or(Locale::en).get_locale_untracked(),
+                Locale::en
+            );
         });
     }
 }

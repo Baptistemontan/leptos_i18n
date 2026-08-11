@@ -133,7 +133,7 @@ pub use locale_traits::{Direction, Locale, LocaleKeys};
 
 pub use context::{
     I18nContext, try_use_i18n_context, try_use_i18n_with_scope, use_i18n_context,
-    use_i18n_with_scope,
+    use_i18n_context_or, use_i18n_context_or_else, use_i18n_with_scope,
 };
 
 #[allow(deprecated)]

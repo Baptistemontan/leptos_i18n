@@ -259,6 +259,20 @@ pub fn load_locales(
                 l_i18n_crate::try_use_i18n_context()
             }
 
+            /// Same as `use_i18n` but return a standalone context for the given locale if no context has been provided instead of panicking.
+            #[inline]
+            #[track_caller]
+            pub fn use_i18n_or(locale: #enum_ident) -> l_i18n_crate::I18nContext<#enum_ident> {
+                l_i18n_crate::use_i18n_context_or(locale)
+            }
+
+            /// Same as `use_i18n_or` but the fallback locale is only computed if no context has been provided.
+            #[inline]
+            #[track_caller]
+            pub fn use_i18n_or_else(f: impl FnOnce() -> #enum_ident) -> l_i18n_crate::I18nContext<#enum_ident> {
+                l_i18n_crate::use_i18n_context_or_else(f)
+            }
+
             #[inline]
             #[track_caller]
             pub fn use_i18n_scoped<S: l_i18n_crate::Scope<#enum_ident>>() -> l_i18n_crate::I18nContext<#enum_ident, S> {

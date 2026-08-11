@@ -63,6 +63,22 @@ pub fn Loading() -> impl IntoView {
 
 A scoped counterpart exists: `try_use_i18n_scoped::<MyScope>()`.
 
+If you would rather fallback to a locale than branch on an `Option`, use `use_i18n_or`, which takes the locale to fallback on, or `use_i18n_or_else`, which only computes that locale if no context is found:
+
+```rust,ignore
+use crate::i18n::*;
+use leptos::prelude::*;
+
+#[component]
+pub fn Loading() -> impl IntoView {
+    let i18n = use_i18n_or(Locale::en);
+
+    view! { <p>{t!(i18n, loading)}</p> }
+}
+```
+
+The fallback context is standalone: it is not provided to the children of the component, it is not backed by a cookie, and it does not sync with any other context, so calling `set_locale` on it only affects that one instance. It is a plain signal, so it is created anew on every call that does not find a context.
+
 ## Access the Current Locale
 
 With the context, you can access the current locale with the `get_locale` method:
