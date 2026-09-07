@@ -1,6 +1,5 @@
 //! This module contains the `I18nContext` and helpers for it.
 
-use codee::string::FromToStringCodec;
 use core::marker::PhantomData;
 use leptos::{
     children,
@@ -8,16 +7,19 @@ use leptos::{
     tachys::{html::directive::IntoDirective, reactive_graph::OwnedView},
 };
 use leptos_meta::{Html, provide_meta_context};
-use leptos_use::UseCookieOptions;
 use std::borrow::Cow;
 
 use crate::{
     Scope,
+    cookie::use_locale_cookie,
     fetch_locale::{self, signal_maybe_once_then},
     locale_traits::*,
 };
 
-pub use leptos_use::UseLocalesOptions;
+pub use crate::{
+    accept_language::UseLocalesOptions,
+    cookie::{CookieOptions, SameSite},
+};
 
 #[cfg(feature = "unified_contexts")]
 #[derive(Debug, Clone, Copy)]
@@ -171,13 +173,6 @@ impl<L: Locale, S: Scope<L>> IntoDirective<(leptos::tachys::renderer::types::Ele
     }
 }
 
-/// Cookies options for functions initializing or providing a `I18nContext`
-pub type CookieOptions<L> = UseCookieOptions<
-    L,
-    <FromToStringCodec as codee::Encoder<L>>::Error,
-    <FromToStringCodec as codee::Decoder<L>>::Error,
->;
-
 pub(crate) const ENABLE_COOKIE: bool = cfg!(feature = "cookie");
 
 const COOKIE_PREFERED_LANG: &str = "i18n_pref_locale";
@@ -227,22 +222,19 @@ fn init_context_inner<L: Locale>(
 
 /// Options to init of provide a `I18nContext`
 #[derive(default_struct_builder::DefaultBuilder)]
-pub struct I18nContextOptions<'a, L>
-where
-    L: Locale,
-{
+pub struct I18nContextOptions<'a> {
     /// Should set a cookie to keep track of the locale when page reload (default to true) (do nothing without the "cookie" feature)
     pub enable_cookie: bool,
     /// Give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
     #[builder(into)]
     pub cookie_name: Cow<'a, str>,
-    /// Options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
-    pub cookie_options: CookieOptions<L>,
-    /// Options to pass to `leptos_use::use_locales`.
+    /// Options for the cookie (default to `Default::default`)
+    pub cookie_options: CookieOptions,
+    /// Options for reading the visitor's preferred locales.
     pub ssr_lang_header_getter: UseLocalesOptions,
 }
 
-impl<L: Locale> Default for I18nContextOptions<'_, L> {
+impl Default for I18nContextOptions<'_> {
     fn default() -> Self {
         I18nContextOptions {
             enable_cookie: ENABLE_COOKIE,
@@ -255,7 +247,7 @@ impl<L: Locale> Default for I18nContextOptions<'_, L> {
 
 /// Same as `init_i18n_context` but with some cookies options.
 #[track_caller]
-pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>) -> I18nContext<L> {
+pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions) -> I18nContext<L> {
     let I18nContextOptions {
         enable_cookie,
         cookie_name,
@@ -263,7 +255,7 @@ pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>)
         ssr_lang_header_getter,
     } = options;
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
-        leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
+        use_locale_cookie(&cookie_name, cookie_options)
     } else {
         let (lang_cookie, set_lang_cookie) = signal(None);
         (lang_cookie.into(), set_lang_cookie)
@@ -300,7 +292,7 @@ pub fn provide_i18n_context<L: Locale>() -> I18nContext<L> {
 #[doc(hidden)]
 #[track_caller]
 pub fn provide_i18n_context_with_options_inner<L: Locale>(
-    options: I18nContextOptions<L>,
+    options: I18nContextOptions,
 ) -> I18nContext<L> {
     provide_meta_context();
     I18nContext::from_context().unwrap_or_else(move || {
@@ -316,9 +308,7 @@ pub fn provide_i18n_context_with_options_inner<L: Locale>(
     note = "It is now preferred to use the <I18nContextProvider> component in the generated i18n module."
 )]
 #[track_caller]
-pub fn provide_i18n_context_with_options<L: Locale>(
-    options: I18nContextOptions<L>,
-) -> I18nContext<L> {
+pub fn provide_i18n_context_with_options<L: Locale>(options: I18nContextOptions) -> I18nContext<L> {
     provide_i18n_context_with_options_inner(options)
 }
 
@@ -330,14 +320,11 @@ pub fn provide_i18n_context_with_options<L: Locale>(
 fn init_subcontext_with_options<L: Locale>(
     initial_locale: Signal<Option<L>>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: CookieOptions<L>,
+    cookie_options: CookieOptions,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = match cookie_name {
-        Some(cookie_name) if ENABLE_COOKIE => leptos_use::use_cookie_with_options::<
-            L,
-            FromToStringCodec,
-        >(&cookie_name, cookie_options),
+        Some(cookie_name) if ENABLE_COOKIE => use_locale_cookie(&cookie_name, cookie_options),
         _ => {
             let (lang_cookie, set_lang_cookie) = signal(None);
             (lang_cookie.into(), set_lang_cookie)
@@ -388,7 +375,7 @@ fn derive_initial_locale_signal<L: Locale>(initial_locale: Option<Signal<L>>) ->
 pub fn init_i18n_subcontext_with_options<L: Locale>(
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
+    cookie_options: Option<CookieOptions>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let initial_locale = derive_initial_locale_signal(initial_locale);
@@ -453,7 +440,7 @@ pub fn i18n_sub_context_provider_inner<L: Locale, Chil: IntoView>(
     children: TypedChildren<Chil>,
     initial_locale: Option<Signal<L>>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
+    cookie_options: Option<CookieOptions>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> impl IntoView {
     let ctx = init_i18n_subcontext_with_options::<L>(
@@ -533,7 +520,7 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     set_dir_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
+    cookie_options: Option<CookieOptions>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: impl FnOnce() -> Chil,
 ) -> impl IntoView {
@@ -542,13 +529,13 @@ fn provide_i18n_context_component_inner<L: Locale, Chil: IntoView>(
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let reg_ctx = crate::fetch_translations::RegisterCtx::<L>::provide_context();
     let options = fill_options!(
-        I18nContextOptions::<L>::default(),
+        I18nContextOptions::default(),
         enable_cookie,
         cookie_name,
         cookie_options,
         ssr_lang_header_getter
     );
-    let i18n = provide_i18n_context_with_options_inner(options);
+    let i18n = provide_i18n_context_with_options_inner::<L>(options);
     let children = children();
     #[cfg(all(feature = "dynamic_load", feature = "ssr"))]
     let embed_translations = move || embed_translations_fn(reg_ctx.clone());
@@ -576,11 +563,11 @@ pub fn provide_i18n_context_component<L: Locale, Chil: IntoView>(
     set_dir_attr_on_html: Option<bool>,
     enable_cookie: Option<bool>,
     cookie_name: Option<Cow<str>>,
-    cookie_options: Option<CookieOptions<L>>,
+    cookie_options: Option<CookieOptions>,
     ssr_lang_header_getter: Option<UseLocalesOptions>,
     children: TypedChildren<Chil>,
 ) -> impl IntoView {
-    provide_i18n_context_component_inner(
+    provide_i18n_context_component_inner::<L, _>(
         set_lang_attr_on_html,
         set_dir_attr_on_html,
         enable_cookie,

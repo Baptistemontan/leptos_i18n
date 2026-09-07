@@ -177,10 +177,10 @@ pub fn load_locales(
                 /// Specify a name for the cookie, default to the library default.
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
-                /// Options for the cookie, see `leptos_use::UseCookieOptions`.
+                /// Options for the cookie, see `leptos_i18n::context::CookieOptions`.
                 #[prop(optional)]
-                cookie_options: Option<CookieOptions<#enum_ident>>,
-                /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
+                cookie_options: Option<CookieOptions>,
+                /// Options for reading the visitor's preferred locales, see `leptos_i18n::context::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
                 children: TypedChildren<Chil>
@@ -210,10 +210,10 @@ pub fn load_locales(
                 /// If set save the locale in a cookie of the given name (does nothing without the `cookie` feature).
                 #[prop(optional, into)]
                 cookie_name: Option<Cow<'static, str>>,
-                /// Options for the cookie, see `leptos_use::UseCookieOptions`.
+                /// Options for the cookie, see `leptos_i18n::context::CookieOptions`.
                 #[prop(optional)]
-                cookie_options: Option<CookieOptions<#enum_ident>>,
-                /// Options for getting the Accept-Language header, see `leptos_use::UseLocalesOptions`.
+                cookie_options: Option<CookieOptions>,
+                /// Options for reading the visitor's preferred locales, see `leptos_i18n::context::UseLocalesOptions`.
                 #[prop(optional)]
                 ssr_lang_header_getter: Option<UseLocalesOptions>,
             ) -> impl IntoView {
