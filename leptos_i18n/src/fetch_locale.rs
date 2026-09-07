@@ -1,10 +1,12 @@
 use leptos::prelude::*;
-use leptos_use::UseLocalesOptions;
 
-use crate::Locale;
+use crate::{
+    Locale,
+    accept_language::{UseLocalesOptions, accepted_locales},
+};
 
 pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> Memo<L> {
-    let accepted_locales = leptos_use::use_locales_with_options(options);
+    let accepted_locales = accepted_locales(options);
     let accepted_locale =
         Memo::new(move |_| accepted_locales.with(|accepted| L::find_locale(accepted)));
 
@@ -18,8 +20,7 @@ pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOpt
 }
 
 pub fn get_accepted_locale<L: Locale>(options: UseLocalesOptions) -> L {
-    leptos_use::use_locales_with_options(options)
-        .with_untracked(|accepted| L::find_locale(accepted))
+    accepted_locales(options).with_untracked(|accepted| L::find_locale(accepted))
 }
 
 pub fn resolve_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> L {

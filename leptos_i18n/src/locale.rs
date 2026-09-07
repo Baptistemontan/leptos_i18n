@@ -1,16 +1,16 @@
 //! Contain utilities for locales
 
-use codee::string::FromToStringCodec;
 use leptos::prelude::*;
 
 use crate::{
     Locale,
     context::{ENABLE_COOKIE, I18nContextOptions},
+    cookie::use_locale_cookie,
     fetch_locale,
 };
 
 /// Same as `resolve_locale` but with some cookies options.
-pub fn resolve_locale_with_options<L: Locale>(options: I18nContextOptions<L>) -> L {
+pub fn resolve_locale_with_options<L: Locale>(options: I18nContextOptions) -> L {
     let I18nContextOptions {
         enable_cookie,
         cookie_name,
@@ -18,7 +18,7 @@ pub fn resolve_locale_with_options<L: Locale>(options: I18nContextOptions<L>) ->
         ssr_lang_header_getter,
     } = options;
     let (lang_cookie, _) = if ENABLE_COOKIE && enable_cookie {
-        leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
+        use_locale_cookie(&cookie_name, cookie_options)
     } else {
         let (lang_cookie, set_lang_cookie) = signal(None);
         (lang_cookie.into(), set_lang_cookie)
