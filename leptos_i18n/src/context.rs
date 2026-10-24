@@ -203,7 +203,7 @@ fn init_context_inner<L: Locale>(
         locale_signal.set(l);
     });
 
-    Effect::new_isomorphic(move |_| {
+    let write_cookie = move || {
         #[cfg(feature = "unified_contexts")]
         let new_lang = {
             let new_lang_any = locale_signal.get();
@@ -212,7 +212,18 @@ fn init_context_inner<L: Locale>(
         #[cfg(not(feature = "unified_contexts"))]
         let new_lang = locale_signal.get();
         set_lang_cookie.set(Some(new_lang));
-    });
+    };
+
+    // On the server an isomorphic `Effect` runs as its own task, which can overlap the request's
+    // reactive owner being disposed and then panics on the disposed signals. Run it in the
+    // rendering thread instead, and keep it until the owner is cleaned up.
+    #[cfg(feature = "ssr")]
+    {
+        let effect = ImmediateEffect::new_isomorphic(write_cookie);
+        on_cleanup(move || drop(effect));
+    }
+    #[cfg(not(feature = "ssr"))]
+    Effect::new_isomorphic(move |_| write_cookie());
 
     I18nContext::<L> {
         locale_signal,
