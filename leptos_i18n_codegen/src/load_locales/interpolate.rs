@@ -9,7 +9,7 @@ use leptos_i18n_parser::{
     },
     utils::{Key, KeyPath, UnwrapAt},
 };
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{ToTokens, format_ident, quote};
 
 use super::parsed_value;
@@ -288,9 +288,11 @@ impl Interpolation {
             })
             .collect::<Vec<_>>();
 
-        let builder_name = format!("{key}_builder");
+        // `Key` implements `IdentFragment` with its sanitized ident, `Display` yields the raw
+        // name, which can contain `-` and is not a valid ident.
+        let ident = format_ident!("{}_builder", key);
 
-        let ident = syn::Ident::new(&builder_name, Span::call_site());
+        let builder_name = ident.to_string();
 
         let dummy_ident = format_ident!("{}_dummy", ident);
 
