@@ -4,9 +4,23 @@ use syn::parse_macro_input;
 
 use parsed_input::ParsedInput;
 
-use leptos_i18n_codegen::load_locales::plurals::PluralRuleType;
-
 pub mod parsed_input;
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PluralRuleType {
+    Cardinal,
+    Ordinal,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PluralForm {
+    Zero,
+    One,
+    Two,
+    Few,
+    Many,
+    Other,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InputType {
@@ -66,7 +80,6 @@ pub fn t_plural_inner(
     let ts = input_type.wrapp(get_locale, ts, &locale_ident);
 
     quote! {{
-        use leptos_i18n as l_i18n_crate;
         let #count_ident = #count;
         let #ctx = #context;
         #ts
@@ -103,6 +116,42 @@ impl InputType {
                 let #locale_ident = #get_locale;
                 #to_output
             }},
+        }
+    }
+}
+
+impl quote::ToTokens for PluralRuleType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.to_token_stream())
+    }
+
+    fn to_token_stream(&self) -> TokenStream {
+        match self {
+            PluralRuleType::Cardinal => {
+                quote!(leptos_i18n::reexports::icu::plurals::PluralRuleType::Cardinal)
+            }
+            PluralRuleType::Ordinal => {
+                quote!(leptos_i18n::reexports::icu::plurals::PluralRuleType::Ordinal)
+            }
+        }
+    }
+}
+
+impl quote::ToTokens for PluralForm {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.to_token_stream())
+    }
+
+    fn to_token_stream(&self) -> TokenStream {
+        match self {
+            PluralForm::Zero => quote!(leptos_i18n::reexports::icu::plurals::PluralCategory::Zero),
+            PluralForm::One => quote!(leptos_i18n::reexports::icu::plurals::PluralCategory::One),
+            PluralForm::Two => quote!(leptos_i18n::reexports::icu::plurals::PluralCategory::Two),
+            PluralForm::Few => quote!(leptos_i18n::reexports::icu::plurals::PluralCategory::Few),
+            PluralForm::Many => quote!(leptos_i18n::reexports::icu::plurals::PluralCategory::Many),
+            PluralForm::Other => {
+                quote!(leptos_i18n::reexports::icu::plurals::PluralCategory::Other)
+            }
         }
     }
 }

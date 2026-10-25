@@ -59,7 +59,7 @@ toml = { default-features = false, version = "1.1" }
 async-once-cell = { default-features = false, version = "0.5" }
 wasm-bindgen = { default-features = false, version = "0.2" }
 syn = { default-features = false, version = "2.0" }
-typed-builder = { default-features = false, version = "0.23" }
+# typed-builder = { default-features = false, version = "0.23" }
 proc-macro2 = { default-features = false, version = "1.0" }
 serde = { default-features = false, version = "1.0" }
 js-sys = { default-features = false, version = "0.3" }

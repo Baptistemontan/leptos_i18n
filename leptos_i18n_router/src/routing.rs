@@ -3,7 +3,6 @@ use std::{
     collections::{BTreeSet, HashMap},
     fmt::Debug,
     future::Future,
-    marker::PhantomData,
     rc::Rc,
     sync::Arc,
 };
@@ -17,7 +16,12 @@ use leptos_router::{
     location::Location,
 };
 
-use leptos_i18n::{I18nContext, Locale, use_i18n_context};
+use leptos_i18n::{
+    I18nContext, Locale,
+    keys::{builder::KeyBuilder, comp_time::ConstArgs},
+    locale_traits::BaseLocale,
+    use_i18n_context,
+};
 
 // this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
 
@@ -115,10 +119,7 @@ fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
         .strip_prefix(base_path)?
         .trim_start_matches('/');
     let (to_match, _) = stripped_path.split_once('/').unwrap_or((stripped_path, ""));
-    L::get_all()
-        .iter()
-        .copied()
-        .find(|l| l.as_str() == to_match)
+    L::iter_variants().find(|l| l.as_str() == to_match)
 }
 
 fn construct_path_segments<'b, 'p: 'b>(
@@ -249,7 +250,7 @@ fn get_new_path<L: Locale>(
 }
 
 /// navigate to a new path when the locale changes
-fn update_path_effect<L: Locale>(
+fn update_path_effect<L: BaseLocale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     history_changed_locale: Rc<Cell<Option<L>>>,
@@ -295,7 +296,7 @@ fn update_path_effect<L: Locale>(
     }
 }
 
-fn correct_locale_prefix_effect<L: Locale>(
+fn correct_locale_prefix_effect<L: BaseLocale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     segments: Arc<RouteSegments<L>>,
@@ -342,7 +343,7 @@ fn correct_locale_prefix_effect<L: Locale>(
     }
 }
 
-fn check_history_change<L: Locale>(
+fn check_history_change<L: BaseLocale>(
     i18n: I18nContext<L>,
     base_path: &'static str,
     sync: Rc<Cell<Option<L>>>,
@@ -364,7 +365,7 @@ fn check_history_change<L: Locale>(
     }
 }
 
-fn maybe_redirect<L: Locale>(
+fn maybe_redirect<L: BaseLocale>(
     previously_resolved_locale: L,
     base_path: &str,
     segments: &RouteSegments<L>,
@@ -411,7 +412,7 @@ fn view_wrapper<L, View>(
     segments: Arc<RouteSegments<L>>,
 ) -> Either<View, impl ChooseView>
 where
-    L: Locale,
+    L: BaseLocale,
     View: ChooseView,
 {
     let i18n = use_i18n_context::<L>();
@@ -469,13 +470,14 @@ where
 }
 
 #[doc(hidden)]
-pub fn i18n_routing<L: Locale, View, Chil>(
+pub fn i18n_routing<L, View, Chil>(
     base_path: &'static str,
     children: RouteChildren<Chil>,
     ssr_mode: SsrMode,
     view: View,
 ) -> impl MatchNestedRoutes + Clone
 where
+    L: BaseLocale,
     View: ChooseView + Clone,
     Chil: MatchNestedRoutes + Clone + 'static,
 {
@@ -572,7 +574,7 @@ where
 
 impl<L, View, Chil> MatchInterface for I18nRouteMatch<L, View, Chil>
 where
-    L: Locale,
+    L: BaseLocale,
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
     View: ChooseView + Clone,
@@ -601,8 +603,9 @@ where
     }
 }
 
-impl<L: Locale, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
+impl<L, View, Chil> MatchNestedRoutes for I18nNestedRoute<L, View, Chil>
 where
+    L: BaseLocale,
     Chil: MatchNestedRoutes + 'static,
     Chil::Match: MatchParams,
     View: ChooseView + Clone,
@@ -615,9 +618,7 @@ where
         &'a self,
         path: &'a str,
     ) -> (Option<(leptos_router::RouteMatchId, Self::Match)>, &'a str) {
-        let res = L::get_all()
-            .iter()
-            .copied()
+        let res = L::iter_variants()
             .find_map(|locale| {
                 set_current_route_locale(locale);
                 StaticSegment(locale.as_str())
@@ -674,9 +675,7 @@ where
                 })
         })
         .flatten();
-        L::get_all()
-            .iter()
-            .copied()
+        L::iter_variants()
             .flat_map(|locale| {
                 set_current_route_locale(locale);
                 MatchNestedRoutes::generate_routes(&self.route)
@@ -700,13 +699,13 @@ where
 
 fn generate_routes_for_each_locale<L, View, Chil>(route: &BaseRoute<View, Chil>) -> RouteSegments<L>
 where
-    L: Locale,
+    L: BaseLocale,
     View: ChooseView + Clone,
     Chil: MatchNestedRoutes + Clone + 'static,
 {
     let mut segments = RouteSegments::default();
 
-    for &locale in L::get_all() {
+    for locale in L::iter_variants() {
         set_current_route_locale(locale);
         let inner_segments: Vec<_> = MatchNestedRoutes::generate_routes(route)
             .into_iter()
@@ -723,26 +722,24 @@ where
 
 #[doc(hidden)]
 #[derive(Clone, Copy)]
-pub struct I18nPath<L, F> {
-    func: F,
-    marker: PhantomData<L>,
-}
+pub struct I18nPath<A: ConstArgs<Value = &'static str>>(A::Id);
 
-impl<L, F> Debug for I18nPath<L, F> {
+impl<A: ConstArgs<Value = &'static str>> Debug for I18nPath<A> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("I18nPath").finish()
+        let mut builder = f.debug_struct("I18nPath");
+        for locale in <A::Locale as BaseLocale>::ALL_VARIANTS {
+            builder.field(locale.as_str(), &A::value(self.0, *locale));
+        }
+        builder.finish()
     }
 }
 
-impl<L: Locale, F> I18nPath<L, F>
-where
-    F: Fn(L) -> &'static str,
-{
+impl<A: ConstArgs<Value = &'static str>> I18nPath<A> {
     fn segments_for_current_locale(
         &self,
     ) -> impl Iterator<Item = leptos_router::StaticSegment<&'static str>> {
-        let locale = get_current_route_locale::<L>();
-        let s = (self.func)(locale);
+        let locale = get_current_route_locale::<A::Locale>();
+        let s = A::value(self.0, locale);
 
         s.split('/')
             .filter(|p| !p.is_empty())
@@ -750,10 +747,7 @@ where
     }
 }
 
-impl<L: Locale, F> PossibleRouteMatch for I18nPath<L, F>
-where
-    F: Fn(L) -> &'static str,
-{
+impl<A: ConstArgs<Value = &'static str>> PossibleRouteMatch for I18nPath<A> {
     fn optional(&self) -> bool {
         false
     }
@@ -795,13 +789,9 @@ where
 }
 
 #[doc(hidden)]
-pub fn make_i18n_path<L, F>(f: F) -> I18nPath<L, F>
+pub const fn make_i18n_path<B>(key: KeyBuilder<B>) -> I18nPath<B::Args>
 where
-    L: Locale,
-    F: Fn(L) -> &'static str + Clone + 'static,
+    B: leptos_i18n::keys::comp_time::ConstArgsMarker<Value = &'static str>,
 {
-    I18nPath {
-        func: f,
-        marker: PhantomData,
-    }
+    I18nPath(KeyBuilder::into_id(key))
 }

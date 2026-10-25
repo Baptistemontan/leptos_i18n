@@ -1,4 +1,4 @@
-use leptos_i18n_build::{Config, ParseOptions, TranslationsInfos};
+use leptos_i18n_build::{options::CodegenOptions, Config, TranslationsInfos};
 use std::{error::Error, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -7,9 +7,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
 
-    let options = ParseOptions::default().interpolate_display(true);
+    let codegen_options = CodegenOptions::default().interpolate_display(true);
 
-    let cfg = Config::new("en")?.add_locale("fr")?.parse_options(options);
+    let cfg = Config::new("en")?.add_locale("fr")?;
 
     let translations_infos = TranslationsInfos::parse(cfg)?;
 
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     translations_infos.rerun_if_locales_changed();
 
-    translations_infos.generate_i18n_module(i18n_mod_directory)?;
+    translations_infos.generate_i18n_module_with_options(i18n_mod_directory, codegen_options)?;
 
     Ok(())
 }

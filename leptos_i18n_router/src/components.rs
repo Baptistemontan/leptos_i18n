@@ -1,5 +1,5 @@
 use leptos::component;
-use leptos_i18n::Locale;
+use leptos_i18n::locale_traits::BaseLocale;
 #[cfg(erase_components)]
 use leptos_router::any_nested_route::IntoAnyNestedRoute;
 use leptos_router::{ChooseView, MatchNestedRoutes, SsrMode, components::RouteChildren};
@@ -28,7 +28,7 @@ pub fn I18nRoute<L, View, Chil>(
 where
     View: ChooseView + Clone,
     Chil: MatchNestedRoutes + Send + Clone + 'static,
-    L: Locale,
+    L: BaseLocale,
 {
     let routes = crate::routing::i18n_routing::<L, View, Chil>(base_path, children, ssr, view);
     #[cfg(erase_components)]

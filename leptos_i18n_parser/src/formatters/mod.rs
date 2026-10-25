@@ -5,13 +5,15 @@ use std::{
     cmp::Ordering,
     collections::HashMap,
     fmt::{Debug, Display},
+    hash::Hash,
     rc::Rc,
 };
 use syn::{Ident, Token, punctuated::Punctuated, spanned::Spanned};
 
 use crate::{
-    parse_locales::error::{Diagnostics, Error},
-    utils::{Key, Loc, ParseContext},
+    error::{Diagnostics, Error},
+    parser::ParseContext,
+    utils::{Key, Loc},
 };
 
 pub mod currency;
@@ -24,6 +26,7 @@ pub struct DuplicateFormatterErr {
     name: &'static str,
 }
 
+#[derive(Clone)]
 pub struct Formatters {
     formatters: HashMap<&'static str, Rc<dyn DynFormatter>>,
 }
@@ -71,18 +74,13 @@ impl Formatters {
         Self::new_populated().unwrap()
     }
 
-    pub fn parse(
-        &self,
-        ctx: &ParseContext,
-        name: &str,
-        args: &[(&str, Option<&str>)],
-    ) -> VarBounds {
+    pub fn parse(&self, ctx: &ParseContext, name: &str, args: &[(&str, Option<&str>)]) -> VarBound {
         let Some(formatter) = self.formatters.get(name) else {
             ctx.diag.emit_error(Error::UnknownFormatter {
                 name: name.to_string(),
                 loc: ctx.into(),
             });
-            return VarBounds::Dummy;
+            return VarBound::Dummy;
         };
 
         formatter.parse(ctx, args)
@@ -93,7 +91,7 @@ impl Formatters {
         &self,
         formatter_name: syn::Ident,
         args: Option<Punctuated<(Ident, Option<Ident>), Token![;]>>,
-    ) -> syn::Result<VarBounds> {
+    ) -> syn::Result<VarBound> {
         let name = formatter_name.to_string();
         let Some(f) = self.formatters.get(&*name) else {
             return Err(syn::Error::new(formatter_name.span(), "unknown formatter"));
@@ -187,23 +185,23 @@ pub trait Formatter: 'static {
 }
 
 trait DynFormatter {
-    fn parse(&self, ctx: &ParseContext, args: &[(&str, Option<&str>)]) -> VarBounds;
+    fn parse(&self, ctx: &ParseContext, args: &[(&str, Option<&str>)]) -> VarBound;
 
     fn parse_from_tt(
         &self,
         formatter_span: proc_macro2::Span,
         args: Option<Punctuated<(Ident, Option<Ident>), Token![;]>>,
-    ) -> syn::Result<VarBounds>;
+    ) -> syn::Result<VarBound>;
 }
 
 impl<T: Formatter + ?Sized> DynFormatter for T {
-    fn parse(&self, ctx: &ParseContext, args: &[(&str, Option<&str>)]) -> VarBounds {
+    fn parse(&self, ctx: &ParseContext, args: &[(&str, Option<&str>)]) -> VarBound {
         match T::parse_with_diagnostics(self, &ctx.loc, args, ctx.diag) {
-            Some(f) => VarBounds::Formatted {
+            Some(f) => VarBound::Formatted {
                 formatter_name: T::NAME,
                 to_tokens: Rc::new(f),
             },
-            None => VarBounds::Dummy,
+            None => VarBound::Dummy,
         }
     }
 
@@ -211,7 +209,7 @@ impl<T: Formatter + ?Sized> DynFormatter for T {
         &self,
         formatter_span: proc_macro2::Span,
         args: Option<Punctuated<(Ident, Option<Ident>), Token![;]>>,
-    ) -> syn::Result<VarBounds> {
+    ) -> syn::Result<VarBound> {
         if let Some(formatter_err) = Self::DISABLED {
             return Err(syn::Error::new(formatter_span, formatter_err));
         }
@@ -235,7 +233,7 @@ impl<T: Formatter + ?Sized> DynFormatter for T {
             }
         }
         match self.build(builder) {
-            Ok(f) => Ok(VarBounds::Formatted {
+            Ok(f) => Ok(VarBound::Formatted {
                 formatter_name: "",
                 to_tokens: Rc::new(f),
             }),
@@ -248,7 +246,12 @@ pub trait FormatterToTokens: Any {
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream;
     fn view_bounds(&self) -> TokenStream;
 
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream;
+    fn to_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream;
     fn fmt_bounds(&self) -> TokenStream;
 
     #[doc(hidden)]
@@ -263,7 +266,7 @@ pub trait FormatterToTokens: Any {
 }
 
 #[derive(Default, Clone)]
-pub enum VarBounds {
+pub enum VarBound {
     /// NOT A FORMATTER, this formatter will emit no bound, this is for dummy code to reduce errors
     Dummy,
     #[default]
@@ -275,7 +278,7 @@ pub enum VarBounds {
     },
 }
 
-impl VarBounds {
+impl VarBound {
     pub fn is<T: Any>(&self) -> bool {
         match self {
             Self::Formatted { to_tokens, .. } => to_tokens.is(TypeId::of::<T>()),
@@ -285,17 +288,17 @@ impl VarBounds {
 
     pub fn view_bounds(&self) -> TokenStream {
         match self {
-            Self::None => quote!(l_i18n_crate::__private::InterpolateVar),
-            Self::AttributeValue => quote!(l_i18n_crate::reexports::leptos::attr::AttributeValue),
-            Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
+            Self::None => quote!(__l_i18n_crate::__private::InterpolateVar),
+            Self::AttributeValue => quote!(__l_i18n_crate::reexports::leptos::attr::AttributeValue),
+            Self::Dummy => quote!(__l_i18n_crate::__private::AnyBound),
             Self::Formatted { to_tokens, .. } => to_tokens.view_bounds(),
         }
     }
     pub fn fmt_bounds(&self) -> TokenStream {
         match self {
             Self::None => quote!(::std::fmt::Display),
-            Self::AttributeValue => quote!(l_i18n_crate::display::AttributeValue),
-            Self::Dummy => quote!(l_i18n_crate::__private::AnyBound),
+            Self::AttributeValue => quote!(__l_i18n_crate::display::AttributeValue),
+            Self::Dummy => quote!(__l_i18n_crate::__private::AnyBound),
             Self::Formatted { to_tokens, .. } => to_tokens.fmt_bounds(),
         }
     }
@@ -314,18 +317,25 @@ impl VarBounds {
             Self::Formatted { to_tokens, .. } => to_tokens.to_view(key, locale_field),
         }
     }
-    pub fn var_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
+    pub fn var_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream {
         match self {
             Self::AttributeValue => {
                 unreachable!("attributes values should be rendered by the component renderer.")
             }
             Self::None => {
-                quote!(core::fmt::Display::fmt(#key, __formatter))
+                quote!(core::fmt::Display::fmt(#key, #formatter_ident))
             }
             Self::Dummy => {
                 quote!({ let _ = #key; core::unimplemented!("Dummy formatter, parsing of a formatter must have failed.") })
             }
-            Self::Formatted { to_tokens, .. } => to_tokens.to_fmt(key, locale_field),
+            Self::Formatted { to_tokens, .. } => {
+                to_tokens.to_fmt(key, locale_field, formatter_ident)
+            }
         }
     }
     pub fn var_to_impl_display(self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
@@ -344,49 +354,49 @@ impl VarBounds {
     }
 }
 
-impl Eq for VarBounds {}
+impl Eq for VarBound {}
 
-impl Ord for VarBounds {
+impl Ord for VarBound {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (VarBounds::Dummy, VarBounds::Dummy) => Ordering::Equal,
-            (VarBounds::Dummy, VarBounds::None) => Ordering::Less,
-            (VarBounds::Dummy, VarBounds::Formatted { .. }) => Ordering::Less,
-            (VarBounds::None, VarBounds::Dummy) => Ordering::Greater,
-            (VarBounds::None, VarBounds::None) => Ordering::Equal,
-            (VarBounds::None, VarBounds::Formatted { .. }) => Ordering::Less,
-            (VarBounds::Formatted { .. }, VarBounds::Dummy) => Ordering::Greater,
-            (VarBounds::Formatted { .. }, VarBounds::None) => Ordering::Greater,
+            (VarBound::Dummy, VarBound::Dummy) => Ordering::Equal,
+            (VarBound::Dummy, VarBound::None) => Ordering::Less,
+            (VarBound::Dummy, VarBound::Formatted { .. }) => Ordering::Less,
+            (VarBound::None, VarBound::Dummy) => Ordering::Greater,
+            (VarBound::None, VarBound::None) => Ordering::Equal,
+            (VarBound::None, VarBound::Formatted { .. }) => Ordering::Less,
+            (VarBound::Formatted { .. }, VarBound::Dummy) => Ordering::Greater,
+            (VarBound::Formatted { .. }, VarBound::None) => Ordering::Greater,
             (
-                VarBounds::Formatted {
+                VarBound::Formatted {
                     formatter_name: self_name,
                     ..
                 },
-                VarBounds::Formatted {
+                VarBound::Formatted {
                     formatter_name: other_name,
                     ..
                 },
             ) => self_name.cmp(other_name),
-            (VarBounds::AttributeValue, VarBounds::AttributeValue) => Ordering::Equal,
-            (_, VarBounds::AttributeValue) => Ordering::Less,
-            (VarBounds::AttributeValue, _) => Ordering::Greater,
+            (VarBound::AttributeValue, VarBound::AttributeValue) => Ordering::Equal,
+            (_, VarBound::AttributeValue) => Ordering::Less,
+            (VarBound::AttributeValue, _) => Ordering::Greater,
         }
     }
 }
 
-impl PartialOrd for VarBounds {
+impl PartialOrd for VarBound {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Debug for VarBounds {
+impl Debug for VarBound {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
-            VarBounds::Dummy => f.write_str("Dummy"),
-            VarBounds::AttributeValue => f.write_str("AttributeValue"),
-            VarBounds::None => f.write_str("None"),
-            VarBounds::Formatted { formatter_name, .. } => f
+            VarBound::Dummy => f.write_str("Dummy"),
+            VarBound::AttributeValue => f.write_str("AttributeValue"),
+            VarBound::None => f.write_str("None"),
+            VarBound::Formatted { formatter_name, .. } => f
                 .debug_struct("Formatted")
                 .field("formatter_name", &formatter_name)
                 .finish(),
@@ -394,7 +404,7 @@ impl Debug for VarBounds {
     }
 }
 
-impl PartialEq for VarBounds {
+impl PartialEq for VarBound {
     fn eq(&self, other: &Self) -> bool {
         self.cmp(other).is_eq()
     }
@@ -403,6 +413,15 @@ impl PartialEq for VarBounds {
 impl Display for DuplicateFormatterErr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Duplicate formatter: {:?}", self.name)
+    }
+}
+
+impl Hash for VarBound {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        if let VarBound::Formatted { formatter_name, .. } = self {
+            formatter_name.hash(state);
+        }
     }
 }
 
