@@ -110,7 +110,14 @@ impl FormatterOptions {
             FormatterOptions::FormatNums => icu::decimal::provider::MARKERS.to_vec(),
             FormatterOptions::FormatCurrency => [
                 icu::decimal::provider::MARKERS,
-                &[icu::experimental::dimension::provider::currency::essentials::CurrencyEssentialsV1::INFO],
+                // Markers needed by `CurrencyFormatter::try_new_symbol{_narrow}_unstable`
+                &[
+                    icu::experimental::dimension::provider::currency::essentials::CurrencyEssentialsV1::INFO,
+                    icu::experimental::dimension::provider::currency::symbols::CurrencySymbolsV1::INFO,
+                    icu::experimental::dimension::provider::currency::symbols::CurrencyDecimalSymbolsV1::INFO,
+                    icu::experimental::dimension::provider::currency::no_currency::CurrencyPatternsNoCurrencyV1::INFO,
+                    icu::experimental::dimension::provider::currency::fractions::CurrencyFractionsV1::INFO,
+                ],
             ]
             .iter()
             .flat_map(|m| m.to_vec())

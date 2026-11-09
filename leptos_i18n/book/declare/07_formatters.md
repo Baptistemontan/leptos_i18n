@@ -102,14 +102,16 @@ Enable the "format_currency" feature to use the currency formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the currency formatter: `width` and `currency_code`, which are based on [`icu::experimental::dimension::currency::options::Width`](https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/options/enum.Width.html) and [`icu::experimental::dimension::currency::CurrencyCode`](https://docs.rs/icu/2.0.0/icu/experimental/dimension/currency/struct.CurrencyCode.html).
+There are two arguments at the moment for the currency formatter: `width` and `currency_code`. They select the [`icu::experimental::dimension::currency::formatter::CurrencyFormatter`](https://docs.rs/icu/2.4.0/icu/experimental/dimension/currency/formatter/struct.CurrencyFormatter.html) constructor and its [`CurrencyType`](https://docs.rs/icu/2.4.0/icu/experimental/dimension/currency/struct.CurrencyType.html).
 
 `width` values:
 
 - short (default)
 - narrow
 
-`currency_code` value should be a [currency code](https://www.iban.com/currency-codes), such as USD or EUR. USD is the default value.
+`currency_code` value should be a 3-letter [currency code](https://www.iban.com/currency-codes), such as USD or EUR. USD is the default value.
+
+The number is rounded to the currency's number of fraction digits, so `2000.5` with EUR is formatted as `€2,000.50`.
 
 ### Example
 
