@@ -123,14 +123,16 @@ The `I18nContextProvider` component accepts multiple props, all optional (except
 - `enable_cookie`: should set a cookie to keep track of the locale when the page reloads (default to true) (do nothing without the "cookie" feature)
 - `cookie_name`: give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
 - `cookie_options`: options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
+- `ssr_lang_header_getter`: options for reading the `Accept-Language` header, the value is of type `leptos_use::UseLocalesOptions` (default to `Default::default`)
 
 ## Note on Island
 
-If you use the `islands` feature from Leptos, the `I18nContextProvider` loses two props: `cookie_options` and `ssr_lang_header_getter`, because they are not serializable. If you need them, you can use the `init_context_with_options` function and provide the context yourself:
+If you use the `islands` feature from Leptos, the `I18nContextProvider` loses two props: `cookie_options` and `ssr_lang_header_getter`, because they are not serializable. If you need them, you can use the `init_i18n_context_with_options` function and provide the context yourself:
 
 ```rust,ignore
-use leptos_i18n::init_i18n_context_with_options;
-use leptos_i18n::context::{CookieOptions, UseLocalesOptions};
+use leptos_i18n::context::{
+    init_i18n_context_with_options, CookieOptions, I18nContextOptions, UseLocalesOptions,
+};
 use leptos_meta::Html;
 use leptos::prelude::*;
 use crate::i18n::*;
@@ -143,12 +145,16 @@ fn MyI18nProvider(
 ) -> impl IntoView {
     let my_cookie_options: CookieOptions<Locale> = /* create your options here */;
     let ssr_lang_header_getter: UseLocalesOptions = /* create your options here */;
-    let i18n = init_i18n_context_with_options::<Locale>(
-        enable_cookie,
-        cookie_name,
-        Some(my_cookie_options),
-        Some(ssr_lang_header_getter)
-    );
+    let mut options = I18nContextOptions::<Locale>::default()
+        .cookie_options(my_cookie_options)
+        .ssr_lang_header_getter(ssr_lang_header_getter);
+    if let Some(enable_cookie) = enable_cookie {
+        options = options.enable_cookie(enable_cookie);
+    }
+    if let Some(cookie_name) = cookie_name {
+        options = options.cookie_name(cookie_name);
+    }
+    let i18n = init_i18n_context_with_options::<Locale>(options);
     provide_context(i18n);
     let lang = move || i18n.get_locale().as_str();
     let dir = move || i18n.get_locale().direction().as_str();

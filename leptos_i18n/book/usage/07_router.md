@@ -82,7 +82,7 @@ If you have `segment_path_name = "search"` for English, and `segment_path_name =
 - "/en/search"
 - "/fr/rechercher"
 
-It can be used at any depth, and if not used inside an `i18nRoute` it will default to the default locale.
+It can be used at any depth, and if not used inside an `I18nRoute` it will default to the default locale.
 
 Multi segments path are supported, meaning you can have `segment_path_name = "some/path"` for English, and `segment_path_name = "un/chemin"` for French and work as expected.
 
@@ -110,9 +110,9 @@ view! {
 ```
 
 And the `Menu` component uses localization, you could be surprised to see that sometimes there is a mismatch between the locale used by the `Menu` and the one inside the router.
-This is due to the locale being read from the URL only when the `i18nRoute` is rendered. So the context may be initialized with another locale, and then hit the router that updates it.
+This is due to the locale being read from the URL only when the `I18nRoute` is rendered. So the context may be initialized with another locale, and then hit the router that updates it.
 
-One solution would be to use the `Menu` component inside the `i18nRoute`:
+One solution would be to use the `Menu` component inside the `I18nRoute`:
 
 ```rust,ignore
 view! {
