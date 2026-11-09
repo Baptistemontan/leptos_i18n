@@ -1,15 +1,16 @@
 use super::{IntoFixedDecimal, NumberFormatterInputFn};
 use crate::Locale;
 use core::fmt::{self, Display};
-use icu_experimental::dimension::currency::{CurrencyCode, options::Width as CurrencyWidth};
+use icu_experimental::dimension::currency::CurrencyType;
 use leptos::IntoView;
 
 use serde::{Deserialize, Serialize};
 use writeable::Writeable;
 
-// TODO: this struct should be removed in version ICU4x v2
-// Reference: https://docs.rs/icu_experimental/0.1.0/icu_experimental/dimension/currency/options/enum.Width.html
-// Issue: https://github.com/unicode-org/icu4x/pull/6100
+/// Width of the currency symbol.
+///
+/// ICU4X (since `icu_experimental` 0.7) no longer has a width option; the width
+/// instead picks the constructor (`try_new_symbol` / `try_new_symbol_narrow`).
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Hash, Serialize, Deserialize, Default)]
 #[non_exhaustive]
 #[doc(hidden)]
@@ -22,28 +23,18 @@ pub enum Width {
     Narrow,
 }
 
-impl From<CurrencyWidth> for Width {
-    fn from(value: CurrencyWidth) -> Self {
-        match value {
-            CurrencyWidth::Short => Self::Short,
-            CurrencyWidth::Narrow => Self::Narrow,
-            _ => unimplemented!(),
-        }
-    }
-}
-
 #[doc(hidden)]
 pub fn format_currency_to_view<L: Locale>(
     locale: L,
     number: impl NumberFormatterInputFn,
-    width: CurrencyWidth,
-    currency_code: CurrencyCode,
+    width: Width,
+    currency_code: CurrencyType,
 ) -> impl IntoView + Clone {
-    let currency_formatter = super::get_currency_formatter(locale, width);
+    let currency_formatter = super::get_currency_formatter(locale, width, currency_code);
 
     move || {
         let fixed_dec = number.to_fixed_decimal();
-        let currency = currency_formatter.format_fixed_decimal(&fixed_dec, &currency_code);
+        let currency = currency_formatter.format_fixed_decimal(&fixed_dec);
         let mut formatted_currency = String::new();
         currency.write_to(&mut formatted_currency).unwrap();
         formatted_currency
@@ -55,12 +46,12 @@ pub fn format_currency_to_formatter<L: Locale>(
     f: &mut fmt::Formatter<'_>,
     locale: L,
     number: impl IntoFixedDecimal,
-    width: CurrencyWidth,
-    currency_code: CurrencyCode,
+    width: Width,
+    currency_code: CurrencyType,
 ) -> fmt::Result {
-    let currency_formatter = super::get_currency_formatter(locale, width);
+    let currency_formatter = super::get_currency_formatter(locale, width, currency_code);
     let fixed_dec = number.to_fixed_decimal();
-    let formatted_currency = currency_formatter.format_fixed_decimal(&fixed_dec, &currency_code);
+    let formatted_currency = currency_formatter.format_fixed_decimal(&fixed_dec);
     formatted_currency.write_to(f)
 }
 
@@ -72,12 +63,12 @@ pub fn format_currency_to_formatter<L: Locale>(
 pub fn format_currency_to_display<L: Locale>(
     locale: L,
     number: impl IntoFixedDecimal,
-    width: CurrencyWidth,
-    currency_code: CurrencyCode,
+    width: Width,
+    currency_code: CurrencyType,
 ) -> impl Display {
-    let currency_formatter = super::get_currency_formatter(locale, width);
+    let currency_formatter = super::get_currency_formatter(locale, width, currency_code);
     let fixed_dec = number.to_fixed_decimal();
-    let currency = currency_formatter.format_fixed_decimal(&fixed_dec, &currency_code);
+    let currency = currency_formatter.format_fixed_decimal(&fixed_dec);
     let mut formatted_currency = String::new();
     currency.write_to(&mut formatted_currency).unwrap();
     formatted_currency

@@ -51,11 +51,11 @@ use icu_decimal::options::DecimalFormatterOptions;
 #[cfg(feature = "format_nums")]
 use icu_decimal::options::GroupingStrategy;
 #[cfg(feature = "format_currency")]
+use icu_experimental::dimension::currency::CurrencyType;
+#[cfg(feature = "format_currency")]
 use icu_experimental::dimension::currency::formatter::CurrencyFormatter;
 #[cfg(feature = "format_currency")]
 use icu_experimental::dimension::currency::options::CurrencyFormatterOptions;
-#[cfg(feature = "format_currency")]
-use icu_experimental::dimension::currency::options::Width as CurrencyWidth;
 
 pub use leptos_i18n_macro::{
     t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
@@ -65,20 +65,28 @@ pub use leptos_i18n_macro::{
 #[cfg(feature = "format_currency")]
 fn get_currency_formatter<L: Locale>(
     locale: L,
-    width: CurrencyWidth,
-) -> &'static CurrencyFormatter {
+    width: currency::Width,
+    currency_code: CurrencyType,
+) -> &'static CurrencyFormatter<DecimalFormatter> {
     use data_provider::IcuDataProvider;
 
     inner::FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let currency_formatters = formatters.currency.entry(locale).or_default();
-        let currency_formatter = currency_formatters.entry(width.into()).or_insert_with(|| {
-            let formatter = formatters
-                .provider
-                .try_new_currency_formatter(locale, CurrencyFormatterOptions::from(width))
-                .expect("A CurrencyFormatter");
-            Box::leak(Box::new(formatter))
-        });
+        let currency_formatter = currency_formatters
+            .entry((width, currency_code))
+            .or_insert_with(|| {
+                let formatter = formatters
+                    .provider
+                    .try_new_currency_formatter(
+                        locale,
+                        currency_code,
+                        width,
+                        CurrencyFormatterOptions::default(),
+                    )
+                    .expect("A CurrencyFormatter");
+                Box::leak(Box::new(formatter))
+            });
         *currency_formatter
     })
 }
@@ -284,7 +292,10 @@ pub(crate) mod inner {
         #[cfg(feature = "format_currency")]
         pub currency: HashMap<
             &'static IcuLocale,
-            HashMap<super::currency::Width, &'static CurrencyFormatter>,
+            HashMap<
+                (super::currency::Width, CurrencyType),
+                &'static CurrencyFormatter<DecimalFormatter>,
+            >,
         >,
         #[cfg(feature = "format_nums")]
         pub num: HashMap<&'static IcuLocale, HashMap<GroupingStrategy, &'static DecimalFormatter>>,
@@ -474,13 +485,15 @@ pub(crate) mod data_provider {
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, DataError>;
         ///
-        /// Tries to create a new `CurrencyFormatter` with the given options
+        /// Tries to create a new `CurrencyFormatter` for the given currency, width and options
         #[cfg(feature = "format_currency")]
         fn try_new_currency_formatter(
             &self,
             locale: &Locale,
+            currency_code: CurrencyType,
+            width: super::currency::Width,
             options: CurrencyFormatterOptions,
-        ) -> Result<CurrencyFormatter, icu_provider::DataError>;
+        ) -> Result<CurrencyFormatter<DecimalFormatter>, icu_provider::DataError>;
     }
 
     #[cfg(feature = "icu_compiled_data")]
@@ -591,9 +604,18 @@ pub(crate) mod data_provider {
         fn try_new_currency_formatter(
             &self,
             locale: &Locale,
+            currency_code: CurrencyType,
+            width: super::currency::Width,
             options: CurrencyFormatterOptions,
-        ) -> Result<CurrencyFormatter, DataError> {
-            CurrencyFormatter::try_new(locale.into(), options)
+        ) -> Result<CurrencyFormatter<DecimalFormatter>, DataError> {
+            match width {
+                super::currency::Width::Short => {
+                    CurrencyFormatter::try_new_symbol(locale.into(), currency_code, options)
+                }
+                super::currency::Width::Narrow => {
+                    CurrencyFormatter::try_new_symbol_narrow(locale.into(), currency_code, options)
+                }
+            }
         }
     }
 
@@ -705,10 +727,12 @@ pub(crate) mod data_provider {
         fn try_new_currency_formatter(
             &self,
             locale: &Locale,
+            currency_code: CurrencyType,
+            width: super::currency::Width,
             options: CurrencyFormatterOptions,
-        ) -> Result<CurrencyFormatter, DataError> {
+        ) -> Result<CurrencyFormatter<DecimalFormatter>, DataError> {
             self.get_provider()
-                .try_new_currency_formatter(locale, options)
+                .try_new_currency_formatter(locale, currency_code, width, options)
         }
     }
 }

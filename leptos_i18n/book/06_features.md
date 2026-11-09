@@ -68,6 +68,11 @@ Allow the use of the `number` formatter.
 
 Allow the use of the `currency` formatter.
 
+This feature is experimental: it is built on [`icu_experimental`](https://docs.rs/icu_experimental),
+which does not follow semver, so its API and output may change in a minor or patch release of `leptos_i18n`.
+This covers the currency part of `custom_provider::IcuDataProvider`, the types under
+`reexports::icu::currency`, and the formatted strings themselves.
+
 #### `unified_contexts`
 
 By default the context are exclusive to their `Locale` enum, this means that one `i18n` module will have a different context than another `i18n` module.

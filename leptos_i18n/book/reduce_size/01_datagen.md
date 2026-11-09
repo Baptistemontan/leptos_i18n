@@ -30,8 +30,9 @@ you will also need some dependencies:
 ```toml
 [dependencies]
 # "default-features = false" to turn off compiled_data
-icu_provider_baked = "2.0.0" # for databake
-icu_provider = "2.0.0" # for databake
+icu_provider_baked = "2.4" # for databake
+icu_provider = "2.4" # for databake
+icu_locale_core = "2.4" # for databake
 zerovec = "0.11" # for databake
 ```
 
@@ -195,15 +196,15 @@ To solve them you will need those few things:
 
 ### Enable Experimental Feature
 
-Enable the "experimental" feature for `icu`:
+Enable the "unstable" feature for `icu`:
 
 ```toml
 # Cargo.toml
 [dependencies]
 icu = {
-    version = "1.5.0",
+    version = "2.4",
     default-features = false,
-    features = [ "experimental"]
+    features = [ "unstable"]
 }
 ```
 
@@ -212,7 +213,7 @@ icu = {
 ```toml
 # Cargo.toml
 [dependencies]
-icu_pattern = "0.2.0" # for databake
+icu_pattern = "0.5" # for databake
 ```
 
 ### Import the `alloc` Crate
