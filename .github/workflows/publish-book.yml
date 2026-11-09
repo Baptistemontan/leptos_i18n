@@ -1,7 +1,7 @@
 name: Deploy book
 on:
   push:
-    paths: ["docs/book/**"]
+    paths: ["docs/book/**", "leptos_i18n/book/**"]
     branches:
       - master
 

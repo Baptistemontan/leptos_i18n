@@ -18,7 +18,9 @@
 //!
 //! # In depth documentation
 //!
-//! You can find the [book](https://baptistemontan.github.io/leptos_i18n) on the github repo.
+//! The whole [book](https://baptistemontan.github.io/leptos_i18n) is included in this crate
+//! as the [`book`] module, covering setup, the translation file syntax, the macros and more.
+//! Its markdown sources are in the `book` directory at the root of this crate.
 //!
 //! # A Simple Counter
 //!
@@ -116,6 +118,7 @@
 //! }
 //! ```
 
+pub mod book;
 pub mod context;
 pub mod display;
 mod fetch_locale;

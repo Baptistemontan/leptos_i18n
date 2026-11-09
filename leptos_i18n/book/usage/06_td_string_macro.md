@@ -67,7 +67,7 @@ let hw = td_string!(Locale::en, hello_world, foo = "bar", <b> = render_b);
 assert_eq!(hw, "Hello <div foo=\"bar\" id=\"some_id\">World</div> !");
 ```
 
-> _note_: values for attributes must implement the `leptos_i18n::display::AttributeValue` trait, already implemented for numbers (u\*, i\*, f\* and NonZero<N>), str, bools and `Option<impl AttributeValue>`
+> _note_: values for attributes must implement the `leptos_i18n::display::AttributeValue` trait, already implemented for numbers (u\*, i\*, f\* and `NonZero<N>`), str, bools and `Option<impl AttributeValue>`
 
 If you look closely, there are no `Clone` or `'static` bounds for any arguments, but they are captured by the value returned by the macro,
 so the returned value has a lifetime bound to the "smallest" lifetime of the arguments.
