@@ -35,7 +35,7 @@ The locale prefix in the URL is considered to have the biggest priority. When ac
 
 But accessing without a locale prefix such as `"/counter“`, the locale will be resolved based on other factors like cookies, request `Accept-Language` header, or `navigator` API.
 
-See the [Locale Resolution](../infos/01_locale_resol.md) section.
+See the [Locale Resolution][locale_resolution] section.
 
 ### Redirection
 
@@ -132,3 +132,5 @@ view! {
 
 
 ```
+
+<!-- {{#include ../links.md}} -->
