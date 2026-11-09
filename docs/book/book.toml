@@ -1,0 +1,4 @@
+[book]
+# The book sources live inside the `leptos_i18n` crate so they ship with it
+# and are also exposed as rustdoc under `leptos_i18n::book`.
+src = "../../leptos_i18n/book"

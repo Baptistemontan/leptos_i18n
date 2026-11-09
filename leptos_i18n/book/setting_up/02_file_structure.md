@@ -14,7 +14,7 @@ By default, you must put your files in the `./locales` directory, and each file 
 
 You can change the path to the directory containing the files with the `locales_path` method on the config builder, for example:
 
-```rust
+```rust,ignore
 let cfg = Config::new("en")?.add_locale("fr")?.locales_path("./path/to/mylocales");
 ```
 
