@@ -14,8 +14,15 @@ readme = "../README.md"
 leptos_i18n = { workspace = true }
 leptos = { workspace = true, default-features = false }
 leptos_router = { workspace = true, default-features = false }
+leptos_actix = { workspace = true, default-features = false, optional = true }
+leptos_axum = { workspace = true, default-features = false, optional = true }
+actix_http = { workspace = true, default-features = false, optional = true }
+axum_http = { workspace = true, default-features = false, optional = true }
 
 [features]
+# default = ["axum"]
+axum = ["ssr", "leptos_i18n/axum", "dep:leptos_axum", "dep:axum_http"]
+actix = ["ssr", "leptos_i18n/actix", "dep:leptos_actix", "dep:actix_http"]
 ssr = ["leptos/ssr", "leptos_router/ssr", "leptos_i18n/ssr"]
 
 

@@ -19,6 +19,8 @@ use leptos_router::{
 
 use leptos_i18n::{I18nContext, Locale, use_i18n_context};
 
+use crate::PrefixDefault;
+
 // this whole file is a hack into `leptos_router`, it absolutely should'nt be used like that, but eh I'm a professional (or not.)
 
 #[derive(Debug)]
@@ -190,23 +192,33 @@ fn get_new_path<L: Locale>(
     new_locale: L,
     locale: Option<L>,
     segments: &RouteSegments<L>,
+    prefix_default: PrefixDefault,
 ) -> String {
     let mut new_path = location.pathname.with_untracked(|path_name| {
         let mut path_builder = PathBuilder::default();
         path_builder.push(base_path);
-        if new_locale != L::default() {
+        if new_locale != L::default() || prefix_default == PrefixDefault::Always {
             path_builder.push(new_locale.as_str());
         }
         if let Some(path_rest) = path_name.strip_prefix(base_path) {
-            let path_rest = match locale {
-                None => path_rest,
-                Some(l) => {
-                    if let Some(path_rest) = path_rest.strip_prefix(l.as_str()) {
-                        path_rest
-                    } else {
-                        path_rest // Should happen only if l == L::default()
-                    }
+            let l = locale.unwrap_or_default();
+            let locale_prix_stripped = path_rest.strip_prefix(l.as_str()).and_then(|path| {
+                if path.is_empty() {
+                    Some("")
+                } else {
+                    path.strip_prefix('/')
                 }
+            });
+            let path_rest = if let Some(path_rest) = locale_prix_stripped {
+                path_rest
+            } else if l == L::default() {
+                path_rest // Should happen only if l == L::default()
+            } else {
+                todo!(
+                    "expected the path to have a locale prefix of \"{}/..\" but got: \"{}\"",
+                    l.as_str(),
+                    path_rest
+                )
             };
 
             let old_locale_segments = segments.get(&locale.unwrap_or_default());
@@ -237,6 +249,7 @@ fn get_new_path<L: Locale>(
             new_path.push_str(search);
         }
     });
+
     location.hash.with_untracked(|hash| {
         if !hash.is_empty() {
             // Remove leading '#' if present
@@ -245,6 +258,7 @@ fn get_new_path<L: Locale>(
             new_path.push_str(hash);
         }
     });
+
     new_path
 }
 
@@ -254,6 +268,7 @@ fn update_path_effect<L: Locale>(
     base_path: &'static str,
     history_changed_locale: Rc<Cell<Option<L>>>,
     segments: Arc<RouteSegments<L>>,
+    prefix_default: PrefixDefault,
 ) -> impl Fn(Option<L>) -> L + 'static {
     let location = use_location();
     let navigate = use_navigate();
@@ -274,7 +289,14 @@ fn update_path_effect<L: Locale>(
             return new_locale;
         }
 
-        let new_path = get_new_path(&location, base_path, new_locale, Some(prev_loc), &segments);
+        let new_path = get_new_path(
+            &location,
+            base_path,
+            new_locale,
+            Some(prev_loc),
+            &segments,
+            prefix_default,
+        );
 
         let navigate = navigate.clone();
 
@@ -300,6 +322,7 @@ fn correct_locale_prefix_effect<L: Locale>(
     base_path: &'static str,
     segments: Arc<RouteSegments<L>>,
     history_changed: Rc<Cell<bool>>,
+    prefix_default: PrefixDefault,
 ) -> impl Fn(Option<()>) + 'static {
     let location = use_location();
     let navigate = use_navigate();
@@ -320,7 +343,14 @@ fn correct_locale_prefix_effect<L: Locale>(
             path_locale.unwrap_or(current_locale)
         };
 
-        let new_path = get_new_path(&location, base_path, new_locale, path_locale, &segments);
+        let new_path = get_new_path(
+            &location,
+            base_path,
+            new_locale,
+            path_locale,
+            &segments,
+            prefix_default,
+        );
 
         let navigate = navigate.clone();
 
@@ -368,19 +398,50 @@ fn maybe_redirect<L: Locale>(
     previously_resolved_locale: L,
     base_path: &str,
     segments: &RouteSegments<L>,
-) -> Option<String> {
-    let location = use_location();
-    if cfg!(not(feature = "ssr")) || previously_resolved_locale == L::default() {
+    prefix_default: PrefixDefault,
+) -> Option<(String, bool)> {
+    if cfg!(not(feature = "ssr")) {
         return None;
     }
+
+    let location = use_location();
+
+    let is_default = previously_resolved_locale == L::default();
+
+    // check the current default locale prefix to see if we need to redirect
+    if is_default {
+        let has_prefix = location.pathname.with_untracked(|path_name| {
+            let Some(rest) = path_name.strip_prefix(base_path) else {
+                return false;
+            };
+            let Some(rest) = rest.strip_prefix(previously_resolved_locale.as_str()) else {
+                return false;
+            };
+            rest.is_empty() || rest.starts_with('/')
+        });
+
+        if matches!(
+            (has_prefix, prefix_default),
+            // if already has a prefix and is ::Always, or if no prefix and is ::Never, we don't need to redirect
+            (true, PrefixDefault::Always) | (false, PrefixDefault::Never)
+        ) {
+            return None;
+        }
+    }
+
     let new_path = get_new_path(
         &location,
         base_path,
         previously_resolved_locale,
         None,
         segments,
+        prefix_default,
     );
-    Some(new_path)
+    Some((
+        new_path,
+        // permanently move "/{def}/.." to "/.." with prefix_default to never
+        is_default && prefix_default == PrefixDefault::Never,
+    ))
 }
 
 #[derive(Clone)]
@@ -409,6 +470,7 @@ fn view_wrapper<L, View>(
     route_locale: Option<L>,
     base_path: &'static str,
     segments: Arc<RouteSegments<L>>,
+    prefix_default: PrefixDefault,
 ) -> Either<View, impl ChooseView>
 where
     L: Locale,
@@ -421,11 +483,18 @@ where
     // By precedence if there is a locale prefix in the URL it takes priority.
     // if there is none, use the one computed beforehand.
 
-    let redir = if let Some(locale) = route_locale {
+    let redir = if let Some(locale) = route_locale
+        && locale != L::default()
+    {
         i18n.set_locale(locale);
         None
     } else {
-        maybe_redirect(previously_resolved_locale, base_path, &segments)
+        maybe_redirect(
+            previously_resolved_locale,
+            base_path,
+            &segments,
+            prefix_default,
+        )
     };
 
     // This variable is there to sync history changes, because we step out of the Leptos routes reactivity we don't get forward and backward history changes triggers
@@ -441,6 +510,7 @@ where
         base_path,
         sync.clone(),
         segments.clone(),
+        prefix_default,
     ));
 
     // listen for history changes
@@ -457,14 +527,59 @@ where
         base_path,
         segments,
         history_changed,
+        prefix_default,
     ));
 
     match redir {
         None => Either::Left(view),
-        Some(path) => {
-            let view = move || view! { <Redirect path=path.clone() /> };
-            Either::Right(view)
+        Some((path, permanent)) => {
+            redirect(path.clone(), permanent);
+            Either::Right(())
         }
+    }
+}
+
+fn redirect(path: String, permanent_redirect: bool) {
+    fn redirect_via_comp(path: String) {
+        let props = leptos::component::component_props_builder(&Redirect)
+            .path(path)
+            .options(NavigateOptions {
+                replace: true,
+                ..Default::default()
+            })
+            .build();
+        Redirect(props)
+    }
+    if permanent_redirect
+        && cfg!(any(
+            all(feature = "actix", not(feature = "axum")),
+            all(feature = "axum", not(feature = "actix"))
+        ))
+    {
+        #[cfg(all(feature = "axum", not(feature = "actix")))]
+        {
+            if let Some(res) = use_context::<leptos_axum::ResponseOptions>() {
+                let path =
+                    axum_http::HeaderValue::from_str(&path).expect("failed to create header value");
+                res.insert_header(axum_http::header::LOCATION, path);
+                res.set_status(axum_http::StatusCode::MOVED_PERMANENTLY);
+            } else {
+                redirect_via_comp(path);
+            }
+        }
+        #[cfg(all(feature = "actix", not(feature = "axum")))]
+        {
+            if let Some(res) = use_context::<leptos_actix::ResponseOptions>() {
+                let path = actix_http::HeaderValue::from_str(&path)
+                    .expect("failed to create header value");
+                res.insert_header(actix_http::header::LOCATION, path);
+                res.set_status(actix_http::StatusCode::MOVED_PERMANENTLY);
+            } else {
+                redirect_via_comp(path);
+            }
+        }
+    } else {
+        redirect_via_comp(path);
     }
 }
 
@@ -474,6 +589,7 @@ pub fn i18n_routing<L: Locale, View, Chil>(
     children: RouteChildren<Chil>,
     ssr_mode: SsrMode,
     view: View,
+    prefix_default: PrefixDefault,
 ) -> impl MatchNestedRoutes + Clone
 where
     View: ChooseView + Clone,
@@ -486,7 +602,7 @@ where
 
     let segments = generate_routes_for_each_locale::<L, _, _>(&base_route);
 
-    I18nNestedRoute::new(base_path, base_route, Arc::new(segments))
+    I18nNestedRoute::new(base_path, base_route, Arc::new(segments), prefix_default)
 }
 
 type RouteSegments<L> = HashMap<L, Vec<Vec<PathSegment>>>;
@@ -496,6 +612,7 @@ struct I18nNestedRoute<L, View, Chil> {
     route: BaseRoute<View, Chil>,
     base_path: &'static str,
     segments: Arc<RouteSegments<L>>,
+    prefix_default: PrefixDefault,
 }
 
 impl<L, View, Chil> I18nNestedRoute<L, View, Chil> {
@@ -503,11 +620,13 @@ impl<L, View, Chil> I18nNestedRoute<L, View, Chil> {
         base_path: &'static str,
         route: BaseRoute<View, Chil>,
         segments: Arc<RouteSegments<L>>,
+        prefix_default: PrefixDefault,
     ) -> Self {
         Self {
             route,
             base_path,
             segments,
+            prefix_default,
         }
     }
 }
@@ -557,6 +676,7 @@ where
     matched: String,
     inner_match: <BaseRoute<View, Chil> as MatchNestedRoutes>::Match,
     segments: Arc<RouteSegments<L>>,
+    prefix_default: PrefixDefault,
 }
 
 impl<L, View, Chil> MatchParams for I18nRouteMatch<L, View, Chil>
@@ -595,6 +715,7 @@ where
                 self.locale,
                 self.base_path,
                 self.segments.clone(),
+                self.prefix_default,
             )
         };
         (ViewWrapper(new_view), child)
@@ -635,6 +756,7 @@ where
                             inner_match,
                             base_path: self.base_path,
                             segments: self.segments.clone(),
+                            prefix_default: self.prefix_default,
                         };
                         Some((Some((route_match_id, route_match)), remaining))
                     })
@@ -649,6 +771,7 @@ where
                         inner_match,
                         base_path: self.base_path,
                         segments: self.segments.clone(),
+                        prefix_default: self.prefix_default,
                     };
                     (Some((route_match_id, route_match)), remaining)
                 })
@@ -663,7 +786,11 @@ where
             reset_current_route_locale();
             None
         });
-        let default_locale_routes = std::iter::once_with(|| {
+        // Under `Always`, the default locale is served prefixed like every other
+        // locale (already generated below), so we must NOT also emit an unprefixed
+        // route for it — that would create duplicate-content URLs.
+        let emit_default_locale_routes = self.prefix_default == PrefixDefault::Never;
+        let default_locale_routes = std::iter::once_with(move || {
             set_current_route_locale(L::default());
             MatchNestedRoutes::generate_routes(&self.route)
                 .into_iter()
@@ -673,6 +800,7 @@ where
                     generated_route
                 })
         })
+        .filter(move |_| emit_default_locale_routes)
         .flatten();
         L::get_all()
             .iter()

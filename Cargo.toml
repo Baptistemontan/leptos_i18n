@@ -28,6 +28,8 @@ leptos_i18n_build = { path = "./leptos_i18n_build", version = "0.6.2", default-f
 leptos = { version = "0.8", default-features = false }
 leptos_router = { version = "0.8", default-features = false }
 leptos_meta = { version = "0.8", default-features = false }
+leptos_axum = { version = "0.8", default-features = false }
+leptos_actix = { version = "0.8", default-features = false }
 
 # icu
 icu = { version = "2.2", default-features = false }
@@ -63,3 +65,5 @@ typed-builder = { default-features = false, version = "0.23" }
 proc-macro2 = { default-features = false, version = "1.0" }
 serde = { default-features = false, version = "1.0" }
 js-sys = { default-features = false, version = "0.3" }
+axum_http = { default-features = false, version = "1.4", package = "http" }
+actix_http = { default-features = false, version = "0.2", package = "http" }

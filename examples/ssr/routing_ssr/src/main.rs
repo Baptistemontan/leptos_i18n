@@ -3,9 +3,9 @@
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {
-    use axum::{routing::post, Router};
+    use axum::{Router, routing::post};
     use leptos::prelude::*;
-    use leptos_axum::{generate_route_list, LeptosRoutes};
+    use leptos_axum::{LeptosRoutes, generate_route_list};
     use routing_ssr::{app::App, fileserv::file_and_error_handler};
     use tokio::net::TcpListener;
 
