@@ -10,110 +10,71 @@
 //!
 //! The markdown sources are in the `book` directory at the root of this crate; when reading the
 //! crate source, they can be read directly (start with `book/SUMMARY.md` for the table of contents).
-//!
-//! Links between chapters point to the markdown files and only resolve in the online book.
 
-#[doc = include_str!("../book/01_introduction.md")]
-pub mod ch01_introduction {}
-
-#[doc = include_str!("../book/02_getting_started.md")]
-pub mod ch02_getting_started {}
-
-#[doc = include_str!("../book/setting_up/README.md")]
-pub mod ch03_setting_up {
-    #[doc = include_str!("../book/setting_up/01_configuration.md")]
-    pub mod ch01_configuration {}
-
-    #[doc = include_str!("../book/setting_up/02_file_structure.md")]
-    pub mod ch02_file_structure {}
-
-    #[doc = include_str!("../book/setting_up/03_namespaces.md")]
-    pub mod ch03_namespaces {}
-
-    #[doc = include_str!("../book/setting_up/04_inheritance.md")]
-    pub mod ch04_inheritance {}
+/// Declares a documentation-only module for a chapter of the book.
+///
+/// `book/rustdoc_links.md` is put in front of the chapter: it defines the reference-style links
+/// between chapters for rustdoc. A chapter may also include `book/links.md` (the same links, for
+/// mdbook), but the first definition of a label wins, so rustdoc uses its own.
+macro_rules! chapter {
+    ($name:ident, $path:literal $(, { $($sub_chapters:tt)* })?) => {
+        #[doc = include_str!("../book/rustdoc_links.md")]
+        #[doc = include_str!(concat!("../book/", $path))]
+        pub mod $name {
+            $($($sub_chapters)*)?
+        }
+    };
 }
 
-#[doc = include_str!("../book/declare/README.md")]
-pub mod ch04_declare {
-    #[doc = include_str!("../book/declare/01_key_value.md")]
-    pub mod ch01_key_value {}
+chapter!(ch01_introduction, "01_introduction.md");
 
-    #[doc = include_str!("../book/declare/02_interpolation.md")]
-    pub mod ch02_interpolation {}
+chapter!(ch02_getting_started, "02_getting_started.md");
 
-    #[doc = include_str!("../book/declare/03_plurals.md")]
-    pub mod ch03_plurals {}
+chapter!(ch03_setting_up, "setting_up/README.md", {
+    chapter!(ch01_configuration, "setting_up/01_configuration.md");
+    chapter!(ch02_file_structure, "setting_up/02_file_structure.md");
+    chapter!(ch03_namespaces, "setting_up/03_namespaces.md");
+    chapter!(ch04_inheritance, "setting_up/04_inheritance.md");
+});
 
-    #[doc = include_str!("../book/declare/04_subkeys.md")]
-    pub mod ch04_subkeys {}
+chapter!(ch04_declare, "declare/README.md", {
+    chapter!(ch01_key_value, "declare/01_key_value.md");
+    chapter!(ch02_interpolation, "declare/02_interpolation.md");
+    chapter!(ch03_plurals, "declare/03_plurals.md");
+    chapter!(ch04_subkeys, "declare/04_subkeys.md");
+    chapter!(ch05_foreign_keys, "declare/05_foreign_keys.md");
+    chapter!(ch06_mix_kinds, "declare/06_mix_kinds.md");
+    chapter!(ch07_formatters, "declare/07_formatters.md");
+});
 
-    #[doc = include_str!("../book/declare/05_foreign_keys.md")]
-    pub mod ch05_foreign_keys {}
+chapter!(ch05_usage, "usage/README.md", {
+    chapter!(ch02_context, "usage/02_context.md");
+    chapter!(ch03_subcontext, "usage/03_subcontext.md");
+    chapter!(ch04_t_macro, "usage/04_t_macro.md");
+    chapter!(ch05_td_macro, "usage/05_td_macro.md");
+    chapter!(ch06_td_string_macro, "usage/06_td_string_macro.md");
+    chapter!(ch07_router, "usage/07_router.md");
+    chapter!(ch08_scoping, "usage/08_scoping.md");
+    chapter!(ch09_t_format, "usage/09_t_format.md");
+    chapter!(ch10_t_plural, "usage/10_t_plural.md");
+    chapter!(ch11_const_access, "usage/11_const_access.md");
+    chapter!(ch12_server_functions, "usage/12_serverfn.md");
+});
 
-    #[doc = include_str!("../book/declare/06_mix_kinds.md")]
-    pub mod ch06_mix_kinds {}
+chapter!(ch06_infos, "infos/README.md", {
+    chapter!(ch01_locale_resolution, "infos/01_locale_resol.md");
+});
 
-    #[doc = include_str!("../book/declare/07_formatters.md")]
-    pub mod ch07_formatters {}
-}
+chapter!(ch07_reduce_size, "reduce_size/README.md", {
+    chapter!(ch01_datagen, "reduce_size/01_datagen.md");
+    chapter!(ch02_dynamic_load, "reduce_size/02_dynamic_load.md");
+});
 
-#[doc = include_str!("../book/usage/README.md")]
-pub mod ch05_usage {
-    #[doc = include_str!("../book/usage/02_context.md")]
-    pub mod ch02_context {}
+chapter!(ch08_features, "06_features.md");
 
-    #[doc = include_str!("../book/usage/03_subcontext.md")]
-    pub mod ch03_subcontext {}
+chapter!(ch09_appendix_i18n_ally, "appendix_i18n_ally.md");
 
-    #[doc = include_str!("../book/usage/04_t_macro.md")]
-    pub mod ch04_t_macro {}
-
-    #[doc = include_str!("../book/usage/05_td_macro.md")]
-    pub mod ch05_td_macro {}
-
-    #[doc = include_str!("../book/usage/06_td_string_macro.md")]
-    pub mod ch06_td_string_macro {}
-
-    #[doc = include_str!("../book/usage/07_router.md")]
-    pub mod ch07_router {}
-
-    #[doc = include_str!("../book/usage/08_scoping.md")]
-    pub mod ch08_scoping {}
-
-    #[doc = include_str!("../book/usage/09_t_format.md")]
-    pub mod ch09_t_format {}
-
-    #[doc = include_str!("../book/usage/10_t_plural.md")]
-    pub mod ch10_t_plural {}
-
-    #[doc = include_str!("../book/usage/11_const_access.md")]
-    pub mod ch11_const_access {}
-
-    #[doc = include_str!("../book/usage/12_serverfn.md")]
-    pub mod ch12_server_functions {}
-}
-
-#[doc = include_str!("../book/infos/README.md")]
-pub mod ch06_infos {
-    #[doc = include_str!("../book/infos/01_locale_resol.md")]
-    pub mod ch01_locale_resolution {}
-}
-
-#[doc = include_str!("../book/reduce_size/README.md")]
-pub mod ch07_reduce_size {
-    #[doc = include_str!("../book/reduce_size/01_datagen.md")]
-    pub mod ch01_datagen {}
-
-    #[doc = include_str!("../book/reduce_size/02_dynamic_load.md")]
-    pub mod ch02_dynamic_load {}
-}
-
-#[doc = include_str!("../book/06_features.md")]
-pub mod ch08_features {}
-
-#[doc = include_str!("../book/appendix_i18n_ally.md")]
-pub mod ch09_appendix_i18n_ally {}
-
-#[doc = include_str!("../book/appendix_custom_formatter.md")]
-pub mod ch10_appendix_custom_formatter {}
+chapter!(
+    ch10_appendix_custom_formatter,
+    "appendix_custom_formatter.md"
+);

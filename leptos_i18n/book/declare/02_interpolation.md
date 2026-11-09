@@ -70,4 +70,6 @@ The syntax for using variables:
 
 ## Values Names
 
-Value names must follow the same rules as [keys](./01_key_value.md#keys).
+Value names must follow the same rules as [keys][key_value_keys].
+
+<!-- {{#include ../links.md}} -->
