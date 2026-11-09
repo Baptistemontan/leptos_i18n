@@ -96,7 +96,13 @@ impl FormatterOptions {
     /// Return a `Vec<DataMarkerInfo>` needed to use the given option.
     pub fn into_data_markers(self) -> Vec<DataMarkerInfo> {
         match self {
-            FormatterOptions::Plurals => icu::calendar::provider::MARKERS.to_vec(),
+            // Only the markers `PluralRules` needs: `icu::plurals::provider::MARKERS` also holds
+            // `PluralsRangesV1` when `icu/unstable` is enabled (as it is for this crate), and that
+            // marker doesn't exist on the user side without that feature.
+            FormatterOptions::Plurals => vec![
+                icu::plurals::provider::PluralsCardinalV1::INFO,
+                icu::plurals::provider::PluralsOrdinalV1::INFO,
+            ],
             FormatterOptions::FormatDateTime => [
                 icu::datetime::provider::MARKERS,
                 icu::plurals::provider::MARKERS,
