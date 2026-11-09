@@ -154,31 +154,29 @@ If your code uses plurals, it will build with information for plurals. If it use
 If you use more data somehow, like for example using `t*_format!` with a formatter not used in the translations, there are functions to either supply additional options or keys:
 
 ```rust,ignore
-use leptos_i18n_build::Options;
+use leptos_i18n_build::FormatterOptions;
 
-translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();
+translations_infos.generate_data_with_options(mod_directory, [FormatterOptions::FormatDateTime]).unwrap();
 ```
 
 This will inject the ICU `DataMarker`s needed for the `date`, `time`, and `datetime` formatters.
 
 ```rust,ignore
-use leptos_i18n_build::Options;
-
 translations_infos.generate_data_with_data_markers(
     mod_directory,
-    &[icu::plurals::provider::MARKERS]
+    icu::plurals::provider::MARKERS.to_vec(),
 ).unwrap();
 ```
 
 This will inject the keys for cardinal and ordinal plurals.
 
-If you need both, `Options` can be turned into the needed keys:
+If you need both, `FormatterOptions` can be turned into the needed keys:
 
 ```rust,ignore
-use leptos_i18n_build::Options;
+use leptos_i18n_build::FormatterOptions;
 
-let mut markers = &[icu::plurals::provider::MARKERS];
-let markers.extend(Options::FormatDateTime.into_data_markers());
+let mut markers = icu::plurals::provider::MARKERS.to_vec();
+markers.extend(FormatterOptions::FormatDateTime.into_data_markers());
 
 // markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
 

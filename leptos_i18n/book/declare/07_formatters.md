@@ -313,7 +313,7 @@ Enable the "format_list" feature to use the list formatter.
 
 ### Arguments
 
-There are two arguments at the moment for the list formatter: `list_type` and `list_length`.
+There are two arguments at the moment for the list formatter: `list_type` and `list_style`.
 
 `list_type` takes 3 possible values:
 
@@ -321,7 +321,7 @@ There are two arguments at the moment for the list formatter: `list_type` and `l
 - or
 - unit (default)
 
-`list_length` takes 3 possible values:
+`list_style` takes 3 possible values:
 
 - wide (default)
 - short
@@ -331,7 +331,7 @@ See the [`Intl.ListFormat`](https://developer.mozilla.org/fr/docs/Web/JavaScript
 
 ```json
 {
-  "short_and_list_formatter": "{{ list_var, list(list_type: and; list_length: short) }}"
+  "short_and_list_formatter": "{{ list_var, list(list_type: and; list_style: short) }}"
 }
 ```
 

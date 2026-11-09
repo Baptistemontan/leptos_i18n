@@ -199,7 +199,7 @@ and self-closing components can accept  `Fn()` or `Fn(Vec<AnyAttribute>)`.
 
 ## Plurals
 
-Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralsOperands>` ([`PluralsOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `FixedDecimal`.
+Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralOperands>` ([`PluralOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `&fixed_decimal::Decimal`.
 
 ```rust,ignore
 t!(i18n, key_to_plurals, count = count);
