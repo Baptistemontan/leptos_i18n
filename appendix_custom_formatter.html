@@ -1,0 +1,515 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Appendix: Custom formatters</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="02_getting_started.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="setting_up/index.html"><strong aria-hidden="true">3.</strong> Setting Up</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setting_up/01_configuration.html"><strong aria-hidden="true">3.1.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="setting_up/02_file_structure.html"><strong aria-hidden="true">3.2.</strong> File structure</a></li><li class="chapter-item expanded "><a href="setting_up/03_namespaces.html"><strong aria-hidden="true">3.3.</strong> Namespaces</a></li><li class="chapter-item expanded "><a href="setting_up/04_inheritance.html"><strong aria-hidden="true">3.4.</strong> Inheritance</a></li></ol></li><li class="chapter-item expanded "><a href="declare/index.html"><strong aria-hidden="true">4.</strong> Declare Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="declare/01_key_value.html"><strong aria-hidden="true">4.1.</strong> Key-Value Pairs</a></li><li class="chapter-item expanded "><a href="declare/02_interpolation.html"><strong aria-hidden="true">4.2.</strong> Interpolation</a></li><li class="chapter-item expanded "><a href="declare/03_plurals.html"><strong aria-hidden="true">4.3.</strong> Plurals</a></li><li class="chapter-item expanded "><a href="declare/04_subkeys.html"><strong aria-hidden="true">4.4.</strong> Subkeys</a></li><li class="chapter-item expanded "><a href="declare/05_foreign_keys.html"><strong aria-hidden="true">4.5.</strong> Foreign keys</a></li><li class="chapter-item expanded "><a href="declare/06_mix_kinds.html"><strong aria-hidden="true">4.6.</strong> Mixing Kinds</a></li><li class="chapter-item expanded "><a href="declare/07_formatters.html"><strong aria-hidden="true">4.7.</strong> Formatters</a></li></ol></li><li class="chapter-item expanded "><a href="usage/index.html"><strong aria-hidden="true">5.</strong> Use Translations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/02_context.html"><strong aria-hidden="true">5.1.</strong> I18nContext</a></li><li class="chapter-item expanded "><a href="usage/03_subcontext.html"><strong aria-hidden="true">5.2.</strong> Sub-context</a></li><li class="chapter-item expanded "><a href="usage/04_t_macro.html"><strong aria-hidden="true">5.3.</strong> t! Macro</a></li><li class="chapter-item expanded "><a href="usage/05_td_macro.html"><strong aria-hidden="true">5.4.</strong> td! Macro</a></li><li class="chapter-item expanded "><a href="usage/06_td_string_macro.html"><strong aria-hidden="true">5.5.</strong> td_string! Macro</a></li><li class="chapter-item expanded "><a href="usage/07_router.html"><strong aria-hidden="true">5.6.</strong> I18nRoute</a></li><li class="chapter-item expanded "><a href="usage/08_scoping.html"><strong aria-hidden="true">5.7.</strong> Scoping</a></li><li class="chapter-item expanded "><a href="usage/09_t_format.html"><strong aria-hidden="true">5.8.</strong> t_format!</a></li><li class="chapter-item expanded "><a href="usage/10_t_plural.html"><strong aria-hidden="true">5.9.</strong> t_plural!</a></li><li class="chapter-item expanded "><a href="usage/11_const_access.html"><strong aria-hidden="true">5.10.</strong> Constant Access</a></li><li class="chapter-item expanded "><a href="usage/12_serverfn.html"><strong aria-hidden="true">5.11.</strong> Server functions</a></li></ol></li><li class="chapter-item expanded "><a href="infos/index.html"><strong aria-hidden="true">6.</strong> More Informations</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="infos/01_locale_resol.html"><strong aria-hidden="true">6.1.</strong> Locale Resolution</a></li></ol></li><li class="chapter-item expanded "><a href="reduce_size/index.html"><strong aria-hidden="true">7.</strong> Reduce Binary Size</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="reduce_size/01_datagen.html"><strong aria-hidden="true">7.1.</strong> ICU4X Datagen</a></li><li class="chapter-item expanded "><a href="reduce_size/02_dynamic_load.html"><strong aria-hidden="true">7.2.</strong> Lazy Load The Translations</a></li></ol></li><li class="chapter-item expanded "><a href="06_features.html"><strong aria-hidden="true">8.</strong> Features</a></li><li class="chapter-item expanded "><a href="appendix_i18n_ally.html"><strong aria-hidden="true">9.</strong> Appendix: i18n Ally extension for VSC</a></li><li class="chapter-item expanded "><a href="appendix_custom_formatter.html" class="active"><strong aria-hidden="true">10.</strong> Appendix: Custom formatters</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="custom-formatter"><a class="header" href="#custom-formatter">Custom Formatter</a></h1>
+<p>If you find the formatters provided by the library lacking some features, you can either:</p>
+<ul>
+<li>Open an issue; we will gladly look into your needs and see if we can accommodate you</li>
+<li>Make your own formatter</li>
+</ul>
+<p>This chapter is about how to do the later.</p>
+<p>Buckle up, we are going to dig into the internals of the parser/codegen.</p>
+<h2 id="formatter-trait"><a class="header" href="#formatter-trait">Formatter Trait</a></h2>
+<p>The name is misleading, this is'nt the formatter itself but the parser, the trait look like this:</p>
+<pre><code class="language-rust ignore">pub trait Formatter {
+    const NAME: &amp;str;
+
+    type Builder;
+    type Field&lt;'a&gt;;
+    type ToTokens: FormatterToTokens;
+    type ParseError: Display;
+
+    fn builder(&amp;self) -&gt; Self::Builder;
+
+    fn parse_field&lt;'a&gt;(&amp;self, field_name: &amp;'a str) -&gt; Result&lt;Self::Field&lt;'a&gt;, Self::ParseError&gt;;
+
+    fn parse_arg(
+        &amp;self,
+        builder: &amp;mut Self::Builder,
+        field: Self::Field&lt;'_&gt;,
+        arg: Option&lt;&amp;str&gt;,
+    ) -&gt; Result&lt;(), Self::ParseError&gt;;
+
+    fn build(&amp;self, builder: Self::Builder) -&gt; Result&lt;Self::ToTokens, Self::ParseError&gt;;
+}</code></pre>
+<p>When the translations parser finds a formatter syntax (<code>{{ var, formatter(arg_name: value; no_value_arg)}}</code>)
+it will look for a formatter with a matching name, this is the name you put to <code>NAME</code>.</p>
+<p>It will then create the builder with the <code>builder</code> function.</p>
+<p>Then it will ask your parser to validate each arguments, if any,
+to do that it will first validate the argument name with <code>parse_field</code>.</p>
+<p>When the argument is validated it will ask to parse the value (or the lack of), and update the builder with it
+by calling <code>parse_arg</code>.</p>
+<p>The two last steps are repeated for each arguments until no arguments are left to be parsed.</p>
+<p>It will then call <code>build</code> with the builder to validate it and get the <code>Self::ToTokens</code>.</p>
+<h2 id="the-formattertotokens-trait"><a class="header" href="#the-formattertotokens-trait">The <code>FormatterToTokens</code> Trait</a></h2>
+<p>This is where we touch the internals, this is where you inject what is done with the value, and what the value should be:</p>
+<pre><code class="language-rust ignore">pub trait FormatterToTokens: Any {
+    fn to_view(&amp;self, key: &amp;syn::Ident, locale_field: &amp;syn::Ident) -&gt; TokenStream;
+    fn view_bounds(&amp;self) -&gt; TokenStream;
+
+    fn to_fmt(&amp;self, key: &amp;Key, locale_field: &amp;Key) -&gt; TokenStream;
+    fn fmt_bounds(&amp;self) -&gt; TokenStream;
+}</code></pre>
+<p>The <code>to_*</code> functions are how the values are used, <code>key</code> is the ident of the value, and <code>locale_field</code> is the ident of a value of type <code>i18n::Locale</code>.</p>
+<p>the <code>*_bounds</code> functions are how you restrict the type of the values being formatted, those functions must return some traits to bound the value,
+for example <code>Copy + ToString</code>.</p>
+<h2 id="implementation-example"><a class="header" href="#implementation-example">Implementation Example</a></h2>
+<p>Let's implement a simple formatter, it can pad left or right, such that we can have:</p>
+<pre><code class="language-json">{
+  &quot;custom_formatter&quot;: &quot;{{ var, padding(len: 14) }}&quot;,
+  &quot;right_padded&quot;: &quot;{{ var, padding(len: 23; dir: right) }}&quot;
+}
+</code></pre>
+<p>first the data representation:</p>
+<pre><code class="language-rust ignore">/// The parser
+struct PaddingFormatterParser;
+
+// The builder
+#[derive(Debug, Clone, Copy, Default)]
+struct PaddingFormatterBuilder {
+    direction: Option&lt;PadDirection&gt;,
+    total_len: Option&lt;u32&gt;,
+}
+
+// The direction to pad
+#[derive(Debug, Clone, Copy, Default)]
+enum PadDirection {
+    #[default]
+    Left,
+    Right,
+}
+
+// The actual formatter
+#[derive(Debug, Clone, Copy, Default)]
+struct PaddingFormatter {
+    direction: PadDirection,
+    total_len: u32,
+}</code></pre>
+<p>Now let's implement the <code>Formatter</code> trait:</p>
+<pre><code class="language-rust ignore">impl Formatter for PaddingFormatterParser {
+    const NAME: &amp;str = &quot;padding&quot;;
+
+    type Builder = PaddingFormatterBuilder;
+    // using a 'static str for the error for easier example, but this as a drawback of no dynamic errors,
+    // for example we can't explain why the len parsing failed, we can only say it failed.
+    type ParseError = &amp;'static str;
+    // Same here, easier to use a simple str, but an enum would be more suited.
+    type Field&lt;'a&gt; = &amp;'a str;
+    type ToTokens = PaddingFormatter;
+
+    fn builder(&amp;self) -&gt; Self::Builder {
+        PaddingFormatterBuilder::default()
+    }
+
+    fn parse_arg_name&lt;'a&gt;(&amp;self, arg_name: &amp;'a str) -&gt; Result&lt;Self::Field&lt;'a&gt;, Self::ParseError&gt; {
+        // if the name match one we are expecting, good
+        // if not, return an error.
+        match arg_name {
+            &quot;dir&quot; | &quot;len&quot; =&gt; Ok(arg_name),
+            // The error message might look simple, but the translations parser already take care
+            // of reporting the position, locale, and arg_name of where this error occurs.
+            _ =&gt; Err(&quot;unknown argument name&quot;),
+        }
+    }
+
+    fn parse_arg(
+        &amp;self,
+        builder: &amp;mut Self::Builder,
+        field: &amp;mut Self::Field&lt;'_&gt;,
+        arg: Option&lt;&amp;str&gt;,
+    ) -&gt; Result&lt;(), Self::ParseError&gt; {
+        // we don't have marker arguments here, so we can unwrap the value
+        let Some(arg) = arg else {
+            return Err(&quot;missing value&quot;); // Same as above, position, arg_name and arg value are reported with the error.
+        };
+        match field {
+            &quot;dir&quot; =&gt; {
+                // parse the value
+                let dir = match arg {
+                    &quot;left&quot; =&gt; PadDirection::Left,
+                    &quot;right&quot; =&gt; PadDirection::Right,
+                    _ =&gt; return Err(&quot;unknown value&quot;),
+                };
+                // check for duplicates
+                if builder.direction.replace(dir).is_some() {
+                    Err(&quot;duplicate argument&quot;)
+                } else {
+                    Ok(())
+                }
+            }
+            &quot;len&quot; =&gt; {
+                // parse the len
+                let Ok(len) = arg.parse() else {
+                    return Err(&quot;Invalid value&quot;); // due to using 'static str, we can't report the actual error.
+                };
+                // check duplicates
+                if builder.total_len.replace(len).is_some() {
+                    Err(&quot;duplicate argument&quot;)
+                } else {
+                    Ok(())
+                }
+            }
+            // We already validated the field, we can't get random values here.
+            // Wouldn't need this if we used an enum for the fields.
+            _ =&gt; unreachable!(),
+        }
+    }
+
+    fn build(&amp;self, builder: Self::Builder) -&gt; Result&lt;Self::ToTokens, Self::ParseError&gt; {
+        // check if all required fields are present, and default any missing optional fields.
+        match builder {
+            PaddingFormatterBuilder {
+                direction,
+                total_len: Some(total_len),
+            } =&gt; Ok(PaddingFormatter {
+                direction: direction.unwrap_or_default(),
+                total_len,
+            }),
+            PaddingFormatterBuilder {
+                direction: _,
+                total_len: None,
+            } =&gt; Err(&quot;missing \&quot;len\&quot; argument&quot;),
+        }
+    }
+}</code></pre>
+<p>Now the <code>FormatterToTokens</code> impl:</p>
+<pre><code class="language-rust ignore">impl FormatterToTokens for PaddingFormatter {
+    fn fmt_bounds(&amp;self) -&gt; TokenStream {
+        quote!(core::fmt::Display)
+    }
+    fn to_fmt(&amp;self, key: &amp;Key, locale_field: &amp;Key) -&gt; TokenStream {
+        // the locale is irrelevant here, we can ignore it.
+        let _ = locale_field;
+
+        let fmt_string = match self.direction {
+            PadDirection::Left =&gt; {
+                format!(&quot;{{:&lt;{}}}&quot;, self.total_len)
+            }
+            PadDirection::Right =&gt; {
+                format!(&quot;{{:&gt;{}}}&quot;, self.total_len)
+            }
+        };
+        // In the codegen for the to string implementation,
+        // there will be a `&amp;mut core::fmt::Formatter&lt;'_&gt;` to sink to under the ident `__formatter`
+        // and it is expected to return `core::fmt::Result`.
+        quote! {
+            core::write!(__formatter, #fmt_string, #key)
+        }
+    }
+
+    // use strings for simplicity
+    fn view_bounds(&amp;self) -&gt; TokenStream {
+        quote!(core::fmt::Display)
+    }
+
+    fn to_view(&amp;self, key: &amp;syn::Ident, locale_field: &amp;syn::Ident) -&gt; TokenStream {
+        // the locale is irrelevant here, we can ignore it.
+        let _ = locale_field;
+
+        let fmt_string = match self.direction {
+            PadDirection::Left =&gt; {
+                format!(&quot;{{:&lt;{}}}&quot;, self.total_len)
+            }
+            PadDirection::Right =&gt; {
+                format!(&quot;{{:&gt;{}}}&quot;, self.total_len)
+            }
+        };
+        // In the codegen for the to into_view implementation,
+        // it is expected to return something that implement `IntoView` and is 'static
+        quote! {
+            std::format!(#fmt_string, #key)
+        }
+    }
+}</code></pre>
+<p>Now we can do</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+
+t_string!(i18n, custom_formatter, var = 14)</code></pre>
+<p>But this is still incomplete, this won't compile:</p>
+<pre><code class="language-rust ignore">let i18n = use_i18n();
+let value = Signal::new(14);
+
+t!(i18n, custom_formatter, var = || value.get())</code></pre>
+<p>We expect <code>var</code> to be <code>impl display</code>, so we will get errors looking like this:</p>
+<pre><code class="language-text">error[E0277]: `{closure@src\app.rs:37:47: 37:49}` doesn't implement `std::fmt::Display`
+   --&gt; src\app.rs:37:14
+    |
+ 37 |             {t!(i18n, custom_formatter, var = || value.get())}
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--^^^^^^^^
+    |              |                                |
+    |              |                                consider calling this closure
+    |              the trait `std::fmt::Display` is not implemented for closure `{closure@src\app.rs:37:47: 37:49}`
+    |
+note: required by a bound in `custom_formatter_builder_dummy::builder`
+   --&gt; C:\Users\Baptiste\Documents\Code\Rust\leptos_i18n\examples\csr\custom_formatter\target\wasm32-unknown-unknown\debug\build\custom_formatter-dcd7a2e200ee4dc1\out/i18n/mod.rs:403:63
+    |
+402 |             pub fn builder&lt;
+    |                    ------- required by a bound in this associated function
+403 |                 __var_var__: 'static + ::core::clone::Clone + core::fmt::Display,
+    |                                                               ^^^^^^^^^^^^^^^^^^ required by this bound in `custom_formatter_builder_dummy::builder`
+    = note: this error originates in the macro `$crate::__private::macros_reexport::t` which comes from the expansion of the macro `t` (in Nightly builds, run with -Z macro-backtrace for more info)
+</code></pre>
+<p>We don't have reactivity, yet.</p>
+<p>What we want is to have a bound that accept any functions that take no parameters and return something that implement <code>Display</code>,
+unfortunately we can't directly address that inside the <code>fmt_bounds</code> function...</p>
+<p>One way to do that, is to have a custom trait that describe this behavior:</p>
+<pre><code class="language-rust ignore">pub trait ToDisplayFn: 'static + Clone + Send + Sync { // Need to Clone + Send + Sync + 'static
+    type Value: Display;
+    fn to_value(&amp;self) -&gt; Self::Value;
+}
+
+impl&lt;T: Display, F&gt; ToDisplayFn for F
+where
+    F: Fn() -&gt; T + 'static + Clone + Send + Sync,
+{
+    type Value = T;
+    fn to_value(&amp;self) -&gt; Self::Value {
+        self()
+    }
+}</code></pre>
+<p>The generated i18n module is created at the crate level, it is not it's own package, so it can access traits, functions, types from the crate,
+so we can bound like this:</p>
+<pre><code class="language-rust ignore">fn fmt_bounds(&amp;self) -&gt; TokenStream {
+    quote!(crate::ToDisplayFn) // doesn't need to be at the root
+}</code></pre>
+<p>And then emit this code instead:</p>
+<pre><code class="language-rust ignore">fn to_view(&amp;self, key: &amp;syn::Ident, locale_field: &amp;syn::Ident) -&gt; TokenStream {
+
+        // ...
+
+        quote! {
+            move || {
+                std::format!(#fmt_string, crate::ToDisplayFn::to_value(&amp;#key))
+            }
+        }
+    }</code></pre>
+<p>And now the above code with the signal will compile fine and be reactive!</p>
+<h2 id="inject-the-formatter"><a class="header" href="#inject-the-formatter">Inject the Formatter</a></h2>
+<p>In your <code>build.rs</code> file, simply pass your formatter to the <code>ParseOptions</code>:</p>
+<pre><code class="language-rust ignore">let options = ParseOptions::new().add_formatter(PaddingFormatterParser);
+let cfg = cfg.parse_options(options);
+let translations_infos = TranslationsInfos::parse(cfg).unwrap();</code></pre>
+<blockquote>
+<p>Note that <code>add_formatter</code> will panic if a formatter with the same name is already present. It also comes already loaded with all built-in formatters.</p>
+</blockquote>
+<h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
+<h3 id="disabled-formatters"><a class="header" href="#disabled-formatters">Disabled Formatters</a></h3>
+<p>You can disable a formatter by setting the <code>DISABLED</code> constant in the <code>Formatter</code> trait (defaults to <code>None</code>) with an error message:</p>
+<pre><code class="language-rust ignore">impl FormatterToTokens for PaddingFormatter {
+    const DISABLED: Option&lt;&amp;str&gt; = const {
+        if SOME_CONDITIONS {
+            None
+        } else {
+            Some(&quot;padding formatter is disabled&quot;)
+        }
+    };
+
+    // ...
+}</code></pre>
+<p>This is used internally to still have the builtin formatters active but able to emit diagnostics on how to enable them.</p>
+<h3 id="continue-on-error"><a class="header" href="#continue-on-error">Continue on Error</a></h3>
+<p>When driving the parser, if an error occurs on an argument name parsing, it will stop for that argument and emit an error but continue to the next argument.
+If it fails to parse the value for an argument, it will also emit an error and continue to the next argument.
+This is done to provide as much diagnostic information as possible and not report only a single error when multiple could be present.
+If any error is emitted, it will not call the final <code>build</code> method.</p>
+<h3 id="diagnostics"><a class="header" href="#diagnostics">Diagnostics</a></h3>
+<p>The parsing is done by the already defined function <code>parse_with_diagnostics</code> in the <code>Formatter</code> trait, this is the one in charge of driving the parser and report errors,
+but it treats every problem as errors, you may want to have warnings or multiple errors, have custom errors, you can overwrite the <code>parse_with_diagnostics</code> for that:</p>
+<pre><code class="language-rust ignore">fn parse_with_diagnostics(
+        &amp;self,
+        locale: &amp;Key, // Name of the current locale being parsed
+        key_path: &amp;KeyPath, // path to the current key
+        args: &amp;[(&amp;str, Option&lt;&amp;str&gt;)], // args for the formatter
+        diag: &amp;Diagnostics, // Diagnostics for error and warnings
+    ) -&gt; Option&lt;Self::ToTokens&gt; {
+        todo!()
+    }</code></pre>
+<p>You can now have fine-grained control over the parsing and the diagnostics emitted.</p>
+<p>If <code>None</code> is returned, no error will be emitted and a &quot;dummy&quot; formatter will be set that accepts any value and does nothing, so the error must comes from the diagnostics.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="appendix_i18n_ally.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="appendix_i18n_ally.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

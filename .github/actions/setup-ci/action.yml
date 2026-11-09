@@ -1,0 +1,130 @@
+name: Setup CI Environment
+description: Install Rust, Node, cache dependencies, install cargo binaries, and cache Playwright
+
+inputs:
+  rust_toolchain:
+    description: Rust toolchain to use by default (stable/nightly)
+    required: false
+    default: "stable"
+  node_version:
+    description: Node version to install
+    required: false
+    default: 18
+  example_path:
+    description: Path to example (for npm/node_modules cache)
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Rust ${{ inputs.rust_toolchain }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ inputs.rust_toolchain }}
+        components: clippy, rustfmt
+        targets: wasm32-unknown-unknown
+
+    - uses: cargo-bins/cargo-binstall@main
+
+    # Cache the cargo tools so each job doesn't download them from GitHub releases.
+    # The key holds the latest crates.io version of each tool, so a new release refreshes the cache.
+    - name: Resolve cargo tools versions
+      id: cargo-tools
+      shell: bash
+      run: |
+        key=""
+        for tool in cargo-leptos trunk cargo-all-features; do
+          # --color never: the workflow sets CARGO_TERM_COLOR=always, and color codes would break the grep
+          version=$(cargo search --color never --limit 1 "$tool" 2>/dev/null | grep "^$tool = " | sed -E 's/.*"(.*)".*/\1/' || true)
+          if [ -z "$version" ]; then
+            echo "Could not resolve the latest version of $tool"
+            exit 1
+          fi
+          echo "Latest $tool: $version"
+          echo "${tool//-/_}=$version" >> "$GITHUB_OUTPUT"
+          key="$key-$tool@$version"
+        done
+        echo "key=$key" >> "$GITHUB_OUTPUT"
+        echo "$HOME/.cargo-tools/bin" >> "$GITHUB_PATH"
+
+    - name: Cache cargo tools
+      id: cargo-tools-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo-tools
+        key: ${{ runner.os }}-cargo-tools${{ steps.cargo-tools.outputs.key }}
+
+    - name: Install cargo tools
+      if: ${{ steps.cargo-tools-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        cargo binstall --locked --no-confirm --install-path "$HOME/.cargo-tools/bin" \
+          "cargo-leptos@${{ steps.cargo-tools.outputs.cargo_leptos }}" \
+          "trunk@${{ steps.cargo-tools.outputs.trunk }}" \
+          "cargo-all-features@${{ steps.cargo-tools.outputs.cargo_all_features }}"
+
+    - name: Check cargo tools
+      shell: bash
+      run: |
+        cargo leptos --version
+        trunk --version
+        ls "$HOME/.cargo-tools/bin"
+
+    # trunk and cargo-leptos download the wasm-bindgen CLI from GitHub releases at build time,
+    # which regularly fails with 504s when many jobs do it in parallel.
+    # Both use a wasm-bindgen found on PATH (trunk only if the version matches the project's),
+    # so install the exact version once, cache it, and expose it on PATH.
+    - name: Resolve wasm-bindgen version
+      id: wasm-bindgen
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: ${{ inputs.example_path }}
+      run: |
+        # Example lockfiles are not committed: generate it now so the build uses the same resolution.
+        cargo generate-lockfile
+        version=$(cargo pkgid -p wasm-bindgen | sed -E 's/.*[#@]//')
+        echo "Detected wasm-bindgen $version"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "$HOME/.wasm-bindgen/bin" >> "$GITHUB_PATH"
+
+    - name: Cache wasm-bindgen CLI
+      id: wasm-bindgen-cache
+      if: ${{ inputs.example_path != '' }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.wasm-bindgen
+        key: ${{ runner.os }}-wasm-bindgen-cli-${{ steps.wasm-bindgen.outputs.version }}
+
+    - name: Install wasm-bindgen CLI
+      if: ${{ inputs.example_path != '' && steps.wasm-bindgen-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        # binstall falls back to building from crates.io if the GitHub release download fails
+        cargo binstall "wasm-bindgen-cli@${{ steps.wasm-bindgen.outputs.version }}" \
+          --locked --no-confirm --install-path "$HOME/.wasm-bindgen/bin"
+
+    - name: Check wasm-bindgen CLI
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      run: wasm-bindgen --version
+
+    - name: Build e2e utils
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: examples/utils
+      run: npm install
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-browsers
+
+    - name: Install Playwright
+      if: ${{ inputs.example_path != '' }}
+      shell: bash
+      working-directory: ${{ inputs.example_path }}
+      run: |
+        npm install
+        npx playwright install --with-deps
