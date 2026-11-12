@@ -37,6 +37,23 @@ jobs:
         run: cargo fmt --check
 
   ########################################
+  # CODEGEN TEST
+  ########################################
+  codegen_test:
+    name: Test leptos_i18n_codegen package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Setup
+        uses: ./.github/actions/setup-ci
+
+      - name: Test all features
+        working-directory: leptos_i18n_codegen
+        run: cargo all-features test
+
+  ########################################
   # SSR EXAMPLES
   ########################################
   test_ssr_examples:
