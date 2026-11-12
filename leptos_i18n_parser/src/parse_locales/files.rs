@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
@@ -24,7 +25,7 @@ pub enum TranslationFiles<'a> {
 
 #[derive(Debug, Clone)]
 pub struct LocaleFiles<'a> {
-    pub files: HashMap<&'a str, (Option<PathBuf>, String)>,
+    pub files: HashMap<&'a str, (Option<PathBuf>, Cow<'a, str>)>,
 }
 
 fn read_file(path: &mut PathBuf, file_format: &FileFormat) -> Result<String> {
@@ -105,7 +106,10 @@ fn load_locale_files<'a>(
         }
 
         let locale_file = read_file(locales_dir_path, &options.file_format)?;
-        files.insert(&*locale.name, (Some(locales_dir_path.clone()), locale_file));
+        files.insert(
+            &*locale.name,
+            (Some(locales_dir_path.clone()), Cow::Owned(locale_file)),
+        );
 
         track_file(tracked_files, locale, namespace, locales_dir_path, diag);
 
