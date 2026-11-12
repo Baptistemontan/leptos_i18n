@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
-    rc::Rc,
 };
 
 use crate::{
@@ -14,19 +13,18 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum TranslationFiles {
+pub enum TranslationFiles<'a> {
     NameSpaces {
-        namespaces: HashMap<Rc<str>, LocaleFiles>,
+        namespaces: HashMap<&'a str, LocaleFiles<'a>>,
     },
     Locales {
-        locales: LocaleFiles,
+        locales: LocaleFiles<'a>,
     },
 }
 
 #[derive(Debug, Clone)]
-pub struct LocaleFiles {
-    // "fr-FR" -> json
-    pub files: HashMap<Rc<str>, (Option<PathBuf>, String)>,
+pub struct LocaleFiles<'a> {
+    pub files: HashMap<&'a str, (Option<PathBuf>, String)>,
 }
 
 fn read_file(path: &mut PathBuf, file_format: &FileFormat) -> Result<String> {
@@ -65,14 +63,14 @@ fn track_file(
     }
 }
 
-fn load_namespaces_files(
+fn load_namespaces_files<'a>(
     locales_dir_path: &mut PathBuf,
-    namespaces: &[Key],
-    locale_keys: &[Key],
+    namespaces: &'a [Key],
+    locale_keys: &'a [Key],
     diag: &Diagnostics,
     tracked_files: &mut Vec<String>,
     options: &ParseOptions,
-) -> Result<TranslationFiles> {
+) -> Result<TranslationFiles<'a>> {
     let mut namespaces_files = HashMap::with_capacity(namespaces.len());
     for ns in namespaces {
         let locales = load_locale_files(
@@ -83,21 +81,21 @@ fn load_namespaces_files(
             tracked_files,
             options,
         )?;
-        namespaces_files.insert(ns.name.clone(), locales);
+        namespaces_files.insert(&*ns.name, locales);
     }
     Ok(TranslationFiles::NameSpaces {
         namespaces: namespaces_files,
     })
 }
 
-fn load_locale_files(
+fn load_locale_files<'a>(
     locales_dir_path: &mut PathBuf,
-    locale_keys: &[Key],
-    namespace: Option<&Key>,
+    locale_keys: &'a [Key],
+    namespace: Option<&'a Key>,
     diag: &Diagnostics,
     tracked_files: &mut Vec<String>,
     options: &ParseOptions,
-) -> Result<LocaleFiles> {
+) -> Result<LocaleFiles<'a>> {
     let mut files = HashMap::with_capacity(locale_keys.len());
     let ns_path = namespace.map::<&Path, _>(|ns| ns.name.as_ref().as_ref());
     for locale in locale_keys {
@@ -107,10 +105,7 @@ fn load_locale_files(
         }
 
         let locale_file = read_file(locales_dir_path, &options.file_format)?;
-        files.insert(
-            locale.name.clone(),
-            (Some(locales_dir_path.clone()), locale_file),
-        );
+        files.insert(&*locale.name, (Some(locales_dir_path.clone()), locale_file));
 
         track_file(tracked_files, locale, namespace, locales_dir_path, diag);
 
@@ -122,12 +117,12 @@ fn load_locale_files(
     Ok(LocaleFiles { files })
 }
 
-impl TranslationFiles {
+impl<'a> TranslationFiles<'a> {
     pub fn load_files(
         manifest_dir_path: &mut PathBuf,
         diag: &Diagnostics,
         tracked_files: &mut Vec<String>,
-        cfg: &Config,
+        cfg: &'a Config,
     ) -> Result<Self> {
         manifest_dir_path.push(&cfg.locales_path);
         if !cfg.namespaces.is_empty() {

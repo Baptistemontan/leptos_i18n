@@ -48,7 +48,6 @@ fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {
 
 pub struct RawParsedLocales {
     pub locales: LocalesOrNamespaces,
-    pub cfg: Config,
     pub foreign_keys_paths: ForeignKeysPaths,
     pub diag: Diagnostics,
     pub tracked_files: Vec<String>,
@@ -56,17 +55,16 @@ pub struct RawParsedLocales {
 
 pub fn parse_locales_raw_with_files(
     files: &TranslationFiles,
-    cfg: Config,
+    cfg: &Config,
 ) -> Result<RawParsedLocales> {
     let foreign_keys_paths = ForeignKeysPaths::new();
 
     let diag = Diagnostics::new();
 
-    let locales = LocalesOrNamespaces::new(files, &foreign_keys_paths, &diag, &cfg)?;
+    let locales = LocalesOrNamespaces::new(files, &foreign_keys_paths, &diag, cfg)?;
 
     let raw_parsed_locales = RawParsedLocales {
         locales,
-        cfg,
         foreign_keys_paths,
         diag,
         tracked_files: vec![],
@@ -77,7 +75,7 @@ pub fn parse_locales_raw_with_files(
 
 pub fn parse_locales_raw(
     cargo_manifest_dir: Option<PathBuf>,
-    cfg: Config,
+    cfg: &Config,
 ) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
@@ -88,7 +86,7 @@ pub fn parse_locales_raw(
     let mut tracked_files = Vec::with_capacity(cfg.locales.len() * cfg.namespaces.len().max(1));
 
     let files =
-        TranslationFiles::load_files(&mut cargo_manifest_dir, &diag, &mut tracked_files, &cfg)?;
+        TranslationFiles::load_files(&mut cargo_manifest_dir, &diag, &mut tracked_files, cfg)?;
 
     let mut raw_parsed_locales = parse_locales_raw_with_files(&files, cfg)?;
 
@@ -122,10 +120,9 @@ pub struct ParsedLocales {
     pub tracked_files: Option<Vec<String>>,
 }
 
-fn parse_locales_inner(raw_parsed_locales: RawParsedLocales) -> Result<ParsedLocales> {
+fn parse_locales_inner(raw_parsed_locales: RawParsedLocales, cfg: Config) -> Result<ParsedLocales> {
     let RawParsedLocales {
         locales,
-        cfg,
         foreign_keys_paths,
         tracked_files,
         diag,
@@ -142,11 +139,11 @@ fn parse_locales_inner(raw_parsed_locales: RawParsedLocales) -> Result<ParsedLoc
 }
 
 pub fn parse_locales_with_files(files: &TranslationFiles, cfg: Config) -> Result<ParsedLocales> {
-    parse_locales_inner(parse_locales_raw_with_files(files, cfg)?)
+    parse_locales_inner(parse_locales_raw_with_files(files, &cfg)?, cfg)
 }
 
 pub fn parse_locales(cargo_manifest_dir: Option<PathBuf>, cfg: Config) -> Result<ParsedLocales> {
-    parse_locales_inner(parse_locales_raw(cargo_manifest_dir, cfg)?)
+    parse_locales_inner(parse_locales_raw(cargo_manifest_dir, &cfg)?, cfg)
 }
 
 fn resolve_foreign_keys(
