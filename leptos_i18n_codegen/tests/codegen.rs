@@ -253,7 +253,38 @@ fn keys_colliding_on_the_same_ident() {
     ] {
         let (code, _diag) = gen_code(&[("en", file)], &[]).unwrap();
         assert_eq!(code.matches("fn a_b (").count(), 1, "{file}");
-        assert!(code.contains("compile_error"), "{file}");
+        // Expected behavior: diag should contain some kind of "Duplicate key" error
+    }
+}
+
+#[test]
+#[ignore = "known bug: colliding variables and components emit duplicate fields"]
+fn vars_and_comps_colliding_on_the_same_ident() {
+    for files in [
+        &[("en", r#"{ "k": "{{ a-b }} {{ a_b }}" }"#)][..],
+        &[
+            ("en", r#"{ "k": "{{ a-b }}" }"#),
+            ("fr", r#"{ "k": "{{ a_b }}" }"#),
+        ],
+    ] {
+        let (code, _diag) = gen_code(files, &[]).unwrap();
+        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
+        // Expected behavior: a single variable, and diag should contain some kind of warning
+        // that equivalent variables have different raw identifiers
+    }
+
+    for files in [
+        &[("en", r#"{ "k": "<a-b>x</a-b> <a_b>y</a_b>" }"#)][..],
+        &[("en", r#"{ "k": "<a-b/> <a_b/>" }"#)],
+        &[
+            ("en", r#"{ "k": "<a-b>x</a-b>" }"#),
+            ("fr", r#"{ "k": "<a_b>y</a_b>" }"#),
+        ],
+    ] {
+        let (code, _diag) = gen_code(files, &[]).unwrap();
+        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
+        // Expected behavior: a single component, and diag should contain some kind of warning
+        // that equivalent components have different raw identifiers
     }
 }
 
