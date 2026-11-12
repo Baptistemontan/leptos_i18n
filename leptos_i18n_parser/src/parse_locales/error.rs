@@ -37,7 +37,7 @@ pub enum Error {
     ConfigFileDeser(toml::de::Error),
     LocaleFileNotFound(Vec<(PathBuf, std::io::Error)>),
     LocaleFileDeser {
-        path: PathBuf,
+        path: Option<PathBuf>,
         err: SerdeError,
     },
     DuplicateLocalesInConfig(BTreeSet<Key>),
@@ -597,6 +597,18 @@ impl Diagnostics {
 
     pub fn set_has_ranges(&self) {
         self.has_ranges.set(true);
+    }
+
+    pub fn extend(&self, other: Self) {
+        let mut errors = self.errors.borrow_mut();
+        let mut other_err = other.errors.borrow_mut();
+        errors.append(&mut other_err);
+
+        let mut warnings = self.warnings.borrow_mut();
+        let mut other_warn = other.warnings.borrow_mut();
+        warnings.append(&mut other_warn);
+        self.has_ranges
+            .set(self.has_ranges.get() || other.has_ranges.get());
     }
 }
 

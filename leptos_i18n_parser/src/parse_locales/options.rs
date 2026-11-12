@@ -13,7 +13,6 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     fmt::Debug,
-    io::Read,
     panic::Location,
     path::{Path, PathBuf},
     sync::Arc,
@@ -254,10 +253,10 @@ impl FileFormat {
         }
     }
 
-    pub fn deserialize<R: Read>(
+    pub fn deserialize(
         &self,
-        locale_file: R,
-        path: &Path,
+        locale_file: &str,
+        path: Option<&Path>,
         seed: LocaleSeed,
     ) -> Result<Locale, SerdeError> {
         match self {
@@ -270,35 +269,29 @@ impl FileFormat {
     }
 }
 
-fn de_json<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut deserializer = serde_json::Deserializer::from_reader(locale_file);
+fn de_json(locale_file: &str, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let mut deserializer = serde_json::Deserializer::from_str(locale_file);
     serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json)
 }
 
-fn de_json5<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut buff = String::new();
-    Read::read_to_string(&mut locale_file, &mut buff).map_err(SerdeError::Io)?;
-    let mut deserializer = json5::Deserializer::from_str(&buff);
+fn de_json5(locale_file: &str, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let mut deserializer = json5::Deserializer::from_str(locale_file);
     serde::de::DeserializeSeed::deserialize(seed, &mut deserializer).map_err(SerdeError::Json5)
 }
 
-fn de_yaml<R: Read>(locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let deserializer = serde_yaml::Deserializer::from_reader(locale_file);
+fn de_yaml(locale_file: &str, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let deserializer = serde_yaml::Deserializer::from_str(locale_file);
     serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Yaml)
 }
 
-fn de_toml<R: Read>(mut locale_file: R, seed: LocaleSeed) -> Result<Locale, SerdeError> {
-    let mut buf = String::new();
-    locale_file
-        .read_to_string(&mut buf)
-        .map_err(SerdeError::Io)?;
-    let deserializer = toml::Deserializer::parse(&buf).map_err(SerdeError::Toml)?;
+fn de_toml(locale_file: &str, seed: LocaleSeed) -> Result<Locale, SerdeError> {
+    let deserializer = toml::Deserializer::parse(locale_file).map_err(SerdeError::Toml)?;
     serde::de::DeserializeSeed::deserialize(seed, deserializer).map_err(SerdeError::Toml)
 }
 
 pub mod parser {
     use crate::parse_locales::locale::{Locale, LocaleSeed};
-    use std::{io::Read, path::Path};
+    use std::path::Path;
 
     pub use crate::parse_locales::locale::SerdeError;
 
@@ -319,22 +312,22 @@ pub mod parser {
     pub trait Parser: 'static {
         fn deserialize(
             &self,
-            reader: &mut dyn Read,
-            path: &Path,
+            file: &str,
+            path: Option<&Path>,
             seed: Seed,
         ) -> Result<Value, SerdeError>;
 
         fn file_extensions(&self) -> &'static [&'static str];
     }
 
-    pub(crate) fn de_custom<R: Read>(
+    pub(crate) fn de_custom(
         parser: &dyn Parser,
-        mut reader: R,
-        path: &Path,
+        file: &str,
+        path: Option<&Path>,
         seed: LocaleSeed,
     ) -> Result<Locale, SerdeError> {
         let seed = Seed(seed);
-        let value = parser.deserialize(&mut reader, path, seed)?;
+        let value = parser.deserialize(file, path, seed)?;
         Ok(value.0)
     }
 }
