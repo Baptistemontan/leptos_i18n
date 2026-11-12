@@ -338,7 +338,7 @@ impl LocalesOrNamespaces {
     }
 
     fn new_namespaces(
-        files: &HashMap<Rc<str>, LocaleFiles>,
+        files: &HashMap<&str, LocaleFiles>,
         foreign_keys_paths: &ForeignKeysPaths,
         diag: &Diagnostics,
         cfg: &Config,
