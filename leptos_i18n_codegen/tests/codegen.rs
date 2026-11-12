@@ -24,7 +24,8 @@ fn gen_code(files: &[(&str, &str)], extensions: &[(&str, &str)]) -> Result<(Stri
     let mut cfg = Config::new(files[0].0)
         .unwrap()
         .add_locales(files.iter().skip(1).map(|l| l.0))
-        .unwrap();
+        .unwrap()
+        .translations_uri("test");
 
     for (l1, l2) in extensions {
         cfg = cfg.extend_locale(l1, l2).unwrap();
