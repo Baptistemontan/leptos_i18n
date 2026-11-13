@@ -2082,7 +2082,6 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "tinystr",
- "typed-builder",
  "wasm-bindgen",
  "writeable",
 ]

@@ -30,25 +30,30 @@ impl_formatter!(
 
 impl FormatterToTokens for DateTimeFormatter {
     fn view_bounds(&self) -> TokenStream {
-        quote!(l_i18n_crate::__private::DateTimeFormatterInputFn)
+        quote!(__l_i18n_crate::__private::DateTimeFormatterInputFn)
     }
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, time_precision, year_style) = self;
-        quote!(l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
+        quote!(__l_i18n_crate::__private::format_datetime_to_view(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
     }
 
     fn fmt_bounds(&self) -> TokenStream {
-        quote!(l_i18n_crate::__private::AsIcuDateTime)
+        quote!(__l_i18n_crate::__private::AsIcuDateTime)
     }
 
     fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, time_precision, year_style) = self;
-        quote!(l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
+        quote!(__l_i18n_crate::__private::format_datetime_to_display(#locale_field, #key, #length, #alignment, #time_precision, #year_style))
     }
 
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
+    fn to_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream {
         let Self(length, alignment, time_precision, year_style) = self;
-        quote!(l_i18n_crate::__private::format_datetime_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #time_precision, #year_style))
+        quote!(__l_i18n_crate::__private::format_datetime_to_formatter(#formatter_ident, #locale_field, #key, #length, #alignment, #time_precision, #year_style))
     }
 }
 
@@ -68,25 +73,30 @@ impl_formatter!(
 
 impl FormatterToTokens for DateFormatter {
     fn view_bounds(&self) -> TokenStream {
-        quote!(l_i18n_crate::__private::DateFormatterInputFn)
+        quote!(__l_i18n_crate::__private::DateFormatterInputFn)
     }
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, year_style) = self;
-        quote!(l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment, #year_style))
+        quote!(__l_i18n_crate::__private::format_date_to_view(#locale_field, #key, #length, #alignment, #year_style))
     }
 
     fn fmt_bounds(&self) -> TokenStream {
-        quote!(l_i18n_crate::__private::AsIcuDate)
+        quote!(__l_i18n_crate::__private::AsIcuDate)
     }
 
     fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, year_style) = self;
-        quote!(l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment, #year_style))
+        quote!(__l_i18n_crate::__private::format_date_to_display(#locale_field, #key, #length, #alignment, #year_style))
     }
 
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
+    fn to_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream {
         let Self(length, alignment, year_style) = self;
-        quote!(l_i18n_crate::__private::format_date_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #year_style))
+        quote!(__l_i18n_crate::__private::format_date_to_formatter(#formatter_ident, #locale_field, #key, #length, #alignment, #year_style))
     }
 }
 
@@ -106,25 +116,30 @@ impl_formatter!(
 
 impl FormatterToTokens for TimeFormatter {
     fn view_bounds(&self) -> TokenStream {
-        quote!(l_i18n_crate::__private::TimeFormatterInputFn)
+        quote!(__l_i18n_crate::__private::TimeFormatterInputFn)
     }
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length, #alignment, #precision))
+        quote!(__l_i18n_crate::__private::format_time_to_view(#locale_field, #key, #length, #alignment, #precision))
     }
 
     fn fmt_bounds(&self) -> TokenStream {
-        quote!(l_i18n_crate::__private::AsIcuTime)
+        quote!(__l_i18n_crate::__private::AsIcuTime)
     }
 
     fn to_impl_display(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length, #alignment, #precision))
+        quote!(__l_i18n_crate::__private::format_time_to_display(#locale_field, #key, #length, #alignment, #precision))
     }
 
-    fn to_fmt(&self, key: &Key, locale_field: &Key) -> TokenStream {
+    fn to_fmt(
+        &self,
+        key: &Key,
+        locale_field: &syn::Ident,
+        formatter_ident: &syn::Ident,
+    ) -> TokenStream {
         let Self(length, alignment, precision) = self;
-        quote!(l_i18n_crate::__private::format_time_to_formatter(__formatter, *#locale_field, #key, #length, #alignment, #precision))
+        quote!(__l_i18n_crate::__private::format_time_to_formatter(#formatter_ident, #locale_field, #key, #length, #alignment, #precision))
     }
 }
 
@@ -218,7 +233,7 @@ impl DateTimeTimePrecision {
 
 impl_to_tokens!(
     DateTimeLength,
-    l_i18n_crate::reexports::icu::datetime::options::Length,
+    __l_i18n_crate::reexports::icu::datetime::options::Length,
     {
         Long,
         Medium,
@@ -228,7 +243,7 @@ impl_to_tokens!(
 
 impl_to_tokens!(
     DateTimeAlignment,
-    l_i18n_crate::reexports::icu::datetime::options::Alignment,
+    __l_i18n_crate::reexports::icu::datetime::options::Alignment,
     {
         Auto,
         Column
@@ -237,7 +252,7 @@ impl_to_tokens!(
 
 impl_to_tokens!(
     DateTimeYearStyle,
-    l_i18n_crate::reexports::icu::datetime::options::YearStyle,
+    __l_i18n_crate::reexports::icu::datetime::options::YearStyle,
     {
         Auto,
         Full,
@@ -247,7 +262,7 @@ impl_to_tokens!(
 
 impl_to_tokens!(
     DateTimeSubsecondDigits,
-    l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits,
+    __l_i18n_crate::reexports::icu::datetime::options::SubsecondDigits,
     {
         S1, S2, S3, S4, S5, S6, S7, S8, S9,
     }
@@ -255,7 +270,7 @@ impl_to_tokens!(
 
 impl_to_tokens!(
     DateTimeTimePrecision,
-    l_i18n_crate::reexports::icu::datetime::options::TimePrecision,
+    __l_i18n_crate::reexports::icu::datetime::options::TimePrecision,
     {
         Hour,
         Minute,
