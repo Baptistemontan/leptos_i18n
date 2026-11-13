@@ -250,6 +250,64 @@ impl Config {
         Ok(self)
     }
 
+    /// Returns the locale `locale` inherits its missing keys from:
+    /// its explicit extension (see `extend_locale`), else its base locale if declared
+    /// (`language[-region][-anything-else]` inherits from `language[-region]`, then from `language`).
+    ///
+    /// `None` means it falls back to the default locale (always the case for the default locale itself).
+    pub fn inherits_from(&self, locale: &Key) -> Option<&Key> {
+        if *locale == self.default_locale {
+            return None;
+        }
+        self.extensions
+            .get(locale)
+            .or_else(|| self.find_base_locale(locale))
+    }
+
+    /// Finds the base locale of `locale` among the declared locales.
+    fn find_base_locale(&self, locale: &Key) -> Option<&Key> {
+        let icu_locale = &self.locales.iter().find(|l| l.key == *locale)?.loc_id;
+
+        // just a language, no base locale.
+        if icu_locale.extensions.is_empty()
+            && icu_locale.id.variants.is_empty()
+            && icu_locale.id.script.is_none()
+            && icu_locale.id.region.is_none()
+        {
+            return None;
+        }
+
+        let mut looking_for = icu_locale::Locale {
+            extensions: Default::default(),
+            id: icu_locale::LanguageIdentifier {
+                language: icu_locale.id.language,
+                region: icu_locale.id.region,
+                script: None,
+                variants: Default::default(),
+            },
+        };
+
+        let find = |looking_for: &icu_locale::Locale| {
+            self.locales
+                .iter()
+                .find(|l| *l.loc_id == *looking_for)
+                .map(|l| &l.key)
+        };
+
+        // with extensions, variants or a script, first look for the same language and region without them
+        if (!icu_locale.extensions.is_empty()
+            || !icu_locale.id.variants.is_empty()
+            || icu_locale.id.script.is_some())
+            && let Some(found) = find(&looking_for)
+        {
+            return Some(found);
+        }
+
+        // if not found, relax the region
+        looking_for.id.region = None;
+        find(&looking_for)
+    }
+
     pub fn parse_options(self, options: ParseOptions) -> Self {
         Self { options, ..self }
     }
@@ -369,5 +427,66 @@ impl<'a> ToPathCow<'a> for String {
 impl<'a> ToPathCow<'a> for PathBuf {
     fn into_cow(self) -> Cow<'a, Path> {
         Cow::Owned(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config() -> Config {
+        Config::new("en")
+            .unwrap()
+            .add_locales([
+                "fr",
+                "en-US",
+                "fr-FR",
+                "fr-FR-u-ca-buddhist",
+                "fr-u-ca-buddhist",
+                "en-Latn-US-Valencia",
+                "en-Latn-US-Valencia-u-ca-buddhist",
+                "en-Latn-US-u-ca-buddhist",
+                "en-Valencia",
+                "en-Latn",
+            ])
+            .unwrap()
+    }
+
+    fn inherits_from(cfg: &Config, locale: &str) -> Option<String> {
+        cfg.inherits_from(&Key::new(locale).unwrap())
+            .map(|key| key.to_string())
+    }
+
+    #[test]
+    fn base_locale_inheritance() {
+        let cfg = config();
+        let cases = [
+            ("fr-FR-u-ca-buddhist", Some("fr-FR")),
+            ("fr-u-ca-buddhist", Some("fr")),
+            ("fr-FR", Some("fr")),
+            ("fr", None),
+            ("en-Latn-US-Valencia", Some("en-US")),
+            ("en-Latn-US-Valencia-u-ca-buddhist", Some("en-US")),
+            ("en-Latn-US-u-ca-buddhist", Some("en-US")),
+            ("en-Valencia", Some("en")),
+            ("en-Latn", Some("en")),
+            ("en-US", Some("en")),
+            // default locale
+            ("en", None),
+        ];
+        for (locale, expected) in cases {
+            assert_eq!(inherits_from(&cfg, locale).as_deref(), expected, "{locale}");
+        }
+    }
+
+    #[test]
+    fn explicit_extension_takes_precedence() {
+        let cfg = config().extend_locale("fr-FR", "en-US").unwrap();
+        assert_eq!(inherits_from(&cfg, "fr-FR").as_deref(), Some("en-US"));
+        // others are unchanged
+        assert_eq!(
+            inherits_from(&cfg, "fr-FR-u-ca-buddhist").as_deref(),
+            Some("fr-FR")
+        );
     }
 }

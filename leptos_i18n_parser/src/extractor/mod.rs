@@ -467,3 +467,57 @@ impl InterpolationKeys {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Cow;
+
+    use super::*;
+    use crate::{
+        extraction::ValuesOrSubkeys,
+        parser::{
+            files::{LocaleFiles, TranslationFiles},
+            parse_locales_raw_with_files,
+        },
+    };
+
+    fn extract(cfg: &Config, files: &[(&str, &str)]) -> ParsedLocales {
+        let files = TranslationFiles::Locales {
+            locales: LocaleFiles {
+                files: files
+                    .iter()
+                    .map(|(locale, file)| (*locale, (None, Cow::Borrowed(*file))))
+                    .collect(),
+            },
+        };
+        let raw = parse_locales_raw_with_files(&files, cfg).unwrap();
+        extract_locales(raw.values, cfg, Some(raw.diag)).unwrap()
+    }
+
+    #[test]
+    fn missing_key_defaults_to_base_locale() {
+        let cfg = Config::new("en")
+            .unwrap()
+            .add_locales(["fr", "fr-FR"])
+            .unwrap();
+        let parsed = extract(
+            &cfg,
+            &[
+                ("en", r#"{ "a": "en" }"#),
+                ("fr", r#"{ "a": "fr" }"#),
+                ("fr-FR", r#"{}"#),
+            ],
+        );
+
+        let LocalesOrNamespaces::Locales(locales) = &parsed.values else {
+            panic!("expected locales");
+        };
+        let Some(ValuesOrSubkeys::Values(values)) =
+            locales.keys.values.get(&Key::new("a").unwrap())
+        else {
+            panic!("expected values for `a`");
+        };
+        let fr_fr = Key::new("fr-FR").unwrap();
+        assert_eq!(values.defaults.default_of(&fr_fr), &Key::new("fr").unwrap());
+    }
+}

@@ -642,8 +642,7 @@ fn get_value_at_with_defaulting<'a, 'b>(
         }
 
         let default_to_key = cfg
-            .extensions
-            .get(&loc.locale.key)
+            .inherits_from(&loc.locale.key)
             .unwrap_or(&cfg.default_locale);
         let default_to = cfg
             .locales
