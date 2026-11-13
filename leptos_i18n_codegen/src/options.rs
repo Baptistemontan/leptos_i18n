@@ -5,7 +5,7 @@ use std::{borrow::Cow, path::Path};
 use proc_macro2::TokenStream;
 
 /// Options for the leptos_i18n codegen
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct CodegenOptions<'a> {
     /// Attributes for the generated module,
