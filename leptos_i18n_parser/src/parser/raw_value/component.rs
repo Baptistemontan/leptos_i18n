@@ -234,8 +234,16 @@ impl Component {
                     }
                     depth -= 1;
                 }
-            } else if tag_content == key {
-                depth += 1;
+            } else {
+                // The tag name is everything up to the first space, the rest is attributes, so a
+                // nested opening tag carrying attributes is still counted and its closing tag
+                // isn't taken for ours.
+                let tag_name = tag_content
+                    .split_once(' ')
+                    .map_or(tag_content, |(name, _)| name);
+                if tag_name == key {
+                    depth += 1;
+                }
             }
         }
 
@@ -440,5 +448,19 @@ impl RawAttributes {
 
             Err(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn closing_tag_skips_nested_tag_with_attributes() {
+        // `value` is what follows the outer opening `<comp>`
+        let value = r#"before<comp attr="x">inner</comp>after</comp>end"#;
+        let (inner, after) = Component::find_closing_tag(value, "comp").unwrap();
+        assert_eq!(inner, r#"before<comp attr="x">inner</comp>after"#);
+        assert_eq!(after, "end");
     }
 }
