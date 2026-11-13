@@ -85,6 +85,12 @@ pub fn merge_and_index_keys(
 
     for (key, value) in values.values.values {
         let mut loc = loc.push_key(key.clone());
+        // The default locale is always merged first, so for any other locale,
+        // a key not already present is a key the default locale doesn't have.
+        if !is_default && !keys.values.contains_key(&key) {
+            diag.emit_warning(Warning::SurplusKey { loc: loc.clone() });
+            continue;
+        }
         match value {
             foreign_key::ResolvedValueOrSubkeys::Value(resolved_value) => {
                 let keys = keys
@@ -136,10 +142,10 @@ pub fn merge_and_index_keys(
                     continue;
                 }
 
-                let Some(values) = keys.values.get_mut(&key) else {
-                    diag.emit_warning(Warning::SurplusKey { loc: loc.clone() });
-                    continue;
-                };
+                let values = keys
+                    .values
+                    .get_mut(&key)
+                    .expect("surplus keys are skipped before this match");
 
                 default_locale_for_values_or_sk(values, &current_locale_name.key, cfg);
             }
