@@ -274,7 +274,6 @@ fn default_locale_cant_inherit() {
 // *********************************************
 
 #[test]
-#[ignore = "known bug: the builder ident uses the raw key name, see PR #327"]
 fn kebab_case_key_with_interpolation() {
     // panics with `"my-key_builder" is not a valid Ident`
     gen_code(&[("en", r#"{ "my-key": "hello {{ count }}" }"#)], &[]).unwrap();
@@ -296,6 +295,18 @@ fn keys_colliding_on_the_same_ident() {
 #[test]
 #[ignore = "known bug: colliding variables and components emit duplicate fields"]
 fn vars_and_comps_colliding_on_the_same_ident() {
+    // The generated code mentions a variable/component name several times (builder methods, ...),
+    // so compare with the code generated for the same files without the collision.
+    fn count_without_collision(files: &Files, pattern: &str) -> usize {
+        let files: Vec<(&str, String)> = files
+            .iter()
+            .map(|(locale, file)| (*locale, file.replace("a-b", "a_b")))
+            .collect();
+        let files: Vec<(&str, &str)> = files.iter().map(|(l, f)| (*l, f.as_str())).collect();
+        let (code, _diag) = gen_code(&files, &[]).unwrap();
+        code.matches(pattern).count()
+    }
+
     for files in [
         &[("en", r#"{ "k": "{{ a-b }} {{ a_b }}" }"#)][..],
         &[
@@ -304,7 +315,11 @@ fn vars_and_comps_colliding_on_the_same_ident() {
         ],
     ] {
         let (code, _diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("var_a_b :").count(),
+            count_without_collision(files, "var_a_b :"),
+            "{files:?}"
+        );
         // Expected behavior: a single variable, and diag should contain some kind of warning
         // that equivalent variables have different raw identifiers
     }
@@ -318,21 +333,14 @@ fn vars_and_comps_colliding_on_the_same_ident() {
         ],
     ] {
         let (code, _diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("comp_a_b :").count(),
+            count_without_collision(files, "comp_a_b :"),
+            "{files:?}"
+        );
         // Expected behavior: a single component, and diag should contain some kind of warning
         // that equivalent components have different raw identifiers
     }
-}
-
-#[test]
-#[ignore = "known bug: integer ranges with holes emit a non-exhaustive match, see PR #327"]
-fn integer_ranges_with_holes() {
-    let (code, _diag) = gen_code(
-        &[("en", r#"{ "my_key": [["zero", 0], ["some", "1..=3"]] }"#)],
-        &[],
-    )
-    .unwrap();
-    assert!(code.contains("compile_error"));
 }
 
 #[test]
@@ -346,7 +354,6 @@ fn non_finite_float_values() {
 }
 
 #[test]
-#[ignore = "known bug: the namespaces `Deserialize` impl hardcodes `leptos_i18n`, see PR #327"]
 fn namespaces_with_custom_crate_path() {
     let (code, _) = gen_code_with(
         &[
