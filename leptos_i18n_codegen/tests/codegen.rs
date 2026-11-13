@@ -116,7 +116,7 @@ fn warn_on_surplus_key() {
         .iter()
         .any(|w| matches!(w, Warning::SurplusKey { .. }));
 
-    assert!(has_surplus);
+    assert!(has_surplus, "{:?}", &*diag.warnings());
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn suppress_missing_key_on_inherit() {
         .iter()
         .any(|w| matches!(w, Warning::MissingKey { .. }));
 
-    assert!(!has_surplus);
+    assert!(!has_surplus, "{:?}", &*diag.warnings());
 }
 
 // *********************************************
@@ -170,20 +170,33 @@ fn keys_must_be_rust_identifiers() {
 
 #[test]
 fn null_value_in_default_locale() {
-    let err = gen_err(&[("en", r#"{ "my_key": null }"#)], &[]);
-    assert!(matches!(err, Error::ExplicitDefaultInDefault(_)), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "my_key": null }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::ExplicitDefaultInDefault(_))),
+        "{:?}",
+        &*diag.errors()
+    )
 }
 
 #[test]
 fn subkey_and_value_mismatch() {
-    let err = gen_err(
+    let (_code, diag) = gen_code(
         &[
             ("en", r#"{ "my_key": "value" }"#),
             ("fr", r#"{ "my_key": { "sub": "value" } }"#),
         ],
         &[],
+    )
+    .unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::SubKeyMissmatch { .. })),
+        "{:?}",
+        &*diag.errors()
     );
-    assert!(matches!(err, Error::SubKeyMissmatch { .. }), "{err:?}");
 }
 
 #[test]
@@ -199,24 +212,42 @@ fn unknown_formatter() {
 }
 
 #[test]
-fn missing_foreign_key() {
-    let err = gen_err(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]);
-    assert!(matches!(err, Error::InvalidForeignKey { .. }), "{err:?}");
+fn invalid_foreign_key() {
+    let (_code, diag) = gen_code(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::InvalidForeignKey { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
 }
 
 #[test]
 fn recursive_foreign_keys() {
-    let err = gen_err(&[("en", r#"{ "a": "$t(b)", "b": "$t(a)" }"#)], &[]);
-    assert!(matches!(err, Error::RecursiveForeignKey { .. }), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "a": "$t(b)", "b": "$t(a)" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::RecursiveForeignKey { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
 
-    let err = gen_err(&[("en", r#"{ "a": "$t(a)" }"#)], &[]);
-    assert!(matches!(err, Error::RecursiveForeignKey { .. }), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "a": "$t(a)" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::RecursiveForeignKey { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
 }
 
 #[test]
 fn invalid_locale_name() {
     let err = gen_err(&[("en", "{}"), ("not a locale", "{}")], &[]);
-    assert!(matches!(err, Error::InvalidKey(_)), "{err:?}");
+    assert!(matches!(err, Error::InvalidLocale { .. }), "{err:?}");
 }
 
 #[test]
