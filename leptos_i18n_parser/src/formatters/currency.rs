@@ -88,8 +88,8 @@ impl ToTokens for CurrencyCode {
     fn to_token_stream(&self) -> TokenStream {
         let code = Literal::string(self.0.as_str());
         quote!({
-            const CURRENCY_CODE: l_i18n_crate::reexports::icu::currency::CurrencyType =
-                match l_i18n_crate::reexports::icu::currency::CurrencyType::try_from_str(#code) {
+            const CURRENCY_CODE: __l_i18n_crate::reexports::icu::currency::CurrencyType =
+                match __l_i18n_crate::reexports::icu::currency::CurrencyType::try_from_str(#code) {
                     Ok(code) => code,
                     Err(_) => panic!("invalid currency code"),
                 };
@@ -112,7 +112,7 @@ impl CurrencyWidth {
 
 impl_to_tokens!(
     CurrencyWidth,
-    l_i18n_crate::__private::Width,
+    __l_i18n_crate::__private::Width,
     {
         Short,
         Narrow
