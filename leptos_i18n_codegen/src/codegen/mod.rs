@@ -576,6 +576,7 @@ fn gen_keys_impls(
     builders: &BuildersInfos,
     options: &CodegenOptions,
 ) -> TokenStream {
+    let crate_path = syn::Path::from(format_ident!("__l_i18n_crate"));
     match values {
         LocalesOrNamespaces::Namespaces(namespaces) => gen_namespaces(
             namespaces,
@@ -583,6 +584,7 @@ fn gen_keys_impls(
             enum_ident,
             translation_unit_enum_ident,
             builders,
+            &crate_path,
             options,
         ),
         LocalesOrNamespaces::Locales(locales) => gen_locales(
@@ -592,6 +594,7 @@ fn gen_keys_impls(
             translation_unit_enum_ident,
             None,
             builders,
+            &crate_path,
             options,
         ),
     }

@@ -13,6 +13,7 @@ pub fn gen_namespaces(
     enum_ident: &syn::Ident,
     translation_unit_enum_ident: &syn::Ident,
     builders: &BuildersInfos,
+    crate_path: &syn::Path,
     options: &CodegenOptions,
 ) -> TokenStream {
     let init_translations = if cfg!(all(feature = "dynamic_load", feature = "hydrate")) {
@@ -94,7 +95,7 @@ pub fn gen_namespaces(
         let key = &*ns.name.ident;
         quote! {
             #docs
-            pub fn #key(self) -> #key::#keys_ident {
+            pub const fn #key(self) -> #key::#keys_ident {
                 #key::#keys_ident
             }
         }
@@ -127,14 +128,23 @@ pub fn gen_namespaces(
             translation_unit_enum_ident,
             Some(ns_key),
             builders,
+            crate_path,
             options,
         );
+
+        let scope_marker =
+            crate::utils::scope_marker::key_to_scope_marker(&ns_key.name, crate_path);
+
         quote! {
             pub mod #ns_key {
                 #[allow(unused)]
                 use super::{#enum_ident, __l_i18n_crate, __builders};
 
                 #ts
+            }
+
+            impl __l_i18n_crate::scopes::markers::SubkeyKeyAccessor<#scope_marker> for #keys_ident {
+                type Inner = #ns_key::#keys_ident;
             }
         }
     });

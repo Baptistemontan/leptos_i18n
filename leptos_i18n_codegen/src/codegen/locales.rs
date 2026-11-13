@@ -22,6 +22,7 @@ pub fn gen_locales(
     translation_unit_enum_ident: &syn::Ident,
     namespace: Option<&Key>,
     builders: &BuildersInfos,
+    crate_path: &syn::Path,
     options: &CodegenOptions,
 ) -> TokenStream {
     let string_holders = gen_strings_holders(
@@ -103,7 +104,6 @@ pub fn gen_locales(
     };
 
     let mut path = KeyPath::new(namespace.cloned());
-    let crate_path = syn::Path::from(format_ident!("__l_i18n_crate"));
 
     let keys_impls = gen_subkeys_impls(
         &locales.keys,
@@ -112,7 +112,7 @@ pub fn gen_locales(
         locales,
         builders,
         &mut path,
-        &crate_path,
+        crate_path,
         options,
     );
 
