@@ -1,6 +1,6 @@
 use leptos_i18n_parser::error::{Error, Result};
 use leptos_i18n_parser::extraction::{LocalesOrNamespaces, ParsedLocales};
-use leptos_i18n_parser::options::LocaleName;
+use leptos_i18n_parser::options::{Config, LocaleName};
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 
@@ -17,12 +17,15 @@ use crate::codegen::docs::gen_keys_doc;
 use crate::codegen::locales::gen_locales;
 use crate::codegen::namespaces::gen_namespaces;
 
-pub fn gen_code(parsed_values: &ParsedLocales, options: CodegenOptions) -> Result<TokenStream> {
+pub fn gen_code(
+    parsed_values: &ParsedLocales,
+    options: CodegenOptions,
+    cfg: &Config,
+) -> Result<TokenStream> {
     let default_crate_path = syn::Path::from(syn::Ident::new("leptos_i18n", Span::call_site()));
-    let crate_path = options.crate_path.as_ref().unwrap_or(&default_crate_path);
+    let crate_path = options.crate_path.unwrap_or(&default_crate_path);
 
     let ParsedLocales {
-        cfg,
         values,
         builders,
         diag: _,

@@ -4,8 +4,6 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 pub use datamarker::FormatterOptions;
-pub use leptos_i18n_parser::parse_locales::files::{LocaleFiles, TranslationFiles};
-pub use leptos_i18n_parser::parse_locales::options::{Config, FileFormat, ParseOptions, parser};
 
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
@@ -14,11 +12,12 @@ use icu_provider_export::{
     baked_exporter::{self, BakedExporter},
 };
 use icu_provider_source::SourceDataProvider;
-use leptos_i18n_parser::extraction::{
-    Locales, LocalesOrNamespaces, ParsedLocales, extract_locales,
-};
 use leptos_i18n_parser::parsing::parse_locales_raw;
 use leptos_i18n_parser::{error::Result, parsing::RawParsedLocales};
+use leptos_i18n_parser::{
+    extraction::{Locales, LocalesOrNamespaces, ParsedLocales, extract_locales},
+    parsing::TranslationFiles,
+};
 use std::{
     collections::HashSet,
     fmt::{Display, Write},
@@ -66,18 +65,23 @@ impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A,
 pub struct TranslationsInfos {
     parsed_locales: ParsedLocales,
     tracked_files: Vec<String>,
+    cfg: Config,
 }
 
 impl TranslationsInfos {
     fn parse_inner(dir_path: Option<PathBuf>, cfg: Config) -> Result<Self> {
-        let parsed_locales = parse_locales(dir_path, cfg)?;
+        let RawParsedLocales {
+            values,
+            diag,
+            tracked_files,
+        } = parse_locales_raw(dir_path, &cfg)?;
 
-        // We don't really care for warnings, they will already be displayed by the macro
-        let parsed_locales = extract_locales(values, cfg, Some(diag))?;
+        let parsed_locales = extract_locales(values, &cfg, Some(diag))?;
 
         Ok(TranslationsInfos {
             parsed_locales,
             tracked_files,
+            cfg,
         })
     }
 
@@ -94,9 +98,19 @@ impl TranslationsInfos {
 
     /// Parse the translations directly as strings instead of loading files
     pub fn parse_with_files_as_string(cfg: Config, files: &TranslationFiles) -> Result<Self> {
-        let parsed_locales =
-            leptos_i18n_parser::parse_locales::parse_locales_with_files(files, cfg)?;
-        Ok(TranslationsInfos { parsed_locales })
+        let RawParsedLocales {
+            values,
+            diag,
+            tracked_files,
+        } = leptos_i18n_parser::parsing::parse_locales_raw_with_files(files, &cfg)?;
+
+        let parsed_locales = extract_locales(values, &cfg, Some(diag))?;
+
+        Ok(TranslationsInfos {
+            parsed_locales,
+            tracked_files,
+            cfg,
+        })
     }
 
     /// Paths to all files containing translations.
@@ -272,7 +286,7 @@ impl TranslationsInfos {
     ) -> Result<()> {
         let module_file_name = options.module_file_name;
 
-        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, options)?;
+        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, options, &self.cfg)?;
 
         #[cfg(feature = "pretty_print")]
         let ts = {

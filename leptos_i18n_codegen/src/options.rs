@@ -5,7 +5,7 @@ use std::{borrow::Cow, path::Path};
 use proc_macro2::TokenStream;
 
 /// Options for the leptos_i18n codegen
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 #[non_exhaustive]
 pub struct CodegenOptions<'a> {
     /// Attributes for the generated module,
@@ -15,7 +15,7 @@ pub struct CodegenOptions<'a> {
     /// "mod.rs" by default.
     pub module_file_name: &'a Path,
     /// Path to the `leptos_i18n` crate, usefull if the crate is not a direct dependency of the package and is behind a reexport.
-    pub crate_path: Option<syn::Path>,
+    pub crate_path: Option<&'a syn::Path>,
     /// Generate docs on `Locale` enum, subkeys, namespaces keys, and interpolations to display available keys or required arguments.
     /// `true` by default
     pub gen_docs: bool,
@@ -76,7 +76,7 @@ impl<'a> CodegenOptions<'a> {
     }
 
     /// Path to the `leptos_i18n` crate, usefull if the crate is not a direct depedency of the pacakage and is behind a reexport.
-    pub fn crate_path(self, crate_path: Option<syn::Path>) -> Self {
+    pub fn crate_path(self, crate_path: Option<&'a syn::Path>) -> Self {
         Self { crate_path, ..self }
     }
 

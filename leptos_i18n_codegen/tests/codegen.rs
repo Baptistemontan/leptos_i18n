@@ -4,14 +4,13 @@
 
 use std::{borrow::Cow, mem};
 
-use leptos_i18n_parser::parse_locales::{
-    error::{Diagnostics, Error, Warning},
-    files::{LocaleFiles, TranslationFiles},
+use leptos_i18n_codegen::CodegenOptions;
+use leptos_i18n_parser::{
+    error::{Diagnostics, Error, Result, Warning},
+    extraction::extract_locales,
     options::{Config, FileFormat, ParseOptions},
-    parse_locales_with_files,
+    parsing::{LocaleFiles, RawParsedLocales, TranslationFiles, parse_locales_raw_with_files},
 };
-
-use leptos_i18n_parser::parse_locales::error::Result;
 
 /// `(locale, file content)` pairs.
 type Files<'a> = [(&'a str, &'a str)];
@@ -50,7 +49,6 @@ fn gen_code_with(
     let t_files = new_files(namespaces);
     let mut cfg = Config::new(locales[0].0)?
         .add_locales(locales.iter().skip(1).map(|l| l.0))?
-        .translations_uri("test")
         .parse_options(ParseOptions::default().file_format(file_format));
     if namespaces[0].0.is_some() {
         cfg = cfg.add_namespaces(namespaces.iter().map(|(ns, _)| ns.unwrap()))?;
@@ -59,11 +57,18 @@ fn gen_code_with(
     for (l1, l2) in extensions {
         cfg = cfg.extend_locale(l1, l2)?;
     }
-    let mut parsed_locales = parse_locales_with_files(&t_files, cfg)?;
+    let RawParsedLocales {
+        values,
+        diag,
+        tracked_files: _,
+    } = parse_locales_raw_with_files(&t_files, &cfg)?;
+    let mut parsed_locales = extract_locales(values, &cfg, Some(diag))?;
     let diag = mem::take(&mut parsed_locales.diag);
     let crate_path = crate_path.map(|p| syn::parse_str::<syn::Path>(p).unwrap());
-    let code =
-        leptos_i18n_codegen::gen_code(&parsed_locales, crate_path.as_ref(), true, None, false)?;
+    let options = CodegenOptions::default()
+        .translations_uri("test")
+        .crate_path(crate_path.as_ref());
+    let code = leptos_i18n_codegen::gen_code(&parsed_locales, options, &cfg)?;
     Ok((code.to_string(), diag))
 }
 
@@ -196,7 +201,7 @@ fn unknown_formatter() {
 #[test]
 fn missing_foreign_key() {
     let err = gen_err(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]);
-    assert!(matches!(err, Error::MissingForeignKey { .. }), "{err:?}");
+    assert!(matches!(err, Error::InvalidForeignKey { .. }), "{err:?}");
 }
 
 #[test]

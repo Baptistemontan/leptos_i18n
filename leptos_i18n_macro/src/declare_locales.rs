@@ -26,13 +26,13 @@ pub fn declare_locales(tokens: proc_macro::TokenStream) -> proc_macro::TokenStre
         interpolate_display,
     } = parse_macro_input!(tokens as ParsedInput);
 
-    let parsed_locales = extract_locales(values, cfg, None).unwrap();
+    let parsed_locales = extract_locales(values, &cfg, None).unwrap();
 
     let codegen_options = CodegenOptions::new()
-        .crate_path(Some(crate_path))
+        .crate_path(Some(&crate_path))
         .interpolate_display(interpolate_display);
 
-    let result = leptos_i18n_codegen::gen_code(&parsed_locales, codegen_options);
+    let result = leptos_i18n_codegen::gen_code(&parsed_locales, codegen_options, &cfg);
 
     match result {
         Ok(ts) => ts.into(),

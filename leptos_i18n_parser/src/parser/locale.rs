@@ -1,14 +1,13 @@
 use std::{
-    collections::BTreeMap,
-    fs::File,
-    io::BufReader,
-    path::{Path, PathBuf},
+    collections::{BTreeMap, HashMap},
+    path::Path,
 };
 
 use crate::{
-    error::{Diagnostics, Error, Result, Warning},
+    error::{Diagnostics, Error, Result},
     parser::{
         ValuesSeed,
+        files::{LocaleFiles, TranslationFiles},
         options::{Config, FileFormat, LocaleName, ParseOptions},
         raw_value::RawValue,
     },
@@ -49,43 +48,58 @@ pub enum RawValueOrSubkeys<V = RawValue, S = RawValues<V>> {
 }
 
 impl RawLocalesOrNamespaces {
-    pub fn new(
-        manifest_dir_path: &mut PathBuf,
+    fn new_locales(
+        files: &LocaleFiles,
+        namespace: Option<&Key>,
         diag: &Diagnostics,
-        tracked_files: &mut Vec<String>,
         cfg: &Config,
-    ) -> Result<Self> {
-        manifest_dir_path.push(&cfg.locales_path);
+    ) -> Result<Vec<RawLocale>> {
+        let mut locales = Vec::with_capacity(cfg.locales.len());
+        for key in cfg.locales.iter().cloned() {
+            let Some((file_path, file)) = files.files.get(&*key.key.name) else {
+                todo!()
+            };
+            let locale = RawLocale::new(
+                file,
+                file_path.as_deref(),
+                key,
+                namespace.cloned(),
+                diag,
+                &cfg.options,
+            )?;
+            locales.push(locale);
+        }
+        Ok(locales)
+    }
+
+    fn new_namespaces(
+        files: &HashMap<&str, LocaleFiles>,
+        diag: &Diagnostics,
+        cfg: &Config,
+    ) -> Result<Vec<RawNamespace>> {
+        let mut namespaces = Vec::with_capacity(cfg.namespaces.len());
+        for namespace in cfg.namespaces.iter().cloned() {
+            let Some(locales_files) = files.get(&*namespace.name) else {
+                todo!()
+            };
+            let ns = RawNamespace::new(namespace, locales_files, diag, cfg)?;
+            namespaces.push(ns);
+        }
+        Ok(namespaces)
+    }
+
+    pub fn new(files: &TranslationFiles, diag: &Diagnostics, cfg: &Config) -> Result<Self> {
         if !cfg.namespaces.is_empty() {
-            let mut namespaces = Vec::with_capacity(cfg.namespaces.len());
-            for namespace in &cfg.namespaces {
-                namespaces.push(RawNamespace::new(
-                    manifest_dir_path,
-                    namespace.clone(),
-                    &cfg.locales,
-                    diag,
-                    tracked_files,
-                    &cfg.options,
-                )?);
-            }
+            let TranslationFiles::NameSpaces { namespaces } = files else {
+                todo!();
+            };
+            let namespaces = Self::new_namespaces(namespaces, diag, cfg)?;
             Ok(RawLocalesOrNamespaces::Namespaces(namespaces))
         } else {
-            let mut locales = Vec::with_capacity(cfg.locales.len());
-            for locale in cfg.locales.iter().cloned() {
-                manifest_dir_path.push(&*locale.key.name);
-                let locale_file = find_file(manifest_dir_path, &cfg.options.file_format)?;
-                let locale = RawLocale::new(
-                    locale_file,
-                    manifest_dir_path,
-                    locale,
-                    None,
-                    diag,
-                    tracked_files,
-                    &cfg.options,
-                )?;
-                locales.push(locale);
-                manifest_dir_path.pop();
-            }
+            let TranslationFiles::Locales { locales } = files else {
+                todo!();
+            };
+            let locales = Self::new_locales(locales, None, diag, cfg)?;
             Ok(RawLocalesOrNamespaces::Locales(locales))
         }
     }
@@ -93,51 +107,25 @@ impl RawLocalesOrNamespaces {
 
 impl RawNamespace {
     pub fn new(
-        locales_dir_path: &mut PathBuf,
         name: Key,
-        locale_names: &[LocaleName],
+        locales_files: &LocaleFiles,
         diag: &Diagnostics,
-        tracked_files: &mut Vec<String>,
-        options: &ParseOptions,
+        cfg: &Config,
     ) -> Result<Self> {
-        let mut locales = Vec::with_capacity(locale_names.len());
-        for locale in locale_names.iter().cloned() {
-            let file_path: &Path = name.name.as_ref().as_ref();
-            locales_dir_path.push(&*locale.key.name);
-            locales_dir_path.push(file_path);
-
-            let locale_file = find_file(locales_dir_path, &options.file_format)?;
-
-            let locale = RawLocale::new(
-                locale_file,
-                locales_dir_path,
-                locale,
-                Some(name.clone()),
-                diag,
-                tracked_files,
-                options,
-            )?;
-
-            locales.push(locale);
-            locales_dir_path.pop();
-            locales_dir_path.pop();
-        }
+        let locales = RawLocalesOrNamespaces::new_locales(locales_files, Some(&name), diag, cfg)?;
         Ok(RawNamespace { name, locales })
     }
 }
 
 impl RawLocale {
     pub fn new(
-        locale_file: File,
-        path: &mut PathBuf,
+        locale_file: &str,
+        path: Option<&Path>,
         name: LocaleName,
         namespace: Option<Key>,
         diag: &Diagnostics,
-        tracked_files: &mut Vec<String>,
         options: &ParseOptions,
     ) -> Result<Self> {
-        track_file(tracked_files, &name.key, namespace.as_ref(), path, diag);
-
         let seed = ValuesSeed {
             name: name.key.clone(),
             top_locale_name: &name,
@@ -152,55 +140,17 @@ impl RawLocale {
     }
 
     fn de(
-        locale_file: File,
-        path: &mut PathBuf,
+        locale_file: &str,
+        path: Option<&Path>,
         seed: ValuesSeed,
         file_format: &FileFormat,
     ) -> Result<RawValues> {
-        let reader = BufReader::new(locale_file);
-        let values =
-            file_format
-                .deserialize(reader, path, seed)
-                .map_err(|err| Error::LocaleFileDeser {
-                    path: std::mem::take(path),
-                    err,
-                })?;
+        let values = file_format
+            .deserialize(locale_file, path, seed)
+            .map_err(|err| Error::LocaleFileDeser {
+                path: path.map(ToOwned::to_owned),
+                err,
+            })?;
         Ok(values)
-    }
-}
-
-fn find_file(path: &mut PathBuf, file_format: &FileFormat) -> Result<File> {
-    let mut errs = vec![];
-
-    for ext in file_format.get_files_exts() {
-        path.set_extension(ext);
-        #[allow(clippy::needless_borrows_for_generic_args)]
-        // see https://github.com/rust-lang/rust-clippy/issues/12856
-        match File::open(&path) {
-            Ok(file) => return Ok(file),
-            Err(err) => {
-                errs.push((path.to_owned(), err));
-            }
-        };
-    }
-
-    Err(Error::LocaleFileNotFound(errs).into())
-}
-
-fn track_file(
-    tracked_files: &mut Vec<String>,
-    locale: &Key,
-    namespace: Option<&Key>,
-    path: &Path,
-    diag: &Diagnostics,
-) {
-    if let Some(path) = path.as_os_str().to_str().map(ToOwned::to_owned) {
-        tracked_files.push(path);
-    } else {
-        diag.emit_warning(Warning::NonUnicodePath {
-            locale: locale.clone(),
-            namespace: namespace.cloned(),
-            path: path.to_owned(),
-        });
     }
 }

@@ -161,9 +161,9 @@ fn get_path_locale_segment<'a>(path: &'a str, base_path: &str) -> Option<&'a str
     Some(to_match)
 }
 
-fn get_locale_from_path<L: Locale>(path: &str, base_path: &str) -> Option<L> {
+fn get_locale_from_path<L: BaseLocale>(path: &str, base_path: &str) -> Option<L> {
     let to_match = get_path_locale_segment(path, base_path)?;
-    L::get_all()
+    L::ALL_VARIANTS
         .iter()
         .copied()
         .find(|l| l.as_str() == to_match)

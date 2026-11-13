@@ -29,7 +29,6 @@ pub const VAR_COUNT_KEY: &str = "var_count";
 pub struct ParsedLocales {
     pub values: LocalesOrNamespaces,
     pub builders: Builders,
-    pub cfg: Config,
     pub diag: Diagnostics,
 }
 
@@ -105,20 +104,19 @@ pub struct StringIndexer {
 
 pub fn extract_locales(
     values: RawLocalesOrNamespaces,
-    cfg: Config,
+    cfg: &Config,
     diag: Option<Diagnostics>,
 ) -> Result<ParsedLocales> {
     let diag = diag.unwrap_or_default();
     let merged_plurals = plurals::merge_plurals(values, &diag);
-    let resolved_fk = values::foreign_key::resolve_foreign_keys(merged_plurals, &diag, &cfg);
-    let mut merged = merge_values(resolved_fk, &cfg, &diag);
+    let resolved_fk = values::foreign_key::resolve_foreign_keys(merged_plurals, &diag, cfg);
+    let mut merged = merge_values(resolved_fk, cfg, &diag);
 
     let builders = get_builders(&mut merged, &diag);
 
     Ok(ParsedLocales {
         values: merged,
         builders,
-        cfg,
         diag,
     })
 }

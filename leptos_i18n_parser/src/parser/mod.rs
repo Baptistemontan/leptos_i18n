@@ -6,6 +6,7 @@ use crate::{
     error::{Diagnostics, Error, Result},
     formatters::Formatters,
     parser::{
+        files::TranslationFiles,
         locale::{RawValueOrSubkeys, RawValues},
         options::LocaleName,
     },
@@ -13,6 +14,7 @@ use crate::{
 };
 
 pub mod dummy;
+pub mod files;
 pub mod locale;
 pub mod options;
 pub mod raw_value;
@@ -27,32 +29,50 @@ pub const DEFAULT_LOCALES_PATH: &str = "locales";
 #[derive(Debug)]
 pub struct RawParsedLocales {
     pub values: RawLocalesOrNamespaces,
-    pub cfg: Config,
     pub diag: Diagnostics,
     pub tracked_files: Vec<String>,
 }
 
+fn parse_locales_raw_with_files_and_diags(
+    files: &TranslationFiles,
+    cfg: &Config,
+    diag: Diagnostics,
+) -> Result<RawParsedLocales> {
+    let values = RawLocalesOrNamespaces::new(files, &diag, cfg)?;
+
+    let raw_parsed_locales = RawParsedLocales {
+        values,
+        diag,
+        tracked_files: vec![],
+    };
+
+    Ok(raw_parsed_locales)
+}
+
+pub fn parse_locales_raw_with_files(
+    files: &TranslationFiles,
+    cfg: &Config,
+) -> Result<RawParsedLocales> {
+    let diag = Diagnostics::new();
+
+    parse_locales_raw_with_files_and_diags(files, cfg, diag)
+}
+
 pub fn parse_locales_raw(
     cargo_manifest_dir: Option<PathBuf>,
-    cfg: Config,
+    cfg: &Config,
 ) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
 
     let diag = Diagnostics::new();
 
-    // let cfg_file = ConfigFile::new(&mut cargo_manifest_dir)?;
-
     let mut tracked_files = Vec::with_capacity(cfg.locales.len() * cfg.namespaces.len().max(1));
 
-    let values =
-        RawLocalesOrNamespaces::new(&mut cargo_manifest_dir, &diag, &mut tracked_files, &cfg)?;
+    let files =
+        TranslationFiles::load_files(&mut cargo_manifest_dir, &diag, &mut tracked_files, cfg)?;
 
-    let raw_parsed_locales = RawParsedLocales {
-        values,
-        cfg,
-        diag,
-        tracked_files,
-    };
+    let mut raw_parsed_locales = parse_locales_raw_with_files_and_diags(&files, cfg, diag)?;
+    raw_parsed_locales.tracked_files.append(&mut tracked_files);
 
     Ok(raw_parsed_locales)
 }

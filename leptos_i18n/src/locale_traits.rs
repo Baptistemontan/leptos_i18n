@@ -57,16 +57,19 @@ pub trait Locale: LocaleRequirementsMarker {
     /// Given a slice of accepted languages sorted in preferred order, return the locale that fit the best the request.
     fn find_locale<T: AsRef<[u8]>>(accepted_languages: &[T]) -> Self {
         let langids = convert_vec_str_to_langids_lossy(accepted_languages);
-        let availables = Self::iter_variants().collect();
-        find_match(&langids, availables)
+        let l = find_match(&langids, <Self::BaseLocale as BaseLocale>::ALL_VARIANTS);
+        Self::from_base_locale(l)
     }
 
     /// Given a langid, return a Vec of suitables `Locale` sorted in compatibility (first one being the best match).
     ///
     /// This function does not fallback to default if no match is found.
     fn find_matchs<T: AsRef<LanguageIdentifier>>(langid: T) -> Vec<Self> {
-        let availables = Self::iter_variants().collect();
-        filter_matches(std::slice::from_ref(langid.as_ref()), availables)
+        let matches: Vec<Self::BaseLocale> = filter_matches(
+            std::slice::from_ref(langid.as_ref()),
+            <Self::BaseLocale as BaseLocale>::ALL_VARIANTS,
+        );
+        matches.into_iter().map(Self::from_base_locale).collect()
     }
 
     /// Iterate over the variants of this locale

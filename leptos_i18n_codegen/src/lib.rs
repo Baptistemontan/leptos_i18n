@@ -7,7 +7,7 @@
 //!
 //! This crate must be used with `leptos_i18n` and should'nt be used outside of it.
 
-use leptos_i18n_parser::{error::Result, extraction::ParsedLocales};
+use leptos_i18n_parser::{error::Result, extraction::ParsedLocales, options::Config};
 
 use proc_macro2::TokenStream;
 
@@ -18,6 +18,10 @@ pub mod utils;
 
 pub use options::CodegenOptions;
 
-pub fn gen_code(parsed_locales: &ParsedLocales, options: CodegenOptions) -> Result<TokenStream> {
-    codegen::gen_code(parsed_locales, options)
+pub fn gen_code(
+    parsed_locales: &ParsedLocales,
+    options: CodegenOptions,
+    cfg: &Config,
+) -> Result<TokenStream> {
+    codegen::gen_code(parsed_locales, options, cfg)
 }
