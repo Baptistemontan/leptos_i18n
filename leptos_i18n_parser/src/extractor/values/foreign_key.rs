@@ -684,7 +684,9 @@ fn raw_value_has_deps(
                 Err(loc) => {
                     foreign_key.target_location = loc;
                     let loc = &foreign_key.target_location;
-                    if !unset_fks.contains_key(loc) {
+                    // The value being resolved was removed from `unset_fks`, so a foreign key to
+                    // itself must be treated as pending, to be reported as a cycle and not as invalid.
+                    if !unset_fks.contains_key(loc) && loc != current_loc {
                         diag.emit_error(Error::InvalidForeignKey {
                             foreign_key: loc.key_path.clone(),
                             loc: current_loc.clone(),
