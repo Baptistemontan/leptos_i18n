@@ -167,6 +167,25 @@ pub mod __private {
 
     #[deprecated(since = "0.6.0", note = "Ranges are deprecated, use plurals instead.")]
     pub fn warn_deprecated_ranges() {}
+
+    /// Called in a const context by the generated `i18n` module with the version of the crate
+    /// that generated it (`leptos_i18n_build`, or the macros): fails to compile on a mismatch,
+    /// as the generated code relies on internals of this exact version.
+    pub const fn check_codegen_version(codegen_version: &str) {
+        let a = codegen_version.as_bytes();
+        let b = env!("CARGO_PKG_VERSION").as_bytes();
+        let mut same = a.len() == b.len();
+        let mut i = 0;
+        while same && i < a.len() {
+            same = a[i] == b[i];
+            i += 1;
+        }
+        if !same {
+            panic!(
+                "the `leptos_i18n_build` version doesn't match the `leptos_i18n` version, use the same version for both"
+            );
+        }
+    }
 }
 
 /// This module contain utilities to create custom ICU providers.
