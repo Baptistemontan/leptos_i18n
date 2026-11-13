@@ -73,11 +73,19 @@ pub fn merge_and_index_keys(
     let current_locale_name = values.name;
     let is_default = current_locale_name.key == *default_locale;
 
+    let suppress_key_warnings = cfg.options.suppress_key_warnings;
+
     if !is_default {
+        // Like in 0.6, no warning when the locale inherits (explicit extension or base locale):
+        // getting its missing keys from its parent is expected.
+        let warn_missing =
+            !suppress_key_warnings && cfg.inherits_from(&current_locale_name.key).is_none();
         for (key, values_or_sk) in keys.values.iter_mut() {
             if !values.values.values.contains_key(key) {
-                let loc = loc.push_key(key.clone());
-                diag.emit_warning(Warning::MissingKey { loc: loc.clone() });
+                if warn_missing {
+                    let loc = loc.push_key(key.clone());
+                    diag.emit_warning(Warning::MissingKey { loc: loc.clone() });
+                }
                 default_locale_for_values_or_sk(values_or_sk, &current_locale_name.key, cfg);
             }
         }
@@ -88,7 +96,9 @@ pub fn merge_and_index_keys(
         // The default locale is always merged first, so for any other locale,
         // a key not already present is a key the default locale doesn't have.
         if !is_default && !keys.values.contains_key(&key) {
-            diag.emit_warning(Warning::SurplusKey { loc: loc.clone() });
+            if !suppress_key_warnings {
+                diag.emit_warning(Warning::SurplusKey { loc: loc.clone() });
+            }
             continue;
         }
         match value {

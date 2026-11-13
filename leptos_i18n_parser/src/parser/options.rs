@@ -64,6 +64,8 @@ pub struct Config {
 #[non_exhaustive]
 pub struct ParseOptions {
     pub file_format: FileFormat,
+    /// Don't emit the warnings for missing keys and surplus keys.
+    pub suppress_key_warnings: bool,
     pub formatters: Formatters,
 }
 
@@ -100,6 +102,7 @@ impl ParseOptions {
     pub fn new() -> Self {
         ParseOptions {
             file_format: FileFormat::Json,
+            suppress_key_warnings: false,
             formatters: Formatters::new(),
         }
     }
@@ -107,6 +110,14 @@ impl ParseOptions {
     pub fn file_format(self, file_format: FileFormat) -> Self {
         Self {
             file_format,
+            ..self
+        }
+    }
+
+    /// Don't emit the warnings for missing keys and surplus keys.
+    pub fn suppress_key_warnings(self, suppress_key_warnings: bool) -> Self {
+        Self {
+            suppress_key_warnings,
             ..self
         }
     }

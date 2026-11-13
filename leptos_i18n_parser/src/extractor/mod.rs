@@ -474,7 +474,9 @@ mod tests {
 
     use super::*;
     use crate::{
+        error::Warning,
         extraction::ValuesOrSubkeys,
+        options::ParseOptions,
         parser::{
             files::{LocaleFiles, TranslationFiles},
             parse_locales_raw_with_files,
@@ -519,5 +521,61 @@ mod tests {
         };
         let fr_fr = Key::new("fr-FR").unwrap();
         assert_eq!(values.defaults.default_of(&fr_fr), &Key::new("fr").unwrap());
+    }
+
+    fn key_warnings(parsed: &ParsedLocales) -> Vec<String> {
+        parsed
+            .diag
+            .warnings()
+            .iter()
+            .filter(|w| matches!(w, Warning::MissingKey { .. } | Warning::SurplusKey { .. }))
+            .map(|w| format!("{w:?}"))
+            .collect()
+    }
+
+    #[test]
+    fn no_missing_key_warning_with_base_locale() {
+        let cfg = Config::new("en")
+            .unwrap()
+            .add_locales(["fr", "fr-FR"])
+            .unwrap();
+        let parsed = extract(
+            &cfg,
+            &[
+                ("en", r#"{ "a": "en" }"#),
+                ("fr", r#"{ "a": "fr" }"#),
+                ("fr-FR", r#"{}"#),
+            ],
+        );
+        assert_eq!(key_warnings(&parsed), Vec::<String>::new());
+    }
+
+    #[test]
+    fn suppress_key_warnings() {
+        let files = [("en", r#"{ "a": "en" }"#), ("fr", r#"{ "surplus": "fr" }"#)];
+        let cfg = || Config::new("en").unwrap().add_locale("fr").unwrap();
+
+        // without the option: a missing key and a surplus key
+        let parsed = extract(&cfg(), &files);
+        assert_eq!(
+            key_warnings(&parsed).len(),
+            2,
+            "{:?}",
+            key_warnings(&parsed)
+        );
+
+        // with it: no warning, and the surplus key is still skipped
+        let cfg = cfg().parse_options(ParseOptions::default().suppress_key_warnings(true));
+        let parsed = extract(&cfg, &files);
+        assert_eq!(key_warnings(&parsed), Vec::<String>::new());
+        let LocalesOrNamespaces::Locales(locales) = &parsed.values else {
+            panic!("expected locales");
+        };
+        assert!(
+            !locales
+                .keys
+                .values
+                .contains_key(&Key::new("surplus").unwrap())
+        );
     }
 }
