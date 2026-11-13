@@ -4,6 +4,7 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 pub use datamarker::FormatterOptions;
+pub use leptos_i18n_parser::parse_locales::files::{LocaleFiles, TranslationFiles};
 pub use leptos_i18n_parser::parse_locales::options::{Config, FileFormat, ParseOptions, parser};
 
 use icu_locale::LocaleFallbacker;
@@ -16,7 +17,6 @@ use icu_provider_source::SourceDataProvider;
 use leptos_i18n_parser::parse_locales::{
     ParsedLocales,
     error::Result,
-    files::TranslationFiles,
     locale::{BuildersKeys, Locale},
     parse_locales,
 };
