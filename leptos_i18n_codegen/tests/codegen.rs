@@ -233,6 +233,63 @@ fn default_locale_cant_inherit() {
 }
 
 // *********************************************
+// * PLURALS
+// *********************************************
+
+#[test]
+#[cfg(feature = "plurals")]
+fn plural_forms_spelled_differently() {
+    for (file, colliding) in [
+        (r#"{ "a-b_one": "1", "a_b_other": "o" }"#, false),
+        // the duplicate `one` collides, the plural is still built whatever the order
+        (
+            r#"{ "a_b_one": "x", "a-b_one": "1", "a-b_other": "o" }"#,
+            true,
+        ),
+        (
+            r#"{ "a-b_one": "1", "a-b_other": "o", "a_b_one": "x" }"#,
+            true,
+        ),
+    ] {
+        let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        assert_eq!(code.matches("fn a_b (").count(), 1, "{file}");
+        assert!(!code.contains("fn a_b_one"), "{file}");
+        assert!(!code.contains("fn a_b_other"), "{file}");
+        let collisions = diag
+            .errors()
+            .iter()
+            .filter(|e| matches!(e, Error::CollidingKeys { .. }))
+            .count();
+        assert_eq!(
+            collisions,
+            usize::from(colliding),
+            "{file}: {:?}",
+            &*diag.errors()
+        );
+    }
+}
+
+#[test]
+fn plural_with_invalid_base_is_a_normal_key() {
+    for (file, keys) in [
+        (r#"{ "_one": "1", "_other": "o" }"#, ["_one", "_other"]),
+        (
+            r#"{ "_ordinal_one": "1", "_ordinal_other": "o" }"#,
+            ["_ordinal_one", "_ordinal_other"],
+        ),
+        (
+            r#"{ "type_one": "1", "type_other": "o" }"#,
+            ["type_one", "type_other"],
+        ),
+    ] {
+        let (code, _diag) = gen_code(&[("en", file)], &[]).unwrap();
+        for key in keys {
+            assert!(code.contains(&format!("fn {key} (")), "{file}: {key}");
+        }
+    }
+}
+
+// *********************************************
 // * KNOWN BUGS
 // * see https://github.com/Baptistemontan/leptos_i18n/pull/327
 // *********************************************
