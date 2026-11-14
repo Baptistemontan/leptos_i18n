@@ -526,7 +526,8 @@ impl Locale {
         #[allow(clippy::type_complexity)]
         // grouped by `Key`, so by the normalized base: `a-b_one` and `a_b_other` are the same plural,
         // displayed with the spelling of the first key of the group.
-        type Forms = BTreeMap<PluralForm, (Key, ParsedValue)>;
+        // (key, parsed_value, base_key)
+        type Forms = BTreeMap<PluralForm, (Key, ParsedValue, Key)>;
         // (cardinal, ordinal)
         let mut possible_plurals: BTreeMap<Key, (Forms, Forms)> = BTreeMap::new();
         for (key, mut value) in keys {
@@ -536,12 +537,13 @@ impl Locale {
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
-                let map = possible_plurals.entry(base_key).or_default();
+                let maps = possible_plurals.entry(base_key.clone()).or_default();
+
                 let map = match rule_type {
-                    PluralRuleType::Cardinal => &mut map.0,
-                    PluralRuleType::Ordinal => &mut map.1,
+                    PluralRuleType::Cardinal => &mut maps.0,
+                    PluralRuleType::Ordinal => &mut maps.1,
                 };
-                map.insert(plural_form, (key, value));
+                map.insert(plural_form, (key, value, base_key));
             } else {
                 super::insert_with_collision_check(
                     &mut self.keys,
@@ -553,13 +555,13 @@ impl Locale {
                 );
             }
         }
-        for (base_key, (cardinal, ordinal)) in possible_plurals {
+        for (_, (cardinal, ordinal)) in possible_plurals {
             for (rule_type, mut plurals) in [
                 (PluralRuleType::Cardinal, cardinal),
                 (PluralRuleType::Ordinal, ordinal),
             ] {
                 if plurals.len() == 1 {
-                    for (_, (key, value)) in plurals {
+                    for (_, (key, value, _)) in plurals {
                         super::insert_with_collision_check(
                             &mut self.keys,
                             key,
@@ -571,8 +573,8 @@ impl Locale {
                     }
                     continue;
                 }
-                let Some((_, other)) = plurals.remove(&PluralForm::Other) else {
-                    for (_, (key, value)) in plurals {
+                let Some((other_key, other, base_key)) = plurals.remove(&PluralForm::Other) else {
+                    for (_, (key, value, _)) in plurals {
                         super::insert_with_collision_check(
                             &mut self.keys,
                             key,
@@ -592,10 +594,26 @@ impl Locale {
                     .into());
                 }
 
-                let forms = plurals
-                    .into_iter()
-                    .map(|(form, (_, value))| (form, value))
-                    .collect::<BTreeMap<_, _>>();
+                let mut forms = BTreeMap::new();
+
+                for (form, (key, value, current_base_key)) in plurals {
+                    if current_base_key.name != base_key.name {
+                        let mut key1 = pushed_key.to_owned();
+                        key1.path.pop();
+                        let mut key2 = key1.clone();
+                        key1.path.push(other_key.clone());
+                        key2.path.push(key);
+                        diag.emit_warning(Warning::PluralKeySpellingMismatch {
+                            key1: Location::new(locale.clone(), key1),
+                            base1: base_key.name.clone(),
+                            key2,
+                            base2: current_base_key.name.clone(),
+                            resolved_ident: base_key.ident_repr.clone(),
+                        });
+                    }
+                    forms.insert(form, value);
+                }
+
                 let plural = Plurals {
                     rule_type,
                     forms,
