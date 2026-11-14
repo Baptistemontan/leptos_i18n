@@ -232,6 +232,35 @@ fn default_locale_cant_inherit() {
     );
 }
 
+#[test]
+fn keys_colliding_on_the_same_ident() {
+    for file in [
+        r#"{ "a-b": "dash", "a_b": "underscore" }"#,
+        r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        assert!(
+            diag.errors()
+                .iter()
+                .any(|e| matches!(e, Error::CollidingKeys { .. })),
+            "{:?}",
+            &*diag.errors()
+        );
+    }
+}
+
+#[test]
+fn duplicate_key_in_file() {
+    let (_code, diag) = gen_code(&[("en", r#"{ "a": "x", "a": "y" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::CollidingKeys { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
+}
+
 // *********************************************
 // * PLURALS
 // *********************************************
@@ -358,23 +387,6 @@ fn kebab_case_key_with_interpolation() {
 }
 
 #[test]
-fn keys_colliding_on_the_same_ident() {
-    for file in [
-        r#"{ "a-b": "dash", "a_b": "underscore" }"#,
-        r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
-    ] {
-        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
-        assert!(
-            diag.errors()
-                .iter()
-                .any(|e| matches!(e, Error::CollidingKeys { .. })),
-            "{:?}",
-            &*diag.errors()
-        );
-    }
-}
-
-#[test]
 #[ignore = "known bug: colliding variables and components emit duplicate fields"]
 fn vars_and_comps_colliding_on_the_same_ident() {
     for files in [
@@ -479,18 +491,6 @@ fn foreign_key_args_colliding_on_the_same_ident() {
     assert!(
         !diag.warnings().is_empty() || !diag.errors().is_empty(),
         "no diagnostic"
-    );
-}
-
-#[test]
-fn duplicate_key_in_file() {
-    let (_code, diag) = gen_code(&[("en", r#"{ "a": "x", "a": "y" }"#)], &[]).unwrap();
-    assert!(
-        diag.errors()
-            .iter()
-            .any(|e| matches!(e, Error::CollidingKeys { .. })),
-        "{:?}",
-        &*diag.errors()
     );
 }
 
