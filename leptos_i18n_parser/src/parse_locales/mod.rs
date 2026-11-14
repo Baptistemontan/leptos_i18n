@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, btree_map::Entry},
     path::PathBuf,
     rc::Rc,
 };
@@ -25,6 +25,7 @@ use crate::{
     parse_locales::{
         files::TranslationFiles,
         options::{Config, ParseOptions},
+        parsed_value::ParsedValue,
     },
     utils::{Key, KeyPath, Loc, Location, UnwrapAt},
 };
@@ -365,6 +366,51 @@ impl ForeignKeysPaths {
 
     pub fn into_inner(self) -> BTreeSet<Location> {
         self.0.into_inner()
+    }
+}
+
+pub fn insert_with_collision_check(
+    map: &mut BTreeMap<Key, ParsedValue>,
+    key: Key,
+    value: ParsedValue,
+    top_locale: &Key,
+    path: &KeyPath,
+    diag: &Diagnostics,
+) {
+    match map.entry(key.clone()) {
+        Entry::Vacant(vacant_entry) => {
+            vacant_entry.insert(value);
+        }
+        Entry::Occupied(occupied_entry) => {
+            // colliding keys
+            let mut current_path = path.clone();
+            current_path.path.push(key.clone());
+            match (&value, occupied_entry.get()) {
+                (ParsedValue::Plurals(p1), ParsedValue::Plurals(p2))
+                    if p1.rule_type != p2.rule_type =>
+                {
+                    diag.emit_error(Error::ConflictingPluralRuleType {
+                        loc: Location::new(top_locale.clone(), current_path),
+                    });
+                }
+                (ParsedValue::Plurals(_), _) | (_, ParsedValue::Plurals(_))
+                    if key.name == occupied_entry.key().name =>
+                {
+                    diag.emit_error(Error::PluralsAtNormalKey {
+                        loc: Location::new(top_locale.clone(), current_path),
+                    });
+                }
+                _ => {
+                    let mut path = current_path.clone();
+                    path.path.pop();
+                    path.path.push(occupied_entry.key().clone());
+                    diag.emit_error(Error::CollidingKeys {
+                        loc1: Location::new(top_locale.clone(), current_path),
+                        loc2: Location::new(top_locale.clone(), path),
+                    });
+                }
+            }
+        }
     }
 }
 

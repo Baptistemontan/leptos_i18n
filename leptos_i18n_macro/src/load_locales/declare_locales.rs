@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt::Display};
 use leptos_i18n_parser::{
     formatters::Formatters,
     parse_locales::{
-        ForeignKeysPaths, ParsedLocales,
+        self, ForeignKeysPaths, ParsedLocales,
         cfg_file::ConfigFile,
         error::Diagnostics,
         locale::{Locale, LocalesOrNamespaces},
@@ -14,7 +14,7 @@ use leptos_i18n_parser::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
     },
-    utils::{Key, KeyPath, Loc, ParseContext, key},
+    utils::{Key, KeyPath, Loc, ParseContext},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -369,7 +369,7 @@ fn parse_block_inner(
             diag,
         )?;
 
-        key::insert_with_collision_check(&mut values, key, value, locale, key_path, diag);
+        parse_locales::insert_with_collision_check(&mut values, key, value, locale, key_path, diag);
 
         if !content.is_empty() {
             content.parse::<Comma>()?;
