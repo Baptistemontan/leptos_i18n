@@ -305,16 +305,24 @@ fn duplicate_key_in_file() {
 #[test]
 #[cfg(feature = "plurals")]
 fn plural_forms_spelled_differently() {
-    for (file, colliding) in [
-        (r#"{ "a-b_one": "1", "a_b_other": "o" }"#, false),
+    // (file, colliding, spelling mismatch warning: (`other` key, key spelled differently))
+    for (file, colliding, mismatch) in [
+        (
+            r#"{ "a-b_one": "1", "a_b_other": "o" }"#,
+            false,
+            Some(("a_b_other", "a-b_one")),
+        ),
         // the duplicate `one` collides, the plural is still built whatever the order
+        // (the first `one` in the file is kept)
         (
             r#"{ "a_b_one": "x", "a-b_one": "1", "a-b_other": "o" }"#,
             true,
+            Some(("a-b_other", "a_b_one")),
         ),
         (
             r#"{ "a-b_one": "1", "a-b_other": "o", "a_b_one": "x" }"#,
             true,
+            None,
         ),
     ] {
         let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
@@ -332,6 +340,19 @@ fn plural_forms_spelled_differently() {
             "{file}: {:?}",
             &*diag.errors()
         );
+        let warnings = diag.warnings();
+        match mismatch {
+            Some((other_key, key)) => assert!(
+                matches!(
+                    &*warnings,
+                    [Warning::PluralKeySpellingMismatch { key1, key2, .. }]
+                        if key1.key_path.to_string() == other_key && key2.to_string() == key
+                ),
+                "{file}: {:?}",
+                &*warnings
+            ),
+            None => assert!(warnings.is_empty(), "{file}: {:?}", &*warnings),
+        }
     }
 }
 
