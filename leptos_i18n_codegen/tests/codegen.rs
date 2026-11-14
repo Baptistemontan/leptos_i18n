@@ -238,7 +238,6 @@ fn default_locale_cant_inherit() {
 // *********************************************
 
 #[test]
-#[ignore = "known bug: the builder ident uses the raw key name, see PR #327"]
 fn kebab_case_key_with_interpolation() {
     // panics with `"my-key_builder" is not a valid Ident`
     gen_code(&[("en", r#"{ "my-key": "hello {{ count }}" }"#)], &[]).unwrap();
@@ -289,7 +288,6 @@ fn vars_and_comps_colliding_on_the_same_ident() {
 }
 
 #[test]
-#[ignore = "known bug: integer ranges with holes emit a non-exhaustive match, see PR #327"]
 fn integer_ranges_with_holes() {
     let (code, _diag) = gen_code(
         &[("en", r#"{ "my_key": [["zero", 0], ["some", "1..=3"]] }"#)],
@@ -300,7 +298,6 @@ fn integer_ranges_with_holes() {
 }
 
 #[test]
-#[ignore = "known bug: non-finite floats panic in proc-macro2, see PR #327"]
 fn non_finite_float_values() {
     for value in [".nan", ".inf", "-.inf"] {
         let file = format!("my_key: {value}");
@@ -310,7 +307,6 @@ fn non_finite_float_values() {
 }
 
 #[test]
-#[ignore = "known bug: the namespaces `Deserialize` impl hardcodes `leptos_i18n`, see PR #327"]
 fn namespaces_with_custom_crate_path() {
     let (code, _) = gen_code_with(
         &[
