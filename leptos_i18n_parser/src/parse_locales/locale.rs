@@ -645,7 +645,19 @@ impl Locale {
                     }
                     entry.insert(ParsedValue::Default)
                 }
-                Entry::Occupied(entry) => entry.into_mut(),
+                Entry::Occupied(entry) => {
+                    if entry.key().name != key.name {
+                        let key_path = pushed_key.to_owned();
+                        let mut given_path = key_path.clone();
+                        given_path.path.pop();
+                        given_path.path.push(entry.key().clone());
+                        diag.emit_warning(Warning::KeySpellingMismatch {
+                            key_path,
+                            provided_key: Location::new(top_locale.clone(), given_path),
+                        });
+                    }
+                    entry.into_mut()
+                }
             };
             value.merge(
                 keys,
