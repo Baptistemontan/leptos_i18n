@@ -232,6 +232,149 @@ fn default_locale_cant_inherit() {
     );
 }
 
+#[test]
+fn keys_colliding_on_the_same_ident() {
+    for file in [
+        r#"{ "a-b": "dash", "a_b": "underscore" }"#,
+        r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        assert!(
+            diag.errors()
+                .iter()
+                .any(|e| matches!(e, Error::CollidingKeys { .. })),
+            "{:?}",
+            &*diag.errors()
+        );
+    }
+}
+
+#[test]
+fn duplicate_key_in_file() {
+    let (_code, diag) = gen_code(&[("en", r#"{ "a": "x", "a": "y" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::CollidingKeys { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
+}
+
+// *********************************************
+// * PLURALS
+// *********************************************
+
+#[test]
+#[cfg(feature = "plurals")]
+fn plural_forms_spelled_differently() {
+    for (file, colliding) in [
+        (r#"{ "a-b_one": "1", "a_b_other": "o" }"#, false),
+        // the duplicate `one` collides, the plural is still built whatever the order
+        (
+            r#"{ "a_b_one": "x", "a-b_one": "1", "a-b_other": "o" }"#,
+            true,
+        ),
+        (
+            r#"{ "a-b_one": "1", "a-b_other": "o", "a_b_one": "x" }"#,
+            true,
+        ),
+    ] {
+        let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        assert_eq!(code.matches("fn a_b (").count(), 1, "{file}");
+        assert!(!code.contains("fn a_b_one"), "{file}");
+        assert!(!code.contains("fn a_b_other"), "{file}");
+        let collisions = diag
+            .errors()
+            .iter()
+            .filter(|e| matches!(e, Error::CollidingKeys { .. }))
+            .count();
+        assert_eq!(
+            collisions,
+            usize::from(colliding),
+            "{file}: {:?}",
+            &*diag.errors()
+        );
+    }
+}
+
+#[test]
+fn plural_with_invalid_base_is_a_normal_key() {
+    for (file, keys) in [
+        (r#"{ "_one": "1", "_other": "o" }"#, ["_one", "_other"]),
+        (
+            r#"{ "_ordinal_one": "1", "_ordinal_other": "o" }"#,
+            ["_ordinal_one", "_ordinal_other"],
+        ),
+        (
+            r#"{ "type_one": "1", "type_other": "o" }"#,
+            ["type_one", "type_other"],
+        ),
+    ] {
+        let (code, _diag) = gen_code(&[("en", file)], &[]).unwrap();
+        for key in keys {
+            assert!(code.contains(&format!("fn {key} (")), "{file}: {key}");
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "plurals")]
+fn cardinal_and_ordinal_plurals_conflict() {
+    for (file, path) in [
+        (
+            r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_one": "o1", "count_ordinal_other": "o" }"#,
+            "count",
+        ),
+        (
+            r#"{ "sub": { "count_one": "c1", "count_other": "c", "count_ordinal_one": "o1", "count_ordinal_other": "o" } }"#,
+            "sub.count",
+        ),
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let errors = diag.errors();
+        assert!(
+            matches!(&*errors, [Error::ConflictingPluralRuleType { loc }] if loc.key_path.to_string() == path),
+            "{file}: {:?}",
+            &*errors
+        );
+    }
+}
+
+#[test]
+#[cfg(feature = "plurals")]
+fn cardinal_plural_and_single_ordinal_form() {
+    // the lone ordinal form is a normal key, like any single-form group
+    let file = r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_other": "o" }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert!(diag.errors().is_empty(), "{:?}", &*diag.errors());
+    assert_eq!(code.matches("fn count (").count(), 1);
+    assert_eq!(code.matches("fn count_ordinal_other (").count(), 1);
+}
+
+#[test]
+#[cfg(feature = "plurals")]
+fn plurals_at_normal_key() {
+    for (file, path) in [
+        (
+            r#"{ "count": "n", "count_one": "c1", "count_other": "c" }"#,
+            "count",
+        ),
+        (
+            r#"{ "sub": { "count": "n", "count_one": "c1", "count_other": "c" } }"#,
+            "sub.count",
+        ),
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let errors = diag.errors();
+        assert!(
+            matches!(&*errors, [Error::PluralsAtNormalKey { loc }] if loc.key_path.to_string() == path),
+            "{file}: {:?}",
+            &*errors
+        );
+    }
+}
+
 // *********************************************
 // * KNOWN BUGS
 // * see https://github.com/Baptistemontan/leptos_i18n/pull/327
@@ -241,19 +384,6 @@ fn default_locale_cant_inherit() {
 fn kebab_case_key_with_interpolation() {
     // panics with `"my-key_builder" is not a valid Ident`
     gen_code(&[("en", r#"{ "my-key": "hello {{ count }}" }"#)], &[]).unwrap();
-}
-
-#[test]
-#[ignore = "known bug: colliding keys emit duplicate definitions, see PR #327"]
-fn keys_colliding_on_the_same_ident() {
-    for file in [
-        r#"{ "a-b": "dash", "a_b": "underscore" }"#,
-        r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
-    ] {
-        let (code, _diag) = gen_code(&[("en", file)], &[]).unwrap();
-        assert_eq!(code.matches("fn a_b (").count(), 1, "{file}");
-        // Expected behavior: diag should contain some kind of "Duplicate key" error
-    }
 }
 
 #[test]
@@ -322,4 +452,85 @@ fn namespaces_with_custom_crate_path() {
         !code.contains("leptos_i18n ::"),
         "found a hardcoded `leptos_i18n` path"
     );
+}
+
+// *********************************************
+// * SILENT OVERWRITES AND PANICS
+// * see TODO.md
+// *********************************************
+
+#[test]
+#[ignore = "known bug: keys spelled differently across locales merge without any diagnostic"]
+fn key_spelled_differently_across_locales() {
+    let (_code, diag) = gen_code(
+        &[("en", r#"{ "a-b": "en" }"#), ("fr", r#"{ "a_b": "fr" }"#)],
+        &[],
+    )
+    .unwrap();
+    // Expected behavior: it's the same key, and diag should contain some kind of warning (or error, to decide)
+    // that it's spelled differently
+    assert!(
+        !diag.warnings().is_empty() || !diag.errors().is_empty(),
+        "no diagnostic"
+    );
+}
+
+#[test]
+#[ignore = "known bug: colliding foreign key arguments overwrite each other without any diagnostic"]
+fn foreign_key_args_colliding_on_the_same_ident() {
+    let (_code, diag) = gen_code(
+        &[(
+            "en",
+            r#"{ "a": "{{ a-b }}", "b": "$t(a, {\"a-b\": \"1\", \"a_b\": \"2\"})" }"#,
+        )],
+        &[],
+    )
+    .unwrap();
+    // Expected behavior: diag should contain some kind of warning that equivalent arguments have different
+    // raw identifiers
+    assert!(
+        !diag.warnings().is_empty() || !diag.errors().is_empty(),
+        "no diagnostic"
+    );
+}
+
+/// The translation files don't match the config: parsing must return an error.
+fn assert_files_error(files: &TranslationFiles, cfg: Config) {
+    let cfg = cfg.translations_uri("test");
+    assert!(parse_locales_with_files(files, cfg).is_err());
+}
+
+#[test]
+#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
+fn missing_locale_file() {
+    let files = new_files(&[(None, &[("en", "{}")])]);
+    let cfg = Config::new("en").unwrap().add_locale("fr").unwrap();
+    assert_files_error(&files, cfg);
+}
+
+#[test]
+#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
+fn missing_namespace_files() {
+    let files = new_files(&[(Some("first"), &[("en", "{}")])]);
+    let cfg = Config::new("en")
+        .unwrap()
+        .add_namespaces(["first", "second"])
+        .unwrap();
+    assert_files_error(&files, cfg);
+}
+
+#[test]
+#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
+fn files_per_locale_with_namespaces_in_config() {
+    let files = new_files(&[(None, &[("en", "{}")])]);
+    let cfg = Config::new("en").unwrap().add_namespace("first").unwrap();
+    assert_files_error(&files, cfg);
+}
+
+#[test]
+#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
+fn files_per_namespace_without_namespaces_in_config() {
+    let files = new_files(&[(Some("first"), &[("en", "{}")])]);
+    let cfg = Config::new("en").unwrap();
+    assert_files_error(&files, cfg);
 }

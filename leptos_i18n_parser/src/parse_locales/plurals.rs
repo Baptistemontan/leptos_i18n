@@ -32,7 +32,7 @@ pub struct Plurals {
     pub forms: BTreeMap<PluralForm, ParsedValue>,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PluralRuleType {
     Cardinal,
     Ordinal,

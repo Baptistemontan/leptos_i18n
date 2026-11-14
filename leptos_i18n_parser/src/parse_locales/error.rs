@@ -61,6 +61,10 @@ pub enum Error {
         type2: RangeType,
     },
     InvalidKey(String),
+    CollidingKeys {
+        loc1: Location,
+        loc2: Location,
+    },
     EmptyRange,
     InvalidRangeType(String),
     NestedRanges,
@@ -396,6 +400,14 @@ impl Display for Error {
                 write!(
                     f,
                     "Tried to declare inheritance for the default locale at {loc}"
+                )
+            }
+            Error::CollidingKeys { loc1, loc2 } => {
+                // both locations are always in the same locale
+                write!(
+                    f,
+                    "Colliding keys \"{}\" and \"{}\" in locale {:?}: they resolve to the same Rust identifier.",
+                    loc1.key_path, loc2.key_path, loc1.locale
                 )
             }
         }

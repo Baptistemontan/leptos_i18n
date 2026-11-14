@@ -496,20 +496,24 @@ impl Locale {
         }
     }
 
-    pub fn is_possible_plural<'a>(
-        key: &'a Key,
+    pub fn is_possible_plural(
+        key: &Key,
         value: &ParsedValue,
-    ) -> Option<(&'a str, PluralRuleType, PluralForm)> {
+    ) -> Option<(Key, PluralRuleType, PluralForm)> {
         if matches!(value, ParsedValue::Ranges(_) | ParsedValue::Subkeys(_)) {
             return None;
         }
+        // split on the raw name: only a literal `_` introduces a plural suffix (`a-one` is not a plural)
         let (base_key, suffix) = key.name.rsplit_once('_')?;
         let (base_key, rule_type) = match base_key.strip_suffix("_ordinal") {
             Some(base_key) => (base_key, PluralRuleType::Ordinal),
             None => (base_key, PluralRuleType::Cardinal),
         };
 
-        PluralForm::try_from_str(suffix).map(|form| (base_key, rule_type, form))
+        let form = PluralForm::try_from_str(suffix)?;
+        // a base that isn't a valid identifier (empty, a keyword, ...) can't be a plural: keep it as a normal key
+        let base_key = Key::new(base_key)?;
+        Some((base_key, rule_type, form))
     }
 
     pub fn merge_plurals(
@@ -520,10 +524,11 @@ impl Locale {
     ) -> Result<()> {
         let keys = std::mem::take(&mut self.keys);
         #[allow(clippy::type_complexity)]
-        let mut possible_plurals: BTreeMap<
-            String,
-            BTreeMap<PluralForm, (Key, PluralRuleType, ParsedValue)>,
-        > = BTreeMap::new();
+        // grouped by `Key`, so by the normalized base: `a-b_one` and `a_b_other` are the same plural,
+        // displayed with the spelling of the first key of the group.
+        type Forms = BTreeMap<PluralForm, (Key, ParsedValue)>;
+        // (cardinal, ordinal)
+        let mut possible_plurals: BTreeMap<Key, (Forms, Forms)> = BTreeMap::new();
         for (key, mut value) in keys {
             if let ParsedValue::Subkeys(Some(subkeys)) = &mut value {
                 let mut pushed_key = key_path.push_key(key.clone());
@@ -531,66 +536,87 @@ impl Locale {
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
-                let map = possible_plurals.entry(base_key.to_owned()).or_default();
-                map.insert(plural_form, (key, rule_type, value));
+                let map = possible_plurals.entry(base_key).or_default();
+                let map = match rule_type {
+                    PluralRuleType::Cardinal => &mut map.0,
+                    PluralRuleType::Ordinal => &mut map.1,
+                };
+                map.insert(plural_form, (key, value));
             } else {
-                self.keys.insert(key, value);
+                super::insert_with_collision_check(
+                    &mut self.keys,
+                    key,
+                    value,
+                    locale,
+                    key_path,
+                    diag,
+                );
             }
         }
-        for (base_key, mut plurals) in possible_plurals {
-            if plurals.len() == 1 {
-                for (_, (key, _, value)) in plurals {
-                    self.keys.insert(key, value);
-                }
-                continue;
-            }
-            let Some((_, rule_type, other)) = plurals.remove(&PluralForm::Other) else {
-                for (_, (key, _, value)) in plurals {
-                    self.keys.insert(key, value);
-                }
-                continue;
-            };
-            let key = Key::new(&base_key).unwrap_at("merge_plurals_1");
-            let pushed_key = key_path.push_key(key);
-            if !cfg!(feature = "plurals") {
-                return Err(Error::DisabledPlurals {
-                    loc: Location::new(locale.clone(), pushed_key.clone()),
-                }
-                .into());
-            }
-
-            let forms = plurals
-                .into_iter()
-                .map(|(form, (_, rule, value))| {
-                    if rule == rule_type {
-                        Ok((form, value))
-                    } else {
-                        Err(Error::ConflictingPluralRuleType {
-                            loc: Location::new(locale.clone(), pushed_key.clone()),
-                        }
-                        .into())
+        for (base_key, (cardinal, ordinal)) in possible_plurals {
+            for (rule_type, mut plurals) in [
+                (PluralRuleType::Cardinal, cardinal),
+                (PluralRuleType::Ordinal, ordinal),
+            ] {
+                if plurals.len() == 1 {
+                    for (_, (key, value)) in plurals {
+                        super::insert_with_collision_check(
+                            &mut self.keys,
+                            key,
+                            value,
+                            locale,
+                            key_path,
+                            diag,
+                        );
                     }
-                })
-                .collect::<Result<BTreeMap<_, _>>>()?;
-            let plural = Plurals {
-                rule_type,
-                forms,
-                count_key: Key::count(),
-                other: Box::new(other),
-            };
-            let loc = Loc {
-                locale,
-                key_path: &pushed_key,
-            };
-            plural.check_forms(&loc, diag)?;
-            let value = ParsedValue::Plurals(plural);
-            let key = pushed_key.pop().unwrap_at("merge_plurals_3");
-            if self.keys.insert(key.clone(), value).is_some() {
-                let pushed_key = key_path.push_key(key);
-                return Err(Error::PluralsAtNormalKey {
-                    loc: Location::new(locale.clone(), pushed_key.clone()),
+                    continue;
                 }
-                .into());
+                let Some((_, other)) = plurals.remove(&PluralForm::Other) else {
+                    for (_, (key, value)) in plurals {
+                        super::insert_with_collision_check(
+                            &mut self.keys,
+                            key,
+                            value,
+                            locale,
+                            key_path,
+                            diag,
+                        );
+                    }
+                    continue;
+                };
+                let pushed_key = key_path.push_key(base_key.clone());
+                if !cfg!(feature = "plurals") {
+                    return Err(Error::DisabledPlurals {
+                        loc: Location::new(locale.clone(), pushed_key.clone()),
+                    }
+                    .into());
+                }
+
+                let forms = plurals
+                    .into_iter()
+                    .map(|(form, (_, value))| (form, value))
+                    .collect::<BTreeMap<_, _>>();
+                let plural = Plurals {
+                    rule_type,
+                    forms,
+                    count_key: Key::count(),
+                    other: Box::new(other),
+                };
+                let loc = Loc {
+                    locale,
+                    key_path: &pushed_key,
+                };
+                plural.check_forms(&loc, diag)?;
+                let value = ParsedValue::Plurals(plural);
+                let key = pushed_key.pop().unwrap_at("merge_plurals_3");
+                super::insert_with_collision_check(
+                    &mut self.keys,
+                    key,
+                    value,
+                    locale,
+                    key_path,
+                    diag,
+                );
             }
         }
 
@@ -721,7 +747,15 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
                 diag: self.diag,
                 formatters: self.formatters,
             })?;
-            keys.insert(locale_key, value);
+            drop(pushed_key);
+            super::insert_with_collision_check(
+                &mut keys,
+                locale_key,
+                value,
+                &self.top_locale_name,
+                &self.key_path,
+                self.diag,
+            );
         }
 
         Ok(keys)
