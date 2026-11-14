@@ -289,6 +289,63 @@ fn plural_with_invalid_base_is_a_normal_key() {
     }
 }
 
+#[test]
+#[cfg(feature = "plurals")]
+fn cardinal_and_ordinal_plurals_conflict() {
+    for (file, path) in [
+        (
+            r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_one": "o1", "count_ordinal_other": "o" }"#,
+            "count",
+        ),
+        (
+            r#"{ "sub": { "count_one": "c1", "count_other": "c", "count_ordinal_one": "o1", "count_ordinal_other": "o" } }"#,
+            "sub.count",
+        ),
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let errors = diag.errors();
+        assert!(
+            matches!(&*errors, [Error::ConflictingPluralRuleType { loc }] if loc.key_path.to_string() == path),
+            "{file}: {:?}",
+            &*errors
+        );
+    }
+}
+
+#[test]
+#[cfg(feature = "plurals")]
+fn cardinal_plural_and_single_ordinal_form() {
+    // the lone ordinal form is a normal key, like any single-form group
+    let file = r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_other": "o" }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert!(diag.errors().is_empty(), "{:?}", &*diag.errors());
+    assert_eq!(code.matches("fn count (").count(), 1);
+    assert_eq!(code.matches("fn count_ordinal_other (").count(), 1);
+}
+
+#[test]
+#[cfg(feature = "plurals")]
+fn plurals_at_normal_key() {
+    for (file, path) in [
+        (
+            r#"{ "count": "n", "count_one": "c1", "count_other": "c" }"#,
+            "count",
+        ),
+        (
+            r#"{ "sub": { "count": "n", "count_one": "c1", "count_other": "c" } }"#,
+            "sub.count",
+        ),
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let errors = diag.errors();
+        assert!(
+            matches!(&*errors, [Error::PluralsAtNormalKey { loc }] if loc.key_path.to_string() == path),
+            "{file}: {:?}",
+            &*errors
+        );
+    }
+}
+
 // *********************************************
 // * KNOWN BUGS
 // * see https://github.com/Baptistemontan/leptos_i18n/pull/327
@@ -389,23 +446,6 @@ fn namespaces_with_custom_crate_path() {
 // * SILENT OVERWRITES AND PANICS
 // * see TODO.md
 // *********************************************
-
-#[test]
-#[cfg(feature = "plurals")]
-#[ignore = "known bug: a cardinal and an ordinal form can silently overwrite each other"]
-fn cardinal_and_ordinal_plurals_conflict() {
-    for file in [
-        // the ordinal `other` is overwritten by the cardinal one, and nothing is reported
-        r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_other": "o" }"#,
-        r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_one": "o1", "count_ordinal_other": "o" }"#,
-    ] {
-        let err = gen_err(&[("en", file)], &[]);
-        assert!(
-            matches!(err, Error::ConflictingPluralRuleType { .. }),
-            "{file}: {err:?}"
-        );
-    }
-}
 
 #[test]
 #[ignore = "known bug: keys spelled differently across locales merge without any diagnostic"]
