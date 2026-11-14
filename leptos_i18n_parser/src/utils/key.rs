@@ -13,8 +13,13 @@ use super::UnwrapAt;
 
 #[derive(Clone)]
 pub struct Key {
+    /// The raw name, as written in the translations (e.g. `"my-key"`), used for display.
     pub name: Rc<str>,
     pub ident: Rc<syn::Ident>,
+    /// The string `ident` is built from (e.g. `"my_key"`).
+    ///
+    /// `Hash`, `Eq` and `Ord` are based on it: two keys resolving to the same Rust identifier are the same key.
+    pub ident_repr: Rc<str>,
 }
 
 impl Key {
@@ -25,6 +30,7 @@ impl Key {
         Some(Key {
             name: Rc::from(name),
             ident: Rc::new(ident),
+            ident_repr: Rc::from(ident_repr),
         })
     }
 
@@ -33,10 +39,11 @@ impl Key {
     }
 
     pub fn from_ident(ident: syn::Ident) -> Self {
-        let s = ident.to_string();
+        let s: Rc<str> = Rc::from(ident.to_string());
         Key {
             ident: Rc::new(ident),
-            name: Rc::from(s.as_str()),
+            name: s.clone(),
+            ident_repr: s,
         }
     }
 
@@ -59,13 +66,13 @@ impl Debug for Key {
 
 impl Hash for Key {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
+        self.ident_repr.hash(state);
     }
 }
 
 impl PartialEq for Key {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
+        self.ident_repr == other.ident_repr
     }
 }
 
@@ -79,7 +86,7 @@ impl PartialOrd for Key {
 
 impl Ord for Key {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name.cmp(&other.name)
+        self.ident_repr.cmp(&other.ident_repr)
     }
 }
 
