@@ -244,15 +244,19 @@ fn kebab_case_key_with_interpolation() {
 }
 
 #[test]
-#[ignore = "known bug: colliding keys emit duplicate definitions, see PR #327"]
 fn keys_colliding_on_the_same_ident() {
     for file in [
         r#"{ "a-b": "dash", "a_b": "underscore" }"#,
         r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
     ] {
-        let (code, _diag) = gen_code(&[("en", file)], &[]).unwrap();
-        assert_eq!(code.matches("fn a_b (").count(), 1, "{file}");
-        // Expected behavior: diag should contain some kind of "Duplicate key" error
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        assert!(
+            diag.errors()
+                .iter()
+                .any(|e| matches!(e, Error::CollidingKeys { .. })),
+            "{:?}",
+            &*diag.errors()
+        );
     }
 }
 
@@ -382,12 +386,14 @@ fn foreign_key_args_colliding_on_the_same_ident() {
 }
 
 #[test]
-#[ignore = "to decide: duplicate keys in a file are accepted silently, the last one wins"]
 fn duplicate_key_in_file() {
     let (_code, diag) = gen_code(&[("en", r#"{ "a": "x", "a": "y" }"#)], &[]).unwrap();
     assert!(
-        !diag.warnings().is_empty() || !diag.errors().is_empty(),
-        "no diagnostic"
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::CollidingKeys { .. })),
+        "{:?}",
+        &*diag.errors()
     );
 }
 
