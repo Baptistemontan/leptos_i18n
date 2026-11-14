@@ -67,7 +67,6 @@ There are more optional values you can supply:
 
 - `add_namespace`: This is to split your translations into multiple files, we will cover it in a later chapter
 - `locales_path`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
-- `translations_uri`: Used in a CSR application with the `dynamic_load` feature, more information in a later chapter.
 - `extend_locale`: Allows you to describe the inheritance structure for locales, covered in a later chapter.
 - `parse_options`: Parsing options, covered in the next segment
 
@@ -78,11 +77,14 @@ Once this configuration is done, you can start writing your translations.
 `Config` can take some options as an argument, for now we use the default but you can import the `ParseOptions` struct to tell the parser what to expect and produce, here we change the file format to `yaml`:
 
 ```rust, ignore
-use leptos_i18n_build::{FileFormat, ParseOptions, TranslationsInfos};
+use leptos_i18n_build::{
+    options::{FileFormat, ParseOptions},
+    Config, TranslationsInfos,
+};
 use std::path::PathBuf;
 use std::error::Error;
 
-fn main() -> Resul<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=Cargo.toml");
 
@@ -104,20 +106,16 @@ fn main() -> Resul<(), Box<dyn Error>> {
 }
 ```
 
-There are other options:
+There is another option:
 
 - `suppress_key_warnings`: remove warnings emitted by missing keys or surplus keys
-- `interpolate_display`: generates extra code for each interpolation to allow rendering them as a string instead of a `View`
-- `show_keys_only`: This feature makes every translation display only its corresponding key; this is useful for tracking untranslated strings in your application.
 
 example:
 
 ```rust, ignore
 let options = ParseOptions::default()
   .file_format(FileFormat::Json5)
-  .suppress_key_warnings(true)
-  .interpolate_display(true)
-  .show_keys_only(true);
+  .suppress_key_warnings(true);
 ```
 
 There is also a way to inject your own formatter, this needs its own chapter, which you can find in an appendix.
@@ -129,20 +127,26 @@ There is also a way to inject your own formatter, this needs its own chapter, wh
 - Add some top level attributes for the generated module
 - Customize the name of the generated file
 - Generate doc comments on different items to see available namespaces, keys, subkeys, or args required for interpolations
+- `interpolate_display`: generate extra code for each interpolation to allow rendering them as a string instead of a `View`
+- `show_keys_only`: make every translation display only its corresponding key; this is useful for tracking untranslated strings in your application
+- `translations_uri`: used in a CSR application with the `dynamic_load` feature, more information in a later chapter
+- `crate_path`: the path to `leptos_i18n`, if it isn't a direct dependency and is behind a re-export
 
 example:
 
 ```rust, ignore
-use leptos_i18n_build::CodegenOptions;
+use leptos_i18n_build::options::CodegenOptions;
 
 let attributes = "#![allow(missing_docs)]".parse()?;
 
 let options = CodegenOptions::default()
   .top_level_attributes(Some(attributes))
   .module_file_name("i18n.rs") // "mod.rs" by default
-  .gen_docs(true); // `true` by default
+  .gen_docs(true) // `true` by default
+  .interpolate_display(true)
+  .show_keys_only(true);
 
-translations_infos.generate_i18n_module_with_options(options)?;
+translations_infos.generate_i18n_module_with_options(i18n_mod_directory, options)?;
 ```
 
 The later (`gen_docs`) is purely for UX ergonomics, disable it if you don't use intellisense or for CI runs

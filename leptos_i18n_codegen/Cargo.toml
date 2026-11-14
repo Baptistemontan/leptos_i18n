@@ -14,7 +14,7 @@ readme = "../README.md"
 [dependencies]
 proc-macro2 = { workspace = true, default-features = true }
 quote = { workspace = true, default-features = true }
-syn = { workspace = true, default-features = true }
+syn = { workspace = true, default-features = true, features = ["extra-traits"] }
 icu_locale = { workspace = true, features = [
   "compiled_data",
 ], default-features = false }

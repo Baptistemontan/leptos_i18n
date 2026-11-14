@@ -3,7 +3,7 @@
 The `td_string!` macro is used for interpolations outside the context of rendering views. It lets you provide different kinds of values and returns either a `&'static str` or a `String` depending on the value of the key.
 If the value is a plain string or boolean, it returns a `&'static str`. If it's an interpolation or a number, it returns a `String`.
 
-This requires the `interpolate_display` feature to be enabled to work with interpolations.
+This requires the `interpolate_display` codegen option (`CodegenOptions::interpolate_display`) to be enabled to work with interpolations.
 
 It enables you to do this:
 

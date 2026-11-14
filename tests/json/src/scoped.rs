@@ -14,7 +14,7 @@ fn subkey_3() {
 
 #[test]
 fn define_scope_subkey_3() {
-    type SubkeysScope = define_scope!(crate::i18n, subkeys);
+    type SubkeysScope = define_scope!(Locale, subkeys);
 
     let en_scope = Locale::en.scope::<SubkeysScope>();
     let fr_scope = Locale::fr.scope::<SubkeysScope>();

@@ -4,14 +4,13 @@
 
 use std::{borrow::Cow, mem};
 
-use leptos_i18n_parser::parse_locales::{
-    error::{Diagnostics, Error, Warning},
-    files::{LocaleFiles, TranslationFiles},
+use leptos_i18n_codegen::CodegenOptions;
+use leptos_i18n_parser::{
+    error::{Diagnostics, Error, Result, Warning},
+    extraction::extract_locales,
     options::{Config, FileFormat, ParseOptions},
-    parse_locales_with_files,
+    parsing::{LocaleFiles, RawParsedLocales, TranslationFiles, parse_locales_raw_with_files},
 };
-
-use leptos_i18n_parser::parse_locales::error::Result;
 
 /// `(locale, file content)` pairs.
 type Files<'a> = [(&'a str, &'a str)];
@@ -50,7 +49,6 @@ fn gen_code_with(
     let t_files = new_files(namespaces);
     let mut cfg = Config::new(locales[0].0)?
         .add_locales(locales.iter().skip(1).map(|l| l.0))?
-        .translations_uri("test")
         .parse_options(ParseOptions::default().file_format(file_format));
     if namespaces[0].0.is_some() {
         cfg = cfg.add_namespaces(namespaces.iter().map(|(ns, _)| ns.unwrap()))?;
@@ -59,11 +57,18 @@ fn gen_code_with(
     for (l1, l2) in extensions {
         cfg = cfg.extend_locale(l1, l2)?;
     }
-    let mut parsed_locales = parse_locales_with_files(&t_files, cfg)?;
+    let RawParsedLocales {
+        values,
+        diag,
+        tracked_files: _,
+    } = parse_locales_raw_with_files(&t_files, &cfg)?;
+    let mut parsed_locales = extract_locales(values, &cfg, Some(diag))?;
     let diag = mem::take(&mut parsed_locales.diag);
     let crate_path = crate_path.map(|p| syn::parse_str::<syn::Path>(p).unwrap());
-    let code =
-        leptos_i18n_codegen::gen_code(&parsed_locales, crate_path.as_ref(), true, None, false)?;
+    let options = CodegenOptions::default()
+        .translations_uri("test")
+        .crate_path(crate_path.as_ref());
+    let code = leptos_i18n_codegen::gen_code(&parsed_locales, options, &cfg)?;
     Ok((code.to_string(), diag))
 }
 
@@ -111,7 +116,7 @@ fn warn_on_surplus_key() {
         .iter()
         .any(|w| matches!(w, Warning::SurplusKey { .. }));
 
-    assert!(has_surplus);
+    assert!(has_surplus, "{:?}", &*diag.warnings());
 }
 
 #[test]
@@ -127,7 +132,7 @@ fn suppress_missing_key_on_inherit() {
         .iter()
         .any(|w| matches!(w, Warning::MissingKey { .. }));
 
-    assert!(!has_surplus);
+    assert!(!has_surplus, "{:?}", &*diag.warnings());
 }
 
 // *********************************************
@@ -165,20 +170,33 @@ fn keys_must_be_rust_identifiers() {
 
 #[test]
 fn null_value_in_default_locale() {
-    let err = gen_err(&[("en", r#"{ "my_key": null }"#)], &[]);
-    assert!(matches!(err, Error::ExplicitDefaultInDefault(_)), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "my_key": null }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::ExplicitDefaultInDefault(_))),
+        "{:?}",
+        &*diag.errors()
+    )
 }
 
 #[test]
 fn subkey_and_value_mismatch() {
-    let err = gen_err(
+    let (_code, diag) = gen_code(
         &[
             ("en", r#"{ "my_key": "value" }"#),
             ("fr", r#"{ "my_key": { "sub": "value" } }"#),
         ],
         &[],
+    )
+    .unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::SubKeyMissmatch { .. })),
+        "{:?}",
+        &*diag.errors()
     );
-    assert!(matches!(err, Error::SubKeyMissmatch { .. }), "{err:?}");
 }
 
 #[test]
@@ -194,24 +212,42 @@ fn unknown_formatter() {
 }
 
 #[test]
-fn missing_foreign_key() {
-    let err = gen_err(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]);
-    assert!(matches!(err, Error::MissingForeignKey { .. }), "{err:?}");
+fn invalid_foreign_key() {
+    let (_code, diag) = gen_code(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::InvalidForeignKey { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
 }
 
 #[test]
 fn recursive_foreign_keys() {
-    let err = gen_err(&[("en", r#"{ "a": "$t(b)", "b": "$t(a)" }"#)], &[]);
-    assert!(matches!(err, Error::RecursiveForeignKey { .. }), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "a": "$t(b)", "b": "$t(a)" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::RecursiveForeignKey { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
 
-    let err = gen_err(&[("en", r#"{ "a": "$t(a)" }"#)], &[]);
-    assert!(matches!(err, Error::RecursiveForeignKey { .. }), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "a": "$t(a)" }"#)], &[]).unwrap();
+    assert!(
+        diag.errors()
+            .iter()
+            .any(|e| matches!(e, Error::RecursiveForeignKey { .. })),
+        "{:?}",
+        &*diag.errors()
+    );
 }
 
 #[test]
 fn invalid_locale_name() {
     let err = gen_err(&[("en", "{}"), ("not a locale", "{}")], &[]);
-    assert!(matches!(err, Error::InvalidKey(_)), "{err:?}");
+    assert!(matches!(err, Error::InvalidLocale { .. }), "{err:?}");
 }
 
 #[test]
@@ -238,7 +274,6 @@ fn default_locale_cant_inherit() {
 // *********************************************
 
 #[test]
-#[ignore = "known bug: the builder ident uses the raw key name, see PR #327"]
 fn kebab_case_key_with_interpolation() {
     // panics with `"my-key_builder" is not a valid Ident`
     gen_code(&[("en", r#"{ "my-key": "hello {{ count }}" }"#)], &[]).unwrap();
@@ -260,6 +295,18 @@ fn keys_colliding_on_the_same_ident() {
 #[test]
 #[ignore = "known bug: colliding variables and components emit duplicate fields"]
 fn vars_and_comps_colliding_on_the_same_ident() {
+    // The generated code mentions a variable/component name several times (builder methods, ...),
+    // so compare with the code generated for the same files without the collision.
+    fn count_without_collision(files: &Files, pattern: &str) -> usize {
+        let files: Vec<(&str, String)> = files
+            .iter()
+            .map(|(locale, file)| (*locale, file.replace("a-b", "a_b")))
+            .collect();
+        let files: Vec<(&str, &str)> = files.iter().map(|(l, f)| (*l, f.as_str())).collect();
+        let (code, _diag) = gen_code(&files, &[]).unwrap();
+        code.matches(pattern).count()
+    }
+
     for files in [
         &[("en", r#"{ "k": "{{ a-b }} {{ a_b }}" }"#)][..],
         &[
@@ -268,7 +315,11 @@ fn vars_and_comps_colliding_on_the_same_ident() {
         ],
     ] {
         let (code, _diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("var_a_b :").count(),
+            count_without_collision(files, "var_a_b :"),
+            "{files:?}"
+        );
         // Expected behavior: a single variable, and diag should contain some kind of warning
         // that equivalent variables have different raw identifiers
     }
@@ -282,21 +333,14 @@ fn vars_and_comps_colliding_on_the_same_ident() {
         ],
     ] {
         let (code, _diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("comp_a_b :").count(),
+            count_without_collision(files, "comp_a_b :"),
+            "{files:?}"
+        );
         // Expected behavior: a single component, and diag should contain some kind of warning
         // that equivalent components have different raw identifiers
     }
-}
-
-#[test]
-#[ignore = "known bug: integer ranges with holes emit a non-exhaustive match, see PR #327"]
-fn integer_ranges_with_holes() {
-    let (code, _diag) = gen_code(
-        &[("en", r#"{ "my_key": [["zero", 0], ["some", "1..=3"]] }"#)],
-        &[],
-    )
-    .unwrap();
-    assert!(code.contains("compile_error"));
 }
 
 #[test]
@@ -310,7 +354,6 @@ fn non_finite_float_values() {
 }
 
 #[test]
-#[ignore = "known bug: the namespaces `Deserialize` impl hardcodes `leptos_i18n`, see PR #327"]
 fn namespaces_with_custom_crate_path() {
     let (code, _) = gen_code_with(
         &[

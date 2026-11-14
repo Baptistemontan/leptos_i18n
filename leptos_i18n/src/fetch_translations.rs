@@ -2,14 +2,14 @@
 
 use std::fmt::Debug;
 
-use crate::Locale;
+use crate::locale_traits::BaseLocale;
 
 #[cfg(feature = "dynamic_load")]
 pub use async_once_cell::OnceCell;
 
 pub trait TranslationUnit: Sized {
-    type Locale: Locale;
-    const ID: <Self::Locale as Locale>::TranslationUnitId;
+    type Locale: BaseLocale;
+    const ID: <Self::Locale as BaseLocale>::TranslationUnitId;
     const LOCALE: Self::Locale;
     type Strings: StringArray;
     #[cfg(not(all(feature = "dynamic_load", not(feature = "ssr"))))]
@@ -23,7 +23,7 @@ pub trait TranslationUnit: Sized {
     -> impl std::future::Future<Output = &'static Self::Strings> + Send + Sync + 'static {
         let string_lock = Self::get_strings_lock();
         let fut = string_lock.get_or_init(async {
-            let translations = Locale::request_translations(Self::LOCALE, Self::ID)
+            let translations = BaseLocale::request_translations(Self::LOCALE, Self::ID)
                 .await
                 .unwrap();
             StringArray::cast(translations.0)
@@ -143,9 +143,9 @@ mod register {
     type RegisterCtxMap<L, Id> = HashMap<(L, Id), &'static [&'static str]>;
 
     #[derive(Clone)]
-    pub struct RegisterCtx<L: Locale>(Arc<Mutex<RegisterCtxMap<L, L::TranslationUnitId>>>);
+    pub struct RegisterCtx<L: BaseLocale>(Arc<Mutex<RegisterCtxMap<L, L::TranslationUnitId>>>);
 
-    impl<L: Locale> RegisterCtx<L> {
+    impl<L: BaseLocale> RegisterCtx<L> {
         pub fn provide_context() -> Self {
             let inner = Arc::new(Mutex::new(HashMap::new()));
             provide_context(RegisterCtx(inner.clone()));
@@ -192,7 +192,7 @@ mod register {
 pub use register::RegisterCtx;
 
 #[cfg(all(feature = "dynamic_load", feature = "hydrate"))]
-pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
+pub fn init_translations<L: BaseLocale>() -> impl leptos::IntoView {
     use crate::locale_traits::TranslationUnitId;
     use leptos::{html::InnerHtmlAttribute, view, web_sys};
     use wasm_bindgen::UnwrapThrowExt;
@@ -224,18 +224,18 @@ pub fn init_translations<L: Locale>() -> impl leptos::IntoView {
     let json = {
         let entries: Vec<TranslationOut<'_>> = translations
             .iter()
-            .map(|TranslationIn { locale, id, values }| {
-                L::init_translations(*locale, *id, values.clone());
-
-                TranslationOut {
-                    locale: locale.as_str(),
-                    id: id.to_str(),
-                    values,
-                }
+            .map(|TranslationIn { locale, id, values }| TranslationOut {
+                locale: locale.as_str(),
+                id: id.to_str(),
+                values,
             })
             .collect();
         serde_json::to_string(&entries).unwrap_throw()
     };
+
+    for TranslationIn { locale, id, values } in translations {
+        L::init_translations(locale, id, values);
+    }
 
     let mut buf = String::with_capacity(JS_PREFIX.len() + json.len() + 1);
     buf.push_str(JS_PREFIX);
