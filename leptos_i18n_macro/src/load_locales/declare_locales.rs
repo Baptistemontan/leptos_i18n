@@ -14,7 +14,7 @@ use leptos_i18n_parser::{
             ParseRanges, Range, RangeNumber, Ranges, RangesInner, TypeOrRange, UntypedRangesInner,
         },
     },
-    utils::{Key, KeyPath, Loc, ParseContext},
+    utils::{Key, KeyPath, Loc, ParseContext, key},
 };
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -36,11 +36,11 @@ fn declare_locales_inner(tokens: TokenStream) -> TokenStream {
         crate_path,
         foreign_keys_paths,
         interpolate_display,
+        diag,
     } = match syn::parse2::<ParsedInput>(tokens) {
         Ok(input) => input,
         Err(err) => return err.into_compile_error(),
     };
-    let diag = Diagnostics::new();
 
     let mut cfg: Config = cfg_file.into();
 
@@ -75,6 +75,7 @@ pub struct ParsedInput {
     locales: LocalesOrNamespaces,
     foreign_keys_paths: ForeignKeysPaths,
     interpolate_display: bool,
+    diag: Diagnostics,
 }
 
 fn emit_err<A, T: ToTokens, U: Display>(tokens: T, message: U) -> syn::Result<A> {
@@ -142,6 +143,7 @@ fn parse_map_values(
     locale: &Key,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
+    diag: &Diagnostics,
 ) -> syn::Result<Option<ParsedValue>> {
     fn inner(input: syn::parse::ParseStream) -> syn::Result<ParseBuffer> {
         let content;
@@ -152,7 +154,14 @@ fn parse_map_values(
         return Ok(None);
     };
 
-    let keys = parse_block_inner(content, key_path, locale, formatters, foreign_keys_paths)?;
+    let keys = parse_block_inner(
+        content,
+        key_path,
+        locale,
+        formatters,
+        foreign_keys_paths,
+        diag,
+    )?;
 
     Ok(Some(ParsedValue::Subkeys(Some(Locale {
         top_locale_name: locale.clone(),
@@ -302,6 +311,7 @@ fn parse_values(
     locale: &Key,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
+    diag: &Diagnostics,
 ) -> syn::Result<(Key, ParsedValue)> {
     let ident: Ident = input.parse()?;
     let key = Key::from_ident(ident);
@@ -321,6 +331,7 @@ fn parse_values(
         locale,
         formatters,
         foreign_keys_paths,
+        diag,
     )? {
         return Ok((key, parsed_value));
     }
@@ -345,12 +356,21 @@ fn parse_block_inner(
     locale: &Key,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
+    diag: &Diagnostics,
 ) -> syn::Result<BTreeMap<Key, ParsedValue>> {
     let mut values = BTreeMap::new();
     while !content.is_empty() {
-        let (key, value) =
-            parse_values(&content, key_path, locale, formatters, foreign_keys_paths)?;
-        values.insert(key, value);
+        let (key, value) = parse_values(
+            &content,
+            key_path,
+            locale,
+            formatters,
+            foreign_keys_paths,
+            diag,
+        )?;
+
+        key::insert_with_collision_check(&mut values, key, value, locale, key_path, diag);
+
         if !content.is_empty() {
             content.parse::<Comma>()?;
         }
@@ -364,10 +384,18 @@ fn parse_block(
     locale: &Key,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
+    diag: &Diagnostics,
 ) -> syn::Result<BTreeMap<Key, ParsedValue>> {
     let content;
     syn::braced!(content in input);
-    parse_block_inner(content, key_path, locale, formatters, foreign_keys_paths)
+    parse_block_inner(
+        content,
+        key_path,
+        locale,
+        formatters,
+        foreign_keys_paths,
+        diag,
+    )
 }
 
 fn parse_locale(
@@ -375,6 +403,7 @@ fn parse_locale(
     locale_key: Key,
     formatters: &Formatters,
     foreign_keys_paths: &ForeignKeysPaths,
+    diag: &Diagnostics,
 ) -> syn::Result<Locale> {
     let loc_name_ident: Ident = input.parse()?;
     if loc_name_ident != *locale_key.ident {
@@ -391,6 +420,7 @@ fn parse_locale(
         &locale_key,
         formatters,
         foreign_keys_paths,
+        diag,
     )?;
 
     if !input.is_empty() {
@@ -465,10 +495,12 @@ impl syn::parse::Parse for ParsedInput {
         let foreign_keys_paths = ForeignKeysPaths::new();
         let formatters = Formatters::new();
 
+        let diag = Diagnostics::new();
+
         let locales = locales_key
             .iter()
             .cloned()
-            .map(|k| parse_locale(input, k, &formatters, &foreign_keys_paths))
+            .map(|k| parse_locale(input, k, &formatters, &foreign_keys_paths, &diag))
             .collect::<syn::Result<Vec<_>>>()?;
 
         if !input.is_empty() {
@@ -491,6 +523,7 @@ impl syn::parse::Parse for ParsedInput {
             crate_path,
             foreign_keys_paths,
             interpolate_display,
+            diag,
         })
     }
 }
