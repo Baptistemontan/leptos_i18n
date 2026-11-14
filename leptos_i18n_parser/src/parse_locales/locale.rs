@@ -6,7 +6,7 @@ use crate::{
         files::{LocaleFiles, TranslationFiles},
         options::{Config, FileFormat, ParseOptions},
     },
-    utils::{Key, KeyPath, Loc, Location, UnwrapAt},
+    utils::{Key, KeyPath, Loc, Location, UnwrapAt, key},
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet, btree_map::Entry},
@@ -721,7 +721,15 @@ impl<'de> serde::de::Visitor<'de> for LocaleSeed<'_> {
                 diag: self.diag,
                 formatters: self.formatters,
             })?;
-            keys.insert(locale_key, value);
+            drop(pushed_key);
+            key::insert_with_collision_check(
+                &mut keys,
+                locale_key,
+                value,
+                &self.top_locale_name,
+                &self.key_path,
+                self.diag,
+            );
         }
 
         Ok(keys)
