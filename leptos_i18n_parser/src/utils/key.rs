@@ -1,12 +1,8 @@
-use crate::{
-    parse_locales::{
-        VAR_COUNT_KEY,
-        error::{Diagnostics, Error, Result},
-    },
-    utils::Location,
+use crate::parse_locales::{
+    VAR_COUNT_KEY,
+    error::{Error, Result},
 };
 use std::{
-    collections::{BTreeMap, btree_map::Entry},
     fmt::{Debug, Display},
     hash::Hash,
     ops::{Deref, DerefMut},
@@ -53,33 +49,6 @@ impl Key {
 
     pub fn count() -> Self {
         Self::new(VAR_COUNT_KEY).unwrap_at("VAR_COUNT_KEY")
-    }
-}
-
-pub fn insert_with_collision_check<V>(
-    map: &mut BTreeMap<Key, V>,
-    key: Key,
-    value: V,
-    top_locale: &Key,
-    path: &KeyPath,
-    diag: &Diagnostics,
-) {
-    match map.entry(key.clone()) {
-        Entry::Vacant(vacant_entry) => {
-            vacant_entry.insert(value);
-        }
-        Entry::Occupied(occupied_entry) => {
-            // colliding keys
-            let mut path = path.clone();
-            path.path.push(key);
-            let current_path = path.clone();
-            path.path.pop();
-            path.path.push(occupied_entry.key().clone());
-            diag.emit_error(Error::CollidingKeys {
-                loc1: Location::new(top_locale.clone(), current_path),
-                loc2: Location::new(top_locale.clone(), path),
-            });
-        }
     }
 }
 
