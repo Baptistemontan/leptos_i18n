@@ -496,20 +496,24 @@ impl Locale {
         }
     }
 
-    pub fn is_possible_plural<'a>(
-        key: &'a Key,
+    pub fn is_possible_plural(
+        key: &Key,
         value: &ParsedValue,
-    ) -> Option<(&'a str, PluralRuleType, PluralForm)> {
+    ) -> Option<(Key, PluralRuleType, PluralForm)> {
         if matches!(value, ParsedValue::Ranges(_) | ParsedValue::Subkeys(_)) {
             return None;
         }
+        // split on the raw name: only a literal `_` introduces a plural suffix (`a-one` is not a plural)
         let (base_key, suffix) = key.name.rsplit_once('_')?;
         let (base_key, rule_type) = match base_key.strip_suffix("_ordinal") {
             Some(base_key) => (base_key, PluralRuleType::Ordinal),
             None => (base_key, PluralRuleType::Cardinal),
         };
 
-        PluralForm::try_from_str(suffix).map(|form| (base_key, rule_type, form))
+        let form = PluralForm::try_from_str(suffix)?;
+        // a base that isn't a valid identifier (empty, a keyword, ...) can't be a plural: keep it as a normal key
+        let base_key = Key::new(base_key)?;
+        Some((base_key, rule_type, form))
     }
 
     pub fn merge_plurals(
@@ -520,8 +524,10 @@ impl Locale {
     ) -> Result<()> {
         let keys = std::mem::take(&mut self.keys);
         #[allow(clippy::type_complexity)]
+        // grouped by `Key`, so by the normalized base: `a-b_one` and `a_b_other` are the same plural,
+        // displayed with the spelling of the first key of the group.
         let mut possible_plurals: BTreeMap<
-            String,
+            Key,
             BTreeMap<PluralForm, (Key, PluralRuleType, ParsedValue)>,
         > = BTreeMap::new();
         for (key, mut value) in keys {
@@ -531,7 +537,7 @@ impl Locale {
             }
             if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
             {
-                let map = possible_plurals.entry(base_key.to_owned()).or_default();
+                let map = possible_plurals.entry(base_key).or_default();
                 map.insert(plural_form, (key, rule_type, value));
             } else {
                 key::insert_with_collision_check(
@@ -571,8 +577,7 @@ impl Locale {
                 }
                 continue;
             };
-            let key = Key::new(&base_key).unwrap_at("merge_plurals_1");
-            let pushed_key = key_path.push_key(key);
+            let pushed_key = key_path.push_key(base_key);
             if !cfg!(feature = "plurals") {
                 return Err(Error::DisabledPlurals {
                     loc: Location::new(locale.clone(), pushed_key.clone()),
