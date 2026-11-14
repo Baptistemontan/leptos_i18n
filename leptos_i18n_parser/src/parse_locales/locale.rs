@@ -534,19 +534,40 @@ impl Locale {
                 let map = possible_plurals.entry(base_key.to_owned()).or_default();
                 map.insert(plural_form, (key, rule_type, value));
             } else {
-                self.keys.insert(key, value);
+                key::insert_with_collision_check(
+                    &mut self.keys,
+                    key,
+                    value,
+                    locale,
+                    key_path,
+                    diag,
+                );
             }
         }
         for (base_key, mut plurals) in possible_plurals {
             if plurals.len() == 1 {
                 for (_, (key, _, value)) in plurals {
-                    self.keys.insert(key, value);
+                    key::insert_with_collision_check(
+                        &mut self.keys,
+                        key,
+                        value,
+                        locale,
+                        key_path,
+                        diag,
+                    );
                 }
                 continue;
             }
             let Some((_, rule_type, other)) = plurals.remove(&PluralForm::Other) else {
                 for (_, (key, _, value)) in plurals {
-                    self.keys.insert(key, value);
+                    key::insert_with_collision_check(
+                        &mut self.keys,
+                        key,
+                        value,
+                        locale,
+                        key_path,
+                        diag,
+                    );
                 }
                 continue;
             };
@@ -585,13 +606,7 @@ impl Locale {
             plural.check_forms(&loc, diag)?;
             let value = ParsedValue::Plurals(plural);
             let key = pushed_key.pop().unwrap_at("merge_plurals_3");
-            if self.keys.insert(key.clone(), value).is_some() {
-                let pushed_key = key_path.push_key(key);
-                return Err(Error::PluralsAtNormalKey {
-                    loc: Location::new(locale.clone(), pushed_key.clone()),
-                }
-                .into());
-            }
+            key::insert_with_collision_check(&mut self.keys, key, value, locale, key_path, diag);
         }
 
         Ok(())
