@@ -403,7 +403,12 @@ impl Display for Error {
                 )
             }
             Error::CollidingKeys { loc1, loc2 } => {
-                write!(f, "Colliding keys \"{loc1}\" and \"{loc2}\"")
+                // both locations are always in the same locale
+                write!(
+                    f,
+                    "Colliding keys \"{}\" and \"{}\" in locale {:?}: they resolve to the same Rust identifier.",
+                    loc1.key_path, loc2.key_path, loc1.locale
+                )
             }
         }
     }
