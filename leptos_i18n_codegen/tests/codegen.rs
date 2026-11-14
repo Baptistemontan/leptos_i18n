@@ -130,6 +130,43 @@ fn suppress_missing_key_on_inherit() {
     assert!(!has_surplus);
 }
 
+#[test]
+fn key_spelled_differently_across_locales() {
+    for (en, fr, default_path, fr_path) in [
+        (r#"{ "a-b": "en" }"#, r#"{ "a_b": "fr" }"#, "a-b", "a_b"),
+        (r#"{ "a_b": "en" }"#, r#"{ "a-b": "fr" }"#, "a_b", "a-b"),
+        (
+            r#"{ "sub": { "a-b": "en" } }"#,
+            r#"{ "sub": { "a_b": "fr" } }"#,
+            "sub.a-b",
+            "sub.a_b",
+        ),
+    ] {
+        let (_code, diag) = gen_code(&[("en", en), ("fr", fr)], &[]).unwrap();
+        assert!(diag.errors().is_empty(), "{:?}", &*diag.errors());
+        let warnings = diag.warnings();
+        assert!(
+            matches!(
+                &*warnings,
+                [Warning::KeySpellingMismatch { key_path, provided_key }]
+                    if key_path.to_string() == default_path
+                        && provided_key.key_path.to_string() == fr_path
+                        && provided_key.locale.name.as_ref() == "fr"
+            ),
+            "{en} / {fr}: {:?}",
+            &*warnings
+        );
+    }
+
+    // same spelling: no warning
+    let (_code, diag) = gen_code(
+        &[("en", r#"{ "a-b": "en" }"#), ("fr", r#"{ "a-b": "fr" }"#)],
+        &[],
+    )
+    .unwrap();
+    assert!(diag.warnings().is_empty(), "{:?}", &*diag.warnings());
+}
+
 // *********************************************
 // * ERRORS
 // *********************************************
@@ -458,22 +495,6 @@ fn namespaces_with_custom_crate_path() {
 // * SILENT OVERWRITES AND PANICS
 // * see TODO.md
 // *********************************************
-
-#[test]
-#[ignore = "known bug: keys spelled differently across locales merge without any diagnostic"]
-fn key_spelled_differently_across_locales() {
-    let (_code, diag) = gen_code(
-        &[("en", r#"{ "a-b": "en" }"#), ("fr", r#"{ "a_b": "fr" }"#)],
-        &[],
-    )
-    .unwrap();
-    // Expected behavior: it's the same key, and diag should contain some kind of warning (or error, to decide)
-    // that it's spelled differently
-    assert!(
-        !diag.warnings().is_empty() || !diag.errors().is_empty(),
-        "no diagnostic"
-    );
-}
 
 #[test]
 #[ignore = "known bug: colliding foreign key arguments overwrite each other without any diagnostic"]
