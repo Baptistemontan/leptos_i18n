@@ -53,7 +53,7 @@ impl<'a> CodegenOptions<'a> {
     /// # Example
     ///
     /// ```
-    /// # use leptos_i18n_build::options::CodegenOptions;
+    /// # use leptos_i18n_codegen::CodegenOptions;
     /// let attributes = "#![allow(missing_docs)]".parse().unwrap();
     /// let options = CodegenOptions::new().top_level_attributes(Some(attributes));
     /// ```
