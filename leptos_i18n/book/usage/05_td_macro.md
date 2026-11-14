@@ -18,12 +18,12 @@ pub fn Foo() -> impl IntoView {
 
     view! {
         <For
-            each = Locale::get_all
-            key = |locale| **locale
+            each = Locale::iter_variants
+            key = |locale| *locale
             let:locale
         >
-            <button on:click = move|_| i18n.set_locale(*locale)>
-                {td!(*locale, set_locale)}
+            <button on:click = move|_| i18n.set_locale(locale)>
+                {td!(locale, set_locale)}
             </button>
         </For>
     }
