@@ -491,6 +491,13 @@ pub enum Warning {
         key_path: KeyPath,
         provided_key: Location,
     },
+    PluralKeySpellingMismatch {
+        key1: Location,
+        base1: Rc<str>,
+        key2: KeyPath,
+        base2: Rc<str>,
+        resolved_ident: Rc<str>,
+    },
     NonUnicodePath {
         locale: Key,
         namespace: Option<Key>,
@@ -568,6 +575,17 @@ impl Display for Warning {
                 f,
                 "Key \"{}\" in locale {:?} is spelled \"{}\" in the default locale, both resolve to the same Rust identifier and are treated as the same key.",
                 provided_key.key_path, provided_key.locale, key_path
+            ),
+            Warning::PluralKeySpellingMismatch {
+                key1,
+                base1,
+                key2,
+                base2,
+                resolved_ident,
+            } => write!(
+                f,
+                "Plural keys \"{}\" and \"{}\" in locale {:?} spell their base differently (\"{}\" / \"{}\"), both resolve to the same Rust identifier \"{}\" and are treated as the same plural.",
+                key1.key_path, key2, key1.locale, base1, base2, resolved_ident
             ),
         }
     }
