@@ -487,6 +487,10 @@ pub enum Warning {
         form: PluralForm,
         rule_type: PluralRuleType,
     },
+    KeySpellingMismatch {
+        key_path: KeyPath,
+        provided_key: Location,
+    },
     NonUnicodePath {
         locale: Key,
         namespace: Option<Key>,
@@ -556,6 +560,14 @@ impl Display for Warning {
             } => write!(
                 f,
                 "Unexpected characters {chars:?} after formatter {formatter_name:?} at {loc}"
+            ),
+            Warning::KeySpellingMismatch {
+                key_path,
+                provided_key,
+            } => write!(
+                f,
+                "Key \"{}\" in locale {:?} is spelled \"{}\" in the default locale, both resolve to the same Rust identifier and are treated as the same key.",
+                provided_key.key_path, provided_key.locale, key_path
             ),
         }
     }
