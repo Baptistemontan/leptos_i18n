@@ -456,7 +456,6 @@ fn default_locale_cant_inherit() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
 fn keys_colliding_on_the_same_ident() {
     // (file, path of the colliding key, path of the key already there)
     for (file, path1, path2) in [
@@ -482,7 +481,6 @@ fn keys_colliding_on_the_same_ident() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
 fn duplicate_key_in_file() {
     let (_code, diag) = gen_code(&[("en", r#"{ "a": "x", "a": "y" }"#)], &[]).unwrap();
     let errors = diag.errors();
@@ -638,7 +636,7 @@ fn plural_with_invalid_base_is_a_normal_key() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn cardinal_and_ordinal_plurals_conflict() {
     for (file, path) in [
         (
@@ -672,7 +670,7 @@ fn cardinal_plural_and_single_ordinal_form() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plurals_at_normal_key() {
     for (file, path) in [
         (
@@ -813,7 +811,6 @@ fn files_error(files: &TranslationFiles, cfg: Config) -> Error {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (12)"]
 fn missing_locale_file() {
     let files = new_files(&[(None, &[("en", "{}")])]);
     let cfg = Config::new("en").unwrap().add_locale("fr").unwrap();
@@ -843,7 +840,6 @@ fn missing_locale_file() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (12)"]
 fn missing_namespace_files() {
     let files = new_files(&[(Some("first"), &[("en", "{}")])]);
     let cfg = Config::new("en")
@@ -858,7 +854,6 @@ fn missing_namespace_files() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (12)"]
 fn files_per_locale_with_namespaces_in_config() {
     let files = new_files(&[(None, &[("en", "{}")])]);
     let cfg = Config::new("en").unwrap().add_namespace("first").unwrap();
@@ -875,7 +870,6 @@ fn files_per_locale_with_namespaces_in_config() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (12)"]
 fn files_per_namespace_without_namespaces_in_config() {
     let files = new_files(&[(Some("first"), &[("en", "{}")])]);
     let cfg = Config::new("en").unwrap();
