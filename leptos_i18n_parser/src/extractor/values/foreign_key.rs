@@ -290,7 +290,7 @@ fn populate_value(
             for dummy in &dumdum.dummies {
                 match dummy {
                     DummyArg::Variable(key) => {
-                        let Some(arg) = args.get(&*key.name) else {
+                        let Some(arg) = args.get(&*key.ident_repr) else {
                             dummies.push(DummyArg::Variable(key.clone()));
                             continue;
                         };
@@ -315,7 +315,7 @@ fn populate_value(
 }
 
 fn populate_variable(variable: &Variable, args: &BTreeMap<String, ResolvedValue>) -> ResolvedValue {
-    match args.get(&*variable.key.name) {
+    match args.get(&*variable.key.ident_repr) {
         Some(value) => value.clone(),
         None => ResolvedValue::Variable(variable.clone()),
     }
@@ -384,7 +384,7 @@ fn map_plural_key(
     fk_path: &KeyPath,
     diag: &Diagnostics,
 ) -> Result<Key, PluralForm> {
-    let arg_name = &*count_key.name;
+    let arg_name = &*count_key.ident_repr;
     let Some(value) = args.get(arg_name) else {
         return Ok(count_key.clone());
     };
@@ -530,7 +530,7 @@ fn populate_attributes(
                 continue;
             }
         };
-        let Some(arg) = args.get(&*var.name) else {
+        let Some(arg) = args.get(&*var.ident_repr) else {
             new_attrs.push(RawAttribute {
                 key: attr.key.clone(),
                 value: Some(RawAttributeValue::Variable(var.clone())),
