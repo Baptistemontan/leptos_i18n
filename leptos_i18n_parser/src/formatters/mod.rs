@@ -257,8 +257,11 @@ pub trait FormatterToTokens: Any {
     }
     #[doc(hidden)]
     fn to_impl_display(&self, _key: &syn::Ident, _locale_field: &syn::Ident) -> TokenStream {
-        // internals for the t_format! macro, custom formatters aren't possible there.
-        unimplemented!()
+        // Internals for the `t_format!` macro, which only parses the built-in formatters (`Formatters::new()`),
+        // and all of them override this method: custom formatters can't reach it.
+        unreachable!(
+            "`FormatterToTokens::to_impl_display` is only used by `t_format!`, which only supports the built-in formatters. If you got this error please open an issue on github."
+        )
     }
 }
 
