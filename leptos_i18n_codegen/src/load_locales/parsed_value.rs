@@ -6,7 +6,7 @@ use quote::{ToTokens, quote};
 
 use leptos_i18n_parser::{
     parse_locales::parsed_value::{Attribute, AttributeValue, Attributes, ParsedValue},
-    utils::{Key, KeyPath, UnwrapAt},
+    utils::{Key, UnwrapAt},
 };
 
 use super::{interpolate::LOCALE_FIELD_KEY, plurals, ranges};
@@ -110,17 +110,13 @@ fn flatten(
         } => {
             let attrs = attributes_to_token_stream(attributes, strings_count);
             if let Some(inner) = inner {
-                let mut key_path = KeyPath::new(None);
-                let captured_keys = inner
-                    .get_keys(&mut key_path)
-                    .unwrap_at("parsed_value::flatten_1")
-                    .is_interpol()
-                    .map(|keys| {
-                        let keys = keys
-                            .iter_keys()
-                            .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
-                        quote!(#(#keys)*)
-                    });
+                let captured_keys = ParsedValue::captured_keys([&**inner]);
+                let captured_keys = captured_keys.is_interpol().map(|keys| {
+                    let keys = keys
+                        .iter_keys()
+                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
+                    quote!(#(#keys)*)
+                });
 
                 let inner = to_token_stream(inner, strings_count);
                 let f = quote!(
