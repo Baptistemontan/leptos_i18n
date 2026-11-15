@@ -692,47 +692,89 @@ fn namespaces_with_custom_crate_path() {
 }
 
 // *********************************************
-// * SILENT OVERWRITES AND PANICS
-// * see TODO.md
+// * TRANSLATION FILES NOT MATCHING THE CONFIG
 // *********************************************
 
 /// The translation files don't match the config: parsing must return an error.
-fn assert_files_error(files: &TranslationFiles, cfg: Config) {
+fn files_error(files: &TranslationFiles, cfg: Config) -> Error {
     let cfg = cfg.translations_uri("test");
-    assert!(parse_locales_with_files(files, cfg).is_err());
+    match parse_locales_with_files(files, cfg) {
+        Ok(_) => panic!("expected an error"),
+        Err(err) => err.into_inner(),
+    }
 }
 
 #[test]
-#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
 fn missing_locale_file() {
     let files = new_files(&[(None, &[("en", "{}")])]);
     let cfg = Config::new("en").unwrap().add_locale("fr").unwrap();
-    assert_files_error(&files, cfg);
+    let err = files_error(&files, cfg);
+    assert!(
+        matches!(&err, Error::MissingLocaleFile { locale, namespace: None } if locale.name.as_ref() == "fr"),
+        "{err:?}"
+    );
+
+    // in a namespace
+    let files = new_files(&[(Some("first"), &[("en", "{}")])]);
+    let cfg = Config::new("en")
+        .unwrap()
+        .add_locale("fr")
+        .unwrap()
+        .add_namespace("first")
+        .unwrap();
+    let err = files_error(&files, cfg);
+    assert!(
+        matches!(
+            &err,
+            Error::MissingLocaleFile { locale, namespace: Some(namespace) }
+                if locale.name.as_ref() == "fr" && namespace.name.as_ref() == "first"
+        ),
+        "{err:?}"
+    );
 }
 
 #[test]
-#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
 fn missing_namespace_files() {
     let files = new_files(&[(Some("first"), &[("en", "{}")])]);
     let cfg = Config::new("en")
         .unwrap()
         .add_namespaces(["first", "second"])
         .unwrap();
-    assert_files_error(&files, cfg);
+    let err = files_error(&files, cfg);
+    assert!(
+        matches!(&err, Error::MissingNamespaceFiles(namespace) if namespace.name.as_ref() == "second"),
+        "{err:?}"
+    );
 }
 
 #[test]
-#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
 fn files_per_locale_with_namespaces_in_config() {
     let files = new_files(&[(None, &[("en", "{}")])]);
     let cfg = Config::new("en").unwrap().add_namespace("first").unwrap();
-    assert_files_error(&files, cfg);
+    let err = files_error(&files, cfg);
+    assert!(
+        matches!(
+            err,
+            Error::TranslationFilesMismatch {
+                expected_namespaces: true
+            }
+        ),
+        "{err:?}"
+    );
 }
 
 #[test]
-#[ignore = "known bug: panics with `todo!()` instead of reporting an error"]
 fn files_per_namespace_without_namespaces_in_config() {
     let files = new_files(&[(Some("first"), &[("en", "{}")])]);
     let cfg = Config::new("en").unwrap();
-    assert_files_error(&files, cfg);
+    let err = files_error(&files, cfg);
+    assert!(
+        matches!(
+            err,
+            Error::TranslationFilesMismatch {
+                expected_namespaces: false
+            }
+        ),
+        "{err:?}"
+    );
 }
