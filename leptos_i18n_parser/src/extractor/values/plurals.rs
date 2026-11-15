@@ -441,7 +441,12 @@ fn merge_locale_plurals(
     }
 }
 
-type PossiblePlurals = BTreeMap<String, BTreeMap<PluralForm, (Key, PluralRuleType, RawValue)>>;
+/// Forms of a possible plural: the key, its value, and the base key as spelled in that key.
+type Forms = BTreeMap<PluralForm, (Key, RawValue, Key)>;
+
+/// Possible plurals grouped by their base key, so by the normalized base: `a-b_one` and `a_b_other` are the
+/// same plural. Cardinal and ordinal forms are grouped separately.
+type PossiblePlurals = BTreeMap<Key, (Forms, Forms)>;
 
 fn merge_values_plurals(
     values: RawValues,
@@ -479,84 +484,108 @@ fn merge_values_plurals(
 
     let mut disabled_error_emitted = false;
 
-    for (base_key, mut plurals) in possible_plurals {
-        if plurals.len() == 1 {
-            for (_, (key, _, value)) in plurals {
-                check_insert_value(
-                    &mut merged_values,
-                    RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
-                    key,
-                    loc,
-                    diag,
-                );
-            }
-            continue;
-        }
-        let Some((_, rule_type, other)) = plurals.remove(&PluralForm::Other) else {
-            for (_, (key, _, value)) in plurals {
-                check_insert_value(
-                    &mut merged_values,
-                    RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
-                    key,
-                    loc,
-                    diag,
-                );
-            }
-            continue;
-        };
-        let key = match Key::try_new_at(&base_key, (&*loc).into()) {
-            Ok(key) => key,
-            Err(err) => {
-                diag.emit_error(err);
+    for (_, (cardinal, ordinal)) in possible_plurals {
+        for (rule_type, mut plurals) in [
+            (PluralRuleType::Cardinal, cardinal),
+            (PluralRuleType::Ordinal, ordinal),
+        ] {
+            if plurals.is_empty() {
                 continue;
             }
-        };
-        let pushed_loc = loc.push_key(key.clone());
+            // a single form is a normal key
+            if plurals.len() == 1 {
+                for (_, (key, value, _)) in plurals {
+                    check_insert_value(
+                        &mut merged_values,
+                        RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
+                        key,
+                        loc,
+                        diag,
+                    );
+                }
+                continue;
+            }
+            let Some((other_key, other, base_key)) = plurals.remove(&PluralForm::Other) else {
+                // every plural needs an `other` form: keep them as normal keys
+                let mut keys = Vec::with_capacity(plurals.len());
+                let mut base = None;
+                for (_, (key, value, base_key)) in plurals {
+                    keys.push(key.clone());
+                    base.get_or_insert(base_key);
+                    check_insert_value(
+                        &mut merged_values,
+                        RawValueOrSubkeys::Value(MergedPlurals::RawValue(value)),
+                        key,
+                        loc,
+                        diag,
+                    );
+                }
+                if let Some(base) = base {
+                    let base_key_location = loc.push_key(base).clone();
+                    diag.emit_warning(Warning::PluralLookingKeysWithNoOther {
+                        base_key_location,
+                        keys,
+                        rule_type,
+                    });
+                }
+                continue;
+            };
+            // the plural is named after its `other` form
+            let pushed_loc = loc.push_key(base_key.clone());
 
-        if !cfg!(feature = "plurals") && !core::mem::replace(&mut disabled_error_emitted, true) {
-            diag.emit_error(Error::DisabledPlurals {
-                loc: pushed_loc.clone(),
-            });
-        }
-
-        let mut forms = PluralForms::new_from_other(other);
-        let mut conflict_error_emitted = false;
-
-        for (form, (_, rule, value)) in plurals {
-            if rule == rule_type {
-                forms.insert_form(form, value);
-            } else if !core::mem::replace(&mut conflict_error_emitted, true) {
-                diag.emit_error(Error::ConflictingPluralRuleType {
+            if !cfg!(feature = "plurals") && !core::mem::replace(&mut disabled_error_emitted, true)
+            {
+                diag.emit_error(Error::DisabledPlurals {
                     loc: pushed_loc.clone(),
                 });
             }
-        }
-        let count_key = Key::count();
 
-        if conflict_error_emitted {
-            merged_values.insert(
-                key,
-                RawValueOrSubkeys::Value(MergedPlurals::Plurals(Plurals {
-                    rule_type,
-                    count_key,
-                    forms,
-                })),
-            );
-            continue;
-        }
+            let mut forms = PluralForms::new_from_other(other);
+            for (form, (key, value, form_base_key)) in plurals {
+                if form_base_key.name != base_key.name {
+                    let mut key1 = pushed_loc.clone();
+                    key1.key_path.path.pop();
+                    let mut key2 = key1.key_path.clone();
+                    key1.key_path.path.push(other_key.clone());
+                    key2.path.push(key);
+                    diag.emit_warning(Warning::PluralKeySpellingMismatch {
+                        key1,
+                        base1: base_key.name.clone(),
+                        key2,
+                        base2: form_base_key.name.clone(),
+                        resolved_ident: base_key.ident_repr.clone(),
+                    });
+                }
+                forms.insert_form(form, value);
+            }
 
-        let plural = Plurals {
-            rule_type,
-            forms,
-            count_key,
-        };
+            let plural = Plurals {
+                rule_type,
+                forms,
+                count_key: Key::count(),
+            };
 
-        let _ = plural.check_forms((&*pushed_loc).into(), diag);
-        let value = RawValueOrSubkeys::Value(MergedPlurals::Plurals(plural));
-        if merged_values.insert(key, value).is_some() {
-            diag.emit_error(Error::PluralsAtNormalKey {
-                loc: pushed_loc.clone(),
-            });
+            let _ = plural.check_forms((&*pushed_loc).into(), diag);
+            let value = RawValueOrSubkeys::Value(MergedPlurals::Plurals(plural));
+            match merged_values.entry(base_key) {
+                Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+                // keep the first one
+                Entry::Occupied(entry) => match entry.get() {
+                    // the other rule type already has a complete plural on this base
+                    RawValueOrSubkeys::Value(MergedPlurals::Plurals(_)) => {
+                        diag.emit_error(Error::ConflictingPluralRuleType {
+                            loc: pushed_loc.clone(),
+                        });
+                    }
+                    _ => {
+                        diag.emit_error(Error::PluralsAtNormalKey {
+                            loc: pushed_loc.clone(),
+                        });
+                    }
+                },
+            }
         }
     }
 
@@ -580,8 +609,12 @@ fn merge_value(
     merged_values: &mut BTreeMap<Key, RawValueOrSubkeys<MergedPlurals>>,
     diag: &Diagnostics,
 ) {
-    if let Some((base_key, rule_type, plural_form)) = is_possible_plural(&key) {
-        let map = possible_plurals.entry(base_key.to_owned()).or_default();
+    if let Some((base_key, rule_type, plural_form)) = is_possible_plural(&key, loc, diag) {
+        let (cardinal, ordinal) = possible_plurals.entry(base_key.clone()).or_default();
+        let map = match rule_type {
+            PluralRuleType::Cardinal => cardinal,
+            PluralRuleType::Ordinal => ordinal,
+        };
 
         let value = match value {
             RawValueOrSubkeys::Value(v) => v,
@@ -593,21 +626,36 @@ fn merge_value(
                 RawValue::Literal(RawLiteral::String(String::new()))
             }
         };
-        map.insert(plural_form, (key, rule_type, value));
+        map.insert(plural_form, (key, value, base_key));
     } else {
         let value = map_value(value);
         check_insert_value(merged_values, value, key, loc, diag);
     }
 }
 
-fn is_possible_plural(key: &Key) -> Option<(&str, PluralRuleType, PluralForm)> {
+/// `loc` is the location of `key`.
+fn is_possible_plural(
+    key: &Key,
+    loc: &Location,
+    diag: &Diagnostics,
+) -> Option<(Key, PluralRuleType, PluralForm)> {
+    // split on the raw name: only a literal `_` introduces a plural suffix (`a-one` is not a plural)
     let (base_key, suffix) = key.name.rsplit_once('_')?;
     let (base_key, rule_type) = match base_key.strip_suffix("_ordinal") {
         Some(base_key) => (base_key, PluralRuleType::Ordinal),
         None => (base_key, PluralRuleType::Cardinal),
     };
 
-    PluralForm::try_from_str(suffix).map(|form| (base_key, rule_type, form))
+    let form = PluralForm::try_from_str(suffix)?;
+    // a base that isn't a valid identifier (empty, a keyword, ...) can't be a plural: keep it as a normal key
+    let Some(base) = Key::new(base_key) else {
+        diag.emit_warning(Warning::PluralLookingKeyInvalidBase {
+            loc: loc.clone(),
+            base: base_key.into(),
+        });
+        return None;
+    };
+    Some((base, rule_type, form))
 }
 
 fn check_insert_value(
