@@ -176,7 +176,10 @@ fn key_spelled_differently_across_locales() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(
+    feature = "dynamic_load",
+    ignore = "with `dynamic_load` the strings aren't in the generated code"
+)]
 fn foreign_key_args_colliding_on_the_same_ident() {
     // the first argument is kept, the second is ignored
     let file = r#"{ "a": "{{ a-b }}", "b": "$t(a, {\"a-b\": \"first\", \"a_b\": \"second\"})" }"#;
@@ -201,7 +204,10 @@ fn foreign_key_args_colliding_on_the_same_ident() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(
+    feature = "dynamic_load",
+    ignore = "with `dynamic_load` the strings aren't in the generated code"
+)]
 fn duplicate_foreign_key_args() {
     // the first argument is kept, the second is ignored
     let file =
@@ -302,7 +308,10 @@ fn comps_colliding_on_the_same_ident() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(
+    feature = "dynamic_load",
+    ignore = "with `dynamic_load` the strings aren't in the generated code"
+)]
 fn foreign_key_args_spelled_differently_than_the_variable() {
     for (var, arg) in [
         ("a-b", "a-b"),
