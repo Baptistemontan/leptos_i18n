@@ -391,7 +391,11 @@ impl LocalesOrNamespaces {
         let mut locales = Vec::with_capacity(cfg.locales.len());
         for key in cfg.locales.iter().cloned() {
             let Some((file_path, file)) = files.files.get(&*key.name) else {
-                todo!()
+                return Err(Error::MissingLocaleFile {
+                    locale: key,
+                    namespace: namespace.cloned(),
+                }
+                .into());
             };
             let locale = Locale::new(
                 file,
@@ -416,7 +420,7 @@ impl LocalesOrNamespaces {
         let mut namespaces = Vec::with_capacity(cfg.namespaces.len());
         for namespace in cfg.namespaces.iter().cloned() {
             let Some(locales_files) = files.get(&*namespace.name) else {
-                todo!()
+                return Err(Error::MissingNamespaceFiles(namespace).into());
             };
             let locales = Self::new_locales(
                 locales_files,
@@ -441,13 +445,19 @@ impl LocalesOrNamespaces {
     ) -> Result<Self> {
         if !cfg.namespaces.is_empty() {
             let TranslationFiles::NameSpaces { namespaces } = files else {
-                todo!();
+                return Err(Error::TranslationFilesMismatch {
+                    expected_namespaces: true,
+                }
+                .into());
             };
             let namespaces = Self::new_namespaces(namespaces, foreign_keys_paths, diag, cfg)?;
             Ok(LocalesOrNamespaces::NameSpaces(namespaces))
         } else {
             let TranslationFiles::Locales { locales } = files else {
-                todo!();
+                return Err(Error::TranslationFilesMismatch {
+                    expected_namespaces: false,
+                }
+                .into());
             };
             let locales = Self::new_locales(locales, None, foreign_keys_paths, diag, cfg)?;
             Ok(LocalesOrNamespaces::Locales(locales))
