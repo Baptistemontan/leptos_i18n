@@ -171,6 +171,12 @@ pub enum Error {
     DefaultLocaleCantInherit {
         loc: &'static panic::Location<'static>,
     },
+    ConflictingComponentKind {
+        loc: Location,
+        self_closed: Rc<str>,
+        comp: Rc<str>,
+        resolved_ident: Rc<str>,
+    },
 
     Custom(String),
 }
@@ -410,6 +416,15 @@ impl Display for Error {
                     loc1.key_path, loc2.key_path, loc1.locale
                 )
             }
+            Error::ConflictingComponentKind {
+                loc,
+                self_closed,
+                comp,
+                resolved_ident,
+            } => write!(
+                f,
+                "Component \"{resolved_ident}\" is used both with children (<{comp}>...</{comp}>) and self-closed (<{self_closed} />) at {loc}, a component must be used either always with children or always self-closed."
+            ),
         }
     }
 }
@@ -490,6 +505,19 @@ pub enum Warning {
     KeySpellingMismatch {
         key_path: KeyPath,
         provided_key: Location,
+    },
+    VarKeySpellingMismatch {
+        loc: Location,
+        key1: Rc<str>,
+        key2: Rc<str>,
+        resolved_ident: Rc<str>,
+    },
+    CompKeySpellingMismatch {
+        loc: Location,
+        key1: Rc<str>,
+        key2: Rc<str>,
+        resolved_ident: Rc<str>,
+        self_closed: bool,
     },
     PluralKeySpellingMismatch {
         key1: Location,
@@ -588,6 +616,28 @@ impl Display for Warning {
                 "Key \"{}\" in locale {:?} is spelled \"{}\" in the default locale, both resolve to the same Rust identifier and are treated as the same key.",
                 provided_key.key_path, provided_key.locale, key_path
             ),
+            Warning::VarKeySpellingMismatch {
+                loc,
+                key1,
+                key2,
+                resolved_ident,
+            } => write!(
+                f,
+                "Variable \"{key2}\" at {loc} is spelled \"{key1}\" elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same variable."
+            ),
+            Warning::CompKeySpellingMismatch {
+                loc,
+                key1,
+                key2,
+                resolved_ident,
+                self_closed,
+            } => {
+                let (open, close) = if *self_closed { ("<", " />") } else { ("<", ">") };
+                write!(
+                    f,
+                    "Component {open}{key2}{close} at {loc} is spelled {open}{key1}{close} elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same component."
+                )
+            }
             Warning::PluralKeySpellingMismatch {
                 key1,
                 base1,

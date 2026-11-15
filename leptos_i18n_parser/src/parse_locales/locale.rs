@@ -237,17 +237,87 @@ impl InterpolOrLit {
 }
 
 impl InterpolationKeys {
-    pub fn push_var(&mut self, key: Key, bounds: VarBounds) {
-        let var_infos = self.variables.entry(key).or_default();
-        var_infos.bounds.insert(bounds);
+    pub fn push_var(
+        &mut self,
+        key: Key,
+        bounds: VarBounds,
+        locale: &Key,
+        key_path: &KeyPath,
+        diag: &Diagnostics,
+    ) {
+        let mut var_infos = match self.variables.entry(key.clone()) {
+            Entry::Occupied(oe) => {
+                if oe.key().name != key.name {
+                    diag.emit_warning(Warning::VarKeySpellingMismatch {
+                        loc: Location::new(locale.clone(), key_path.to_owned()),
+                        key1: oe.key().name.clone(),
+                        key2: key.name.clone(),
+                        resolved_ident: key.ident_repr.clone(),
+                    });
+                }
+                oe
+            }
+            Entry::Vacant(ve) => ve.insert_entry(Default::default()),
+        };
+        var_infos.get_mut().bounds.insert(bounds);
     }
 
-    pub fn push_comp_self_closed(&mut self, key: Key) {
-        self.components_self_closed.insert(key);
+    pub fn push_comp_self_closed(
+        &mut self,
+        key: Key,
+        locale: &Key,
+        key_path: &KeyPath,
+        diag: &Diagnostics,
+    ) {
+        match self.components_self_closed.get(&key) {
+            Some(existing) if existing.name != key.name => {
+                diag.emit_warning(Warning::CompKeySpellingMismatch {
+                    loc: Location::new(locale.clone(), key_path.to_owned()),
+                    key1: existing.name.clone(),
+                    key2: key.name.clone(),
+                    resolved_ident: key.ident_repr.clone(),
+                    self_closed: true,
+                });
+            }
+            Some(_) => {}
+            None if let Some(existing) = self.components.get(&key) => {
+                diag.emit_error(Error::ConflictingComponentKind {
+                    loc: Location::new(locale.clone(), key_path.to_owned()),
+                    self_closed: key.name.clone(),
+                    comp: existing.name.clone(),
+                    resolved_ident: key.ident_repr.clone(),
+                });
+            }
+            None => {
+                self.components_self_closed.insert(key);
+            }
+        }
     }
 
-    pub fn push_comp(&mut self, key: Key) {
-        self.components.insert(key);
+    pub fn push_comp(&mut self, key: Key, locale: &Key, key_path: &KeyPath, diag: &Diagnostics) {
+        match self.components.get(&key) {
+            Some(existing) if existing.name != key.name => {
+                diag.emit_warning(Warning::CompKeySpellingMismatch {
+                    loc: Location::new(locale.clone(), key_path.to_owned()),
+                    key1: existing.name.clone(),
+                    key2: key.name.clone(),
+                    resolved_ident: key.ident_repr.clone(),
+                    self_closed: false,
+                });
+            }
+            Some(_) => {}
+            None if let Some(existing_sf) = self.components_self_closed.get(&key) => {
+                diag.emit_error(Error::ConflictingComponentKind {
+                    loc: Location::new(locale.clone(), key_path.to_owned()),
+                    self_closed: existing_sf.name.clone(),
+                    comp: key.name.clone(),
+                    resolved_ident: key.ident_repr.clone(),
+                });
+            }
+            None => {
+                self.components.insert(key);
+            }
+        }
     }
 
     pub fn push_count(
@@ -707,13 +777,14 @@ impl Locale {
         &mut self,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
+        diag: &Diagnostics,
     ) -> Result<BuildersKeysInner> {
         let mut keys = BuildersKeysInner::default();
         for (key, value) in &mut self.keys {
             value.reduce();
             let mut pushed_key = key_path.push_key(key.clone());
             let locale_value =
-                value.make_locale_value(&self.top_locale_name, &mut pushed_key, strings)?;
+                value.make_locale_value(&self.top_locale_name, &mut pushed_key, strings, diag)?;
             let key = pushed_key.pop().unwrap_at("make_builder_keys_1");
             keys.0.insert(key, locale_value);
         }

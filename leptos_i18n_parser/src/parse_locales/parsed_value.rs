@@ -1016,7 +1016,7 @@ impl ParsedValue {
                 },
             ) => {
                 self.index_strings(strings);
-                self.get_keys_inner(key_path, interpol_or_lit, false)
+                self.get_keys_inner(interpol_or_lit, &top_locale, key_path, diag, false)
             }
 
             // not compatible
@@ -1144,6 +1144,7 @@ impl ParsedValue {
         default_locale: &Key,
         key_path: &mut KeyPath,
         strings: &mut StringIndexer,
+        diag: &Diagnostics,
     ) -> Result<LocaleValue> {
         match self {
             ParsedValue::Subkeys(locale) => {
@@ -1152,7 +1153,7 @@ impl ParsedValue {
                         "make_locale_value called twice on Subkeys. If you got this error please open a issue on github."
                     )
                 };
-                let keys = locale.make_builder_keys(key_path, strings)?;
+                let keys = locale.make_builder_keys(key_path, strings, diag)?;
                 Ok(LocaleValue::Subkeys {
                     keys,
                     locales: vec![locale],
@@ -1161,18 +1162,21 @@ impl ParsedValue {
             ParsedValue::Default => Err(Error::ExplicitDefaultInDefault(key_path.clone()).into()),
             this => {
                 this.index_strings(strings);
-                this.get_keys(key_path).map(|value| LocaleValue::Value {
-                    value,
-                    defaults: DefaultedLocales::new(default_locale.clone()),
-                })
+                this.get_keys(default_locale, key_path, diag)
+                    .map(|value| LocaleValue::Value {
+                        value,
+                        defaults: DefaultedLocales::new(default_locale.clone()),
+                    })
             }
         }
     }
 
     pub fn get_keys_inner(
         &self,
-        key_path: &mut KeyPath,
         keys: &mut InterpolOrLit,
+        locale: &Key,
+        key_path: &mut KeyPath,
+        diag: &Diagnostics,
         is_top: bool,
     ) -> Result<()> {
         match self {
@@ -1181,8 +1185,13 @@ impl ParsedValue {
             }
             ParsedValue::Literal(_) | ParsedValue::Subkeys(_) | ParsedValue::Default => {}
             ParsedValue::Variable { key, bounds } => {
-                keys.get_interpol_keys_mut()
-                    .push_var(key.clone(), bounds.clone());
+                keys.get_interpol_keys_mut().push_var(
+                    key.clone(),
+                    bounds.clone(),
+                    locale,
+                    key_path,
+                    diag,
+                );
             }
             ParsedValue::Component {
                 key,
@@ -1190,34 +1199,45 @@ impl ParsedValue {
                 attributes,
             } => {
                 if let Some(inner) = inner {
-                    inner.get_keys_inner(key_path, keys, false)?;
-                    keys.get_interpol_keys_mut().push_comp(key.clone());
-                } else {
+                    inner.get_keys_inner(keys, locale, key_path, diag, false)?;
                     keys.get_interpol_keys_mut()
-                        .push_comp_self_closed(key.clone());
+                        .push_comp(key.clone(), locale, key_path, diag);
+                } else {
+                    keys.get_interpol_keys_mut().push_comp_self_closed(
+                        key.clone(),
+                        locale,
+                        key_path,
+                        diag,
+                    );
                 }
-                attributes.get_keys_inner(key_path, keys)?;
+                attributes.get_keys_inner(locale, key_path, keys, diag)?;
             }
             ParsedValue::Dummy(dummies) => {
                 let interpol_keys = keys.get_interpol_keys_mut();
                 for dummy in dummies {
                     match dummy {
                         Dummy::Variable(key) => {
-                            interpol_keys.push_var(key.clone(), VarBounds::Dummy);
+                            interpol_keys.push_var(
+                                key.clone(),
+                                VarBounds::Dummy,
+                                locale,
+                                key_path,
+                                diag,
+                            );
                         }
                         Dummy::Component(key) => {
-                            interpol_keys.push_comp(key.clone());
+                            interpol_keys.push_comp(key.clone(), locale, key_path, diag);
                         }
                     }
                 }
             }
             ParsedValue::Bloc(values) => {
                 for value in values {
-                    value.get_keys_inner(key_path, keys, false)?;
+                    value.get_keys_inner(keys, locale, key_path, diag, false)?;
                 }
             }
             ParsedValue::Ranges(ranges) => {
-                ranges.get_keys_inner(key_path, keys)?;
+                ranges.get_keys_inner(locale, key_path, keys, diag)?;
                 let range_type = ranges.get_type();
                 keys.get_interpol_keys_mut().push_count(
                     key_path,
@@ -1229,7 +1249,7 @@ impl ParsedValue {
                 foreign_key
                     .borrow()
                     .as_inner("get_keys_inner")
-                    .get_keys_inner(key_path, keys, false)?;
+                    .get_keys_inner(keys, locale, key_path, diag, false)?;
             }
             ParsedValue::Plurals(Plurals {
                 forms,
@@ -1243,18 +1263,23 @@ impl ParsedValue {
                     count_key.clone(),
                 )?;
                 for value in forms.values() {
-                    value.get_keys_inner(key_path, keys, false)?;
+                    value.get_keys_inner(keys, locale, key_path, diag, false)?;
                 }
-                other.get_keys_inner(key_path, keys, false)?;
+                other.get_keys_inner(keys, locale, key_path, diag, false)?;
             }
         }
         Ok(())
     }
 
-    pub fn get_keys(&self, key_path: &mut KeyPath) -> Result<InterpolOrLit> {
+    pub fn get_keys(
+        &self,
+        locale: &Key,
+        key_path: &mut KeyPath,
+        diag: &Diagnostics,
+    ) -> Result<InterpolOrLit> {
         let mut keys = InterpolOrLit::Lit(LiteralType::String);
 
-        self.get_keys_inner(key_path, &mut keys, true)?;
+        self.get_keys_inner(&mut keys, locale, key_path, diag, true)?;
         Ok(keys)
     }
 
@@ -1348,9 +1373,15 @@ impl Attributes {
         }
     }
 
-    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+    pub fn get_keys_inner(
+        &self,
+        locale: &Key,
+        key_path: &mut KeyPath,
+        keys: &mut InterpolOrLit,
+        diag: &Diagnostics,
+    ) -> Result<()> {
         for attr in &self.0 {
-            attr.get_keys_inner(key_path, keys)?;
+            attr.get_keys_inner(locale, key_path, keys, diag)?;
         }
         Ok(())
     }
@@ -1423,9 +1454,15 @@ impl Attribute {
         }
     }
 
-    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+    pub fn get_keys_inner(
+        &self,
+        locale: &Key,
+        key_path: &mut KeyPath,
+        keys: &mut InterpolOrLit,
+        diag: &Diagnostics,
+    ) -> Result<()> {
         if let Some(value) = &self.value {
-            value.get_keys_inner(key_path, keys)
+            value.get_keys_inner(locale, key_path, keys, diag)
         } else {
             Ok(())
         }
@@ -1479,12 +1516,23 @@ impl AttributeValue {
         Ok(())
     }
 
-    pub fn get_keys_inner(&self, _key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+    pub fn get_keys_inner(
+        &self,
+        locale: &Key,
+        key_path: &mut KeyPath,
+        keys: &mut InterpolOrLit,
+        diag: &Diagnostics,
+    ) -> Result<()> {
         match self {
             AttributeValue::Literal(_) => Ok(()),
             AttributeValue::Variable(key) => {
-                keys.get_interpol_keys_mut()
-                    .push_var(key.clone(), VarBounds::AttributeValue);
+                keys.get_interpol_keys_mut().push_var(
+                    key.clone(),
+                    VarBounds::AttributeValue,
+                    locale,
+                    key_path,
+                    diag,
+                );
                 Ok(())
             }
         }
