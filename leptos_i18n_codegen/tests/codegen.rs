@@ -167,6 +167,77 @@ fn key_spelled_differently_across_locales() {
     assert!(diag.warnings().is_empty(), "{:?}", &*diag.warnings());
 }
 
+#[test]
+fn foreign_key_args_colliding_on_the_same_ident() {
+    // the first argument is kept, the second is ignored
+    let file = r#"{ "a": "{{ a-b }}", "b": "$t(a, {\"a-b\": \"first\", \"a_b\": \"second\"})" }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert!(diag.errors().is_empty(), "{:?}", &*diag.errors());
+    let warnings = diag.warnings();
+    assert!(
+        matches!(
+            &*warnings,
+            [Warning::CollidingFkArgs { loc, fk_target, arg1, arg2, ident_repr }]
+                if loc.key_path.to_string() == "b"
+                    && fk_target.to_string() == "a"
+                    && arg1 == "a-b"
+                    && arg2 == "a_b"
+                    && ident_repr == "a_b"
+        ),
+        "{:?}",
+        &*warnings
+    );
+    assert!(code.contains("\"first\""));
+    assert!(!code.contains("\"second\""));
+}
+
+#[test]
+fn duplicate_foreign_key_args() {
+    // the first argument is kept, the second is ignored
+    let file =
+        r#"{ "a": "{{ a }}", "sub": { "b": "$t(a, {\"a\": \"first\", \"a\": \"second\"})" } }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert!(diag.errors().is_empty(), "{:?}", &*diag.errors());
+    let warnings = diag.warnings();
+    assert!(
+        matches!(
+            &*warnings,
+            [Warning::DuplicateFkArgs { loc, fk_target, arg_name }]
+                if loc.key_path.to_string() == "sub.b"
+                    && fk_target.to_string() == "a"
+                    && arg_name == "a"
+        ),
+        "{:?}",
+        &*warnings
+    );
+    assert!(code.contains("\"first\""));
+    assert!(!code.contains("\"second\""));
+}
+
+#[test]
+fn foreign_key_args_spelled_differently_than_the_variable() {
+    for (var, arg) in [
+        ("a-b", "a-b"),
+        ("a_b", "a-b"),
+        ("a-b", "a_b"),
+        ("a_b", "a_b"),
+    ] {
+        let file =
+            format!(r#"{{ "a": "{{{{ {var} }}}}", "b": "$t(a, {{\"{arg}\": \"value\"}})" }}"#);
+        let (code, diag) = gen_code(&[("en", &file)], &[]).unwrap();
+        assert!(diag.errors().is_empty(), "{file}: {:?}", &*diag.errors());
+        assert!(
+            diag.warnings().is_empty(),
+            "{file}: {:?}",
+            &*diag.warnings()
+        );
+        assert!(
+            code.contains("\"value\""),
+            "{file}: argument not substituted"
+        );
+    }
+}
+
 // *********************************************
 // * ERRORS
 // *********************************************
@@ -516,25 +587,6 @@ fn namespaces_with_custom_crate_path() {
 // * SILENT OVERWRITES AND PANICS
 // * see TODO.md
 // *********************************************
-
-#[test]
-#[ignore = "known bug: colliding foreign key arguments overwrite each other without any diagnostic"]
-fn foreign_key_args_colliding_on_the_same_ident() {
-    let (_code, diag) = gen_code(
-        &[(
-            "en",
-            r#"{ "a": "{{ a-b }}", "b": "$t(a, {\"a-b\": \"1\", \"a_b\": \"2\"})" }"#,
-        )],
-        &[],
-    )
-    .unwrap();
-    // Expected behavior: diag should contain some kind of warning that equivalent arguments have different
-    // raw identifiers
-    assert!(
-        !diag.warnings().is_empty() || !diag.errors().is_empty(),
-        "no diagnostic"
-    );
-}
 
 /// The translation files don't match the config: parsing must return an error.
 fn assert_files_error(files: &TranslationFiles, cfg: Config) {
