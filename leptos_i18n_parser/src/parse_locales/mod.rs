@@ -293,7 +293,8 @@ fn check_locales_inner(
     let mut key_path = KeyPath::new(namespace);
 
     let mut string_indexer = StringIndexer::default();
-    let mut default_keys = default_locale.make_builder_keys(&mut key_path, &mut string_indexer)?;
+    let mut default_keys =
+        default_locale.make_builder_keys(&mut key_path, &mut string_indexer, diag)?;
     default_locale.strings = string_indexer.get_strings();
     default_locale.top_locale_string_count = default_locale.strings.len();
 

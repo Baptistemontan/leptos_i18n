@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    parse_locales::{parsed_value::Literal, plurals::Plurals},
+    parse_locales::{error::Diagnostics, parsed_value::Literal, plurals::Plurals},
     utils::{Key, KeyPath, Loc},
 };
 
@@ -701,28 +701,36 @@ impl Ranges {
         }
     }
 
-    pub fn get_keys_inner(&self, key_path: &mut KeyPath, keys: &mut InterpolOrLit) -> Result<()> {
+    pub fn get_keys_inner(
+        &self,
+        locale: &Key,
+        key_path: &mut KeyPath,
+        keys: &mut InterpolOrLit,
+        diag: &Diagnostics,
+    ) -> Result<()> {
         fn inner<T>(
             v: &RangesInner<T>,
+            locale: &Key,
             key_path: &mut KeyPath,
             keys: &mut InterpolOrLit,
+            diag: &Diagnostics,
         ) -> Result<()> {
             for (_, value) in v {
-                value.get_keys_inner(key_path, keys, false)?;
+                value.get_keys_inner(keys, locale, key_path, diag, false)?;
             }
             Ok(())
         }
         match &self.inner {
-            UntypedRangesInner::I8(v) => inner(v, key_path, keys),
-            UntypedRangesInner::I16(v) => inner(v, key_path, keys),
-            UntypedRangesInner::I32(v) => inner(v, key_path, keys),
-            UntypedRangesInner::I64(v) => inner(v, key_path, keys),
-            UntypedRangesInner::U8(v) => inner(v, key_path, keys),
-            UntypedRangesInner::U16(v) => inner(v, key_path, keys),
-            UntypedRangesInner::U32(v) => inner(v, key_path, keys),
-            UntypedRangesInner::U64(v) => inner(v, key_path, keys),
-            UntypedRangesInner::F32(v) => inner(v, key_path, keys),
-            UntypedRangesInner::F64(v) => inner(v, key_path, keys),
+            UntypedRangesInner::I8(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::I16(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::I32(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::I64(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::U8(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::U16(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::U32(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::U64(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::F32(v) => inner(v, locale, key_path, keys, diag),
+            UntypedRangesInner::F64(v) => inner(v, locale, key_path, keys, diag),
         }
     }
 
