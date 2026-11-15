@@ -1,4 +1,9 @@
-use std::{cell::RefCell, collections::BTreeMap, fmt::Display, mem};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, btree_map::Entry},
+    fmt::Display,
+    mem,
+};
 
 use serde::{
     Deserialize,
@@ -240,9 +245,71 @@ impl ParsedValue {
 
     fn parse_foreign_key_args_inner(
         s: &str,
+        fk_target: &KeyPath,
         ctx: &ParseContext,
     ) -> Result<BTreeMap<String, ParsedValue>> {
-        let args = match serde_json::from_str::<BTreeMap<String, Literal>>(s) {
+        struct Seed<'a> {
+            ctx: &'a ParseContext<'a>,
+            fk_target: &'a KeyPath,
+        }
+
+        impl<'de, 'a> Visitor<'de> for Seed<'a> {
+            type Value = BTreeMap<String, (Literal, String)>;
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut b_map = BTreeMap::new();
+                while let Some((key, lit)) = map.next_entry::<String, Literal>()? {
+                    let canonical_key = key.replace('-', "_");
+                    match b_map.entry(canonical_key) {
+                        Entry::Vacant(ve) => {
+                            ve.insert((lit, key));
+                        }
+                        Entry::Occupied(oe) => {
+                            let (_, k) = oe.get();
+                            let w = if *k == key {
+                                Warning::DuplicateFkArgs {
+                                    loc: self.ctx.loc.into(),
+                                    fk_target: self.fk_target.to_owned(),
+                                    arg_name: key,
+                                }
+                            } else {
+                                Warning::CollidingFkArgs {
+                                    loc: self.ctx.loc.into(),
+                                    fk_target: self.fk_target.to_owned(),
+                                    arg1: k.clone(),
+                                    arg2: key,
+                                    ident_repr: oe.key().clone(),
+                                }
+                            };
+                            self.ctx.diag.emit_warning(w);
+                        }
+                    }
+                }
+
+                Ok(b_map)
+            }
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "a map of foreign key arguments")
+            }
+        }
+
+        impl<'de, 'a> DeserializeSeed<'de> for Seed<'a> {
+            type Value = BTreeMap<String, (Literal, String)>;
+
+            fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_map(self)
+            }
+        }
+
+        let mut d = serde_json::Deserializer::from_str(s);
+        let args = match DeserializeSeed::deserialize(Seed { ctx, fk_target }, &mut d) {
             Ok(args) => args,
             Err(err) => {
                 return Err(Error::InvalidForeignKeyArgs {
@@ -254,7 +321,7 @@ impl ParsedValue {
         };
         let mut parsed_args = BTreeMap::new();
 
-        for (key, arg) in args {
+        for (key, (arg, _)) in args {
             let parsed_value = match arg {
                 Literal::String(s, _) => Self::new(ctx, &s)?,
                 other => ParsedValue::Literal(other),
@@ -268,6 +335,7 @@ impl ParsedValue {
 
     fn parse_foreign_key_args<'a>(
         s: &'a str,
+        fk_target: &KeyPath,
         ctx: &ParseContext,
     ) -> Result<(BTreeMap<String, ParsedValue>, &'a str)> {
         let mut depth = 0usize;
@@ -306,7 +374,7 @@ impl ParsedValue {
             .into());
         };
 
-        let args = Self::parse_foreign_key_args_inner(before, ctx)?;
+        let args = Self::parse_foreign_key_args_inner(before, fk_target, ctx)?;
 
         Ok((args, after))
     }
@@ -320,7 +388,7 @@ impl ParsedValue {
         let target_key_path = Self::parse_key_path(keypath)?;
 
         let (args, after) = if sep == ',' {
-            nested_result_try!(Self::parse_foreign_key_args(after, ctx))
+            nested_result_try!(Self::parse_foreign_key_args(after, &target_key_path, ctx))
         } else {
             (BTreeMap::new(), after)
         };
@@ -824,7 +892,7 @@ impl ParsedValue {
             | ParsedValue::ForeignKey(_)
             | ParsedValue::Literal(_)
             | ParsedValue::Dummy(_) => Ok(self.clone()),
-            ParsedValue::Variable { key, bounds } => match args.get(&*key.name) {
+            ParsedValue::Variable { key, bounds } => match args.get(&*key.ident_repr) {
                 Some(value) => Ok(value.clone()),
                 None => Ok(ParsedValue::Variable {
                     key: key.clone(),
@@ -1374,7 +1442,7 @@ impl AttributeValue {
         match self {
             AttributeValue::Literal(lit) => Ok(AttributeValue::Literal(lit.clone())),
             AttributeValue::Variable(key) => {
-                let Some(arg) = args.get(&*key.name) else {
+                let Some(arg) = args.get(&*key.ident_repr) else {
                     return Ok(AttributeValue::Variable(key.clone()));
                 };
                 match arg {
