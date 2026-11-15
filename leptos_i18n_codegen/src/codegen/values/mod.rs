@@ -12,6 +12,21 @@ mod plurals;
 
 struct DummyFound;
 
+/// `f64` literals are built with `proc_macro2::Literal::f64_suffixed`, which asserts the value is
+/// finite, but formats supporting non-finite floats (`.nan` and `.inf` in YAML, `NaN` and
+/// `Infinity` in JSON5) can produce them. Emit the associated constants for those.
+fn float_to_token_stream(value: f64) -> TokenStream {
+    if value.is_nan() {
+        quote!(f64::NAN)
+    } else if value == f64::INFINITY {
+        quote!(f64::INFINITY)
+    } else if value == f64::NEG_INFINITY {
+        quote!(f64::NEG_INFINITY)
+    } else {
+        quote!(#value)
+    }
+}
+
 use crate::{
     CodegenOptions,
     codegen::{builders::infos::BuildersInfos, locales::strings_accessor_method_name},

@@ -192,7 +192,7 @@ pub fn gen_render_lit(
         }
         Literal::Signed(v) => quote!(#v),
         Literal::Unsigned(v) => quote!(#v),
-        Literal::Float(v) => quote!(#v),
+        Literal::Float(v) => super::float_to_token_stream(*v),
         Literal::Bool(v) => quote!(#v),
     }
 }
@@ -311,6 +311,7 @@ fn flatten_const_value(
             quote!(__l_i18n_crate::keys::comp_time::Literal::Unsigned(#n))
         }
         Literal::Float(n) if multi_kind => {
+            let n = super::float_to_token_stream(*n);
             quote!(__l_i18n_crate::keys::comp_time::Literal::Float(#n))
         }
         Literal::Bool(n) if multi_kind => {
@@ -318,7 +319,7 @@ fn flatten_const_value(
         }
         Literal::Signed(n) => quote!(#n),
         Literal::Unsigned(n) => quote!(#n),
-        Literal::Float(n) => quote!(#n),
+        Literal::Float(n) => super::float_to_token_stream(*n),
         Literal::Bool(n) => quote!(#n),
     };
 
