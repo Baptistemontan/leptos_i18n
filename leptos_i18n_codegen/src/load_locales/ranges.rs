@@ -2,11 +2,10 @@ use std::{fmt::Display, ops::Bound};
 
 use leptos_i18n_parser::{
     parse_locales::{
-        locale::InterpolOrLit,
         parsed_value::ParsedValue,
         ranges::{Range, RangeNumber, Ranges, UntypedRangesInner},
     },
-    utils::{Key, KeyPath, UnwrapAt},
+    utils::{Key, UnwrapAt},
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
@@ -258,16 +257,7 @@ fn to_tokens_integers<T: IntegerRangeNumber>(
         quote!(#range => { #ts })
     });
 
-    let mut captured_values =
-        InterpolOrLit::Lit(leptos_i18n_parser::parse_locales::locale::LiteralType::String);
-    let mut key_path = KeyPath::new(None);
-
-    for (_, value) in ranges {
-        value
-            .get_keys_inner(&mut key_path, &mut captured_values, false)
-            .unwrap_at("ranges::to_tokens_integers_1");
-    }
-
+    let captured_values = ParsedValue::captured_keys(ranges.iter().map(|(_, value)| value));
     let captured_values = captured_values.is_interpol().map(|keys| {
         let keys = keys
             .iter_keys()
@@ -315,16 +305,7 @@ fn to_tokens_floats<T: RangeNumber>(
         #(else #ifs)*
     };
 
-    let mut captured_values =
-        InterpolOrLit::Lit(leptos_i18n_parser::parse_locales::locale::LiteralType::String);
-    let mut key_path = KeyPath::new(None);
-
-    for (_, value) in ranges {
-        value
-            .get_keys_inner(&mut key_path, &mut captured_values, false)
-            .unwrap_at("ranges::to_tokens_floats_1");
-    }
-
+    let captured_values = ParsedValue::captured_keys(ranges.iter().map(|(_, value)| value));
     let captured_values = captured_values.is_interpol().map(|keys| {
         let keys = keys
             .iter_keys()

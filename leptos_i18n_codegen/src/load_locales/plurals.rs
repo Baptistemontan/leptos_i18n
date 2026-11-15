@@ -1,9 +1,6 @@
 use leptos_i18n_parser::{
-    parse_locales::{
-        locale::{InterpolOrLit, LiteralType},
-        plurals::Plurals,
-    },
-    utils::{Key, KeyPath, UnwrapAt},
+    parse_locales::{parsed_value::ParsedValue, plurals::Plurals},
+    utils::{Key, UnwrapAt},
 };
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
@@ -124,15 +121,7 @@ pub fn to_token_stream(this: &Plurals, strings_count: usize) -> TokenStream {
     let locale_field = Key::new(LOCALE_FIELD_KEY).unwrap_at("LOCALE_FIELD_KEY");
     let other = &*this.other;
 
-    let mut captured_values = InterpolOrLit::Lit(LiteralType::String);
-    let mut key_path = KeyPath::new(None);
-
-    for value in this.forms.values().chain(Some(other)) {
-        value
-            .get_keys_inner(&mut key_path, &mut captured_values, false)
-            .unwrap_at("plurals::to_token_stream_1");
-    }
-
+    let captured_values = ParsedValue::captured_keys(this.forms.values().chain(Some(other)));
     let captured_values = captured_values.is_interpol().map(|keys| {
         let keys = keys
             .iter_keys()

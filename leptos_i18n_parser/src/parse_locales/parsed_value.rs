@@ -1283,6 +1283,23 @@ impl ParsedValue {
         Ok(keys)
     }
 
+    /// The variables and components used by these values, for the codegen to capture them.
+    ///
+    /// The values were already checked while parsing, so the diagnostics are discarded here.
+    pub fn captured_keys<'a>(values: impl IntoIterator<Item = &'a ParsedValue>) -> InterpolOrLit {
+        let diag = Diagnostics::new();
+        // only used for the (discarded) diagnostics
+        let locale = Key::count();
+        let mut key_path = KeyPath::new(None);
+        let mut keys = InterpolOrLit::Lit(LiteralType::String);
+        for value in values {
+            value
+                .get_keys_inner(&mut keys, &locale, &mut key_path, &diag, false)
+                .unwrap_at("captured_keys");
+        }
+        keys
+    }
+
     pub fn index_strings(&mut self, strings: &mut StringIndexer) {
         match self {
             ParsedValue::Literal(lit) => {
