@@ -491,6 +491,16 @@ fn component_with_children_and_self_closed() {
     }
 }
 
+#[test]
+fn integer_ranges_with_holes() {
+    let (code, _diag) = gen_code(
+        &[("en", r#"{ "my_key": [["zero", 0], ["some", "1..=3"]] }"#)],
+        &[],
+    )
+    .unwrap();
+    assert!(code.contains("compile_error"));
+}
+
 // *********************************************
 // * PLURALS
 // *********************************************
@@ -644,31 +654,21 @@ fn plurals_at_normal_key() {
 }
 
 // *********************************************
-// * KNOWN BUGS
-// * see https://github.com/Baptistemontan/leptos_i18n/pull/327
+// * REGRESSIONS
+// * fixed bugs, see https://github.com/Baptistemontan/leptos_i18n/pull/327
 // *********************************************
 
 #[test]
 fn kebab_case_key_with_interpolation() {
-    // panics with `"my-key_builder" is not a valid Ident`
+    // used to panic with `"my-key_builder" is not a valid Ident`
     gen_code(&[("en", r#"{ "my-key": "hello {{ count }}" }"#)], &[]).unwrap();
-}
-
-#[test]
-fn integer_ranges_with_holes() {
-    let (code, _diag) = gen_code(
-        &[("en", r#"{ "my_key": [["zero", 0], ["some", "1..=3"]] }"#)],
-        &[],
-    )
-    .unwrap();
-    assert!(code.contains("compile_error"));
 }
 
 #[test]
 fn non_finite_float_values() {
     for value in [".nan", ".inf", "-.inf"] {
         let file = format!("my_key: {value}");
-        // panics with `assertion failed: f.is_finite()`
+        // used to panic with `assertion failed: f.is_finite()`
         gen_code_with(&[(None, &[("en", &file)])], &[], FileFormat::Yaml, None).unwrap();
     }
 }
