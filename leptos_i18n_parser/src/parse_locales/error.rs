@@ -608,6 +608,11 @@ pub enum Warning {
         loc: Location,
         base: Rc<str>,
     },
+    PluralLookingKeysWithNoOther {
+        base_key_location: Location,
+        keys: Vec<Key>,
+        rule_type: PluralRuleType,
+    },
     Custom(String),
 }
 
@@ -680,6 +685,34 @@ impl Display for Warning {
                     write!(f, "its base \"{base}\" is not a valid Rust identifier")?;
                 }
                 f.write_str(", so it can't be a plural and is kept as a normal key.")
+            }
+            Warning::PluralLookingKeysWithNoOther {
+                base_key_location,
+                keys,
+                rule_type,
+            } => {
+                f.write_str("Keys ")?;
+                for (i, key) in keys.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "\"{key}\"")?;
+                }
+                let other_suffix = match rule_type {
+                    PluralRuleType::Cardinal => "_other",
+                    PluralRuleType::Ordinal => "_ordinal_other",
+                };
+                let base = base_key_location
+                    .key_path
+                    .path
+                    .last()
+                    .map(|key| &*key.name)
+                    .unwrap_or_default();
+                write!(
+                    f,
+                    " in locale {:?} look like {rule_type} plural forms of \"{}\", but there is no \"{base}{other_suffix}\" form, which every plural needs, so they are kept as normal keys.",
+                    base_key_location.locale, base_key_location.key_path
+                )
             }
             Warning::KeySpellingMismatch {
                 key_path,
