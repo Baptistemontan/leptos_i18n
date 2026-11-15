@@ -539,21 +539,38 @@ fn plural_forms_spelled_differently() {
 
 #[test]
 fn plural_with_invalid_base_is_a_normal_key() {
-    for (file, keys) in [
-        (r#"{ "_one": "1", "_other": "o" }"#, ["_one", "_other"]),
+    for (file, keys, expected_base) in [
+        (r#"{ "_one": "1", "_other": "o" }"#, ["_one", "_other"], ""),
         (
             r#"{ "_ordinal_one": "1", "_ordinal_other": "o" }"#,
             ["_ordinal_one", "_ordinal_other"],
+            "",
         ),
         (
             r#"{ "type_one": "1", "type_other": "o" }"#,
             ["type_one", "type_other"],
+            "type",
         ),
     ] {
-        let (code, _diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
         for key in keys {
             assert!(code.contains(&format!("fn {key} (")), "{file}: {key}");
         }
+        assert!(diag.errors().is_empty(), "{file}: {:?}", &*diag.errors());
+
+        // one warning per key
+        let warnings = diag.warnings();
+        let mut warned_keys = warnings
+            .iter()
+            .map(|w| match w {
+                Warning::PluralLookingKeyInvalidBase { loc, base } if &**base == expected_base => {
+                    loc.key_path.to_string()
+                }
+                other => panic!("{file}: unexpected warning {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        warned_keys.sort();
+        assert_eq!(warned_keys, keys, "{file}");
     }
 }
 
