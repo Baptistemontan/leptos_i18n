@@ -647,12 +647,12 @@ impl Locale {
                 );
             }
         }
-        for (_, (cardinal, ordinal)) in possible_plurals {
+        for (base_key, (cardinal, ordinal)) in possible_plurals {
             for (rule_type, mut plurals) in [
                 (PluralRuleType::Cardinal, cardinal),
                 (PluralRuleType::Ordinal, ordinal),
             ] {
-                if plurals.len() == 1 {
+                if plurals.len() <= 1 {
                     for (_, (key, value, _)) in plurals {
                         super::insert_with_collision_check(
                             &mut self.keys,
@@ -666,7 +666,9 @@ impl Locale {
                     continue;
                 }
                 let Some((other_key, other, base_key)) = plurals.remove(&PluralForm::Other) else {
+                    let mut keys = Vec::with_capacity(plurals.len());
                     for (_, (key, value, _)) in plurals {
+                        keys.push(key.clone());
                         super::insert_with_collision_check(
                             &mut self.keys,
                             key,
@@ -676,6 +678,13 @@ impl Locale {
                             diag,
                         );
                     }
+                    let mut path = key_path.to_owned();
+                    path.path.push(base_key.clone());
+                    diag.emit_warning(Warning::PluralLookingKeysWithNoOther {
+                        base_key_location: Location::new(locale.clone(), path),
+                        keys,
+                        rule_type,
+                    });
                     continue;
                 };
                 let pushed_key = key_path.push_key(base_key.clone());
