@@ -498,6 +498,18 @@ pub enum Warning {
         base2: Rc<str>,
         resolved_ident: Rc<str>,
     },
+    DuplicateFkArgs {
+        loc: Location,
+        fk_target: KeyPath,
+        arg_name: String,
+    },
+    CollidingFkArgs {
+        loc: Location,
+        fk_target: KeyPath,
+        arg1: String,
+        arg2: String,
+        ident_repr: String,
+    },
     NonUnicodePath {
         locale: Key,
         namespace: Option<Key>,
@@ -586,6 +598,24 @@ impl Display for Warning {
                 f,
                 "Plural keys \"{}\" and \"{}\" in locale {:?} spell their base differently (\"{}\" / \"{}\"), both resolve to the same Rust identifier \"{}\" and are treated as the same plural.",
                 key1.key_path, key2, key1.locale, base1, base2, resolved_ident
+            ),
+            Warning::DuplicateFkArgs {
+                loc,
+                fk_target,
+                arg_name,
+            } => write!(
+                f,
+                "Argument {arg_name:?} is given more than once to foreign key \"{fk_target}\" at {loc}, only the first value is kept."
+            ),
+            Warning::CollidingFkArgs {
+                loc,
+                fk_target,
+                arg1,
+                arg2,
+                ident_repr,
+            } => write!(
+                f,
+                "Arguments {arg1:?} and {arg2:?} to foreign key \"{fk_target}\" at {loc} both resolve to the same Rust identifier {ident_repr:?}, only the first one ({arg1:?}) is kept."
             ),
         }
     }
