@@ -20,9 +20,10 @@ The keys must be the same across all files; otherwise, the codegen will emit war
 
 ### Missing Key
 
-If a key is present in the default locale but not in another locale, the other locale will use the value from the default locale and emit a warning that a key is missing in that locale.
+If a key is present in the default locale but not in another locale, the other locale will use the value from the locale it inherits from (see the "Locale Inheritance" chapter), or from the default locale if it doesn't inherit from any.
+A warning that a key is missing in that locale is emitted when it falls back to the default locale.
 
-If you want to explicitly indicate that this value should use the value from the default locale, you can declare it as `null`:
+If you want to explicitly indicate that this value should use the value from the locale it inherits from, you can declare it as `null`:
 
 ```json
 {

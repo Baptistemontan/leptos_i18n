@@ -6,7 +6,7 @@ use crate::Locale;
 pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> Memo<L> {
     let accepted_locales = leptos_use::use_locales_with_options(options);
     let accepted_locale =
-        Memo::new(move |_| accepted_locales.with(|accepted| L::find_locale(accepted)));
+        Memo::new(move |_| accepted_locales.with(|accepted| Locale::find_locale(accepted)));
 
     if cfg!(feature = "ssr") {
         fetch_locale_ssr(current_cookie, accepted_locale)
@@ -19,7 +19,7 @@ pub fn fetch_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOpt
 
 pub fn get_accepted_locale<L: Locale>(options: UseLocalesOptions) -> L {
     leptos_use::use_locales_with_options(options)
-        .with_untracked(|accepted| L::find_locale(accepted))
+        .with_untracked(|accepted| Locale::find_locale(accepted))
 }
 
 pub fn resolve_locale<L: Locale>(current_cookie: Option<L>, options: UseLocalesOptions) -> L {

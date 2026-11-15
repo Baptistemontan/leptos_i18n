@@ -72,7 +72,7 @@ You can use the `i18n_path!` macro inside the `I18nRoute` to create localized pa
 use leptos_i18n_router::i18n_path;
 
 <I18nRoute<Locale, _, _> view=Outlet>
-    <Route path=i18n_path!(Locale, |locale| td_string(locale, segment_path_name)) view={/* */} />
+    <Route path=i18n_path!(Locale, segment_path_name) view={/* */} />
 </I18nRoute<Locale, _, _>>
 ```
 
