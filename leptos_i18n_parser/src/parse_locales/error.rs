@@ -42,6 +42,15 @@ pub enum Error {
     },
     DuplicateLocalesInConfig(BTreeSet<Key>),
     DuplicateNamespacesInConfig(BTreeSet<Key>),
+    MissingLocaleFile {
+        locale: Key,
+        namespace: Option<Key>,
+    },
+    MissingNamespaceFiles(Key),
+    TranslationFilesMismatch {
+        /// `true` if the configuration has namespaces but the files are given per locale.
+        expected_namespaces: bool,
+    },
     SubKeyMissmatch {
         locale: Key,
         key_path: KeyPath,
@@ -245,6 +254,37 @@ impl Display for Error {
             Error::DuplicateNamespacesInConfig(duplicates) => write!(
                 f,
                 "Found duplicates namespaces in configuration (Cargo.toml): {duplicates:?}"
+            ),
+            Error::MissingLocaleFile {
+                locale,
+                namespace: None,
+            } => write!(
+                f,
+                "Missing translation file for locale {:?}: the locale is in the configuration but no file was given for it.",
+                locale.name
+            ),
+            Error::MissingLocaleFile {
+                locale,
+                namespace: Some(namespace),
+            } => write!(
+                f,
+                "Missing translation file for locale {:?} in namespace {:?}: the locale is in the configuration but no file was given for it.",
+                locale.name, namespace.name
+            ),
+            Error::MissingNamespaceFiles(namespace) => write!(
+                f,
+                "Missing translation files for namespace {:?}: the namespace is in the configuration but no files were given for it.",
+                namespace.name
+            ),
+            Error::TranslationFilesMismatch {
+                expected_namespaces: true,
+            } => f.write_str(
+                "The configuration has namespaces, but the translation files are given per locale (`TranslationFiles::Locales`) instead of per namespace (`TranslationFiles::NameSpaces`).",
+            ),
+            Error::TranslationFilesMismatch {
+                expected_namespaces: false,
+            } => f.write_str(
+                "The configuration has no namespaces, but the translation files are given per namespace (`TranslationFiles::NameSpaces`) instead of per locale (`TranslationFiles::Locales`).",
             ),
             Error::RangeTypeMissmatch {
                 key_path,
