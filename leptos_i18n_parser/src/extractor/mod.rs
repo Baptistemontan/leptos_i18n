@@ -1,10 +1,10 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, btree_map::Entry},
     rc::Rc,
 };
 
 use crate::{
-    error::{Diagnostics, Error, Result},
+    error::{Diagnostics, Error, Result, Warning},
     extraction::{AttributeValue, Attributes},
     extractor::values::{
         Value, Values,
@@ -215,31 +215,49 @@ fn get_builders(locales: &mut LocalesOrNamespaces, diag: &Diagnostics) -> Builde
         LocalesOrNamespaces::Namespaces(namespaces) => {
             for ns in namespaces {
                 let mut path = KeyPath::new(Some(ns.name.clone()));
-                get_keys_builders(&mut ns.locales.keys, &mut ids, &mut path, diag);
+                let names = LocaleNames::new(&ns.locales.locales);
+                get_keys_builders(&mut ns.locales.keys, &mut ids, &mut path, &names, diag);
             }
         }
         LocalesOrNamespaces::Locales(locales) => {
             let mut path = KeyPath::new(None);
-            get_keys_builders(&mut locales.keys, &mut ids, &mut path, diag);
+            let names = LocaleNames::new(&locales.locales);
+            get_keys_builders(&mut locales.keys, &mut ids, &mut path, &names, diag);
         }
     }
 
     ids.into_builders()
 }
 
+/// The locales names by their key, the merged values only have the locale keys.
+struct LocaleNames<'a>(BTreeMap<&'a Key, &'a LocaleName>);
+
+impl<'a> LocaleNames<'a> {
+    fn new(locales: &'a [Locale]) -> Self {
+        LocaleNames(locales.iter().map(|l| (&l.name.key, &l.name)).collect())
+    }
+
+    fn get(&self, key: &Key) -> &'a LocaleName {
+        self.0.get(key).expect("values only have known locales")
+    }
+}
+
 fn get_keys_builders(
     keys: &mut Keys,
     ids: &mut BuilderIndexer,
     path: &mut KeyPath,
+    names: &LocaleNames,
     diag: &Diagnostics,
 ) {
     for (key, value) in keys.values.iter_mut() {
         let mut path = path.push_key(key.clone());
         match value {
             values::ValuesOrSubkeys::Values(values) => {
-                get_values_builders(values, ids, path.clone(), diag)
+                get_values_builders(values, ids, path.clone(), names, diag)
             }
-            values::ValuesOrSubkeys::Subkeys(keys) => get_keys_builders(keys, ids, &mut path, diag),
+            values::ValuesOrSubkeys::Subkeys(keys) => {
+                get_keys_builders(keys, ids, &mut path, names, diag)
+            }
         }
     }
 }
@@ -248,49 +266,91 @@ fn get_values_builders(
     values: &mut Values,
     ids: &mut BuilderIndexer,
     path: KeyPath,
+    names: &LocaleNames,
     diag: &Diagnostics,
 ) {
-    let interpolation_keys = make_keys(values, &path, diag);
+    let interpolation_keys = make_keys(values, &path, names, diag);
     let id = ids.push_keys(interpolation_keys, path);
     values.builder_id = id;
 }
 
-fn make_keys(values: &Values, path: &KeyPath, diag: &Diagnostics) -> InterpolationKeys {
+fn make_keys(
+    values: &Values,
+    path: &KeyPath,
+    names: &LocaleNames,
+    diag: &Diagnostics,
+) -> InterpolationKeys {
     let mut interpolation_keys = InterpolationKeys::default();
 
-    for value in values.values.values() {
-        extract_value_keys(value, &mut interpolation_keys, path, diag);
+    for (locale, value) in &values.values {
+        let loc = Location::new(names.get(locale).clone(), path.clone());
+        extract_value_keys(value, &mut interpolation_keys, &loc, diag);
     }
 
     interpolation_keys
 }
 
+/// Insert a variable, warn if it's already there with a different spelling (`a-b` / `a_b`).
+fn push_var<'a>(
+    keys: &'a mut InterpolationKeys,
+    key: &Key,
+    loc: &Location,
+    diag: &Diagnostics,
+) -> &'a mut VarInfos {
+    match keys.vars.entry(key.clone()) {
+        Entry::Occupied(entry) => {
+            if entry.key().name != key.name {
+                diag.emit_warning(Warning::VarKeySpellingMismatch {
+                    loc: loc.clone(),
+                    key1: entry.key().name.clone(),
+                    key2: key.name.clone(),
+                    resolved_ident: key.ident_repr.clone(),
+                });
+            }
+            entry.into_mut()
+        }
+        Entry::Vacant(entry) => entry.insert(VarInfos::default()),
+    }
+}
+
 fn extract_value_keys(
     value: &Value,
     keys: &mut InterpolationKeys,
-    path: &KeyPath,
+    loc: &Location,
     diag: &Diagnostics,
 ) {
+    let path = &loc.key_path;
     match value {
         Value::Literal(_) => {}
         Value::Variable(variable) => {
-            let info = keys.vars.entry(variable.key.clone()).or_default();
+            let info = push_var(keys, &variable.key, loc, diag);
             info.bounds.insert(variable.bound.clone());
         }
         Value::Component(component) => {
             if let Some(inner) = &component.inner {
-                extract_value_keys(inner, keys, path, diag);
+                extract_value_keys(inner, keys, loc, diag);
             }
-            extract_attributes_keys(&component.attributes, keys);
+            extract_attributes_keys(&component.attributes, keys, loc, diag);
             let children_kind = if component.inner.is_none() {
                 ChildrenKind::SelfClosed
             } else {
                 ChildrenKind::Normal
             };
-            let info = keys
-                .components
-                .entry(component.key.clone())
-                .or_insert(CompInfos { children_kind });
+            let info = match keys.components.entry(component.key.clone()) {
+                Entry::Occupied(entry) => {
+                    if entry.key().name != component.key.name {
+                        diag.emit_warning(Warning::CompKeySpellingMismatch {
+                            loc: loc.clone(),
+                            key1: entry.key().name.clone(),
+                            key2: component.key.name.clone(),
+                            resolved_ident: component.key.ident_repr.clone(),
+                            self_closed: component.inner.is_none(),
+                        });
+                    }
+                    entry.into_mut()
+                }
+                Entry::Vacant(entry) => entry.insert(CompInfos { children_kind }),
+            };
             match info.children_kind {
                 ChildrenKind::Dummy => {
                     info.children_kind = children_kind;
@@ -315,12 +375,12 @@ fn extract_value_keys(
         }
         Value::Bloc(values) => {
             for value in values {
-                extract_value_keys(value, keys, path, diag);
+                extract_value_keys(value, keys, loc, diag);
             }
         }
         Value::Plurals(plurals) => {
             for (_, value) in plurals.forms.iter_forms() {
-                extract_value_keys(value, keys, path, diag);
+                extract_value_keys(value, keys, loc, diag);
             }
             let var_info = keys.vars.entry(plurals.count_key.clone()).or_default();
             var_info.plural = true;
@@ -343,10 +403,15 @@ fn extract_value_keys(
     }
 }
 
-fn extract_attributes_keys(attributes: &Attributes, keys: &mut InterpolationKeys) {
+fn extract_attributes_keys(
+    attributes: &Attributes,
+    keys: &mut InterpolationKeys,
+    loc: &Location,
+    diag: &Diagnostics,
+) {
     for attr in &attributes.attrs {
         if let Some(AttributeValue::Variable(var)) = &attr.value {
-            let infos = keys.vars.entry(var.clone()).or_default();
+            let infos = push_var(keys, var, loc, diag);
             infos.bounds.insert(VarBound::AttributeValue);
         }
     }

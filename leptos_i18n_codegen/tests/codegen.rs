@@ -230,8 +230,19 @@ fn duplicate_foreign_key_args() {
     assert!(!code.contains("\"second\""));
 }
 
+/// The generated code mentions a variable/component name several times (builder methods, ...),
+/// so compare with the code generated for the same files without the collision.
+fn count_without_collision(files: &Files, pattern: &str) -> usize {
+    let files: Vec<(&str, String)> = files
+        .iter()
+        .map(|(locale, file)| (*locale, file.replace("a-b", "a_b")))
+        .collect();
+    let files: Vec<(&str, &str)> = files.iter().map(|(l, f)| (*l, f.as_str())).collect();
+    let (code, _diag) = gen_code(&files, &[]).unwrap();
+    code.matches(pattern).count()
+}
+
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
 fn vars_colliding_on_the_same_ident() {
     // (files, locale where the second spelling is found)
     for (files, locale) in [
@@ -246,7 +257,11 @@ fn vars_colliding_on_the_same_ident() {
         ),
     ] {
         let (code, diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("var_a_b :").count(),
+            count_without_collision(files, "var_a_b :"),
+            "{files:?}"
+        );
         assert!(diag.errors().is_empty(), "{files:?}: {:?}", &*diag.errors());
         let warnings = diag.warnings();
         assert!(
@@ -266,7 +281,6 @@ fn vars_colliding_on_the_same_ident() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
 fn comps_colliding_on_the_same_ident() {
     // (files, locale where the second spelling is found, self-closed)
     for (files, locale, self_closed) in [
@@ -286,7 +300,11 @@ fn comps_colliding_on_the_same_ident() {
         ),
     ] {
         let (code, diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("comp_a_b :").count(),
+            count_without_collision(files, "comp_a_b :"),
+            "{files:?}"
+        );
         assert!(diag.errors().is_empty(), "{files:?}: {:?}", &*diag.errors());
         let warnings = diag.warnings();
         assert!(
