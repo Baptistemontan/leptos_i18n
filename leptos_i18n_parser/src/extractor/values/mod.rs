@@ -101,6 +101,19 @@ pub fn merge_and_index_keys(
             }
             continue;
         }
+        // the same key spelled differently than in the default locale (`a-b` / `a_b`)
+        if !is_default
+            && let Some((default_key, _)) = keys.values.get_key_value(&key)
+            && default_key.name != key.name
+        {
+            let mut key_path = loc.key_path.clone();
+            key_path.path.pop();
+            key_path.path.push(default_key.clone());
+            diag.emit_warning(Warning::KeySpellingMismatch {
+                key_path,
+                provided_key: loc.clone(),
+            });
+        }
         match value {
             foreign_key::ResolvedValueOrSubkeys::Value(resolved_value) => {
                 let keys = keys

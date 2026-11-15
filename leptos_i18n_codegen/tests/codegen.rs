@@ -139,7 +139,6 @@ fn suppress_missing_key_on_inherit() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
 fn key_spelled_differently_across_locales() {
     for (en, fr, default_path, fr_path) in [
         (r#"{ "a-b": "en" }"#, r#"{ "a_b": "fr" }"#, "a-b", "a_b"),
