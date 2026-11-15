@@ -564,6 +564,10 @@ pub enum Warning {
         formatter_name: String,
         chars: String,
     },
+    PluralLookingKeyInvalidBase {
+        loc: Location,
+        base: Rc<str>,
+    },
     Custom(String),
 }
 
@@ -624,6 +628,19 @@ impl Display for Warning {
                 f,
                 "Unexpected characters {chars:?} after formatter {formatter_name:?} at {loc}"
             ),
+            Warning::PluralLookingKeyInvalidBase { loc, base } => {
+                write!(
+                    f,
+                    "Key \"{}\" in locale {:?} looks like a plural form, but ",
+                    loc.key_path, loc.locale
+                )?;
+                if base.is_empty() {
+                    f.write_str("its base is empty")?;
+                } else {
+                    write!(f, "its base \"{base}\" is not a valid Rust identifier")?;
+                }
+                f.write_str(", so it can't be a plural and is kept as a normal key.")
+            }
             Warning::KeySpellingMismatch {
                 key_path,
                 provided_key,

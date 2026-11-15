@@ -569,6 +569,9 @@ impl Locale {
     pub fn is_possible_plural(
         key: &Key,
         value: &ParsedValue,
+        locale: &Key,
+        key_path: &KeyPath,
+        diag: &Diagnostics,
     ) -> Option<(Key, PluralRuleType, PluralForm)> {
         if matches!(value, ParsedValue::Ranges(_) | ParsedValue::Subkeys(_)) {
             return None;
@@ -582,7 +585,15 @@ impl Locale {
 
         let form = PluralForm::try_from_str(suffix)?;
         // a base that isn't a valid identifier (empty, a keyword, ...) can't be a plural: keep it as a normal key
-        let base_key = Key::new(base_key)?;
+        let Some(base_key) = Key::new(base_key) else {
+            let mut path = key_path.clone();
+            path.path.push(key.clone());
+            diag.emit_warning(Warning::PluralLookingKeyInvalidBase {
+                loc: Location::new(locale.clone(), path),
+                base: base_key.into(),
+            });
+            return None;
+        };
         Some((base_key, rule_type, form))
     }
 
@@ -605,7 +616,8 @@ impl Locale {
                 let mut pushed_key = key_path.push_key(key.clone());
                 subkeys.merge_plurals(locale, &mut pushed_key, diag)?;
             }
-            if let Some((base_key, rule_type, plural_form)) = Self::is_possible_plural(&key, &value)
+            if let Some((base_key, rule_type, plural_form)) =
+                Self::is_possible_plural(&key, &value, locale, key_path, diag)
             {
                 let maps = possible_plurals.entry(base_key.clone()).or_default();
 
