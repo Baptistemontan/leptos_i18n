@@ -215,6 +215,81 @@ fn duplicate_foreign_key_args() {
 }
 
 #[test]
+fn vars_colliding_on_the_same_ident() {
+    // (files, locale where the second spelling is found)
+    for (files, locale) in [
+        (&[("en", r#"{ "k": "{{ a-b }} {{ a_b }}" }"#)][..], "en"),
+        (&[("en", r#"{ "k": "<b>{{ a-b }}</b> {{ a_b }}" }"#)], "en"),
+        (
+            &[
+                ("en", r#"{ "k": "{{ a-b }}" }"#),
+                ("fr", r#"{ "k": "{{ a_b }}" }"#),
+            ],
+            "fr",
+        ),
+    ] {
+        let (code, diag) = gen_code(files, &[]).unwrap();
+        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
+        assert!(diag.errors().is_empty(), "{files:?}: {:?}", &*diag.errors());
+        let warnings = diag.warnings();
+        assert!(
+            matches!(
+                &*warnings,
+                [Warning::VarKeySpellingMismatch { loc, .. }]
+                    if loc.key_path.to_string() == "k" && loc.locale.name.as_ref() == locale
+            ),
+            "{files:?}: {:?}",
+            &*warnings
+        );
+    }
+
+    // same spelling: no warning
+    let (_code, diag) = gen_code(&[("en", r#"{ "k": "{{ a-b }} {{ a-b }}" }"#)], &[]).unwrap();
+    assert!(diag.warnings().is_empty(), "{:?}", &*diag.warnings());
+}
+
+#[test]
+fn comps_colliding_on_the_same_ident() {
+    // (files, locale where the second spelling is found, self-closed)
+    for (files, locale, self_closed) in [
+        (
+            &[("en", r#"{ "k": "<a-b>x</a-b> <a_b>y</a_b>" }"#)][..],
+            "en",
+            false,
+        ),
+        (&[("en", r#"{ "k": "<a-b/> <a_b/>" }"#)], "en", true),
+        (
+            &[
+                ("en", r#"{ "k": "<a-b>x</a-b>" }"#),
+                ("fr", r#"{ "k": "<a_b>y</a_b>" }"#),
+            ],
+            "fr",
+            false,
+        ),
+    ] {
+        let (code, diag) = gen_code(files, &[]).unwrap();
+        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
+        assert!(diag.errors().is_empty(), "{files:?}: {:?}", &*diag.errors());
+        let warnings = diag.warnings();
+        assert!(
+            matches!(
+                &*warnings,
+                [Warning::CompKeySpellingMismatch { loc, self_closed: sc, .. }]
+                    if loc.key_path.to_string() == "k"
+                        && loc.locale.name.as_ref() == locale
+                        && *sc == self_closed
+            ),
+            "{files:?}: {:?}",
+            &*warnings
+        );
+    }
+
+    // same spelling: no warning
+    let (_code, diag) = gen_code(&[("en", r#"{ "k": "<a-b/> <a-b/>" }"#)], &[]).unwrap();
+    assert!(diag.warnings().is_empty(), "{:?}", &*diag.warnings());
+}
+
+#[test]
 fn foreign_key_args_spelled_differently_than_the_variable() {
     for (var, arg) in [
         ("a-b", "a-b"),
@@ -369,6 +444,41 @@ fn duplicate_key_in_file() {
     );
 }
 
+#[test]
+fn component_with_children_and_self_closed() {
+    // (files, key path, locale where the conflict is found)
+    for (files, path, locale) in [
+        (&[("en", r#"{ "k": "<a>x</a> <a/>" }"#)][..], "k", "en"),
+        (&[("en", r#"{ "k": "<a/> <a>x</a>" }"#)], "k", "en"),
+        (&[("en", r#"{ "k": "<a-b>x</a-b> <a_b/>" }"#)], "k", "en"),
+        (
+            &[("en", r#"{ "sub": { "k": "<a>x</a> <a/>" } }"#)],
+            "sub.k",
+            "en",
+        ),
+        (
+            &[
+                ("en", r#"{ "k": "<a>x</a>" }"#),
+                ("fr", r#"{ "k": "<a/>" }"#),
+            ],
+            "k",
+            "fr",
+        ),
+    ] {
+        let (_code, diag) = gen_code(files, &[]).unwrap();
+        let errors = diag.errors();
+        assert!(
+            matches!(
+                &*errors,
+                [Error::ConflictingComponentKind { loc, .. }]
+                    if loc.key_path.to_string() == path && loc.locale.name.as_ref() == locale
+            ),
+            "{files:?}: {:?}",
+            &*errors
+        );
+    }
+}
+
 // *********************************************
 // * PLURALS
 // *********************************************
@@ -513,37 +623,6 @@ fn plurals_at_normal_key() {
 fn kebab_case_key_with_interpolation() {
     // panics with `"my-key_builder" is not a valid Ident`
     gen_code(&[("en", r#"{ "my-key": "hello {{ count }}" }"#)], &[]).unwrap();
-}
-
-#[test]
-#[ignore = "known bug: colliding variables and components emit duplicate fields"]
-fn vars_and_comps_colliding_on_the_same_ident() {
-    for files in [
-        &[("en", r#"{ "k": "{{ a-b }} {{ a_b }}" }"#)][..],
-        &[
-            ("en", r#"{ "k": "{{ a-b }}" }"#),
-            ("fr", r#"{ "k": "{{ a_b }}" }"#),
-        ],
-    ] {
-        let (code, _diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
-        // Expected behavior: a single variable, and diag should contain some kind of warning
-        // that equivalent variables have different raw identifiers
-    }
-
-    for files in [
-        &[("en", r#"{ "k": "<a-b>x</a-b> <a_b>y</a_b>" }"#)][..],
-        &[("en", r#"{ "k": "<a-b/> <a_b/>" }"#)],
-        &[
-            ("en", r#"{ "k": "<a-b>x</a-b>" }"#),
-            ("fr", r#"{ "k": "<a_b>y</a_b>" }"#),
-        ],
-    ] {
-        let (code, _diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
-        // Expected behavior: a single component, and diag should contain some kind of warning
-        // that equivalent components have different raw identifiers
-    }
 }
 
 #[test]
