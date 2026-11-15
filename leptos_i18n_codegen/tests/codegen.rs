@@ -794,7 +794,6 @@ fn kebab_case_key_with_interpolation() {
 }
 
 #[test]
-#[ignore = "known bug: non-finite floats panic in proc-macro2, see PR #327"]
 fn non_finite_float_values() {
     for value in [".nan", ".inf", "-.inf"] {
         let file = format!("my_key: {value}");
