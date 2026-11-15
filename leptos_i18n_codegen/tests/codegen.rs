@@ -168,6 +168,10 @@ fn key_spelled_differently_across_locales() {
 }
 
 #[test]
+#[cfg_attr(
+    feature = "dynamic_load",
+    ignore = "with `dynamic_load` the strings aren't in the generated code"
+)]
 fn foreign_key_args_colliding_on_the_same_ident() {
     // the first argument is kept, the second is ignored
     let file = r#"{ "a": "{{ a-b }}", "b": "$t(a, {\"a-b\": \"first\", \"a_b\": \"second\"})" }"#;
@@ -192,6 +196,10 @@ fn foreign_key_args_colliding_on_the_same_ident() {
 }
 
 #[test]
+#[cfg_attr(
+    feature = "dynamic_load",
+    ignore = "with `dynamic_load` the strings aren't in the generated code"
+)]
 fn duplicate_foreign_key_args() {
     // the first argument is kept, the second is ignored
     let file =
@@ -290,6 +298,10 @@ fn comps_colliding_on_the_same_ident() {
 }
 
 #[test]
+#[cfg_attr(
+    feature = "dynamic_load",
+    ignore = "with `dynamic_load` the strings aren't in the generated code"
+)]
 fn foreign_key_args_spelled_differently_than_the_variable() {
     for (var, arg) in [
         ("a-b", "a-b"),
@@ -484,7 +496,7 @@ fn component_with_children_and_self_closed() {
 // *********************************************
 
 #[test]
-#[cfg(feature = "plurals")]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plural_forms_spelled_differently() {
     // (file, colliding, spelling mismatch warning: (`other` key, key spelled differently))
     for (file, colliding, mismatch) in [
@@ -575,7 +587,7 @@ fn plural_with_invalid_base_is_a_normal_key() {
 }
 
 #[test]
-#[cfg(feature = "plurals")]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn cardinal_and_ordinal_plurals_conflict() {
     for (file, path) in [
         (
@@ -598,7 +610,7 @@ fn cardinal_and_ordinal_plurals_conflict() {
 }
 
 #[test]
-#[cfg(feature = "plurals")]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn cardinal_plural_and_single_ordinal_form() {
     // the lone ordinal form is a normal key, like any single-form group
     let file = r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_other": "o" }"#;
@@ -609,7 +621,7 @@ fn cardinal_plural_and_single_ordinal_form() {
 }
 
 #[test]
-#[cfg(feature = "plurals")]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plurals_at_normal_key() {
     for (file, path) in [
         (
