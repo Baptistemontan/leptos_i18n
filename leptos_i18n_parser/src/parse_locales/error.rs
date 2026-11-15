@@ -505,6 +505,7 @@ impl std::error::Error for Error {}
 use super::plurals::{PluralForm, PluralRuleType};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Warning {
     MissingKey {
         loc: Location,
