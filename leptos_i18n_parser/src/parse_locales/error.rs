@@ -181,6 +181,14 @@ pub enum Error {
     Custom(String),
 }
 
+/// Variables and components keys are stored with these prefixes (`var_count`, `comp_b`), not shown to the user.
+const VAR_PREFIX: &str = "var_";
+const COMP_PREFIX: &str = "comp_";
+
+fn strip_prefix<'a>(s: &'a str, prefix: &str) -> &'a str {
+    s.strip_prefix(prefix).unwrap_or(s)
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -421,10 +429,17 @@ impl Display for Error {
                 self_closed,
                 comp,
                 resolved_ident,
-            } => write!(
-                f,
-                "Component \"{resolved_ident}\" is used both with children (<{comp}>...</{comp}>) and self-closed (<{self_closed} />) at {loc}, a component must be used either always with children or always self-closed."
-            ),
+            } => {
+                let (comp, self_closed, resolved_ident) = (
+                    strip_prefix(comp, COMP_PREFIX),
+                    strip_prefix(self_closed, COMP_PREFIX),
+                    strip_prefix(resolved_ident, COMP_PREFIX),
+                );
+                write!(
+                    f,
+                    "Component \"{resolved_ident}\" is used both with children (<{comp}>...</{comp}>) and self-closed (<{self_closed} />) at {loc}, a component must be used either always with children or always self-closed."
+                )
+            }
         }
     }
 }
@@ -621,10 +636,17 @@ impl Display for Warning {
                 key1,
                 key2,
                 resolved_ident,
-            } => write!(
-                f,
-                "Variable \"{key2}\" at {loc} is spelled \"{key1}\" elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same variable."
-            ),
+            } => {
+                let (key1, key2, resolved_ident) = (
+                    strip_prefix(key1, VAR_PREFIX),
+                    strip_prefix(key2, VAR_PREFIX),
+                    strip_prefix(resolved_ident, VAR_PREFIX),
+                );
+                write!(
+                    f,
+                    "Variable \"{key2}\" at {loc} is spelled \"{key1}\" elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same variable."
+                )
+            }
             Warning::CompKeySpellingMismatch {
                 loc,
                 key1,
@@ -632,7 +654,16 @@ impl Display for Warning {
                 resolved_ident,
                 self_closed,
             } => {
-                let (open, close) = if *self_closed { ("<", " />") } else { ("<", ">") };
+                let (key1, key2, resolved_ident) = (
+                    strip_prefix(key1, COMP_PREFIX),
+                    strip_prefix(key2, COMP_PREFIX),
+                    strip_prefix(resolved_ident, COMP_PREFIX),
+                );
+                let (open, close) = if *self_closed {
+                    ("<", " />")
+                } else {
+                    ("<", ">")
+                };
                 write!(
                     f,
                     "Component {open}{key2}{close} at {loc} is spelled {open}{key1}{close} elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same component."
