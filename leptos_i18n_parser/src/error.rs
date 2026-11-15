@@ -259,7 +259,7 @@ impl Display for Error {
                 write!(
                     f,
                     "Missmatch value type beetween locale {:?} and default at key \"{}\": one has subkeys and the other has direct value.",
-                    loc.locale, loc.key_path
+                    loc.locale.key.name, loc.key_path
                 )
             }
             Error::ExplicitDefaultInDefault(key_path) => write!(
@@ -397,7 +397,7 @@ impl Display for Error {
                 write!(
                     f,
                     "Colliding keys \"{}\" and \"{}\" in locale {:?}: they resolve to the same Rust identifier.",
-                    loc1.key_path, loc2.key_path, loc1.locale
+                    loc1.key_path, loc2.key_path, loc1.locale.key.name
                 )
             }
             Error::ComponentSelfClosedMissmatch {
@@ -625,13 +625,13 @@ impl Display for Warning {
                 write!(
                     f,
                     "Missing key \"{}\" in locale {:?}",
-                    loc.key_path, loc.locale
+                    loc.key_path, loc.locale.key.name
                 )
             }
             Warning::SurplusKey { loc } => write!(
                 f,
                 "Key \"{}\" is present in locale {:?} but not in default locale, it is ignored",
-                loc.key_path, loc.locale
+                loc.key_path, loc.locale.key.name
             ),
             Warning::UnusedForm {
                 loc,
@@ -641,7 +641,7 @@ impl Display for Warning {
                 write!(
                     f,
                     "At key \"{}\", locale {:?} does not use {rule_type} plural form \"{form}\", it is still kept but is useless.",
-                    loc.key_path, loc.locale
+                    loc.key_path, loc.locale.key.name
                 )
             }
             Warning::NonUnicodePath {
@@ -673,7 +673,7 @@ impl Display for Warning {
                 write!(
                     f,
                     "Key \"{}\" in locale {:?} looks like a plural form, but ",
-                    loc.key_path, loc.locale
+                    loc.key_path, loc.locale.key.name
                 )?;
                 if base.is_empty() {
                     f.write_str("its base is empty")?;
@@ -707,7 +707,7 @@ impl Display for Warning {
                 write!(
                     f,
                     " in locale {:?} look like {rule_type} plural forms of \"{}\", but there is no \"{base}{other_suffix}\" form, which every plural needs, so they are kept as normal keys.",
-                    base_key_location.locale, base_key_location.key_path
+                    base_key_location.locale.key.name, base_key_location.key_path
                 )
             }
             Warning::KeySpellingMismatch {
@@ -716,7 +716,7 @@ impl Display for Warning {
             } => write!(
                 f,
                 "Key \"{}\" in locale {:?} is spelled \"{}\" in the default locale, both resolve to the same Rust identifier and are treated as the same key.",
-                provided_key.key_path, provided_key.locale, key_path
+                provided_key.key_path, provided_key.locale.key.name, key_path
             ),
             Warning::VarKeySpellingMismatch {
                 loc,
@@ -765,7 +765,7 @@ impl Display for Warning {
             } => write!(
                 f,
                 "Plural keys \"{}\" and \"{}\" in locale {:?} spell their base differently (\"{}\" / \"{}\"), both resolve to the same Rust identifier \"{}\" and are treated as the same plural.",
-                key1.key_path, key2, key1.locale, base1, base2, resolved_ident
+                key1.key_path, key2, key1.locale.key.name, base1, base2, resolved_ident
             ),
             Warning::DuplicateFkArgs {
                 loc,
