@@ -4,8 +4,6 @@
 //! This crate provide `build.rs` utilities for the `leptos_i18n` crate.
 
 pub use datamarker::FormatterOptions;
-pub use leptos_i18n_parser::parse_locales::files::{LocaleFiles, TranslationFiles};
-pub use leptos_i18n_parser::parse_locales::options::{Config, FileFormat, ParseOptions, parser};
 
 use icu_locale::LocaleFallbacker;
 use icu_provider::{DataError, DataMarkerInfo};
@@ -14,12 +12,11 @@ use icu_provider_export::{
     baked_exporter::{self, BakedExporter},
 };
 use icu_provider_source::SourceDataProvider;
-use leptos_i18n_parser::parse_locales::{
-    ParsedLocales,
-    error::Result,
-    locale::{BuildersKeys, Locale},
-    parse_locales,
+use leptos_i18n_parser::extraction::{
+    Locales, LocalesOrNamespaces, ParsedLocales, extract_locales,
 };
+use leptos_i18n_parser::parsing::parse_locales_raw;
+use leptos_i18n_parser::{error::Result, parsing::RawParsedLocales};
 use std::{
     collections::HashSet,
     fmt::{Display, Write},
@@ -30,9 +27,16 @@ use std::{
 };
 
 mod datamarker;
-pub mod options;
 
-use crate::options::CodegenOptions;
+use leptos_i18n_codegen::CodegenOptions;
+pub use leptos_i18n_parser::options::Config;
+pub use leptos_i18n_parser::parsing::{LocaleFiles, TranslationFiles};
+
+/// Parsing and codegen options
+pub mod options {
+    pub use leptos_i18n_codegen::CodegenOptions;
+    pub use leptos_i18n_parser::options::{FileFormat, ParseOptions, parser};
+}
 
 /// Module for custom formatters.
 pub mod formatter {
@@ -60,13 +64,25 @@ impl<T, A: Iterator<Item = T>, B: Iterator<Item = T>> Iterator for EitherIter<A,
 /// Contains informations about the translations.
 pub struct TranslationsInfos {
     parsed_locales: ParsedLocales,
+    tracked_files: Vec<String>,
+    cfg: Config,
 }
 
 impl TranslationsInfos {
     fn parse_inner(dir_path: Option<PathBuf>, cfg: Config) -> Result<Self> {
-        let parsed_locales = parse_locales(dir_path, cfg)?;
+        let RawParsedLocales {
+            values,
+            diag,
+            tracked_files,
+        } = parse_locales_raw(dir_path, &cfg)?;
 
-        Ok(TranslationsInfos { parsed_locales })
+        let parsed_locales = extract_locales(values, &cfg, Some(diag))?;
+
+        Ok(TranslationsInfos {
+            parsed_locales,
+            tracked_files,
+            cfg,
+        })
     }
 
     /// Parse the translations and obtain informations about them.
@@ -82,40 +98,50 @@ impl TranslationsInfos {
 
     /// Parse the translations directly as strings instead of loading files
     pub fn parse_with_files_as_string(cfg: Config, files: &TranslationFiles) -> Result<Self> {
-        let parsed_locales =
-            leptos_i18n_parser::parse_locales::parse_locales_with_files(files, cfg)?;
-        Ok(TranslationsInfos { parsed_locales })
+        let RawParsedLocales {
+            values,
+            diag,
+            tracked_files,
+        } = leptos_i18n_parser::parsing::parse_locales_raw_with_files(files, &cfg)?;
+
+        let parsed_locales = extract_locales(values, &cfg, Some(diag))?;
+
+        Ok(TranslationsInfos {
+            parsed_locales,
+            tracked_files,
+            cfg,
+        })
     }
 
     /// Paths to all files containing translations.
-    pub fn files_paths(&self) -> Option<&[String]> {
-        self.parsed_locales.tracked_files.as_deref()
+    pub fn files_paths(&self) -> &[String] {
+        &self.tracked_files
     }
 
     /// Output "cargo::rerun-if-changed" for all locales files.
     pub fn rerun_if_locales_changed(&self) {
-        if let Some(paths) = self.files_paths() {
-            for path in paths {
-                println!("cargo::rerun-if-changed={path}");
-            }
+        for path in &self.tracked_files {
+            println!("cargo::rerun-if-changed={path}");
         }
     }
 
     /// Return an iterator containing the name of each locales.
     pub fn get_locales(&self) -> impl Iterator<Item = Rc<str>> + '_ {
-        fn map_locales(locales: &[Locale]) -> impl Iterator<Item = Rc<str>> + '_ {
-            locales.iter().map(|locale| locale.name.name.clone())
+        fn map_locales(locales: &Locales) -> impl Iterator<Item = Rc<str>> + '_ {
+            locales
+                .locales
+                .iter()
+                .map(|locale| locale.name.key.name.clone())
         }
-        match &self.parsed_locales.builder_keys {
-            BuildersKeys::NameSpaces { namespaces, .. } => {
+        match &self.parsed_locales.values {
+            LocalesOrNamespaces::Namespaces(namespaces) => {
                 let iter = namespaces
                     .iter()
                     .take(1)
-                    .map(|ns| &ns.locales)
-                    .flat_map(|locales| map_locales(locales));
+                    .flat_map(|ns| map_locales(&ns.locales));
                 EitherIter::Iter1(iter)
             }
-            BuildersKeys::Locales { locales, .. } => EitherIter::Iter2(map_locales(locales)),
+            LocalesOrNamespaces::Locales(locales) => EitherIter::Iter2(map_locales(locales)),
         }
     }
 
@@ -126,35 +152,35 @@ impl TranslationsInfos {
         impl Iterator<Item = NamespaceTranslations<'_, impl Iterator<Item = LocaleTranslations<'_>>>>,
         impl Iterator<Item = LocaleTranslations<'_>>,
     > {
-        fn map_locales(locales: &[Locale]) -> impl Iterator<Item = LocaleTranslations<'_>> + '_ {
-            locales.iter().map(|locale| LocaleTranslations {
-                name: &locale.name.name,
+        fn map_locales(locales: &Locales) -> impl Iterator<Item = LocaleTranslations<'_>> + '_ {
+            locales.locales.iter().map(|locale| LocaleTranslations {
+                name: &locale.name.key.name,
                 strings: &locale.strings,
             })
         }
-        match &self.parsed_locales.builder_keys {
-            BuildersKeys::NameSpaces { namespaces, .. } => {
+        match &self.parsed_locales.values {
+            LocalesOrNamespaces::Namespaces(namespaces) => {
                 let iter = namespaces.iter().map(|ns| {
                     let locales = map_locales(&ns.locales);
                     NamespaceTranslations {
-                        name: &ns.key.name,
+                        name: &ns.name.name,
                         locales,
                     }
                 });
                 TranslationsType::Namespace(iter)
             }
-            BuildersKeys::Locales { locales, .. } => TranslationsType::Locale(map_locales(locales)),
+            LocalesOrNamespaces::Locales(locales) => TranslationsType::Locale(map_locales(locales)),
         }
     }
 
     /// Return an iterator containing the name of each namespaces, if any.
     pub fn get_namespaces(&self) -> Option<impl Iterator<Item = Rc<str>> + '_> {
-        match &self.parsed_locales.builder_keys {
-            BuildersKeys::NameSpaces { namespaces, .. } => {
-                let namespaces = namespaces.iter().map(|ns| ns.key.name.clone());
+        match &self.parsed_locales.values {
+            LocalesOrNamespaces::Namespaces(namespaces) => {
+                let namespaces = namespaces.iter().map(|ns| ns.name.name.clone());
                 Some(namespaces)
             }
-            BuildersKeys::Locales { .. } => None,
+            LocalesOrNamespaces::Locales(_) => None,
         }
     }
 
@@ -165,15 +191,8 @@ impl TranslationsInfos {
     }
 
     fn get_icu_keys_inner(&self, used_icu_keys: &mut HashSet<FormatterOptions>) {
-        match &self.parsed_locales.builder_keys {
-            BuildersKeys::NameSpaces { keys, .. } => {
-                for builder_keys in keys.values() {
-                    datamarker::find_used_datamarker(builder_keys, used_icu_keys);
-                }
-            }
-            BuildersKeys::Locales { keys, .. } => {
-                datamarker::find_used_datamarker(keys, used_icu_keys);
-            }
+        for builder in self.parsed_locales.builders.builders.values() {
+            datamarker::find_used_datamarker(&builder.keys, used_icu_keys);
         }
     }
 
@@ -265,13 +284,9 @@ impl TranslationsInfos {
         mut mod_directory: PathBuf,
         options: CodegenOptions,
     ) -> Result<()> {
-        let ts = leptos_i18n_codegen::gen_code(
-            &self.parsed_locales,
-            options.crate_path.as_ref(),
-            false,
-            options.top_level_attributes.as_ref(),
-            options.gen_docs,
-        )?;
+        let module_file_name = options.module_file_name;
+
+        let ts = leptos_i18n_codegen::gen_code(&self.parsed_locales, options, &self.cfg)?;
 
         #[cfg(feature = "pretty_print")]
         let ts = {
@@ -281,7 +296,7 @@ impl TranslationsInfos {
 
         create_dir_all(&mod_directory)?;
 
-        mod_directory.push(options.module_file_name);
+        mod_directory.push(module_file_name);
 
         let mut file = File::create(&mod_directory)?;
 

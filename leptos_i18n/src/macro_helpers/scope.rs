@@ -1,17 +1,44 @@
-use crate::{I18nContext, Locale, Scope, scopes::ScopedLocale};
+use crate::{I18nContext, Locale, Scope, keys::comp_time::LiteralValue, scopes::ScopedLocale};
 
 #[doc(hidden)]
-pub const fn scope_ctx_util<L: Locale, OS: Scope<L>, NS: Scope<L>>(
-    ctx: I18nContext<L, OS>,
-    _: fn(OS) -> NS,
-) -> I18nContext<L, NS> {
+pub const fn scope_ctx_util<OS: Scope, NS: Scope<BaseLocale = OS::BaseLocale>>(
+    ctx: I18nContext<OS>,
+    _: fn(OS::Keys) -> NS,
+) -> I18nContext<NS> {
     ctx.scope()
 }
 
 #[doc(hidden)]
-pub fn scope_locale_util<BL: Locale, L: Locale<BL>, NS: Scope<BL>>(
+pub fn scope_locale_util<L: Locale, S: Scope<BaseLocale = L::BaseLocale>>(
     locale: L,
-    _: fn(<L as Locale<BL>>::Keys) -> NS,
-) -> ScopedLocale<BL, NS> {
+    _: fn(<L as Scope>::Keys) -> S,
+) -> ScopedLocale<S> {
     locale.scope()
+}
+
+#[doc(hidden)]
+pub const fn get_keys_const<S: Scope>() -> S::Keys {
+    <S::Keys as crate::scopes::Keys>::THIS
+}
+
+#[doc(hidden)]
+pub const fn get_keys_from_ref<S: Scope>(_: &S) -> S::Keys {
+    <S::Keys as crate::scopes::Keys>::THIS
+}
+
+#[doc(hidden)]
+pub const fn check_is_key<B: crate::keys::builder::ArgsBuilder>(
+    key: crate::keys::builder::KeyBuilder<B>,
+) -> crate::keys::builder::KeyBuilder<B> {
+    key
+}
+
+#[doc(hidden)]
+pub const fn check_is_scope<S: Scope>(scope: S) -> S {
+    scope
+}
+
+#[doc(hidden)]
+pub const fn check_is_literal<L: LiteralValue>(lit: L) -> L {
+    lit
 }
