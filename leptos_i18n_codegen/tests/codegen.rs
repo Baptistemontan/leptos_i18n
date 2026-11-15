@@ -528,7 +528,7 @@ fn component_with_children_and_self_closed() {
 // *********************************************
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plural_forms_spelled_differently() {
     /// A single plural `a_b`, no normal keys for its forms.
     fn assert_plural(file: &str, code: &str) {
@@ -597,7 +597,6 @@ fn plural_forms_spelled_differently() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
 fn plural_with_invalid_base_is_a_normal_key() {
     for (file, keys, expected_base) in [
         (r#"{ "_one": "1", "_other": "o" }"#, ["_one", "_other"], ""),
@@ -658,7 +657,7 @@ fn cardinal_and_ordinal_plurals_conflict() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (15)"]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn cardinal_plural_and_single_ordinal_form() {
     // the lone ordinal form is a normal key, like any single-form group
     let file = r#"{ "count_one": "c1", "count_other": "c", "count_ordinal_other": "o" }"#;
@@ -692,7 +691,7 @@ fn plurals_at_normal_key() {
 }
 
 #[test]
-#[ignore = "not ported to the redesign yet, see TODO.md (20)"]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plural_looking_keys_with_no_other() {
     use leptos_i18n_parser::extraction::PluralRuleType;
 
