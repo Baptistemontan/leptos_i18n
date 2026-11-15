@@ -188,6 +188,12 @@ fn parse_block_inner(
     let mut values = BTreeMap::new();
     while !content.is_empty() {
         let (key, value) = parse_values(&content, loc, formatters)?;
+        if values.contains_key(&key) {
+            return Err(syn::Error::new_spanned(
+                &*key.ident,
+                format!("duplicate key \"{key}\""),
+            ));
+        }
         values.insert(key, value);
         if !content.is_empty() {
             content.parse::<Comma>()?;

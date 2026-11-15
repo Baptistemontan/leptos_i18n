@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, btree_map::Entry},
+    path::PathBuf,
+};
 
 use serde::de::{DeserializeSeed, MapAccess, value::MapAccessDeserializer};
 
@@ -153,7 +156,22 @@ impl<'de> serde::de::Visitor<'de> for ValuesSeed<'_> {
                 diag: self.diag,
                 formatters: self.formatters,
             })?;
-            values.insert(locale_key, value);
+            let colliding_path = pushed_key.to_owned();
+            drop(pushed_key);
+            match values.entry(locale_key) {
+                Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+                // keys resolving to the same identifier (`a-b` and `a_b`) or duplicated: keep the first one
+                Entry::Occupied(entry) => {
+                    let mut existing_path = self.key_path.clone();
+                    existing_path.path.push(entry.key().clone());
+                    self.diag.emit_error(Error::CollidingKeys {
+                        loc1: Location::new(self.top_locale_name.clone(), colliding_path),
+                        loc2: Location::new(self.top_locale_name.clone(), existing_path),
+                    });
+                }
+            }
         }
 
         Ok(RawValues { values })
