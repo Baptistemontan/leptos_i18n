@@ -1,7 +1,9 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, btree_map::Entry};
+
+use serde::de::{DeserializeSeed, MapAccess, Visitor};
 
 use crate::{
-    error::{Error, Result},
+    error::{Error, Result, Warning},
     parser::{
         ParseContext,
         raw_value::{RawLiteral, RawValue},
@@ -38,7 +40,7 @@ impl ForeignKey {
         };
 
         let (args, after) = if sep == ',' {
-            match Self::parse_args(after, ctx) {
+            match Self::parse_args(after, &target_key_path, ctx) {
                 Ok((args, after)) => (Some(args), after),
                 Err(after) => (None, after),
             }
@@ -81,8 +83,87 @@ impl ForeignKey {
         Ok(KeyPath::new_from_path(ns, key_path))
     }
 
-    fn parse_args_inner(ctx: &ParseContext, s: &str) -> Result<BTreeMap<String, RawValue>, ()> {
-        let args = match serde_json::from_str::<BTreeMap<String, RawLiteral>>(s) {
+    /// Deserialize the arguments in order, so a duplicated argument or two arguments resolving to the same
+    /// identifier (`a-b` and `a_b`) can be reported. The first one is kept.
+    fn deserialize_args(
+        ctx: &ParseContext,
+        fk_target: &KeyPath,
+        s: &str,
+    ) -> serde_json::Result<BTreeMap<String, (RawLiteral, String)>> {
+        struct ArgsSeed<'a, 'b> {
+            ctx: &'a ParseContext<'b>,
+            fk_target: &'a KeyPath,
+        }
+
+        impl<'de> Visitor<'de> for ArgsSeed<'_, '_> {
+            /// normalized name -> (value, name as written)
+            type Value = BTreeMap<String, (RawLiteral, String)>;
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut args = BTreeMap::new();
+                while let Some((name, value)) = map.next_entry::<String, RawLiteral>()? {
+                    let name = name.trim().to_string();
+                    match args.entry(name.replace('-', "_")) {
+                        Entry::Vacant(entry) => {
+                            entry.insert((value, name));
+                        }
+                        Entry::Occupied(entry) => {
+                            let (_, first_name) = entry.get();
+                            let warning = if *first_name == name {
+                                Warning::DuplicateFkArgs {
+                                    loc: self.ctx.into(),
+                                    fk_target: self.fk_target.clone(),
+                                    arg_name: name,
+                                }
+                            } else {
+                                Warning::CollidingFkArgs {
+                                    loc: self.ctx.into(),
+                                    fk_target: self.fk_target.clone(),
+                                    arg1: first_name.clone(),
+                                    arg2: name,
+                                    ident_repr: entry.key().clone(),
+                                }
+                            };
+                            self.ctx.diag.emit_warning(warning);
+                        }
+                    }
+                }
+                Ok(args)
+            }
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "a map of foreign key arguments")
+            }
+        }
+
+        impl<'de> DeserializeSeed<'de> for ArgsSeed<'_, '_> {
+            type Value = BTreeMap<String, (RawLiteral, String)>;
+
+            fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_map(self)
+            }
+        }
+
+        let mut deserializer = serde_json::Deserializer::from_str(s);
+        let args = ArgsSeed { ctx, fk_target }.deserialize(&mut deserializer)?;
+        deserializer.end()?;
+        Ok(args)
+    }
+
+    /// The arguments are keyed by the normalized variable name (`var_a_b` for `a-b`),
+    /// look them up with the variable key's `ident_repr`.
+    fn parse_args_inner(
+        ctx: &ParseContext,
+        fk_target: &KeyPath,
+        s: &str,
+    ) -> Result<BTreeMap<String, RawValue>, ()> {
+        let args = match Self::deserialize_args(ctx, fk_target, s) {
             Ok(args) => args,
             Err(err) => {
                 ctx.diag.emit_error(Error::InvalidForeignKeyArgs {
@@ -97,7 +178,7 @@ impl ForeignKey {
 
         let mut errored = false;
 
-        for (key, arg) in args {
+        for (key, (arg, _)) in args {
             let parsed_value = match arg {
                 RawLiteral::String(s) => match RawValue::parse(ctx, &s) {
                     Ok(rv) => rv,
@@ -108,7 +189,7 @@ impl ForeignKey {
                 },
                 other => RawValue::Literal(other),
             };
-            let key = format!("var_{}", key.trim());
+            let key = format!("var_{key}");
             parsed_args.insert(key, parsed_value);
         }
 
@@ -117,6 +198,7 @@ impl ForeignKey {
 
     fn parse_args<'a>(
         s: &'a str,
+        fk_target: &KeyPath,
         ctx: &ParseContext,
     ) -> Result<(BTreeMap<String, RawValue>, &'a str), &'a str> {
         let mut depth = 0usize;
@@ -155,7 +237,7 @@ impl ForeignKey {
             return Err("");
         };
 
-        match Self::parse_args_inner(ctx, before) {
+        match Self::parse_args_inner(ctx, fk_target, before) {
             Ok(args) => Ok((args, after)),
             Err(()) => Err(after),
         }
