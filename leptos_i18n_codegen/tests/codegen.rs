@@ -653,6 +653,71 @@ fn plurals_at_normal_key() {
     }
 }
 
+#[test]
+#[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
+fn plural_looking_keys_with_no_other() {
+    use leptos_i18n_parser::parse_locales::plurals::PluralRuleType;
+
+    // (file, base key path, keys, rule type, normal keys generated)
+    for (file, path, keys, rule_type, fns) in [
+        (
+            r#"{ "c_one": "1", "c_few": "f" }"#,
+            "c",
+            &["c_one", "c_few"][..],
+            PluralRuleType::Cardinal,
+            &["c_one", "c_few"][..],
+        ),
+        (
+            r#"{ "sub": { "c_ordinal_one": "1", "c_ordinal_two": "t" } }"#,
+            "sub.c",
+            &["c_ordinal_one", "c_ordinal_two"],
+            PluralRuleType::Ordinal,
+            &["c_ordinal_one", "c_ordinal_two"],
+        ),
+        // the cardinal plural is fine, only the ordinal forms are reported
+        (
+            r#"{ "c_one": "1", "c_other": "o", "c_ordinal_one": "1", "c_ordinal_few": "f" }"#,
+            "c",
+            &["c_ordinal_one", "c_ordinal_few"],
+            PluralRuleType::Ordinal,
+            &["c", "c_ordinal_one", "c_ordinal_few"],
+        ),
+    ] {
+        let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        for f in fns {
+            assert_eq!(code.matches(&format!("fn {f} (")).count(), 1, "{file}: {f}");
+        }
+        assert!(diag.errors().is_empty(), "{file}: {:?}", &*diag.errors());
+        let warnings = diag.warnings();
+        assert!(
+            matches!(
+                &*warnings,
+                [Warning::PluralLookingKeysWithNoOther { base_key_location, keys: warned_keys, rule_type: rt }]
+                    if base_key_location.key_path.to_string() == path
+                        && warned_keys.iter().map(|k| &*k.name).eq(keys.iter().copied())
+                        && *rt == rule_type
+            ),
+            "{file}: {:?}",
+            &*warnings
+        );
+    }
+
+    // no warning: a valid plural, a single form, or a single form of each rule type
+    for file in [
+        r#"{ "c_one": "1", "c_other": "o" }"#,
+        r#"{ "c_ordinal_one": "1", "c_ordinal_other": "o" }"#,
+        r#"{ "c_one": "1" }"#,
+        r#"{ "c_one": "1", "c_ordinal_one": "1" }"#,
+    ] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        assert!(
+            diag.warnings().is_empty(),
+            "{file}: {:?}",
+            &*diag.warnings()
+        );
+    }
+}
+
 // *********************************************
 // * REGRESSIONS
 // * fixed bugs, see https://github.com/Baptistemontan/leptos_i18n/pull/327
