@@ -87,12 +87,16 @@ fn gen_err(files: &Files, extensions: &[(&str, &str)]) -> Error {
 fn warn_on_missing_key() {
     let (_code, diag) = gen_code(&[("en", r#"{ "my_key": "" }"#), ("fr", r"{}")], &[]).unwrap();
 
-    let has_surplus = diag
-        .warnings()
-        .iter()
-        .any(|w| matches!(w, Warning::MissingKey { .. }));
-
-    assert!(has_surplus);
+    let warnings = diag.warnings();
+    assert!(
+        matches!(
+            &*warnings,
+            [Warning::MissingKey { loc }]
+                if loc.key_path.to_string() == "my_key" && loc.locale.name.as_ref() == "fr"
+        ),
+        "{:?}",
+        &*warnings
+    );
 }
 
 #[test]
@@ -106,12 +110,16 @@ fn warn_on_surplus_key() {
     )
     .unwrap();
 
-    let has_surplus = diag
-        .warnings()
-        .iter()
-        .any(|w| matches!(w, Warning::SurplusKey { .. }));
-
-    assert!(has_surplus);
+    let warnings = diag.warnings();
+    assert!(
+        matches!(
+            &*warnings,
+            [Warning::SurplusKey { loc }]
+                if loc.key_path.to_string() == "surplus" && loc.locale.name.as_ref() == "fr"
+        ),
+        "{:?}",
+        &*warnings
+    );
 }
 
 #[test]
@@ -122,12 +130,7 @@ fn suppress_missing_key_on_inherit() {
     )
     .unwrap();
 
-    let has_surplus = diag
-        .warnings()
-        .iter()
-        .any(|w| matches!(w, Warning::MissingKey { .. }));
-
-    assert!(!has_surplus);
+    assert!(diag.warnings().is_empty(), "{:?}", &*diag.warnings());
 }
 
 #[test]
@@ -379,12 +382,15 @@ fn subkey_and_value_mismatch() {
 #[test]
 fn unknown_formatter() {
     let (_code, diag) = gen_code(&[("en", r#"{ "my_key": "{{ var, nope }}" }"#)], &[]).unwrap();
+    let errors = diag.errors();
     assert!(
-        diag.errors()
-            .iter()
-            .any(|e| matches!(e, Error::UnknownFormatter { .. })),
+        matches!(
+            &*errors,
+            [Error::UnknownFormatter { name, loc }]
+                if name == "nope" && loc.key_path.to_string() == "my_key"
+        ),
         "{:?}",
-        &*diag.errors()
+        &*errors
     );
 }
 
@@ -429,17 +435,25 @@ fn default_locale_cant_inherit() {
 
 #[test]
 fn keys_colliding_on_the_same_ident() {
-    for file in [
-        r#"{ "a-b": "dash", "a_b": "underscore" }"#,
-        r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
+    // (file, path of the colliding key, path of the key already there)
+    for (file, path1, path2) in [
+        (r#"{ "a-b": "dash", "a_b": "underscore" }"#, "a_b", "a-b"),
+        (
+            r#"{ "sub": { "a-b": "dash", "a_b": "underscore" } }"#,
+            "sub.a_b",
+            "sub.a-b",
+        ),
     ] {
         let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let errors = diag.errors();
         assert!(
-            diag.errors()
-                .iter()
-                .any(|e| matches!(e, Error::CollidingKeys { .. })),
-            "{:?}",
-            &*diag.errors()
+            matches!(
+                &*errors,
+                [Error::CollidingKeys { loc1, loc2 }]
+                    if loc1.key_path.to_string() == path1 && loc2.key_path.to_string() == path2
+            ),
+            "{file}: {:?}",
+            &*errors
         );
     }
 }
@@ -447,12 +461,15 @@ fn keys_colliding_on_the_same_ident() {
 #[test]
 fn duplicate_key_in_file() {
     let (_code, diag) = gen_code(&[("en", r#"{ "a": "x", "a": "y" }"#)], &[]).unwrap();
+    let errors = diag.errors();
     assert!(
-        diag.errors()
-            .iter()
-            .any(|e| matches!(e, Error::CollidingKeys { .. })),
+        matches!(
+            &*errors,
+            [Error::CollidingKeys { loc1, loc2 }]
+                if loc1.key_path.to_string() == "a" && loc2.key_path.to_string() == "a"
+        ),
         "{:?}",
-        &*diag.errors()
+        &*errors
     );
 }
 
@@ -508,55 +525,70 @@ fn integer_ranges_with_holes() {
 #[test]
 #[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plural_forms_spelled_differently() {
-    // (file, colliding, spelling mismatch warning: (`other` key, key spelled differently))
-    for (file, colliding, mismatch) in [
-        (
-            r#"{ "a-b_one": "1", "a_b_other": "o" }"#,
-            false,
-            Some(("a_b_other", "a-b_one")),
-        ),
-        // the duplicate `one` collides, the plural is still built whatever the order
-        // (the first `one` in the file is kept)
-        (
-            r#"{ "a_b_one": "x", "a-b_one": "1", "a-b_other": "o" }"#,
-            true,
-            Some(("a-b_other", "a_b_one")),
-        ),
-        (
-            r#"{ "a-b_one": "1", "a-b_other": "o", "a_b_one": "x" }"#,
-            true,
-            None,
-        ),
-    ] {
-        let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    /// A single plural `a_b`, no normal keys for its forms.
+    fn assert_plural(file: &str, code: &str) {
         assert_eq!(code.matches("fn a_b (").count(), 1, "{file}");
         assert!(!code.contains("fn a_b_one"), "{file}");
         assert!(!code.contains("fn a_b_other"), "{file}");
-        let collisions = diag
-            .errors()
-            .iter()
-            .filter(|e| matches!(e, Error::CollidingKeys { .. }))
-            .count();
-        assert_eq!(
-            collisions,
-            usize::from(colliding),
-            "{file}: {:?}",
-            &*diag.errors()
-        );
-        let warnings = diag.warnings();
-        match mismatch {
-            Some((other_key, key)) => assert!(
-                matches!(
-                    &*warnings,
-                    [Warning::PluralKeySpellingMismatch { key1, key2, .. }]
-                        if key1.key_path.to_string() == other_key && key2.to_string() == key
-                ),
-                "{file}: {:?}",
-                &*warnings
-            ),
-            None => assert!(warnings.is_empty(), "{file}: {:?}", &*warnings),
-        }
     }
+
+    // spelled differently: the plural is built, with a warning
+    let file = r#"{ "a-b_one": "1", "a_b_other": "o" }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert_plural(file, &code);
+    assert!(diag.errors().is_empty(), "{:?}", &*diag.errors());
+    let warnings = diag.warnings();
+    assert!(
+        matches!(
+            &*warnings,
+            [Warning::PluralKeySpellingMismatch { key1, key2, .. }]
+                if key1.key_path.to_string() == "a_b_other" && key2.to_string() == "a-b_one"
+        ),
+        "{:?}",
+        &*warnings
+    );
+
+    // a duplicate `one`: it collides, the first one in the file is kept,
+    // and it's spelled differently than `other`
+    let file = r#"{ "a_b_one": "x", "a-b_one": "1", "a-b_other": "o" }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert_plural(file, &code);
+    let errors = diag.errors();
+    assert!(
+        matches!(
+            &*errors,
+            [Error::CollidingKeys { loc1, loc2 }]
+                if loc1.key_path.to_string() == "a-b_one" && loc2.key_path.to_string() == "a_b_one"
+        ),
+        "{:?}",
+        &*errors
+    );
+    let warnings = diag.warnings();
+    assert!(
+        matches!(
+            &*warnings,
+            [Warning::PluralKeySpellingMismatch { key1, key2, .. }]
+                if key1.key_path.to_string() == "a-b_other" && key2.to_string() == "a_b_one"
+        ),
+        "{:?}",
+        &*warnings
+    );
+
+    // a duplicate `one` after the others: it collides, the kept `one` has the same spelling as `other`
+    let file = r#"{ "a-b_one": "1", "a-b_other": "o", "a_b_one": "x" }"#;
+    let (code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+    assert_plural(file, &code);
+    let errors = diag.errors();
+    assert!(
+        matches!(
+            &*errors,
+            [Error::CollidingKeys { loc1, loc2 }]
+                if loc1.key_path.to_string() == "a_b_one" && loc2.key_path.to_string() == "a-b_one"
+        ),
+        "{:?}",
+        &*errors
+    );
+    assert!(diag.warnings().is_empty(), "{:?}", &*diag.warnings());
 }
 
 #[test]
