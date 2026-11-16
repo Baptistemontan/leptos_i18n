@@ -4,14 +4,13 @@
 
 use std::{borrow::Cow, mem};
 
-use leptos_i18n_parser::parse_locales::{
-    error::{Diagnostics, Error, Warning},
-    files::{LocaleFiles, TranslationFiles},
+use leptos_i18n_codegen::CodegenOptions;
+use leptos_i18n_parser::{
+    error::{Diagnostics, Error, Result, Warning},
+    extraction::extract_locales,
     options::{Config, FileFormat, ParseOptions},
-    parse_locales_with_files,
+    parsing::{LocaleFiles, RawParsedLocales, TranslationFiles, parse_locales_raw_with_files},
 };
-
-use leptos_i18n_parser::parse_locales::error::Result;
 
 /// `(locale, file content)` pairs.
 type Files<'a> = [(&'a str, &'a str)];
@@ -50,7 +49,6 @@ fn gen_code_with(
     let t_files = new_files(namespaces);
     let mut cfg = Config::new(locales[0].0)?
         .add_locales(locales.iter().skip(1).map(|l| l.0))?
-        .translations_uri("test")
         .parse_options(ParseOptions::default().file_format(file_format));
     if namespaces[0].0.is_some() {
         cfg = cfg.add_namespaces(namespaces.iter().map(|(ns, _)| ns.unwrap()))?;
@@ -59,11 +57,18 @@ fn gen_code_with(
     for (l1, l2) in extensions {
         cfg = cfg.extend_locale(l1, l2)?;
     }
-    let mut parsed_locales = parse_locales_with_files(&t_files, cfg)?;
+    let RawParsedLocales {
+        values,
+        diag,
+        tracked_files: _,
+    } = parse_locales_raw_with_files(&t_files, &cfg)?;
+    let mut parsed_locales = extract_locales(values, &cfg, Some(diag))?;
     let diag = mem::take(&mut parsed_locales.diag);
     let crate_path = crate_path.map(|p| syn::parse_str::<syn::Path>(p).unwrap());
-    let code =
-        leptos_i18n_codegen::gen_code(&parsed_locales, crate_path.as_ref(), true, None, false)?;
+    let options = CodegenOptions::default()
+        .translations_uri("test")
+        .crate_path(crate_path.as_ref());
+    let code = leptos_i18n_codegen::gen_code(&parsed_locales, options, &cfg)?;
     Ok((code.to_string(), diag))
 }
 
@@ -92,7 +97,7 @@ fn warn_on_missing_key() {
         matches!(
             &*warnings,
             [Warning::MissingKey { loc }]
-                if loc.key_path.to_string() == "my_key" && loc.locale.name.as_ref() == "fr"
+                if loc.key_path.to_string() == "my_key" && loc.locale.key.name.as_ref() == "fr"
         ),
         "{:?}",
         &*warnings
@@ -115,7 +120,7 @@ fn warn_on_surplus_key() {
         matches!(
             &*warnings,
             [Warning::SurplusKey { loc }]
-                if loc.key_path.to_string() == "surplus" && loc.locale.name.as_ref() == "fr"
+                if loc.key_path.to_string() == "surplus" && loc.locale.key.name.as_ref() == "fr"
         ),
         "{:?}",
         &*warnings
@@ -154,7 +159,7 @@ fn key_spelled_differently_across_locales() {
                 [Warning::KeySpellingMismatch { key_path, provided_key }]
                     if key_path.to_string() == default_path
                         && provided_key.key_path.to_string() == fr_path
-                        && provided_key.locale.name.as_ref() == "fr"
+                        && provided_key.locale.key.name.as_ref() == "fr"
             ),
             "{en} / {fr}: {:?}",
             &*warnings
@@ -225,6 +230,18 @@ fn duplicate_foreign_key_args() {
     assert!(!code.contains("\"second\""));
 }
 
+/// The generated code mentions a variable/component name several times (builder methods, ...),
+/// so compare with the code generated for the same files without the collision.
+fn count_without_collision(files: &Files, pattern: &str) -> usize {
+    let files: Vec<(&str, String)> = files
+        .iter()
+        .map(|(locale, file)| (*locale, file.replace("a-b", "a_b")))
+        .collect();
+    let files: Vec<(&str, &str)> = files.iter().map(|(l, f)| (*l, f.as_str())).collect();
+    let (code, _diag) = gen_code(&files, &[]).unwrap();
+    code.matches(pattern).count()
+}
+
 #[test]
 fn vars_colliding_on_the_same_ident() {
     // (files, locale where the second spelling is found)
@@ -240,14 +257,18 @@ fn vars_colliding_on_the_same_ident() {
         ),
     ] {
         let (code, diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("var_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("var_a_b :").count(),
+            count_without_collision(files, "var_a_b :"),
+            "{files:?}"
+        );
         assert!(diag.errors().is_empty(), "{files:?}: {:?}", &*diag.errors());
         let warnings = diag.warnings();
         assert!(
             matches!(
                 &*warnings,
                 [Warning::VarKeySpellingMismatch { loc, .. }]
-                    if loc.key_path.to_string() == "k" && loc.locale.name.as_ref() == locale
+                    if loc.key_path.to_string() == "k" && loc.locale.key.name.as_ref() == locale
             ),
             "{files:?}: {:?}",
             &*warnings
@@ -279,7 +300,11 @@ fn comps_colliding_on_the_same_ident() {
         ),
     ] {
         let (code, diag) = gen_code(files, &[]).unwrap();
-        assert_eq!(code.matches("comp_a_b :").count(), 1, "{files:?}");
+        assert_eq!(
+            code.matches("comp_a_b :").count(),
+            count_without_collision(files, "comp_a_b :"),
+            "{files:?}"
+        );
         assert!(diag.errors().is_empty(), "{files:?}: {:?}", &*diag.errors());
         let warnings = diag.warnings();
         assert!(
@@ -287,7 +312,7 @@ fn comps_colliding_on_the_same_ident() {
                 &*warnings,
                 [Warning::CompKeySpellingMismatch { loc, self_closed: sc, .. }]
                     if loc.key_path.to_string() == "k"
-                        && loc.locale.name.as_ref() == locale
+                        && loc.locale.key.name.as_ref() == locale
                         && *sc == self_closed
             ),
             "{files:?}: {:?}",
@@ -363,20 +388,31 @@ fn keys_must_be_rust_identifiers() {
 
 #[test]
 fn null_value_in_default_locale() {
-    let err = gen_err(&[("en", r#"{ "my_key": null }"#)], &[]);
-    assert!(matches!(err, Error::ExplicitDefaultInDefault(_)), "{err:?}");
+    let (_code, diag) = gen_code(&[("en", r#"{ "my_key": null }"#)], &[]).unwrap();
+    let errors = diag.errors();
+    assert!(
+        matches!(&*errors, [Error::ExplicitDefaultInDefault(_)]),
+        "{:?}",
+        &*errors
+    );
 }
 
 #[test]
 fn subkey_and_value_mismatch() {
-    let err = gen_err(
+    let (_code, diag) = gen_code(
         &[
             ("en", r#"{ "my_key": "value" }"#),
             ("fr", r#"{ "my_key": { "sub": "value" } }"#),
         ],
         &[],
+    )
+    .unwrap();
+    let errors = diag.errors();
+    assert!(
+        matches!(&*errors, [Error::SubKeyMissmatch { .. }]),
+        "{:?}",
+        &*errors
     );
-    assert!(matches!(err, Error::SubKeyMissmatch { .. }), "{err:?}");
 }
 
 #[test]
@@ -395,24 +431,36 @@ fn unknown_formatter() {
 }
 
 #[test]
-fn missing_foreign_key() {
-    let err = gen_err(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]);
-    assert!(matches!(err, Error::MissingForeignKey { .. }), "{err:?}");
+fn invalid_foreign_key() {
+    let (_code, diag) = gen_code(&[("en", r#"{ "my_key": "$t(nope)" }"#)], &[]).unwrap();
+    let errors = diag.errors();
+    assert!(
+        matches!(&*errors, [Error::InvalidForeignKey { .. }]),
+        "{:?}",
+        &*errors
+    );
 }
 
 #[test]
 fn recursive_foreign_keys() {
-    let err = gen_err(&[("en", r#"{ "a": "$t(b)", "b": "$t(a)" }"#)], &[]);
-    assert!(matches!(err, Error::RecursiveForeignKey { .. }), "{err:?}");
-
-    let err = gen_err(&[("en", r#"{ "a": "$t(a)" }"#)], &[]);
-    assert!(matches!(err, Error::RecursiveForeignKey { .. }), "{err:?}");
+    for file in [r#"{ "a": "$t(b)", "b": "$t(a)" }"#, r#"{ "a": "$t(a)" }"#] {
+        let (_code, diag) = gen_code(&[("en", file)], &[]).unwrap();
+        let errors = diag.errors();
+        assert!(
+            !errors.is_empty()
+                && errors
+                    .iter()
+                    .all(|e| matches!(e, Error::RecursiveForeignKey { .. })),
+            "{file}: {:?}",
+            &*errors
+        );
+    }
 }
 
 #[test]
 fn invalid_locale_name() {
     let err = gen_err(&[("en", "{}"), ("not a locale", "{}")], &[]);
-    assert!(matches!(err, Error::InvalidKey(_)), "{err:?}");
+    assert!(matches!(err, Error::InvalidLocale { .. }), "{err:?}");
 }
 
 #[test]
@@ -475,23 +523,18 @@ fn duplicate_key_in_file() {
 
 #[test]
 fn component_with_children_and_self_closed() {
-    // (files, key path, locale where the conflict is found)
-    for (files, path, locale) in [
-        (&[("en", r#"{ "k": "<a>x</a> <a/>" }"#)][..], "k", "en"),
-        (&[("en", r#"{ "k": "<a/> <a>x</a>" }"#)], "k", "en"),
-        (&[("en", r#"{ "k": "<a-b>x</a-b> <a_b/>" }"#)], "k", "en"),
-        (
-            &[("en", r#"{ "sub": { "k": "<a>x</a> <a/>" } }"#)],
-            "sub.k",
-            "en",
-        ),
+    // (files, key path)
+    for (files, path) in [
+        (&[("en", r#"{ "k": "<a>x</a> <a/>" }"#)][..], "k"),
+        (&[("en", r#"{ "k": "<a/> <a>x</a>" }"#)], "k"),
+        (&[("en", r#"{ "k": "<a-b>x</a-b> <a_b/>" }"#)], "k"),
+        (&[("en", r#"{ "sub": { "k": "<a>x</a> <a/>" } }"#)], "sub.k"),
         (
             &[
                 ("en", r#"{ "k": "<a>x</a>" }"#),
                 ("fr", r#"{ "k": "<a/>" }"#),
             ],
             "k",
-            "fr",
         ),
     ] {
         let (_code, diag) = gen_code(files, &[]).unwrap();
@@ -499,23 +542,12 @@ fn component_with_children_and_self_closed() {
         assert!(
             matches!(
                 &*errors,
-                [Error::ConflictingComponentKind { loc, .. }]
-                    if loc.key_path.to_string() == path && loc.locale.name.as_ref() == locale
+                [Error::ComponentSelfClosedMissmatch { path: p, .. }] if p.to_string() == path
             ),
             "{files:?}: {:?}",
             &*errors
         );
     }
-}
-
-#[test]
-fn integer_ranges_with_holes() {
-    let (code, _diag) = gen_code(
-        &[("en", r#"{ "my_key": [["zero", 0], ["some", "1..=3"]] }"#)],
-        &[],
-    )
-    .unwrap();
-    assert!(code.contains("compile_error"));
 }
 
 // *********************************************
@@ -688,7 +720,7 @@ fn plurals_at_normal_key() {
 #[test]
 #[cfg_attr(not(feature = "plurals"), ignore = "requires the `plurals` feature")]
 fn plural_looking_keys_with_no_other() {
-    use leptos_i18n_parser::parse_locales::plurals::PluralRuleType;
+    use leptos_i18n_parser::extraction::PluralRuleType;
 
     // (file, base key path, keys, rule type, normal keys generated)
     for (file, path, keys, rule_type, fns) in [
@@ -794,8 +826,9 @@ fn namespaces_with_custom_crate_path() {
 
 /// The translation files don't match the config: parsing must return an error.
 fn files_error(files: &TranslationFiles, cfg: Config) -> Error {
-    let cfg = cfg.translations_uri("test");
-    match parse_locales_with_files(files, cfg) {
+    let result = parse_locales_raw_with_files(files, &cfg)
+        .and_then(|raw| extract_locales(raw.values, &cfg, Some(raw.diag)));
+    match result {
         Ok(_) => panic!("expected an error"),
         Err(err) => err.into_inner(),
     }

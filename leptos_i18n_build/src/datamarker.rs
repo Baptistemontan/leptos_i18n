@@ -1,8 +1,6 @@
 use icu_provider::{DataMarker, DataMarkerInfo};
-use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBounds};
-use leptos_i18n_parser::parse_locales::locale::{
-    BuildersKeysInner, InterpolOrLit, LocaleValue, RangeOrPlural,
-};
+use leptos_i18n_parser::extraction::InterpolationKeys;
+use leptos_i18n_parser::formatters::{self, FormatterToTokens, VarBound};
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
 
@@ -27,59 +25,35 @@ fn check_bound<T: Any>(bound: &dyn FormatterToTokens) -> bool {
 }
 
 pub fn find_used_datamarker(
-    markers: &BuildersKeysInner,
+    keys: &InterpolationKeys,
     used_icu_markers: &mut HashSet<FormatterOptions>,
 ) {
-    for locale_value in markers.0.values() {
-        match locale_value {
-            LocaleValue::Subkeys { keys, .. } => find_used_datamarker(keys, used_icu_markers),
-            LocaleValue::Value {
-                // skip literals
-                value: InterpolOrLit::Lit(_),
-                ..
-            } => {}
-            LocaleValue::Value {
-                value: InterpolOrLit::Interpol(interpolation_keys),
-                ..
-            } => {
-                for (_, var_infos) in interpolation_keys.iter_vars() {
-                    if matches!(var_infos.range_count, Some(RangeOrPlural::Plural)) {
-                        used_icu_markers.insert(FormatterOptions::Plurals);
-                    }
+    for var_infos in keys.vars.values() {
+        if var_infos.plural {
+            used_icu_markers.insert(FormatterOptions::Plurals);
+        }
 
-                    for bound in &var_infos.bounds {
-                        let dk = match bound {
-                            VarBounds::Formatted { to_tokens, .. } => {
-                                if check_bound::<formatters::currency::CurrencyFormatter>(
-                                    &**to_tokens,
-                                ) {
-                                    FormatterOptions::FormatCurrency
-                                } else if check_bound::<formatters::nums::NumberFormatter>(
-                                    &**to_tokens,
-                                ) {
-                                    FormatterOptions::FormatNums
-                                } else if check_bound::<formatters::datetime::DateFormatter>(
-                                    &**to_tokens,
-                                ) || check_bound::<formatters::datetime::DateTimeFormatter>(
-                                    &**to_tokens,
-                                ) || check_bound::<formatters::datetime::TimeFormatter>(
-                                    &**to_tokens,
-                                ) {
-                                    FormatterOptions::FormatDateTime
-                                } else if check_bound::<formatters::list::ListFormatter>(
-                                    &**to_tokens,
-                                ) {
-                                    FormatterOptions::FormatList
-                                } else {
-                                    continue;
-                                }
-                            }
-                            _ => continue,
-                        };
-                        used_icu_markers.insert(dk);
+        for bound in &var_infos.bounds {
+            let dk = match bound {
+                VarBound::Formatted { to_tokens, .. } => {
+                    if check_bound::<formatters::currency::CurrencyFormatter>(&**to_tokens) {
+                        FormatterOptions::FormatCurrency
+                    } else if check_bound::<formatters::nums::NumberFormatter>(&**to_tokens) {
+                        FormatterOptions::FormatNums
+                    } else if check_bound::<formatters::datetime::DateFormatter>(&**to_tokens)
+                        || check_bound::<formatters::datetime::DateTimeFormatter>(&**to_tokens)
+                        || check_bound::<formatters::datetime::TimeFormatter>(&**to_tokens)
+                    {
+                        FormatterOptions::FormatDateTime
+                    } else if check_bound::<formatters::list::ListFormatter>(&**to_tokens) {
+                        FormatterOptions::FormatList
+                    } else {
+                        continue;
                     }
                 }
-            }
+                _ => continue,
+            };
+            used_icu_markers.insert(dk);
         }
     }
 }
