@@ -13,7 +13,7 @@ Buckle up, we are going to dig into the internals of the parser/codegen.
 
 The name is misleading, this is'nt the formatter itself but the parser, the trait look like this:
 
-```rust
+```rust,ignore
 pub trait Formatter {
     const NAME: &str;
 
@@ -56,7 +56,7 @@ It will then call `build` with the builder to validate it and get the `Self::ToT
 
 This is where we touch the internals, this is where you inject what is done with the value, and what the value should be:
 
-```rust
+```rust,ignore
 pub trait FormatterToTokens: Any {
     fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream;
     fn view_bounds(&self) -> TokenStream;
@@ -84,7 +84,7 @@ Let's implement a simple formatter, it can pad left or right, such that we can h
 
 first the data representation:
 
-```rust
+```rust,ignore
 /// The parser
 struct PaddingFormatterParser;
 
@@ -113,7 +113,7 @@ struct PaddingFormatter {
 
 Now let's implement the `Formatter` trait:
 
-```rust
+```rust,ignore
 impl Formatter for PaddingFormatterParser {
     const NAME: &str = "padding";
 
@@ -204,7 +204,7 @@ impl Formatter for PaddingFormatterParser {
 
 Now the `FormatterToTokens` impl:
 
-```rust
+```rust,ignore
 impl FormatterToTokens for PaddingFormatter {
     fn fmt_bounds(&self) -> TokenStream {
         quote!(core::fmt::Display)
@@ -257,7 +257,7 @@ impl FormatterToTokens for PaddingFormatter {
 
 Now we can do
 
-```rust
+```rust,ignore
 let i18n = use_i18n();
 
 t_string!(i18n, custom_formatter, var = 14)
@@ -265,7 +265,7 @@ t_string!(i18n, custom_formatter, var = 14)
 
 But this is still incomplete, this won't compile:
 
-```rust
+```rust,ignore
 let i18n = use_i18n();
 let value = Signal::new(14);
 
@@ -274,7 +274,7 @@ t!(i18n, custom_formatter, var = || value.get())
 
 We expect `var` to be `impl display`, so we will get errors looking like this:
 
-```
+```text
 error[E0277]: `{closure@src\app.rs:37:47: 37:49}` doesn't implement `std::fmt::Display`
    --> src\app.rs:37:14
     |
@@ -301,7 +301,7 @@ unfortunately we can't directly address that inside the `fmt_bounds` function...
 
 One way to do that, is to have a custom trait that describe this behavior:
 
-```rust
+```rust,ignore
 pub trait ToDisplayFn: 'static + Clone + Send + Sync { // Need to Clone + Send + Sync + 'static
     type Value: Display;
     fn to_value(&self) -> Self::Value;
@@ -321,7 +321,7 @@ where
 The generated i18n module is created at the crate level, it is not it's own package, so it can access traits, functions, types from the crate,
 so we can bound like this:
 
-```rust
+```rust,ignore
 fn fmt_bounds(&self) -> TokenStream {
     quote!(crate::ToDisplayFn) // doesn't need to be at the root
 }
@@ -329,7 +329,7 @@ fn fmt_bounds(&self) -> TokenStream {
 
 And then emit this code instead:
 
-```rust
+```rust,ignore
 fn to_view(&self, key: &syn::Ident, locale_field: &syn::Ident) -> TokenStream {
 
         // ...
@@ -348,7 +348,7 @@ And now the above code with the signal will compile fine and be reactive!
 
 In your `build.rs` file, simply pass your formatter to the `ParseOptions`:
 
-```rust
+```rust,ignore
 let options = ParseOptions::new().add_formatter(PaddingFormatterParser);
 let cfg = cfg.parse_options(options);
 let translations_infos = TranslationsInfos::parse(cfg).unwrap();
@@ -362,7 +362,7 @@ let translations_infos = TranslationsInfos::parse(cfg).unwrap();
 
 You can disable a formatter by setting the `DISABLED` constant in the `Formatter` trait (defaults to `None`) with an error message:
 
-```rust
+```rust,ignore
 impl FormatterToTokens for PaddingFormatter {
     const DISABLED: Option<&str> = const {
         if SOME_CONDITIONS {
@@ -390,7 +390,7 @@ If any error is emitted, it will not call the final `build` method.
 The parsing is done by the already defined function `parse_with_diagnostics` in the `Formatter` trait, this is the one in charge of driving the parser and report errors,
 but it treats every problem as errors, you may want to have warnings or multiple errors, have custom errors, you can overwrite the `parse_with_diagnostics` for that:
 
-```rust
+```rust,ignore
 fn parse_with_diagnostics(
         &self,
         locale: &Key, // Name of the current locale being parsed

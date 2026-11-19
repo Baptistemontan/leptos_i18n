@@ -6,7 +6,7 @@ use quote::{ToTokens, quote};
 
 use leptos_i18n_parser::{
     parse_locales::parsed_value::{Attribute, AttributeValue, Attributes, ParsedValue},
-    utils::{Key, KeyPath, UnwrapAt},
+    utils::{Key, UnwrapAt},
 };
 
 use super::{interpolate::LOCALE_FIELD_KEY, plurals, ranges};
@@ -46,6 +46,21 @@ pub enum Literal<'a> {
     Bool(bool),
 }
 
+/// `f64` literals are built with `proc_macro2::Literal::f64_suffixed`, which asserts the value is
+/// finite, but formats supporting non-finite floats (`.nan` and `.inf` in YAML, `NaN` and
+/// `Infinity` in JSON5) can produce them. Emit the associated constants for those.
+fn float_to_token_stream(value: f64) -> TokenStream {
+    if value.is_nan() {
+        quote!(f64::NAN)
+    } else if value == f64::INFINITY {
+        quote!(f64::INFINITY)
+    } else if value == f64::NEG_INFINITY {
+        quote!(f64::NEG_INFINITY)
+    } else {
+        ToTokens::to_token_stream(&value)
+    }
+}
+
 impl Literal<'_> {
     fn to_token_stream(&self, strings_count: usize) -> TokenStream {
         match self {
@@ -64,7 +79,7 @@ impl Literal<'_> {
             }
             Literal::Signed(v) => ToTokens::to_token_stream(v),
             Literal::Unsigned(v) => ToTokens::to_token_stream(v),
-            Literal::Float(v) => ToTokens::to_token_stream(v),
+            Literal::Float(v) => float_to_token_stream(*v),
             Literal::Bool(v) => ToTokens::to_token_stream(v),
         }
     }
@@ -95,17 +110,13 @@ fn flatten(
         } => {
             let attrs = attributes_to_token_stream(attributes, strings_count);
             if let Some(inner) = inner {
-                let mut key_path = KeyPath::new(None);
-                let captured_keys = inner
-                    .get_keys(&mut key_path)
-                    .unwrap_at("parsed_value::flatten_1")
-                    .is_interpol()
-                    .map(|keys| {
-                        let keys = keys
-                            .iter_keys()
-                            .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
-                        quote!(#(#keys)*)
-                    });
+                let captured_keys = ParsedValue::captured_keys([&**inner]);
+                let captured_keys = captured_keys.is_interpol().map(|keys| {
+                    let keys = keys
+                        .iter_keys()
+                        .map(|key| quote!(let #key = core::clone::Clone::clone(&#key);));
+                    quote!(#(#keys)*)
+                });
 
                 let inner = to_token_stream(inner, strings_count);
                 let f = quote!(

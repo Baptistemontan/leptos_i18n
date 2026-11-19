@@ -135,9 +135,9 @@ let i18n: SubkeysCtx = use_i18n_scoped();
 Also allow const scoping of `Locale`, still quite cumbersome though:
 
 ```rust, ignore
-use leptos_i18n::ConstLocale;
+use leptos_i18n::ScopedLocale;
 
-const FR_SUBKEYS: ConstLocale<Locale, SubkeysScope> = ConstLocale::new(Locale::fr);
+const FR_SUBKEYS: ScopedLocale<Locale, SubkeysScope> = ScopedLocale::new(Locale::fr);
 ```
 
 ## How it works (for nerds only)

@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, btree_map::Entry},
     path::PathBuf,
     rc::Rc,
 };
@@ -10,6 +10,7 @@ use locale::{BuildersKeys, BuildersKeysInner, DefaultTo, Locale, LocalesOrNamesp
 
 pub mod cfg_file;
 pub mod error;
+pub mod files;
 pub mod locale;
 pub mod options;
 pub mod parsed_value;
@@ -21,7 +22,11 @@ use error::{Diagnostics, Error, Result};
 // use warning::Warnings;
 
 use crate::{
-    parse_locales::options::{Config, ParseOptions},
+    parse_locales::{
+        files::TranslationFiles,
+        options::{Config, ParseOptions},
+        parsed_value::ParsedValue,
+    },
     utils::{Key, KeyPath, Loc, Location, UnwrapAt},
 };
 
@@ -44,19 +49,36 @@ fn unwrap_manifest_dir(cargo_manifest_dir: Option<PathBuf>) -> Result<PathBuf> {
 
 pub struct RawParsedLocales {
     pub locales: LocalesOrNamespaces,
-    pub cfg: Config,
     pub foreign_keys_paths: ForeignKeysPaths,
     pub diag: Diagnostics,
     pub tracked_files: Vec<String>,
 }
 
+pub fn parse_locales_raw_with_files(
+    files: &TranslationFiles,
+    cfg: &Config,
+) -> Result<RawParsedLocales> {
+    let foreign_keys_paths = ForeignKeysPaths::new();
+
+    let diag = Diagnostics::new();
+
+    let locales = LocalesOrNamespaces::new(files, &foreign_keys_paths, &diag, cfg)?;
+
+    let raw_parsed_locales = RawParsedLocales {
+        locales,
+        foreign_keys_paths,
+        diag,
+        tracked_files: vec![],
+    };
+
+    Ok(raw_parsed_locales)
+}
+
 pub fn parse_locales_raw(
     cargo_manifest_dir: Option<PathBuf>,
-    cfg: Config,
+    cfg: &Config,
 ) -> Result<RawParsedLocales> {
     let mut cargo_manifest_dir = unwrap_manifest_dir(cargo_manifest_dir)?;
-
-    let foreign_keys_paths = ForeignKeysPaths::new();
 
     let diag = Diagnostics::new();
 
@@ -64,21 +86,13 @@ pub fn parse_locales_raw(
 
     let mut tracked_files = Vec::with_capacity(cfg.locales.len() * cfg.namespaces.len().max(1));
 
-    let locales = LocalesOrNamespaces::new(
-        &mut cargo_manifest_dir,
-        &foreign_keys_paths,
-        &diag,
-        &mut tracked_files,
-        &cfg,
-    )?;
+    let files =
+        TranslationFiles::load_files(&mut cargo_manifest_dir, &diag, &mut tracked_files, cfg)?;
 
-    let raw_parsed_locales = RawParsedLocales {
-        locales,
-        cfg,
-        foreign_keys_paths,
-        diag,
-        tracked_files,
-    };
+    let mut raw_parsed_locales = parse_locales_raw_with_files(&files, cfg)?;
+
+    raw_parsed_locales.tracked_files = tracked_files;
+    raw_parsed_locales.diag.extend(diag);
 
     Ok(raw_parsed_locales)
 }
@@ -107,14 +121,13 @@ pub struct ParsedLocales {
     pub tracked_files: Option<Vec<String>>,
 }
 
-pub fn parse_locales(cargo_manifest_dir: Option<PathBuf>, cfg: Config) -> Result<ParsedLocales> {
+fn parse_locales_inner(raw_parsed_locales: RawParsedLocales, cfg: Config) -> Result<ParsedLocales> {
     let RawParsedLocales {
         locales,
-        cfg,
         foreign_keys_paths,
         tracked_files,
         diag,
-    } = parse_locales_raw(cargo_manifest_dir, cfg)?;
+    } = raw_parsed_locales;
 
     let builder_keys = make_builder_keys(locales, &cfg, foreign_keys_paths, &diag)?;
 
@@ -124,6 +137,14 @@ pub fn parse_locales(cargo_manifest_dir: Option<PathBuf>, cfg: Config) -> Result
         diag,
         tracked_files: Some(tracked_files),
     })
+}
+
+pub fn parse_locales_with_files(files: &TranslationFiles, cfg: Config) -> Result<ParsedLocales> {
+    parse_locales_inner(parse_locales_raw_with_files(files, &cfg)?, cfg)
+}
+
+pub fn parse_locales(cargo_manifest_dir: Option<PathBuf>, cfg: Config) -> Result<ParsedLocales> {
+    parse_locales_inner(parse_locales_raw(cargo_manifest_dir, &cfg)?, cfg)
 }
 
 fn resolve_foreign_keys(
@@ -272,7 +293,8 @@ fn check_locales_inner(
     let mut key_path = KeyPath::new(namespace);
 
     let mut string_indexer = StringIndexer::default();
-    let mut default_keys = default_locale.make_builder_keys(&mut key_path, &mut string_indexer)?;
+    let mut default_keys =
+        default_locale.make_builder_keys(&mut key_path, &mut string_indexer, diag)?;
     default_locale.strings = string_indexer.get_strings();
     default_locale.top_locale_string_count = default_locale.strings.len();
 
@@ -345,6 +367,51 @@ impl ForeignKeysPaths {
 
     pub fn into_inner(self) -> BTreeSet<Location> {
         self.0.into_inner()
+    }
+}
+
+pub fn insert_with_collision_check(
+    map: &mut BTreeMap<Key, ParsedValue>,
+    key: Key,
+    value: ParsedValue,
+    top_locale: &Key,
+    path: &KeyPath,
+    diag: &Diagnostics,
+) {
+    match map.entry(key.clone()) {
+        Entry::Vacant(vacant_entry) => {
+            vacant_entry.insert(value);
+        }
+        Entry::Occupied(occupied_entry) => {
+            // colliding keys
+            let mut current_path = path.clone();
+            current_path.path.push(key.clone());
+            match (&value, occupied_entry.get()) {
+                (ParsedValue::Plurals(p1), ParsedValue::Plurals(p2))
+                    if p1.rule_type != p2.rule_type =>
+                {
+                    diag.emit_error(Error::ConflictingPluralRuleType {
+                        loc: Location::new(top_locale.clone(), current_path),
+                    });
+                }
+                (ParsedValue::Plurals(_), _) | (_, ParsedValue::Plurals(_))
+                    if key.name == occupied_entry.key().name =>
+                {
+                    diag.emit_error(Error::PluralsAtNormalKey {
+                        loc: Location::new(top_locale.clone(), current_path),
+                    });
+                }
+                _ => {
+                    let mut path = current_path.clone();
+                    path.path.pop();
+                    path.path.push(occupied_entry.key().clone());
+                    diag.emit_error(Error::CollidingKeys {
+                        loc1: Location::new(top_locale.clone(), current_path),
+                        loc2: Location::new(top_locale.clone(), path),
+                    });
+                }
+            }
+        }
     }
 }
 

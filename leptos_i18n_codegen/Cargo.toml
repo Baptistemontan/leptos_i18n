@@ -33,7 +33,36 @@ format_datetime = ["leptos_i18n_parser/format_datetime"]
 format_list = ["leptos_i18n_parser/format_list"]
 format_nums = ["leptos_i18n_parser/format_nums"]
 format_currency = ["leptos_i18n_parser/format_currency", "format_nums"]
+all_formats = [
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
+  "format_currency",
+]
 
 [package.metadata.cargo-all-features]
-# cargo-all-features don't provide a way to always include one feature in a set, so CI will just do json...
-denylist = ["nightly"]
+denylist = [
+  "nightly",
+  # formats, only tested together through the "all_formats" feature
+  "plurals",
+  "format_datetime",
+  "format_list",
+  "format_nums",
+  "format_currency",
+]
+skip_feature_sets = [
+  # Only one of `csr`, `hydrate` and `ssr` should be enabled at once
+  [
+    "csr",
+    "hydrate",
+  ],
+  [
+    "csr",
+    "ssr",
+  ],
+  [
+    "hydrate",
+    "ssr",
+  ],
+]

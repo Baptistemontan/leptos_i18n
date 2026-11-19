@@ -68,7 +68,7 @@ To do that you can use a build script and use the `leptos_i18n_build` crate:
 leptos_i18n_build = "0.6.0"
 ```
 
-```rust
+```rust,ignore
 use leptos_i18n_build::TranslationsInfos;
 
 fn main() {
@@ -124,7 +124,7 @@ Then if you are using Trunk you just have to add the directory to the build pipe
 Now the translations will be available at `i18n/{locale}.json`.
 To inform `leptos_i18n` where to find those translations, you need to supply the `translations_uri` to the config builder:
 
-```rust
+```rust,ignore
 let cfg = cfg.translations_uri("i18n/{locale}.json"); // or "i18n/{namespace}/{locale}.json" when using namespaces
 ```
 

@@ -51,11 +51,11 @@ use icu_decimal::options::DecimalFormatterOptions;
 #[cfg(feature = "format_nums")]
 use icu_decimal::options::GroupingStrategy;
 #[cfg(feature = "format_currency")]
+use icu_experimental::dimension::currency::CurrencyType;
+#[cfg(feature = "format_currency")]
 use icu_experimental::dimension::currency::formatter::CurrencyFormatter;
 #[cfg(feature = "format_currency")]
 use icu_experimental::dimension::currency::options::CurrencyFormatterOptions;
-#[cfg(feature = "format_currency")]
-use icu_experimental::dimension::currency::options::Width as CurrencyWidth;
 
 pub use leptos_i18n_macro::{
     t_format, t_format_display, t_format_string, td_format, td_format_display, td_format_string,
@@ -65,20 +65,28 @@ pub use leptos_i18n_macro::{
 #[cfg(feature = "format_currency")]
 fn get_currency_formatter<L: Locale>(
     locale: L,
-    width: CurrencyWidth,
-) -> &'static CurrencyFormatter {
+    width: currency::Width,
+    currency_code: CurrencyType,
+) -> &'static CurrencyFormatter<DecimalFormatter> {
     use data_provider::IcuDataProvider;
 
     inner::FORMATTERS.with_mut(|formatters| {
         let locale = locale.as_icu_locale();
         let currency_formatters = formatters.currency.entry(locale).or_default();
-        let currency_formatter = currency_formatters.entry(width.into()).or_insert_with(|| {
-            let formatter = formatters
-                .provider
-                .try_new_currency_formatter(locale, CurrencyFormatterOptions::from(width))
-                .expect("A CurrencyFormatter");
-            Box::leak(Box::new(formatter))
-        });
+        let currency_formatter = currency_formatters
+            .entry((width, currency_code))
+            .or_insert_with(|| {
+                let formatter = formatters
+                    .provider
+                    .try_new_currency_formatter(
+                        locale,
+                        currency_code,
+                        width,
+                        CurrencyFormatterOptions::default(),
+                    )
+                    .expect("A CurrencyFormatter");
+                Box::leak(Box::new(formatter))
+            });
         *currency_formatter
     })
 }
@@ -239,7 +247,7 @@ pub(crate) mod inner {
     use icu_locale::Locale as IcuLocale;
     use std::{
         collections::HashMap,
-        sync::{OnceLock, RwLock},
+        sync::{OnceLock, PoisonError, RwLock},
     };
 
     #[cfg(feature = "format_datetime")]
@@ -269,7 +277,13 @@ pub(crate) mod inner {
             T: Default,
         {
             let mutex = self.0.get_or_init(Default::default);
-            let mut guard = mutex.write().unwrap();
+            // Formatter construction can panic (a data provider missing a marker or a
+            // locale), and it does so while this guard is held, which poisons the lock.
+            // The cache stays consistent in that case, as `HashMap`'s entry API inserts
+            // nothing when the `or_insert_with` closure unwinds, so the poison flag is
+            // ignored: one failing formatter must not turn every later formatting call,
+            // for any locale and any formatter kind, into a `PoisonError` panic.
+            let mut guard = mutex.write().unwrap_or_else(PoisonError::into_inner);
             f(&mut guard)
         }
     }
@@ -278,7 +292,10 @@ pub(crate) mod inner {
         #[cfg(feature = "format_currency")]
         pub currency: HashMap<
             &'static IcuLocale,
-            HashMap<super::currency::Width, &'static CurrencyFormatter>,
+            HashMap<
+                (super::currency::Width, CurrencyType),
+                &'static CurrencyFormatter<DecimalFormatter>,
+            >,
         >,
         #[cfg(feature = "format_nums")]
         pub num: HashMap<&'static IcuLocale, HashMap<GroupingStrategy, &'static DecimalFormatter>>,
@@ -317,6 +334,39 @@ pub(crate) mod inner {
             formatters.provider =
                 super::data_provider::BakedDataProvider(Some(Box::new(data_provider)));
         });
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::{HashMap, StaticLock};
+
+        // A formatter that fails to be built panics inside `with_mut`, i.e. while the
+        // write guard is held. Every later use of the cache must still work, whatever
+        // the locale or the formatter kind.
+        #[test]
+        fn cache_survives_a_failing_formatter_creation() {
+            static CACHE: StaticLock<HashMap<&'static str, usize>> = StaticLock::new();
+
+            CACHE.with_mut(|cache| cache.insert("en", 1));
+
+            let panicked = std::panic::catch_unwind(|| {
+                CACHE.with_mut(|cache| {
+                    cache
+                        .entry("de")
+                        .or_insert_with(|| panic!("A DecimalFormatter"));
+                })
+            });
+            assert!(panicked.is_err());
+
+            // Would panic with a `PoisonError` if the poison flag was propagated.
+            let (en, de_entries) = CACHE.with_mut(|cache| (cache.get("en").copied(), cache.len()));
+            assert_eq!(en, Some(1));
+            // the entry API inserted nothing for the key that failed
+            assert_eq!(de_entries, 1);
+
+            CACHE.with_mut(|cache| cache.insert("de", 2));
+            assert_eq!(CACHE.with_mut(|cache| cache.get("de").copied()), Some(2));
+        }
     }
 }
 
@@ -435,13 +485,15 @@ pub(crate) mod data_provider {
             rule_type: PluralRuleType,
         ) -> Result<PluralRules, DataError>;
         ///
-        /// Tries to create a new `CurrencyFormatter` with the given options
+        /// Tries to create a new `CurrencyFormatter` for the given currency, width and options
         #[cfg(feature = "format_currency")]
         fn try_new_currency_formatter(
             &self,
             locale: &Locale,
+            currency_code: CurrencyType,
+            width: super::currency::Width,
             options: CurrencyFormatterOptions,
-        ) -> Result<CurrencyFormatter, icu_provider::DataError>;
+        ) -> Result<CurrencyFormatter<DecimalFormatter>, icu_provider::DataError>;
     }
 
     #[cfg(feature = "icu_compiled_data")]
@@ -552,9 +604,18 @@ pub(crate) mod data_provider {
         fn try_new_currency_formatter(
             &self,
             locale: &Locale,
+            currency_code: CurrencyType,
+            width: super::currency::Width,
             options: CurrencyFormatterOptions,
-        ) -> Result<CurrencyFormatter, DataError> {
-            CurrencyFormatter::try_new(locale.into(), options)
+        ) -> Result<CurrencyFormatter<DecimalFormatter>, DataError> {
+            match width {
+                super::currency::Width::Short => {
+                    CurrencyFormatter::try_new_symbol(locale.into(), currency_code, options)
+                }
+                super::currency::Width::Narrow => {
+                    CurrencyFormatter::try_new_symbol_narrow(locale.into(), currency_code, options)
+                }
+            }
         }
     }
 
@@ -666,10 +727,12 @@ pub(crate) mod data_provider {
         fn try_new_currency_formatter(
             &self,
             locale: &Locale,
+            currency_code: CurrencyType,
+            width: super::currency::Width,
             options: CurrencyFormatterOptions,
-        ) -> Result<CurrencyFormatter, DataError> {
+        ) -> Result<CurrencyFormatter<DecimalFormatter>, DataError> {
             self.get_provider()
-                .try_new_currency_formatter(locale, options)
+                .try_new_currency_formatter(locale, currency_code, width, options)
         }
     }
 }

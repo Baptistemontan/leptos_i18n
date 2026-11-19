@@ -37,11 +37,20 @@ pub enum Error {
     ConfigFileDeser(toml::de::Error),
     LocaleFileNotFound(Vec<(PathBuf, std::io::Error)>),
     LocaleFileDeser {
-        path: PathBuf,
+        path: Option<PathBuf>,
         err: SerdeError,
     },
     DuplicateLocalesInConfig(BTreeSet<Key>),
     DuplicateNamespacesInConfig(BTreeSet<Key>),
+    MissingLocaleFile {
+        locale: Key,
+        namespace: Option<Key>,
+    },
+    MissingNamespaceFiles(Key),
+    TranslationFilesMismatch {
+        /// `true` if the configuration has namespaces but the files are given per locale.
+        expected_namespaces: bool,
+    },
     SubKeyMissmatch {
         locale: Key,
         key_path: KeyPath,
@@ -61,6 +70,10 @@ pub enum Error {
         type2: RangeType,
     },
     InvalidKey(String),
+    CollidingKeys {
+        loc1: Location,
+        loc2: Location,
+    },
     EmptyRange,
     InvalidRangeType(String),
     NestedRanges,
@@ -167,8 +180,22 @@ pub enum Error {
     DefaultLocaleCantInherit {
         loc: &'static panic::Location<'static>,
     },
+    ConflictingComponentKind {
+        loc: Location,
+        self_closed: Rc<str>,
+        comp: Rc<str>,
+        resolved_ident: Rc<str>,
+    },
 
     Custom(String),
+}
+
+/// Variables and components keys are stored with these prefixes (`var_count`, `comp_b`), not shown to the user.
+const VAR_PREFIX: &str = "var_";
+const COMP_PREFIX: &str = "comp_";
+
+fn strip_prefix<'a>(s: &'a str, prefix: &str) -> &'a str {
+    s.strip_prefix(prefix).unwrap_or(s)
 }
 
 impl Display for Error {
@@ -227,6 +254,37 @@ impl Display for Error {
             Error::DuplicateNamespacesInConfig(duplicates) => write!(
                 f,
                 "Found duplicates namespaces in configuration (Cargo.toml): {duplicates:?}"
+            ),
+            Error::MissingLocaleFile {
+                locale,
+                namespace: None,
+            } => write!(
+                f,
+                "Missing translation file for locale {:?}: the locale is in the configuration but no file was given for it.",
+                locale.name
+            ),
+            Error::MissingLocaleFile {
+                locale,
+                namespace: Some(namespace),
+            } => write!(
+                f,
+                "Missing translation file for locale {:?} in namespace {:?}: the locale is in the configuration but no file was given for it.",
+                locale.name, namespace.name
+            ),
+            Error::MissingNamespaceFiles(namespace) => write!(
+                f,
+                "Missing translation files for namespace {:?}: the namespace is in the configuration but no files were given for it.",
+                namespace.name
+            ),
+            Error::TranslationFilesMismatch {
+                expected_namespaces: true,
+            } => f.write_str(
+                "The configuration has namespaces, but the translation files are given per locale (`TranslationFiles::Locales`) instead of per namespace (`TranslationFiles::NameSpaces`).",
+            ),
+            Error::TranslationFilesMismatch {
+                expected_namespaces: false,
+            } => f.write_str(
+                "The configuration has no namespaces, but the translation files are given per namespace (`TranslationFiles::NameSpaces`) instead of per locale (`TranslationFiles::Locales`).",
             ),
             Error::RangeTypeMissmatch {
                 key_path,
@@ -398,6 +456,30 @@ impl Display for Error {
                     "Tried to declare inheritance for the default locale at {loc}"
                 )
             }
+            Error::CollidingKeys { loc1, loc2 } => {
+                // both locations are always in the same locale
+                write!(
+                    f,
+                    "Colliding keys \"{}\" and \"{}\" in locale {:?}: they resolve to the same Rust identifier.",
+                    loc1.key_path, loc2.key_path, loc1.locale
+                )
+            }
+            Error::ConflictingComponentKind {
+                loc,
+                self_closed,
+                comp,
+                resolved_ident,
+            } => {
+                let (comp, self_closed, resolved_ident) = (
+                    strip_prefix(comp, COMP_PREFIX),
+                    strip_prefix(self_closed, COMP_PREFIX),
+                    strip_prefix(resolved_ident, COMP_PREFIX),
+                );
+                write!(
+                    f,
+                    "Component \"{resolved_ident}\" is used both with children (<{comp}>...</{comp}>) and self-closed (<{self_closed} />) at {loc}, a component must be used either always with children or always self-closed."
+                )
+            }
         }
     }
 }
@@ -463,6 +545,7 @@ impl std::error::Error for Error {}
 use super::plurals::{PluralForm, PluralRuleType};
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Warning {
     MissingKey {
         loc: Location,
@@ -475,6 +558,42 @@ pub enum Warning {
         form: PluralForm,
         rule_type: PluralRuleType,
     },
+    KeySpellingMismatch {
+        key_path: KeyPath,
+        provided_key: Location,
+    },
+    VarKeySpellingMismatch {
+        loc: Location,
+        key1: Rc<str>,
+        key2: Rc<str>,
+        resolved_ident: Rc<str>,
+    },
+    CompKeySpellingMismatch {
+        loc: Location,
+        key1: Rc<str>,
+        key2: Rc<str>,
+        resolved_ident: Rc<str>,
+        self_closed: bool,
+    },
+    PluralKeySpellingMismatch {
+        key1: Location,
+        base1: Rc<str>,
+        key2: KeyPath,
+        base2: Rc<str>,
+        resolved_ident: Rc<str>,
+    },
+    DuplicateFkArgs {
+        loc: Location,
+        fk_target: KeyPath,
+        arg_name: String,
+    },
+    CollidingFkArgs {
+        loc: Location,
+        fk_target: KeyPath,
+        arg1: String,
+        arg2: String,
+        ident_repr: String,
+    },
     NonUnicodePath {
         locale: Key,
         namespace: Option<Key>,
@@ -484,6 +603,15 @@ pub enum Warning {
         loc: Location,
         formatter_name: String,
         chars: String,
+    },
+    PluralLookingKeyInvalidBase {
+        loc: Location,
+        base: Rc<str>,
+    },
+    PluralLookingKeysWithNoOther {
+        base_key_location: Location,
+        keys: Vec<Key>,
+        rule_type: PluralRuleType,
     },
     Custom(String),
 }
@@ -545,6 +673,122 @@ impl Display for Warning {
                 f,
                 "Unexpected characters {chars:?} after formatter {formatter_name:?} at {loc}"
             ),
+            Warning::PluralLookingKeyInvalidBase { loc, base } => {
+                write!(
+                    f,
+                    "Key \"{}\" in locale {:?} looks like a plural form, but ",
+                    loc.key_path, loc.locale
+                )?;
+                if base.is_empty() {
+                    f.write_str("its base is empty")?;
+                } else {
+                    write!(f, "its base \"{base}\" is not a valid Rust identifier")?;
+                }
+                f.write_str(", so it can't be a plural and is kept as a normal key.")
+            }
+            Warning::PluralLookingKeysWithNoOther {
+                base_key_location,
+                keys,
+                rule_type,
+            } => {
+                f.write_str("Keys ")?;
+                for (i, key) in keys.iter().enumerate() {
+                    if i > 0 {
+                        f.write_str(", ")?;
+                    }
+                    write!(f, "\"{key}\"")?;
+                }
+                let other_suffix = match rule_type {
+                    PluralRuleType::Cardinal => "_other",
+                    PluralRuleType::Ordinal => "_ordinal_other",
+                };
+                let base = base_key_location
+                    .key_path
+                    .path
+                    .last()
+                    .map(|key| &*key.name)
+                    .unwrap_or_default();
+                write!(
+                    f,
+                    " in locale {:?} look like {rule_type} plural forms of \"{}\", but there is no \"{base}{other_suffix}\" form, which every plural needs, so they are kept as normal keys.",
+                    base_key_location.locale, base_key_location.key_path
+                )
+            }
+            Warning::KeySpellingMismatch {
+                key_path,
+                provided_key,
+            } => write!(
+                f,
+                "Key \"{}\" in locale {:?} is spelled \"{}\" in the default locale, both resolve to the same Rust identifier and are treated as the same key.",
+                provided_key.key_path, provided_key.locale, key_path
+            ),
+            Warning::VarKeySpellingMismatch {
+                loc,
+                key1,
+                key2,
+                resolved_ident,
+            } => {
+                let (key1, key2, resolved_ident) = (
+                    strip_prefix(key1, VAR_PREFIX),
+                    strip_prefix(key2, VAR_PREFIX),
+                    strip_prefix(resolved_ident, VAR_PREFIX),
+                );
+                write!(
+                    f,
+                    "Variable \"{key2}\" at {loc} is spelled \"{key1}\" elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same variable."
+                )
+            }
+            Warning::CompKeySpellingMismatch {
+                loc,
+                key1,
+                key2,
+                resolved_ident,
+                self_closed,
+            } => {
+                let (key1, key2, resolved_ident) = (
+                    strip_prefix(key1, COMP_PREFIX),
+                    strip_prefix(key2, COMP_PREFIX),
+                    strip_prefix(resolved_ident, COMP_PREFIX),
+                );
+                let (open, close) = if *self_closed {
+                    ("<", " />")
+                } else {
+                    ("<", ">")
+                };
+                write!(
+                    f,
+                    "Component {open}{key2}{close} at {loc} is spelled {open}{key1}{close} elsewhere in this key, both resolve to the same Rust identifier \"{resolved_ident}\" and are treated as the same component."
+                )
+            }
+            Warning::PluralKeySpellingMismatch {
+                key1,
+                base1,
+                key2,
+                base2,
+                resolved_ident,
+            } => write!(
+                f,
+                "Plural keys \"{}\" and \"{}\" in locale {:?} spell their base differently (\"{}\" / \"{}\"), both resolve to the same Rust identifier \"{}\" and are treated as the same plural.",
+                key1.key_path, key2, key1.locale, base1, base2, resolved_ident
+            ),
+            Warning::DuplicateFkArgs {
+                loc,
+                fk_target,
+                arg_name,
+            } => write!(
+                f,
+                "Argument {arg_name:?} is given more than once to foreign key \"{fk_target}\" at {loc}, only the first value is kept."
+            ),
+            Warning::CollidingFkArgs {
+                loc,
+                fk_target,
+                arg1,
+                arg2,
+                ident_repr,
+            } => write!(
+                f,
+                "Arguments {arg1:?} and {arg2:?} to foreign key \"{fk_target}\" at {loc} both resolve to the same Rust identifier {ident_repr:?}, only the first one ({arg1:?}) is kept."
+            ),
         }
     }
 }
@@ -597,6 +841,18 @@ impl Diagnostics {
 
     pub fn set_has_ranges(&self) {
         self.has_ranges.set(true);
+    }
+
+    pub fn extend(&self, other: Self) {
+        let mut errors = self.errors.borrow_mut();
+        let mut other_err = other.errors.borrow_mut();
+        errors.append(&mut other_err);
+
+        let mut warnings = self.warnings.borrow_mut();
+        let mut other_warn = other.warnings.borrow_mut();
+        warnings.append(&mut other_warn);
+        self.has_ranges
+            .set(self.has_ranges.get() || other.has_ranges.get());
     }
 }
 

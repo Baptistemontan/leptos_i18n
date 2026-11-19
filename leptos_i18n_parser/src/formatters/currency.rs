@@ -64,13 +64,16 @@ enum CurrencyWidth {
 impl CurrencyCode {
     pub fn from_arg(arg: Option<&str>) -> Result<Self, Cow<'static, str>> {
         match arg {
-            Some(v) => match TinyAsciiStr::try_from_str(v) {
-                Ok(code) => Ok(Self(code)),
-                Err(err) => {
-                    let err = format!("Invalid code: {err}");
-                    Err(Cow::Owned(err))
+            // ISO 4217 codes are exactly 3 ASCII letters, which is also what ICU4X's `CurrencyType` accepts.
+            Some(v) if v.len() == 3 && v.bytes().all(|b| b.is_ascii_alphabetic()) => {
+                match TinyAsciiStr::try_from_str(v) {
+                    Ok(code) => Ok(Self(code)),
+                    Err(err) => Err(Cow::Owned(format!("Invalid code: {err}"))),
                 }
-            },
+            }
+            Some(v) => Err(Cow::Owned(format!(
+                "Invalid code: {v:?}, a currency code must be 3 ASCII letters (e.g. \"USD\")"
+            ))),
             None => Err(Cow::Borrowed("missing currency code")),
         }
     }
@@ -79,9 +82,14 @@ impl CurrencyCode {
 impl ToTokens for CurrencyCode {
     fn to_token_stream(&self) -> TokenStream {
         let code = Literal::string(self.0.as_str());
-        quote!(l_i18n_crate::reexports::icu::currency::CurrencyCode(
-            l_i18n_crate::reexports::tinystr!(3, #code)
-        ))
+        quote!({
+            const CURRENCY_CODE: l_i18n_crate::reexports::icu::currency::CurrencyType =
+                match l_i18n_crate::reexports::icu::currency::CurrencyType::try_from_str(#code) {
+                    Ok(code) => code,
+                    Err(_) => panic!("invalid currency code"),
+                };
+            CURRENCY_CODE
+        })
     }
 
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -99,7 +107,7 @@ impl CurrencyWidth {
 
 impl_to_tokens!(
     CurrencyWidth,
-    l_i18n_crate::reexports::icu::currency::options::Width,
+    l_i18n_crate::__private::Width,
     {
         Short,
         Narrow

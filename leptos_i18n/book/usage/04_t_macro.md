@@ -165,7 +165,7 @@ If you declared attributes with your components
 
 You can either retrieve them with a closure:
 
-```rust
+```rust,ignore
 use leptos::children::ChildrenFn;
 use leptos::attr::any_attribute::AnyAttribute;
 let b = |children: ChildrenFn, attr: Vec<AnyAttribute>| view!{ <b {..attr} >{children}</b> }
@@ -174,7 +174,7 @@ t!(i18n, highlight_me, id = "my_id", <b>)
 
 Or they will be passed to direct components alongside code defined attributes:
 
-```rust
+```rust,ignore
 // this will spread the attributes into `b` alongside the given attributes
 t!(i18n, highlight_me, id = "my_id", <b> = <b attr:foo="bar" />)
 ```
@@ -187,7 +187,7 @@ The same works for self-closing components; for the closure syntax you can take 
 }
 ```
 
-```rust
+```rust,ignore
 let br = |attr: Vec<AnyAttribute>| view!{ <br {..attr} /> }
 t!(i18n, highlight_me, id = "my_id", <br>)
 ```
@@ -199,7 +199,7 @@ and self-closing components can accept  `Fn()` or `Fn(Vec<AnyAttribute>)`.
 
 ## Plurals
 
-Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralsOperands>` ([`PluralsOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `FixedDecimal`.
+Plurals expect a variable `count` that implements `Fn() -> N + Clone + 'static` where `N` implements `Into<icu_plurals::PluralOperands>` ([`PluralOperands`](https://docs.rs/icu/latest/icu/plurals/struct.PluralOperands.html)). Integers and unsigned primitives implement it, along with `&fixed_decimal::Decimal`.
 
 ```rust,ignore
 t!(i18n, key_to_plurals, count = count);

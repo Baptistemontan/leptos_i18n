@@ -117,12 +117,18 @@ pub fn derive_icu_data_provider(input: proc_macro::TokenStream) -> proc_macro::T
 
     let new_currency_formatter = if cfg!(feature = "format_currency") {
         quote! {
-                fn try_new_currency_formatter(
+            fn try_new_currency_formatter(
                 &self,
                 locale: &leptos_i18n::reexports::icu::locid::Locale,
+                currency_code: leptos_i18n::reexports::icu::currency::CurrencyType,
+                width: leptos_i18n::__private::Width,
                 options: leptos_i18n::reexports::icu::currency::options::CurrencyFormatterOptions
-            ) -> Result<leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter, leptos_i18n::reexports::icu::provider::DataError> {
-                leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter::try_new_unstable(self, locale.into(), options)
+            ) -> Result<leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter<leptos_i18n::reexports::icu::decimal::DecimalFormatter>, leptos_i18n::reexports::icu::provider::DataError> {
+                use leptos_i18n::reexports::icu::currency::formatter::CurrencyFormatter;
+                match width {
+                    leptos_i18n::__private::Width::Narrow => CurrencyFormatter::try_new_symbol_narrow_unstable(self, locale.into(), currency_code, options),
+                    _ => CurrencyFormatter::try_new_symbol_unstable(self, locale.into(), currency_code, options),
+                }
             }
         }
     } else {

@@ -3,7 +3,7 @@
 Translation files can grow quite rapidly and become very large. Avoiding key collisions can be difficult without the use of long names.
 To avoid this situation, you can declare namespaces in the configuration:
 
-```rust
+```rust,ignore
 let cfg = Config::new("en")?.add_locale("fr")?.add_namespaces(["common", "home"]);
 ```
 

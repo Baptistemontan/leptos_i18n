@@ -59,7 +59,7 @@ To do that you use the `Config` builder:
 
 To declare `en` and `fr` as locales, with `en` being the default you would write:
 
-```rust
+```rust,ignore
 let cfg = Config::new("en")?.add_locale("fr")?;
 ```
 

@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup-ci
@@ -35,6 +35,23 @@ jobs:
 
       - name: Check format
         run: cargo fmt --check
+
+  ########################################
+  # CODEGEN TEST
+  ########################################
+  codegen_test:
+    name: Test leptos_i18n_codegen package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup
+        uses: ./.github/actions/setup-ci
+
+      - name: Test all features
+        working-directory: leptos_i18n_codegen
+        run: cargo all-features test
 
   ########################################
   # SSR EXAMPLES
@@ -56,7 +73,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup-ci
@@ -93,7 +110,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup-ci
@@ -130,7 +147,7 @@ jobs:
         example: [csr_counter]
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup-ci
@@ -186,7 +203,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup-ci
@@ -223,7 +240,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup
         uses: ./.github/actions/setup-ci

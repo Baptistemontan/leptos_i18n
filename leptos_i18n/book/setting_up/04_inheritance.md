@@ -41,7 +41,7 @@ Given these locales:
 
 The automatic inheritance tree becomes:
 
-```
+```text
 en (default)
 ├── en-US
 │   ├── en-Latn-US-Valencia
@@ -65,7 +65,7 @@ When automatic inheritance is not sufficient, you can manually specify inheritan
 
 Add inheritance rules with the config builder:
 
-```rust
+```rust,ignore
 let cfg = cfg.extend_locale("child-locale", "parent-locale")?;
 ```
 
@@ -73,13 +73,13 @@ let cfg = cfg.extend_locale("child-locale", "parent-locale")?;
 
 To make `en-Latn-US-Valencia-u-ca-buddhist` inherit from `en-Latn-US-Valencia` instead of `en-US`:
 
-```rust
+```rust,ignore
 let cfg = cfg.extend_locale("en-Latn-US-Valencia-u-ca-buddhist", "en-Latn-US-Valencia")?;
 ```
 
 This changes the inheritance tree to:
 
-```
+```text
 en (default)
 ├── en-US
 │   ├── en-Latn-US-Valencia
@@ -111,7 +111,7 @@ The inheritance system affects how missing key warnings are handled.
 
 You can suppress missing key warnings for a locale by explicitly setting it to inherit from the default locale:
 
-```rust
+```rust,ignore
 let cfg = Config::new("en")?
     .add_locale("fr")?
     .add_locale("it")?
@@ -131,7 +131,7 @@ The default locale is the root of the inheritance tree and cannot inherit from o
 
 **This will cause an error**:
 
-```rust
+```rust,ignore
 let cfg = Config::new("en")?
     .add_locale("fr")?
     .extend_locale("en", "fr")?; // ❌ Error: default locale cannot inherit

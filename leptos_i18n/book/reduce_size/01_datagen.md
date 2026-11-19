@@ -30,8 +30,9 @@ you will also need some dependencies:
 ```toml
 [dependencies]
 # "default-features = false" to turn off compiled_data
-icu_provider_baked = "2.0.0" # for databake
-icu_provider = "2.0.0" # for databake
+icu_provider_baked = "2.4" # for databake
+icu_provider = "2.4" # for databake
+icu_locale_core = "2.4" # for databake
 zerovec = "0.11" # for databake
 ```
 
@@ -154,31 +155,29 @@ If your code uses plurals, it will build with information for plurals. If it use
 If you use more data somehow, like for example using `t*_format!` with a formatter not used in the translations, there are functions to either supply additional options or keys:
 
 ```rust,ignore
-use leptos_i18n_build::Options;
+use leptos_i18n_build::FormatterOptions;
 
-translations_infos.generate_data_with_options(mod_directory, [Options::FormatDateTime]).unwrap();
+translations_infos.generate_data_with_options(mod_directory, [FormatterOptions::FormatDateTime]).unwrap();
 ```
 
 This will inject the ICU `DataMarker`s needed for the `date`, `time`, and `datetime` formatters.
 
 ```rust,ignore
-use leptos_i18n_build::Options;
-
 translations_infos.generate_data_with_data_markers(
     mod_directory,
-    &[icu::plurals::provider::MARKERS]
+    icu::plurals::provider::MARKERS.to_vec(),
 ).unwrap();
 ```
 
 This will inject the keys for cardinal and ordinal plurals.
 
-If you need both, `Options` can be turned into the needed keys:
+If you need both, `FormatterOptions` can be turned into the needed keys:
 
 ```rust,ignore
-use leptos_i18n_build::Options;
+use leptos_i18n_build::FormatterOptions;
 
-let mut markers = &[icu::plurals::provider::MARKERS];
-let markers.extend(Options::FormatDateTime.into_data_markers());
+let mut markers = icu::plurals::provider::MARKERS.to_vec();
+markers.extend(FormatterOptions::FormatDateTime.into_data_markers());
 
 // markers now contains the `DataMarker`s needed for plurals and for the `time`, `date` and `datetime` formatters.
 
@@ -197,15 +196,15 @@ To solve them you will need those few things:
 
 ### Enable Experimental Feature
 
-Enable the "experimental" feature for `icu`:
+Enable the "unstable" feature for `icu`:
 
 ```toml
 # Cargo.toml
 [dependencies]
 icu = {
-    version = "1.5.0",
+    version = "2.4",
     default-features = false,
-    features = [ "experimental"]
+    features = [ "unstable"]
 }
 ```
 
@@ -214,7 +213,7 @@ icu = {
 ```toml
 # Cargo.toml
 [dependencies]
-icu_pattern = "0.2.0" # for databake
+icu_pattern = "0.5" # for databake
 ```
 
 ### Import the `alloc` Crate
