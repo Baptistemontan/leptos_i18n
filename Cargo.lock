@@ -2100,6 +2100,7 @@ dependencies = [
  "leptos_i18n_parser",
  "prettyplease 0.3.0",
  "proc-macro2",
+ "serde_json",
  "syn 3.0.5",
 ]
 

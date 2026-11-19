@@ -35,6 +35,9 @@ prettyplease = { features = [
 ], optional = true, workspace = true, default-features = true }
 syn = { workspace = true, default-features = true }
 
+[dev-dependencies]
+serde_json = { workspace = true, default-features = true }
+
 [features]
 default = []
 islands = ["leptos_i18n_codegen/islands"]

@@ -1,0 +1,5 @@
+{
+  "hello": "Hello",
+  "control_chars": "before\u0007after",
+  "del_and_combining": "\u0301x\u007fy"
+}
