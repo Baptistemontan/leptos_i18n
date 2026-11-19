@@ -2058,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "leptos_i18n"
-version = "0.6.3"
+version = "0.7.0-alpha.1"
 dependencies = [
  "async-once-cell",
  "codee",
@@ -2089,7 +2089,7 @@ dependencies = [
 
 [[package]]
 name = "leptos_i18n_build"
-version = "0.6.3"
+version = "0.7.0-alpha.1"
 dependencies = [
  "icu",
  "icu_locale",
@@ -2106,7 +2106,7 @@ dependencies = [
 
 [[package]]
 name = "leptos_i18n_codegen"
-version = "0.6.3"
+version = "0.7.0-alpha.1"
 dependencies = [
  "icu_locale",
  "leptos_i18n_parser",
@@ -2118,7 +2118,7 @@ dependencies = [
 
 [[package]]
 name = "leptos_i18n_macro"
-version = "0.6.3"
+version = "0.7.0-alpha.1"
 dependencies = [
  "fixed_decimal",
  "icu_locale",
@@ -2135,7 +2135,7 @@ dependencies = [
 
 [[package]]
 name = "leptos_i18n_parser"
-version = "0.6.3"
+version = "0.7.0-alpha.1"
 dependencies = [
  "fixed_decimal",
  "icu_locale",
@@ -2154,7 +2154,7 @@ dependencies = [
 
 [[package]]
 name = "leptos_i18n_router"
-version = "0.6.3"
+version = "0.7.0-alpha.1"
 dependencies = [
  "leptos",
  "leptos_i18n",
