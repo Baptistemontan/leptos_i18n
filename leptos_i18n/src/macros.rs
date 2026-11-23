@@ -384,6 +384,62 @@ macro_rules! td_string {
     };
 }
 
+/// Access a translation in a const context.
+///
+/// This works for keys without arguments (plain strings, numbers and booleans), the locale must be known at compile time,
+/// and it is not available with the `"dynamic_load"` feature, as the translations are not part of the binary.
+///
+/// It returns the value itself: a `&'static str` for a string, a `bool`, `i64`, `u64` or `f64` for the other literals.
+/// If the type of the value is not the same in every locale, it returns a `leptos_i18n::keys::comp_time::Literal`.
+///
+/// Usage:
+///
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {
+/// #           subkeys: {
+/// #               key: "my value",
+/// #           },
+/// #       },
+/// #       fr: {
+/// #           subkeys: {
+/// #               key: "ma valeur",
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::td_const;
+///
+/// // "subkeys": { "key": "my value" }
+/// const MY_VALUE: &str = td_const!(Locale::en, subkeys.key);
+/// assert_eq!(MY_VALUE, "my value");
+///
+/// // it also takes a key built with `build_key!`
+/// const FR_VALUE: &str = td_const!(
+///     Locale::fr,
+///     key = leptos_i18n::build_key!(leptos_i18n::key_builder!(Locale::fr, subkeys.key))
+/// );
+/// assert_eq!(FR_VALUE, "ma valeur");
+/// ```
+#[macro_export]
+macro_rules! td_const {
+    ($locale:expr, key = $key:expr) => {
+        $crate::__private::check_is_literal({
+            let (__args, __id) = $crate::keys::Key::const_into_args_and_id($key);
+            __args.__const_value(__id, $locale)
+        })
+    };
+    ($locale:expr, $($keys:ident).+) => {{
+        let __locale = $locale;
+        let __key = $crate::build_key!($crate::key_builder!(__locale, $($keys).+));
+        $crate::td_const!(__locale, key = __key)
+    }};
+}
+
 /// Same as the `t_string!` macro but untracked.
 #[macro_export]
 macro_rules! tu_string {
