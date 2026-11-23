@@ -58,7 +58,7 @@ macro_rules! build_key_display {
 macro_rules! key {
     (scope = $scope:ty, $($keys:ident).+ $(, $($args:tt)*)?) => {
         $crate::build_key!(
-            $crate::key_builder(
+            $crate::key_builder!(
                 scope = $scope,
                 $($keys).+
             )
@@ -67,7 +67,7 @@ macro_rules! key {
     };
     ($scope:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         $crate::build_key!(
-            $crate::key_builder(
+            $crate::key_builder!(
                 $scope,
                 $($keys).+
             )
@@ -80,7 +80,7 @@ macro_rules! key {
 macro_rules! display_key {
     (scope = $scope:ty, $($keys:ident).+ $(, $($args:tt)*)?) => {
         $crate::build_key_display!(
-            $crate::key_builder(
+            $crate::key_builder!(
                 scope = $scope,
                 $($keys).+
             )
@@ -89,7 +89,7 @@ macro_rules! display_key {
     };
     ($scope:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
         $crate::build_key_display!(
-            $crate::key_builder(
+            $crate::key_builder!(
                 $scope,
                 $($keys).+
             )
