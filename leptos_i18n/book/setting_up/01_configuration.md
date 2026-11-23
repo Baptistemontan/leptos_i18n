@@ -161,7 +161,6 @@ As nothing is read from disk, `rerun_if_locales_changed` has no file to track: i
 - Add some top level attributes for the generated module
 - Customize the name of the generated file
 - Generate doc comments on different items to see available namespaces, keys, subkeys, or args required for interpolations
-- `interpolate_display`: generate extra code for each interpolation to allow rendering them as a string instead of a `View`
 - `show_keys_only`: make every translation display only its corresponding key; this is useful for tracking untranslated strings in your application
 - `translations_uri`: used in a CSR application with the `dynamic_load` feature, more information in a later chapter
 - `crate_path`: the path to `leptos_i18n`, if it isn't a direct dependency and is behind a re-export
@@ -177,7 +176,6 @@ let options = CodegenOptions::default()
   .top_level_attributes(Some(attributes))
   .module_file_name("i18n.rs") // "mod.rs" by default
   .gen_docs(true) // `true` by default
-  .interpolate_display(true)
   .show_keys_only(true);
 
 translations_infos.generate_i18n_module_with_options(i18n_mod_directory, options)?;

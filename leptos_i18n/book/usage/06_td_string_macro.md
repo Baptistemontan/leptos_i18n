@@ -2,8 +2,6 @@
 
 The `td_string!` macro is used to get a translation as a `String`, outside the context of rendering views. It works with any kind of value (plain strings, numbers, interpolations, plurals...) and always returns a `String`.
 
-This requires the `interpolate_display` codegen option (`CodegenOptions::interpolate_display`) to be enabled to work with interpolations.
-
 It enables you to do this:
 
 ```rust,ignore

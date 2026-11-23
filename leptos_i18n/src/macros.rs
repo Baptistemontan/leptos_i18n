@@ -316,7 +316,6 @@ macro_rules! tu {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust, no_run")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -357,7 +356,6 @@ macro_rules! t_string {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -458,7 +456,6 @@ macro_rules! tu_string {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust, no_run")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -502,7 +499,6 @@ macro_rules! t_display {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {

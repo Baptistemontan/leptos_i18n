@@ -29,7 +29,6 @@ fn declare_locales_inner(tokens: TokenStream) -> TokenStream {
         cfg,
         values,
         crate_path,
-        interpolate_display,
     } = match syn::parse2::<ParsedInput>(tokens) {
         Ok(input) => input,
         Err(err) => return err.into_compile_error(),
@@ -50,9 +49,7 @@ fn declare_locales_inner(tokens: TokenStream) -> TokenStream {
         }
     }
 
-    let codegen_options = CodegenOptions::new()
-        .crate_path(Some(&crate_path))
-        .interpolate_display(interpolate_display);
+    let codegen_options = CodegenOptions::new().crate_path(Some(&crate_path));
 
     let result = leptos_i18n_codegen::gen_code(&parsed_locales, codegen_options, &cfg);
 
@@ -66,7 +63,6 @@ pub struct ParsedInput {
     crate_path: syn::Path,
     cfg: Config,
     values: RawLocalesOrNamespaces,
-    interpolate_display: bool,
 }
 
 fn emit_err<A, T: ToTokens, U: Display>(tokens: T, message: U) -> syn::Result<A> {
@@ -252,21 +248,12 @@ impl syn::parse::Parse for ParsedInput {
         } else {
             None
         };
-        let ident: Ident = if crate_path.is_none() {
+        let def_ident: Ident = if crate_path.is_none() {
             ident
         } else {
             input.parse()?
         };
 
-        let interpolate_display = ident == "interpolate_display";
-
-        // default: "defaultloc",
-        let def_ident: Ident = if interpolate_display {
-            input.parse::<Token![,]>()?;
-            input.parse()?
-        } else {
-            ident
-        };
         if def_ident != "default" {
             return emit_err(def_ident, "not default");
         }
@@ -317,7 +304,6 @@ impl syn::parse::Parse for ParsedInput {
             cfg: config,
             values: RawLocalesOrNamespaces::Locales(locales),
             crate_path,
-            interpolate_display,
         })
     }
 }

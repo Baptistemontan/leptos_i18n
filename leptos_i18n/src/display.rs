@@ -223,7 +223,6 @@ impl DisplayComponent<()> for &String {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {

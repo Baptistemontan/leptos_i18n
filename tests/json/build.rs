@@ -1,4 +1,4 @@
-use leptos_i18n_build::{options::CodegenOptions, Config, TranslationsInfos};
+use leptos_i18n_build::{Config, TranslationsInfos};
 use std::{error::Error, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -6,8 +6,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=Cargo.toml");
 
     let i18n_mod_directory = PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("i18n");
-
-    let codegen_options = CodegenOptions::default().interpolate_display(true);
 
     let cfg = Config::new("en")?.add_locale("fr")?;
 
@@ -17,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     translations_infos.rerun_if_locales_changed();
 
-    translations_infos.generate_i18n_module_with_options(i18n_mod_directory, codegen_options)?;
+    translations_infos.generate_i18n_module(i18n_mod_directory)?;
 
     Ok(())
 }
