@@ -7,6 +7,7 @@ mod components;
 mod defaulted;
 mod foreign;
 mod formatting;
+mod keys;
 mod plurals;
 mod scoped;
 mod subkeys;
