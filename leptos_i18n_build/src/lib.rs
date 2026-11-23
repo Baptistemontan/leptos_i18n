@@ -20,6 +20,7 @@ use leptos_i18n_parser::parse_locales::{
     locale::{BuildersKeys, Locale},
     parse_locales,
 };
+use std::collections::HashMap;
 use std::{
     collections::HashSet,
     fmt::{Display, Write},
@@ -386,6 +387,9 @@ fn write_locales_to_dir<'a>(
     Ok(())
 }
 
+type JSONTranslationsAsString<'a> =
+    TranslationsType<HashMap<&'a str, HashMap<&'a str, String>>, HashMap<&'a str, String>>;
+
 impl<
     'a,
     N: Iterator<Item = NamespaceTranslations<'a, NL>>,
@@ -404,6 +408,42 @@ impl<
                 Ok(())
             }
             TranslationsType::Locale(locales) => write_locales_to_dir(locales, &mut path),
+        }
+    }
+
+    /// Write the translations as JSON in maps
+    pub fn to_strings(self) -> JSONTranslationsAsString<'a> {
+        fn insert_map<'a, N: Iterator<Item = LocaleTranslations<'a>>>(
+            locales: N,
+            map: &mut HashMap<&'a str, String>,
+        ) {
+            for locale in locales {
+                let l = locale.name;
+                let json = locale.translations_formatter().to_string();
+                map.insert(l, json);
+            }
+        }
+        fn locale_map<'a, N: Iterator<Item = LocaleTranslations<'a>>>(
+            locales: N,
+        ) -> HashMap<&'a str, String> {
+            let mut l_map = HashMap::new();
+            insert_map(locales, &mut l_map);
+            l_map
+        }
+        match self {
+            TranslationsType::Namespace(namespaces) => {
+                let mut map = HashMap::new();
+                for namespace in namespaces {
+                    let n = namespace.name;
+                    let l_map = locale_map(namespace.locales);
+                    map.insert(n, l_map);
+                }
+                TranslationsType::Namespace(map)
+            }
+            TranslationsType::Locale(locales) => {
+                let map = locale_map(locales);
+                TranslationsType::Locale(map)
+            }
         }
     }
 }
