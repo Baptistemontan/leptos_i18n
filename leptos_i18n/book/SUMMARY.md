@@ -36,3 +36,4 @@
 - [Features](./06_features.md)
 - [Appendix: `i18n Ally` extension for VSC](./appendix_i18n_ally.md)
 - [Appendix: Custom formatters](./appendix_custom_formatter.md)
+- [Appendix: Custom file format](./appendix_custom_file_format.md)

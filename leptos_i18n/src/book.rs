@@ -79,3 +79,8 @@ chapter!(
     ch10_appendix_custom_formatter,
     "appendix_custom_formatter.md"
 );
+
+chapter!(
+    ch11_appendix_custom_file_format,
+    "appendix_custom_file_format.md"
+);
