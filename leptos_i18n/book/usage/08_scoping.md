@@ -127,17 +127,29 @@ type NsScope = define_scope!(Locale, namespace);
 type SubkeysScope = define_scope!(NsScope, subkeys);
 ```
 
-> **note**: In order to support extension, it uses a associated type in a generic trait,
-> the path is cut into each individual char and create the marker,
-> for exemple `subkeys` becomes `(Marker<'s'>, Marker<'u'>, ..)`,
-> this means if the path does'nt exist the compile error will look absolutely terrible (sorry).
+The scoping macros also accept a scope type with `scope = ..`, optionally followed by a path to scope further:
+
+```rust, ignore
+let i18n = use_i18n_scoped!(scope = SubkeysScope);
+// same as `scope_i18n!(use_i18n(), scope = SubkeysScope)`
+
+let i18n = scope_i18n!(use_i18n(), scope = NsScope, subkeys);
+
+let locale = scope_locale!(Locale::en, scope = NsScope, subkeys);
+```
+
+> **note**: The scopes are resolved at the type level: every scope has a type listing its keys, and each subkey (or
+> namespace) is accessed through the `SubkeyKeyAccessor<M>` trait, implemented with a marker `M` for each of them.
+> To build that marker from a key, the key is cut into each individual char, for example `subkeys` becomes
+> `(Marker<'s'>, Marker<'u'>, ..)`. This means if the path doesn't exist, the compile error will look absolutely
+> terrible (sorry).
 
 This is usefull when you have namespaces/subkeys for large parts of your frontend, you have types to reuse:
 
 ```rust, ignore
 type SubkeysScope = define_scope!(Locale, namespace.subkeys);
 
-type SubkeysCtx = I18nContext<Locale, SubkeysScope>;
+type SubkeysCtx = I18nContext<SubkeysScope>;
 
 let i18n: SubkeysCtx = use_i18n_scoped();
 ```
@@ -147,5 +159,5 @@ Also allow const scoping of `Locale`, still quite cumbersome though:
 ```rust, ignore
 use leptos_i18n::ScopedLocale;
 
-const FR_SUBKEYS: ScopedLocale<Locale, SubkeysScope> = ScopedLocale::new(Locale::fr);
+const FR_SUBKEYS: ScopedLocale<SubkeysScope> = ScopedLocale::new(Locale::fr);
 ```

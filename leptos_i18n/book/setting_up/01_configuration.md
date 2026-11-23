@@ -65,7 +65,8 @@ let cfg = Config::new("en")?.add_locale("fr")?;
 
 There are more optional values you can supply:
 
-- `add_namespace`: This is to split your translations into multiple files, we will cover it in a later chapter
+- `add_locales`: Like `add_locale`, but for several locales at once: `Config::new("en")?.add_locales(["fr", "it"])?`
+- `add_namespace` / `add_namespaces`: This is to split your translations into multiple files, we will cover it in a later chapter
 - `locales_path`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
 - `extend_locale`: Allows you to describe the inheritance structure for locales, covered in a later chapter.
 - `parse_options`: Parsing options, covered in the next segment
@@ -106,9 +107,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 
-There is another option:
+Here are all the options:
 
+- `file_format`: the format of the translation files: `FileFormat::Json` (the default), `FileFormat::Json5`, `FileFormat::Yaml` or `FileFormat::Toml`
 - `suppress_key_warnings`: remove warnings emitted by missing keys or surplus keys
+- `add_formatter`: add your own formatter, to use in the translations like the built-in ones (`{{ var, my_formatter }}`). This needs its own chapter, which you can find in an appendix.
+- `with_custom_parser`: use your own file format, by giving a parser for it. This also has its own chapter in an appendix.
 
 example:
 
@@ -118,7 +122,37 @@ let options = ParseOptions::default()
   .suppress_key_warnings(true);
 ```
 
-There is also a way to inject your own formatter, this needs its own chapter, which you can find in an appendix.
+## Where The Translations Come From
+
+`TranslationsInfos::parse` reads the translation files from the locales directory of your crate (`./locales` by default, see `locales_path` above). There are two other ways to get them:
+
+- `TranslationsInfos::parse_at_dir(dir, cfg)`: use `dir` as the root directory instead of the crate's directory (`CARGO_MANIFEST_DIR`). The locales directory is looked up relative to it.
+- `TranslationsInfos::parse_with_files_as_string(cfg, &files)`: give the content of the files directly, without reading anything from disk. This is useful if your translations are generated, or come from somewhere else than files.
+
+```rust, ignore
+use leptos_i18n_build::{Config, LocaleFiles, TranslationFiles, TranslationsInfos};
+use std::borrow::Cow;
+
+let cfg = Config::new("en")?.add_locale("fr")?;
+
+let files = TranslationFiles::Locales {
+    locales: LocaleFiles {
+        files: [
+            // (locale, (optional path, for error messages, file content))
+            ("en", (None, Cow::Borrowed(r#"{ "hello_world": "Hello World!" }"#))),
+            ("fr", (None, Cow::Borrowed(r#"{ "hello_world": "Bonjour le monde !" }"#))),
+        ]
+        .into_iter()
+        .collect(),
+    },
+};
+
+let translations_infos = TranslationsInfos::parse_with_files_as_string(cfg, &files)?;
+```
+
+The content must be in the format given by `file_format`. With namespaces, use `TranslationFiles::NameSpaces`, a map from the namespace name to its `LocaleFiles`. The files given must match the configuration: every locale (and namespace) needs one, or parsing returns an error.
+
+As nothing is read from disk, `rerun_if_locales_changed` has no file to track: it's up to you to tell cargo when to rerun the build script.
 
 ## Codegen Options
 

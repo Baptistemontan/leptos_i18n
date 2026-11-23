@@ -27,7 +27,7 @@ You can turn them into some kind of `Signal<Option<String>>` using leptos `Async
 
 ```rust,ignore
 let i18n = use_i18n();
-let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option<&'static str>`
+let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option<String>`
 ```
 
 Feel free to make yourself a macro to wrap them:

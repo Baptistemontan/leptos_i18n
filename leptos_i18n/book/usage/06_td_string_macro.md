@@ -1,7 +1,6 @@
 # The `td_string!` Macro
 
-The `td_string!` macro is used for interpolations outside the context of rendering views. It lets you provide different kinds of values and returns either a `&'static str` or a `String` depending on the value of the key.
-If the value is a plain string or boolean, it returns a `&'static str`. If it's an interpolation or a number, it returns a `String`.
+The `td_string!` macro is used to get a translation as a `String`, outside the context of rendering views. It works with any kind of value (plain strings, numbers, interpolations, plurals...) and always returns a `String`.
 
 This requires the `interpolate_display` codegen option (`CodegenOptions::interpolate_display`) to be enabled to work with interpolations.
 
@@ -77,7 +76,7 @@ and self-closing components can accept `Fn(&mut Formatter, Attributes)` or `Fn(&
 
 # The `td_display!` Macro
 
-Just like the `td_string!` macro but returns either a struct implementing `Display` or a `&'static str` instead of a `Cow<'static, str>`.
+Just like the `td_string!` macro but returns a value implementing `Display` instead of a `String`.
 
 This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 

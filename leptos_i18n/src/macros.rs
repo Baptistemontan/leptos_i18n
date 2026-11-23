@@ -308,7 +308,7 @@ macro_rules! tu {
     };
 }
 
-/// Just like the `t!` macro but return a `&'static str` or a `String` instead of a view.
+/// Just like the `t!` macro but return a `String` instead of a view.
 ///
 /// Usage:
 ///
@@ -340,7 +340,8 @@ macro_rules! tu {
 /// ```
 ///
 /// If you want to avoid a temporary `String` to format in a buffer, you can use `t_display!` which return the raw builder which implement `Display`.
-/// In fact, `t_string!(args)` internally is `t_display!(args).to_string()` (when using interpolation, else it just returns a `&'static str`).
+/// In fact, `t_string!(args)` is `t_display!(args).to_string()`, except with the `"dynamic_load"` feature, where
+/// `t_display!(args)` returns a future: `t_string!(args)` then awaits it and returns a future of the `String`.
 #[macro_export]
 macro_rules! t_string {
     ($($tt:tt)*) => {
@@ -391,7 +392,7 @@ macro_rules! tu_string {
     };
 }
 
-/// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead.
+/// Just like the `t_string!` macro but return a value implementing `Display` instead of a `String`.
 ///
 /// This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 ///
@@ -420,8 +421,6 @@ macro_rules! tu_string {
 ///
 /// assert_eq!(t_str, "You clicked 10 times");
 /// ```
-///
-/// Note that this is only usefull with interpolations, as with plain strings `t_display!` and `t_string!` both just returns the inner `&'static str`.
 #[macro_export]
 macro_rules! t_display {
     ($ctx:expr, key = $key:expr) => {

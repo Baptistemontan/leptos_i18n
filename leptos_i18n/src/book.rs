@@ -59,6 +59,7 @@ chapter!(ch05_usage, "usage/README.md", {
     chapter!(ch10_t_plural, "usage/10_t_plural.md");
     chapter!(ch11_const_access, "usage/11_const_access.md");
     chapter!(ch12_server_functions, "usage/12_serverfn.md");
+    chapter!(ch13_keys, "usage/13_keys.md");
 });
 
 chapter!(ch06_infos, "infos/README.md", {
