@@ -374,7 +374,9 @@ fn de_toml(locale_file: &str, seed: ValuesSeed) -> Result<RawValues, SerdeError>
 pub mod parser {
     use std::path::Path;
 
-    use crate::{error::SerdeError, parser::ValuesSeed, parsing::RawValues};
+    use crate::{parser::ValuesSeed, parsing::RawValues};
+
+    pub use crate::error::SerdeError;
 
     pub struct Seed<'a>(ValuesSeed<'a>);
 
