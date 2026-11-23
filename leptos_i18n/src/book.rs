@@ -59,6 +59,7 @@ chapter!(ch05_usage, "usage/README.md", {
     chapter!(ch10_t_plural, "usage/10_t_plural.md");
     chapter!(ch11_const_access, "usage/11_const_access.md");
     chapter!(ch12_server_functions, "usage/12_serverfn.md");
+    chapter!(ch13_keys, "usage/13_keys.md");
 });
 
 chapter!(ch06_infos, "infos/README.md", {
@@ -77,4 +78,9 @@ chapter!(ch09_appendix_i18n_ally, "appendix_i18n_ally.md");
 chapter!(
     ch10_appendix_custom_formatter,
     "appendix_custom_formatter.md"
+);
+
+chapter!(
+    ch11_appendix_custom_file_format,
+    "appendix_custom_file_format.md"
 );

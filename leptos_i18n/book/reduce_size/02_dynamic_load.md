@@ -27,7 +27,7 @@ You can turn them into some kind of `Signal<Option<String>>` using leptos `Async
 
 ```rust,ignore
 let i18n = use_i18n();
-let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option<&'static str>`
+let translation = AsyncDerived::new(move || t_string!(i18n, key)); // .get() will return an `Option<String>`
 ```
 
 Feel free to make yourself a macro to wrap them:
@@ -122,10 +122,15 @@ Then if you are using Trunk you just have to add the directory to the build pipe
 ```
 
 Now the translations will be available at `i18n/{locale}.json`.
-To inform `leptos_i18n` where to find those translations, you need to supply the `translations_uri` to the config builder:
+To inform `leptos_i18n` where to find those translations, you need to supply the `translations_uri` to the codegen options:
 
 ```rust,ignore
-let cfg = cfg.translations_uri("i18n/{locale}.json"); // or "i18n/{namespace}/{locale}.json" when using namespaces
+use leptos_i18n_build::options::CodegenOptions;
+
+let options = CodegenOptions::default()
+    .translations_uri("i18n/{locale}.json"); // or "i18n/{namespace}/{locale}.json" when using namespaces
+
+translations_infos.generate_i18n_module_with_options(i18n_mod_directory, options)?;
 ```
 
 And this is it!

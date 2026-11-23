@@ -98,10 +98,10 @@ fn foo(locale: Locale) {
 
 ## The `define_scope!` Macro
 
-Allow to define a marker type that represent a scope, it takes a path to the `i18n` module and the key path:
+Allow to define a marker type that represent a scope, it takes a scope and the key path fro that scope (the `Locale` enum is itself a scope):
 
 ```rust, ignore
-type SubkeysScope = define_scope!(crate::i18n, namespace.subkeys);
+type SubkeysScope = define_scope!(Locale, namespace.subkeys);
 
 fn foo(locale: Locale) {
     let locale = locale.scope::<SubkeysScope>();
@@ -120,14 +120,36 @@ fn bar() -> impl IntoView {
 }
 ```
 
-Unfortunately, can't be extended (yet ?).
+It can also be extended:
+
+```rust, ignore
+type NsScope = define_scope!(Locale, namespace);
+type SubkeysScope = define_scope!(NsScope, subkeys);
+```
+
+The scoping macros also accept a scope type with `scope = ..`, optionally followed by a path to scope further:
+
+```rust, ignore
+let i18n = use_i18n_scoped!(scope = SubkeysScope);
+// same as `scope_i18n!(use_i18n(), scope = SubkeysScope)`
+
+let i18n = scope_i18n!(use_i18n(), scope = NsScope, subkeys);
+
+let locale = scope_locale!(Locale::en, scope = NsScope, subkeys);
+```
+
+> **note**: The scopes are resolved at the type level: every scope has a type listing its keys, and each subkey (or
+> namespace) is accessed through the `SubkeyKeyAccessor<M>` trait, implemented with a marker `M` for each of them.
+> To build that marker from a key, the key is cut into each individual char, for example `subkeys` becomes
+> `(Marker<'s'>, Marker<'u'>, ..)`. This means if the path doesn't exist, the compile error will look absolutely
+> terrible (sorry).
 
 This is usefull when you have namespaces/subkeys for large parts of your frontend, you have types to reuse:
 
 ```rust, ignore
-type SubkeysScope = define_scope!(crate::i18n, namespace.subkeys);
+type SubkeysScope = define_scope!(Locale, namespace.subkeys);
 
-type SubkeysCtx = I18nContext<Locale, SubkeysScope>;
+type SubkeysCtx = I18nContext<SubkeysScope>;
 
 let i18n: SubkeysCtx = use_i18n_scoped();
 ```
@@ -137,33 +159,5 @@ Also allow const scoping of `Locale`, still quite cumbersome though:
 ```rust, ignore
 use leptos_i18n::ScopedLocale;
 
-const FR_SUBKEYS: ScopedLocale<Locale, SubkeysScope> = ScopedLocale::new(Locale::fr);
+const FR_SUBKEYS: ScopedLocale<SubkeysScope> = ScopedLocale::new(Locale::fr);
 ```
-
-## How it works (for nerds only)
-
-Unfortunately, it looks too good to be true... What's the catch? Where is the tradeoff?
-
-To make this possible, it uses a typestate pattern, but some of the types are hard to access as a user as they are defined deep in the generated `i18n` module.
-This makes it difficult to write the type of a scoped context or a scoped locale.
-
-By default, `I18nContext<L, S>` is only generic over `L` because the `S` scope is the "default" one provided by `L`, so you can easily write `I18nContext<Locale>`.
-But once you scope it, the `S` parameters will look like `i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys`.
-
-Yes. This is the path to the struct holding the keys of `namespace.subkeys`.
-
-This makes it difficult to pass a scoped type around, as it would require writing `I18nContext<Locale, i18n::namespaces::ns_namespace::subkeys::sk_subkeys::subkeys_subkeys>`.
-
-That's the type the `define_scope!` macro returns, it recreate the path and retrieve the underlying type.
-
-If you look at the generated code for `use_i18n_scoped!` you will see something like this:
-
-```rust,ignore
-let i18n = { leptos_i18n::__private::scope_ctx_util(use_i18n(), |_k| &_k.$keys) };
-```
-
-Hmm, what is this closure for? It’s just here for type inference and key checking! The function parameter is even `_:fn(&OS) -> &NS`, it's never used.
-The function is even const (not for `scope_locale!` though).
-
-But being a typestate, using it or not actually results in the same code path.
-And with how aggressive Rust is with inlining small functions, it probably compiles to the exact same thing.

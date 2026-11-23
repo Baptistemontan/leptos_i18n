@@ -65,9 +65,9 @@ let cfg = Config::new("en")?.add_locale("fr")?;
 
 There are more optional values you can supply:
 
-- `add_namespace`: This is to split your translations into multiple files, we will cover it in a later chapter
+- `add_locales`: Like `add_locale`, but for several locales at once: `Config::new("en")?.add_locales(["fr", "it"])?`
+- `add_namespace` / `add_namespaces`: This is to split your translations into multiple files, we will cover it in a later chapter
 - `locales_path`: This is to have a custom path to the directory containing the locales files, it defaults to `"./locales"`.
-- `translations_uri`: Used in a CSR application with the `dynamic_load` feature, more information in a later chapter.
 - `extend_locale`: Allows you to describe the inheritance structure for locales, covered in a later chapter.
 - `parse_options`: Parsing options, covered in the next segment
 
@@ -78,11 +78,14 @@ Once this configuration is done, you can start writing your translations.
 `Config` can take some options as an argument, for now we use the default but you can import the `ParseOptions` struct to tell the parser what to expect and produce, here we change the file format to `yaml`:
 
 ```rust, ignore
-use leptos_i18n_build::{FileFormat, ParseOptions, TranslationsInfos};
+use leptos_i18n_build::{
+    options::{FileFormat, ParseOptions},
+    Config, TranslationsInfos,
+};
 use std::path::PathBuf;
 use std::error::Error;
 
-fn main() -> Resul<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed=Cargo.toml");
 
@@ -104,23 +107,52 @@ fn main() -> Resul<(), Box<dyn Error>> {
 }
 ```
 
-There are other options:
+Here are all the options:
 
+- `file_format`: the format of the translation files: `FileFormat::Json` (the default), `FileFormat::Json5`, `FileFormat::Yaml` or `FileFormat::Toml`
 - `suppress_key_warnings`: remove warnings emitted by missing keys or surplus keys
-- `interpolate_display`: generates extra code for each interpolation to allow rendering them as a string instead of a `View`
-- `show_keys_only`: This feature makes every translation display only its corresponding key; this is useful for tracking untranslated strings in your application.
+- `add_formatter`: add your own formatter, to use in the translations like the built-in ones (`{{ var, my_formatter }}`). This needs its own chapter, which you can find in an appendix.
+- `with_custom_parser`: use your own file format, by giving a parser for it. This also has its own chapter in an appendix.
 
 example:
 
 ```rust, ignore
 let options = ParseOptions::default()
   .file_format(FileFormat::Json5)
-  .suppress_key_warnings(true)
-  .interpolate_display(true)
-  .show_keys_only(true);
+  .suppress_key_warnings(true);
 ```
 
-There is also a way to inject your own formatter, this needs its own chapter, which you can find in an appendix.
+## Where The Translations Come From
+
+`TranslationsInfos::parse` reads the translation files from the locales directory of your crate (`./locales` by default, see `locales_path` above). There are two other ways to get them:
+
+- `TranslationsInfos::parse_at_dir(dir, cfg)`: use `dir` as the root directory instead of the crate's directory (`CARGO_MANIFEST_DIR`). The locales directory is looked up relative to it.
+- `TranslationsInfos::parse_with_files_as_string(cfg, &files)`: give the content of the files directly, without reading anything from disk. This is useful if your translations are generated, or come from somewhere else than files.
+
+```rust, ignore
+use leptos_i18n_build::{Config, LocaleFiles, TranslationFiles, TranslationsInfos};
+use std::borrow::Cow;
+
+let cfg = Config::new("en")?.add_locale("fr")?;
+
+let files = TranslationFiles::Locales {
+    locales: LocaleFiles {
+        files: [
+            // (locale, (optional path, for error messages, file content))
+            ("en", (None, Cow::Borrowed(r#"{ "hello_world": "Hello World!" }"#))),
+            ("fr", (None, Cow::Borrowed(r#"{ "hello_world": "Bonjour le monde !" }"#))),
+        ]
+        .into_iter()
+        .collect(),
+    },
+};
+
+let translations_infos = TranslationsInfos::parse_with_files_as_string(cfg, &files)?;
+```
+
+The content must be in the format given by `file_format`. With namespaces, use `TranslationFiles::NameSpaces`, a map from the namespace name to its `LocaleFiles`. The files given must match the configuration: every locale (and namespace) needs one, or parsing returns an error.
+
+As nothing is read from disk, `rerun_if_locales_changed` has no file to track: it's up to you to tell cargo when to rerun the build script.
 
 ## Codegen Options
 
@@ -129,20 +161,24 @@ There is also a way to inject your own formatter, this needs its own chapter, wh
 - Add some top level attributes for the generated module
 - Customize the name of the generated file
 - Generate doc comments on different items to see available namespaces, keys, subkeys, or args required for interpolations
+- `show_keys_only`: make every translation display only its corresponding key; this is useful for tracking untranslated strings in your application
+- `translations_uri`: used in a CSR application with the `dynamic_load` feature, more information in a later chapter
+- `crate_path`: the path to `leptos_i18n`, if it isn't a direct dependency and is behind a re-export
 
 example:
 
 ```rust, ignore
-use leptos_i18n_build::CodegenOptions;
+use leptos_i18n_build::options::CodegenOptions;
 
 let attributes = "#![allow(missing_docs)]".parse()?;
 
 let options = CodegenOptions::default()
   .top_level_attributes(Some(attributes))
   .module_file_name("i18n.rs") // "mod.rs" by default
-  .gen_docs(true); // `true` by default
+  .gen_docs(true) // `true` by default
+  .show_keys_only(true);
 
-translations_infos.generate_i18n_module_with_options(options)?;
+translations_infos.generate_i18n_module_with_options(i18n_mod_directory, options)?;
 ```
 
 The later (`gen_docs`) is purely for UX ergonomics, disable it if you don't use intellisense or for CI runs

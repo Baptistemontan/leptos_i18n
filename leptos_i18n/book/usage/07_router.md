@@ -72,7 +72,7 @@ You can use the `i18n_path!` macro inside the `I18nRoute` to create localized pa
 use leptos_i18n_router::i18n_path;
 
 <I18nRoute<Locale, _, _> view=Outlet>
-    <Route path=i18n_path!(Locale, |locale| td_string(locale, segment_path_name)) view={/* */} />
+    <Route path=i18n_path!(Locale, segment_path_name) view={/* */} />
 </I18nRoute<Locale, _, _>>
 ```
 
@@ -83,6 +83,17 @@ If you have `segment_path_name = "search"` for English, and `segment_path_name =
 - "/fr/rechercher"
 
 It can be used at any depth, and if not used inside an `I18nRoute` it will default to the default locale.
+
+The key can be a path to subkeys or a namespace, and the first argument can also be a scope defined with `define_scope!` (see the scoping chapter):
+
+```rust,ignore
+<Route path=i18n_path!(Locale, routes.search) view={/* */} />
+
+type RoutesScope = define_scope!(Locale, routes);
+<Route path=i18n_path!(RoutesScope, search) view={/* */} />
+```
+
+The key is looked up at compile time, so it must be a plain string: a key with interpolations, plurals or any other kind of value won't compile.
 
 Multi segments path are supported, meaning you can have `segment_path_name = "some/path"` for English, and `segment_path_name = "un/chemin"` for French and work as expected.
 

@@ -27,6 +27,7 @@
   - [`t_plural!`](./usage/10_t_plural.md)
   - [Constant Access](./usage/11_const_access.md)
   - [Server functions](./usage/12_serverfn.md)
+  - [Keys As Values](./usage/13_keys.md)
 - [More Informations](./infos/README.md)
   - [Locale Resolution](./infos/01_locale_resol.md)
 - [Reduce Binary Size](./reduce_size/README.md)
@@ -35,3 +36,4 @@
 - [Features](./06_features.md)
 - [Appendix: `i18n Ally` extension for VSC](./appendix_i18n_ally.md)
 - [Appendix: Custom formatters](./appendix_custom_formatter.md)
+- [Appendix: Custom file format](./appendix_custom_file_format.md)

@@ -37,6 +37,7 @@ syn = { workspace = true, default-features = true }
 
 [dev-dependencies]
 serde_json = { workspace = true, default-features = true }
+serde = { workspace = true, default-features = true }
 
 [features]
 default = []

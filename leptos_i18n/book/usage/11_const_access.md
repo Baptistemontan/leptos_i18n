@@ -1,6 +1,6 @@
 # Access Translations in a Const Context
 
-You can access the translations in a const context if you have those things:
+You can access the translations in a const context with the `td_const!` macro, if you have those things:
 
 - Constant Locale
 - No arguments
@@ -20,22 +20,22 @@ You can do
 
 ```rust,ignore
 use crate::i18n::*;
-const MY_VALUE: &str = Locale::en.get_keys_const().subkeys().key().inner();
+use leptos_i18n::td_const;
+
+const MY_VALUE: &str = td_const!(Locale::en, subkeys.key);
 ```
 
-If you want a macro:
+It returns the value itself: a `&'static str` for a string, and a `bool`, `i64`, `u64` or `f64` for the other literals. If the type of the value is not the same in every locale, it returns a `leptos_i18n::keys::comp_time::Literal`, an enum of those types.
+
+It also accepts a key built with `build_key!` (see the "Keys As Values" chapter):
 
 ```rust,ignore
-macro_rules! td_const {
-    ($locale:expr, $first_key:ident $(.$key:ident)*) => {
-        ($locale).get_keys_const()
-            .$first_key()
-            $(.$key())*
-            .inner()
-    };
-}
+use leptos_i18n::{build_key, key_builder, td_const};
 
-const MY_VALUE: &str = td_const(Locale::en, subkeys.key);
+type SubkeysScope = define_scope!(Locale, subkeys);
 
-
+const MY_VALUE: &str = td_const!(
+    Locale::en,
+    key = build_key!(key_builder!(scope = SubkeysScope, key))
+);
 ```

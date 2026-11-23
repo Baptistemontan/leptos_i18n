@@ -1,17 +1,3 @@
-/// Look for the configuration in the cargo manifest `Cargo.toml` at the root of the project and load the given locales.
-///
-/// It creates multiple types allowing to easily incorporate translations in you application such as:
-///
-/// - `Locale`: an enum representing the available locales of the application.
-/// - `I18nKeys`: a struct representing the translation keys.
-#[macro_export]
-#[deprecated(note = "Deprecated in favor of build.rs code gen", since = "0.6.0")]
-macro_rules! load_locales {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::load_locales!{$($tt)*}
-    };
-}
-
 /// This is for a private use writing tests.
 #[macro_export]
 #[doc(hidden)]
@@ -21,17 +7,111 @@ macro_rules! declare_locales {
     };
 }
 
+#[macro_export]
+macro_rules! key_builder {
+    (scope = $scope: ty, $($keys:ident).+) => {
+        const {
+            $crate::__private::check_is_key(
+                $crate::__private::get_keys_const::<$scope>()
+                $(.$keys())+
+            )
+        }
+    };
+    ($scope: expr, $($keys:ident).+) => {
+        {
+            let __scope = &($scope);
+            $crate::__private::check_is_key(
+                $crate::__private::get_keys_from_ref(__scope)
+                $(.$keys())+
+            )
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! build_key {
+    ($builder: expr) => {
+        $crate::keys::builder::KeyBuilder::const_build($builder, &|__builder| {
+            #[deny(deprecated)]
+            __builder.build()
+        })
+    };
+    ($builder: expr, $($tt:tt)*) => {
+        $crate::keys::builder::KeyBuilder::build($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
+    }
+}
+
+#[macro_export]
+macro_rules! build_key_display {
+    ($builder: expr) => {
+        $crate::keys::builder::KeyBuilder::const_build($builder, &|__builder| {
+            #[deny(deprecated)]
+            __builder.build()
+        })
+    };
+    ($builder: expr, $($tt:tt)*) => {
+        $crate::keys::builder::KeyBuilder::build_display($builder, $crate::__private::macros_reexport::build_key_inner!($($tt)*))
+    }
+}
+
+#[macro_export]
+macro_rules! key {
+    (scope = $scope:ty, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        $crate::build_key!(
+            $crate::key_builder!(
+                scope = $scope,
+                $($keys).+
+            )
+            $(, $($args)*)?
+        )
+    };
+    ($scope:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        $crate::build_key!(
+            $crate::key_builder!(
+                $scope,
+                $($keys).+
+            )
+            $(, $($args)*)?
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! display_key {
+    (scope = $scope:ty, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        $crate::build_key_display!(
+            $crate::key_builder!(
+                scope = $scope,
+                $($keys).+
+            )
+            $(, $($args)*)?
+        )
+    };
+    ($scope:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        $crate::build_key_display!(
+            $crate::key_builder!(
+                $scope,
+                $($keys).+
+            )
+            $(, $($args)*)?
+        )
+    };
+}
+
 /// Utility macro to easily put translation in your application.
 ///
 /// Usage:
-///s
 /// ```rust, no_run
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
-/// #           key: "",
+/// #           path: {
+/// #               to: {
+/// #                   key: "",
+/// #               },
+/// #           },
 /// #           interpolate_key: "<component>{{ variable }}</component>",
 /// #       },
 /// #   };
@@ -43,15 +123,72 @@ macro_rules! declare_locales {
 /// let i18n = use_i18n();
 /// # let _ =
 /// view! {
-///     <p>{t!(i18n, key)}</p>
-///     <p>{t!(i18n, interpolate_key, variable = var, <component> = comp)}</p>
+///     <p>{t!(i18n, path.to.key)}</p>
+///     <p>
+///         {t!(
+///             i18n,
+///             interpolate_key,
+///             variable = var,
+///             <component> = comp
+///         )}
+///     </p>
 /// }
 /// # ;
 /// ```
 ///
-/// # Notes
+/// # Component shorthand
 ///
-/// If your variable/component value is the same as the key, you remove the assignment, such that this:
+/// For components it can be pretty verbose to write
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           key: "<b> </b>",
+/// #       },
+/// #   };
+/// #
+/// # use i18n::*;
+/// # use leptos::prelude::*;
+/// use leptos::children::ChildrenFn;
+/// use leptos::attr::any_attribute::AnyAttribute;
+/// # let i18n = use_i18n();
+/// let b = |children: ChildrenFn, attrs: Vec<AnyAttribute>| view! {
+///     <span {..attrs} id="some_id">
+///         {move || children()}
+///     </span>
+/// };
+/// # let _ =  
+/// t!(i18n, key, <b> = b)
+/// # ;
+/// ```
+///
+/// You can achieve the same result with this syntax:
+///
+/// ```rust, no_run
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en"],
+/// #       en: {
+/// #           key: "<b> </b>",
+/// #       },
+/// #   };
+/// #
+/// # use i18n::*;
+/// # use leptos::prelude::*;
+/// # let i18n = use_i18n();
+/// # let _ =  
+/// t!(i18n, key, <b> = <span id="some_id"/>)
+/// # ;
+/// ```
+///
+/// where `<span id="some_id"/>` will expand to exactly the `b` variable from above.
+///
+/// # Variables and Components assignement
+///
+/// If your variable/component value has the same name as the argument, you can remove the assignment, such that this:
 ///
 /// ```rust, no_run
 /// #   leptos_i18n::declare_locales! {
@@ -65,11 +202,11 @@ macro_rules! declare_locales {
 /// #
 /// # use i18n::*;
 /// # use leptos::prelude::*;
-/// # let var = "";
-/// # let comp = |_: leptos::children::ChildrenFn| {};
+/// # let variable = "";
+/// # let component = |_: leptos::children::ChildrenFn| {};
 /// # let i18n = use_i18n();
 /// # let _ =  
-/// t!(i18n, key, variable = var, <component> = comp)
+/// t!(i18n, key, variable = variable, <component> = component)
 /// # ;
 /// ```
 ///
@@ -94,10 +231,19 @@ macro_rules! declare_locales {
 /// t!(i18n, key, variable, <component>)
 /// # ;
 /// ```
+///
 #[macro_export]
 macro_rules! t {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::t!{$($tt)*}
+    ($ctx:expr, key = $key:expr) => {
+        $crate::render_proxy!(@ctx $ctx, $key)
+    };
+    ($ctx:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key_builder!(__ctx, $($keys).+);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@ctx __ctx, __key)
+        }
     };
 }
 
@@ -133,20 +279,36 @@ macro_rules! t {
 /// This let you use a specific locale regardless of the current one.
 #[macro_export]
 macro_rules! td {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::td!{$($tt)*}
+    ($loc:expr, key = $key:expr) => {
+        $crate::render_proxy!(@loc $loc, $key)
+    };
+    ($loc:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        {
+            let __loc = $loc;
+            let __key = $crate::key_builder!(__loc, $($keys).+);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@loc __loc, __key)
+        }
     };
 }
 
 /// Same as the `t!` macro but untracked.
 #[macro_export]
 macro_rules! tu {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::tu!{$($tt)*}
+    ($ctx:expr, key = $key:expr) => {
+        $crate::render_proxy!(@ctx_untracked $ctx, $key)
+    };
+    ($ctx:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key_builder!(__ctx, $($keys).+);
+            let __key = $crate::build_key!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@ctx_untracked __ctx, __key)
+        }
     };
 }
 
-/// Just like the `t!` macro but return a `&'static str` or a `String` instead of a view.
+/// Just like the `t!` macro but return a `String` instead of a view.
 ///
 /// Usage:
 ///
@@ -154,7 +316,6 @@ macro_rules! tu {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust, no_run")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -178,11 +339,12 @@ macro_rules! tu {
 /// ```
 ///
 /// If you want to avoid a temporary `String` to format in a buffer, you can use `t_display!` which return the raw builder which implement `Display`.
-/// In fact, `t_string!(args)` internally is `t_display!(args).to_string()` (when using interpolation, else it just returns a `&'static str`).
+/// In fact, `t_string!(args)` is `t_display!(args).to_string()`, except with the `"dynamic_load"` feature, where
+/// `t_display!(args)` returns a future: `t_string!(args)` then awaits it and returns a future of the `String`.
 #[macro_export]
 macro_rules! t_string {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::t_string!{$($tt)*}
+        $crate::__private::key_to_string($crate::t_display!($($tt)*))
     };
 }
 
@@ -194,7 +356,6 @@ macro_rules! t_string {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -217,19 +378,75 @@ macro_rules! t_string {
 #[macro_export]
 macro_rules! td_string {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::td_string!{$($tt)*}
+        $crate::__private::key_to_string($crate::td_display!($($tt)*))
     };
+}
+
+/// Access a translation in a const context.
+///
+/// This works for keys without arguments (plain strings, numbers and booleans), the locale must be known at compile time,
+/// and it is not available with the `"dynamic_load"` feature, as the translations are not part of the binary.
+///
+/// It returns the value itself: a `&'static str` for a string, a `bool`, `i64`, `u64` or `f64` for the other literals.
+/// If the type of the value is not the same in every locale, it returns a `leptos_i18n::keys::comp_time::Literal`.
+///
+/// Usage:
+///
+#[cfg_attr(feature = "dynamic_load", doc = "```rust, ignore")]
+#[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
+/// #   leptos_i18n::declare_locales! {
+/// #       path: leptos_i18n,
+/// #       default: "en",
+/// #       locales: ["en", "fr"],
+/// #       en: {
+/// #           subkeys: {
+/// #               key: "my value",
+/// #           },
+/// #       },
+/// #       fr: {
+/// #           subkeys: {
+/// #               key: "ma valeur",
+/// #           },
+/// #       },
+/// #   };
+/// # use i18n::*;
+/// use leptos_i18n::td_const;
+///
+/// // "subkeys": { "key": "my value" }
+/// const MY_VALUE: &str = td_const!(Locale::en, subkeys.key);
+/// assert_eq!(MY_VALUE, "my value");
+///
+/// // it also takes a key built with `build_key!`
+/// const FR_VALUE: &str = td_const!(
+///     Locale::fr,
+///     key = leptos_i18n::build_key!(leptos_i18n::key_builder!(Locale::fr, subkeys.key))
+/// );
+/// assert_eq!(FR_VALUE, "ma valeur");
+/// ```
+#[macro_export]
+macro_rules! td_const {
+    ($locale:expr, key = $key:expr) => {
+        $crate::__private::check_is_literal({
+            let (__args, __id) = $crate::keys::Key::const_into_args_and_id($key);
+            __args.__const_value(__id, $locale)
+        })
+    };
+    ($locale:expr, $($keys:ident).+) => {{
+        let __locale = $locale;
+        let __key = $crate::build_key!($crate::key_builder!(__locale, $($keys).+));
+        $crate::td_const!(__locale, key = __key)
+    }};
 }
 
 /// Same as the `t_string!` macro but untracked.
 #[macro_export]
 macro_rules! tu_string {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::tu_string!{$($tt)*}
+        $crate::__private::key_to_string($crate::tu_display!($($tt)*))
     };
 }
 
-/// Just like the `t_string!` macro but return either a struct implementing `Display` or a `&'static str` instead.
+/// Just like the `t_string!` macro but return a value implementing `Display` instead of a `String`.
 ///
 /// This is useful if you will print the value or use it in any formatting operation, as it will avoid a temporary `String`.
 ///
@@ -239,7 +456,6 @@ macro_rules! tu_string {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust, no_run")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -258,12 +474,18 @@ macro_rules! tu_string {
 ///
 /// assert_eq!(t_str, "You clicked 10 times");
 /// ```
-///
-/// Note that this is only usefull with interpolations, as with plain strings `t_display!` and `t_string!` both just returns the inner `&'static str`.
 #[macro_export]
 macro_rules! t_display {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::t_display!{$($tt)*}
+    ($ctx:expr, key = $key:expr) => {
+        $crate::render_proxy!(@display @ctx $ctx, $key)
+    };
+    ($ctx:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key_builder!(__ctx, $($keys).+);
+            let __key = $crate::build_key_display!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@display @ctx __ctx, __key)
+        }
     };
 }
 
@@ -277,7 +499,6 @@ macro_rules! t_display {
 #[cfg_attr(not(feature = "dynamic_load"), doc = "```rust")]
 /// #   leptos_i18n::declare_locales! {
 /// #       path: leptos_i18n,
-/// #       interpolate_display,
 /// #       default: "en",
 /// #       locales: ["en"],
 /// #       en: {
@@ -297,16 +518,32 @@ macro_rules! t_display {
 /// ```
 #[macro_export]
 macro_rules! td_display {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::td_display!{$($tt)*}
+    ($loc:expr, key = $key:expr) => {
+        $crate::render_proxy!(@display @loc $loc, $key)
+    };
+    ($loc:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        {
+            let __loc = $loc;
+            let __key = $crate::key_builder!(__loc, $($keys).+);
+            let __key = $crate::build_key_display!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@display @loc __loc, __key)
+        }
     };
 }
 
 /// Same as the `t_display!` macro but untracked.
 #[macro_export]
 macro_rules! tu_display {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::tu_display!{$($tt)*}
+    ($ctx:expr, key = $key:expr) => {
+        $crate::render_proxy!(@display @ctx_untracked $ctx, $key)
+    };
+    ($ctx:expr, $($keys:ident).+ $(, $($args:tt)*)?) => {
+        {
+            let __ctx = $ctx;
+            let __key = $crate::key_builder!(__ctx, $($keys).+);
+            let __key = $crate::build_key_display!(__key $(, $($args)*)?);
+            $crate::render_proxy!(@display @ctx_untracked __ctx, __key)
+        }
     };
 }
 
@@ -394,8 +631,8 @@ macro_rules! tu_display {
 #[macro_export]
 macro_rules! use_i18n_scoped {
     ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::use_i18n_scoped!{$($tt)*}
-    };
+        $crate::scope_i18n!(use_i18n(), $($tt)*)
+    }
 }
 
 /// Scope a context to the given keys
@@ -448,8 +685,17 @@ macro_rules! use_i18n_scoped {
 /// ```
 #[macro_export]
 macro_rules! scope_i18n {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::scope_i18n!{$($tt)*}
+    ($ctx:expr, scope = $scope:ty) => {
+        $crate::context::I18nContext::scope::<$scope>($ctx)
+    };
+    ($ctx:expr, scope = $scope:ty, $($keys:ident).+) => {
+        $crate::__private::scope_ctx_util(
+            $crate::context::I18nContext::scope::<$scope>($ctx),
+            |_k| _k $(.$keys())+
+        )
+    };
+    ($ctx:expr, $($keys:ident).+) => {
+        $crate::__private::scope_ctx_util($ctx, |_k| _k $(.$keys())+)
     };
 }
 
@@ -505,8 +751,17 @@ macro_rules! scope_i18n {
 /// ```
 #[macro_export]
 macro_rules! scope_locale {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::scope_locale!{$($tt)*}
+    ($loc:expr, scope = $scope:ty) => {
+        $crate::Locale::scope::<$scope>($loc)
+    };
+    ($loc:expr, scope = $scope:ty, $($keys:ident).+) => {
+        $crate::__private::scope_locale_util(
+            $crate::Locale::scope::<$scope>($loc),
+            |_k| _k $(.$keys())+
+        )
+    };
+    ($loc:expr, $($keys:ident).+) => {
+        $crate::__private::scope_locale_util($loc, |_k| _k $(.$keys())+)
     };
 }
 
@@ -528,7 +783,7 @@ macro_rules! scope_locale {
 /// use i18n::*;
 ///
 /// // With a locale:
-/// type NamespaceScope = define_scope!(i18n, namespace); // first arg is the path to the i18n module
+/// type NamespaceScope = define_scope!(Locale, namespace); // first arg is the `Locale` enum
 ///
 /// let locale = Locale::en;
 /// let namespace_locale = locale.scope::<NamespaceScope>();
@@ -537,17 +792,30 @@ macro_rules! scope_locale {
 /// td!(namespace_locale, subkeys.value);
 ///
 /// // With a context:
-/// type SubkeysScope = define_scope!(i18n, namespace.subkeys);
+/// type SubkeysScope = define_scope!(Locale, namespace.subkeys);
 ///
-/// let i18n = use_i18n_scoped::<SubkeysScope>();
-/// // let i18n = use_i18n().scope::<SubkeysScope>()
+/// let i18n = use_i18n_scoped!(scope = SubkeysScope);
 ///
 /// t!(i18n, value);
 /// ```
 #[macro_export]
 macro_rules! define_scope {
-    ($($tt:tt)*) => {
-        $crate::__private::macros_reexport::define_scope!{$($tt)*}
+    ($scope:ty, $key:ident $(, $($path:tt)*)?) => {
+        <
+            <$scope as $crate::scopes::Scope>::Keys as $crate::scopes::markers::SubkeyKeyAccessor<
+                $crate::__private::macros_reexport::scope_marker!(
+                    $key $(, $($path)*)?
+                )
+            >
+        >::Inner
+    };
+    ($scope:ty, $first_key:ident $(.$keys:ident)+ $(, $($path:tt)*)?) => {
+        $crate::define_scope!(
+            $crate::define_scope!(
+                $scope, $first_key $(, $($path)*)?
+            ),
+            $($keys).+ $(, $($path)*)?
+        )
     };
 }
 
@@ -984,5 +1252,88 @@ macro_rules! td_plural_ordinal {
 macro_rules! tu_plural_ordinal {
     ($($tt:tt)*) => {
         $crate::__private::macros_reexport::tu_plural_ordinal!{$($tt)*}
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! render_inner {
+    (@ctx $ctx: expr, $key: expr) => {{
+        let (__key, __ctx) = ($key, $ctx);
+        move || {
+            $crate::keys::Key::render(
+                core::clone::Clone::clone(&__key),
+                $crate::I18nContext::get_locale(__ctx),
+            )
+        }
+    }};
+    (@ctx_untracked $ctx: expr, $key: expr) => {{
+        let (__key, __ctx) = ($key, $ctx);
+        move || {
+            $crate::keys::Key::render(
+                core::clone::Clone::clone(&__key),
+                $crate::I18nContext::get_locale_untracked(__ctx),
+            )
+        }
+    }};
+    (@loc $loc: expr, $key: expr) => {{
+        let (__key, __loc) = ($key, $loc);
+        move || {
+            $crate::keys::Key::render(
+                core::clone::Clone::clone(&__key),
+                $crate::Locale::to_base_locale(__loc),
+            )
+        }
+    }};
+    (@defaulted $key: expr) => {{
+        let __key = $key;
+        move || $crate::keys::Key::render(core::clone::Clone::clone(&__key), Default::default())
+    }};
+
+    (@display @ctx $ctx: expr, $key: expr) => {
+        $crate::keys::Key::to_display($key, $crate::I18nContext::get_locale($ctx))
+    };
+    (@display @ctx_untracked $ctx: expr, $key: expr) => {
+        $crate::keys::Key::to_display($key, $crate::I18nContext::get_locale_untracked($ctx))
+    };
+    (@display @loc $loc: expr, $key: expr) => {
+        $crate::keys::Key::to_display($key, $crate::Locale::to_base_locale($loc))
+    };
+    (@display @defaulted $key: expr) => {
+        $crate::keys::Key::to_display($key, Default::default())
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(not(feature = "dynamic_load"))]
+macro_rules! render_proxy {
+    ($($tt:tt)*) => {
+        $crate::render_inner!($($tt)*)
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(all(feature = "dynamic_load", not(feature = "ssr")))]
+macro_rules! render_proxy {
+    ($($tt:tt)*) => {
+        $crate::__private::future_renderer($crate::render_inner!($($tt)*))
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[cfg(all(feature = "dynamic_load", feature = "ssr"))]
+macro_rules! render_proxy {
+    (@display $($tt:tt)*) => {
+        {
+            let d = $crate::render_inner!(@display $($tt)*);
+            move async { d }
+        }
+    };
+
+    ($($tt:tt)*) => {
+        $crate::render_inner!($($tt)*)
     };
 }
