@@ -8,7 +8,7 @@ use leptos::{
     tachys::{html::directive::IntoDirective, reactive_graph::OwnedView},
 };
 use leptos_meta::{Html, provide_meta_context};
-use leptos_use::UseCookieOptions;
+use leptos_use_cookie::UseCookieOptions;
 use std::borrow::Cow;
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
     locale_traits::*,
 };
 
-pub use leptos_use::UseLocalesOptions;
+pub use leptos_use_locales::UseLocalesOptions;
 
 #[cfg(feature = "unified_contexts")]
 #[derive(Debug, Clone, Copy)]
@@ -247,9 +247,9 @@ where
     /// Give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
     #[builder(into)]
     pub cookie_name: Cow<'a, str>,
-    /// Options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
+    /// Options for the cookie, the value is of type `leptos_use_cookie::UseCookieOptions<Locale>` (default to `Default::default`)
     pub cookie_options: CookieOptions<L>,
-    /// Options to pass to `leptos_use::use_locales`.
+    /// Options to pass to `leptos_use_locales::use_locales`.
     pub ssr_lang_header_getter: UseLocalesOptions,
 }
 
@@ -274,7 +274,10 @@ pub fn init_i18n_context_with_options<L: Locale>(options: I18nContextOptions<L>)
         ssr_lang_header_getter,
     } = options;
     let (lang_cookie, set_lang_cookie) = if ENABLE_COOKIE && enable_cookie {
-        leptos_use::use_cookie_with_options::<L, FromToStringCodec>(&cookie_name, cookie_options)
+        leptos_use_cookie::use_cookie_with_options::<L, FromToStringCodec>(
+            &cookie_name,
+            cookie_options,
+        )
     } else {
         let (lang_cookie, set_lang_cookie) = signal(None);
         (lang_cookie.into(), set_lang_cookie)
@@ -345,7 +348,7 @@ fn init_subcontext_with_options<L: Locale>(
     ssr_lang_header_getter: Option<UseLocalesOptions>,
 ) -> I18nContext<L> {
     let (lang_cookie, set_lang_cookie) = match cookie_name {
-        Some(cookie_name) if ENABLE_COOKIE => leptos_use::use_cookie_with_options::<
+        Some(cookie_name) if ENABLE_COOKIE => leptos_use_cookie::use_cookie_with_options::<
             L,
             FromToStringCodec,
         >(&cookie_name, cookie_options),
