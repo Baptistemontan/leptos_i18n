@@ -122,8 +122,8 @@ The `I18nContextProvider` component accepts multiple props, all optional (except
 - `set_dir_attr_on_html`: whether to set the "dir" attribute on the root `<html>` element (default to true)
 - `enable_cookie`: should set a cookie to keep track of the locale when the page reloads (default to true) (do nothing without the "cookie" feature)
 - `cookie_name`: give a custom name to the cookie (default to the crate default value) (do nothing without the "cookie" feature or if `enable_cookie` is false)
-- `cookie_options`: options for the cookie, the value is of type `leptos_use::UseCookieOptions<Locale>` (default to `Default::default`)
-- `ssr_lang_header_getter`: options for reading the `Accept-Language` header, the value is of type `leptos_use::UseLocalesOptions` (default to `Default::default`)
+- `cookie_options`: options for the cookie, the value is of type `leptos_use_cookie::UseCookieOptions<Locale>` (default to `Default::default`)
+- `ssr_lang_header_getter`: options for reading the `Accept-Language` header, the value is of type `leptos_use_locales::UseLocalesOptions` (default to `Default::default`)
 
 ## Note on Island
 
